@@ -3,34 +3,65 @@ pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/utils/math/Math.sol";
 
-import "../test/DataLayrTestHelper.t.sol";
+import "../test/EigenLayrTestHelper.t.sol";
 
 import "../contracts/libraries/BytesLib.sol";
 
 import "./mocks/MiddlewareRegistryMock.sol";
+import "./mocks/MiddlewareVoteWeigherMock.sol";
+import "./mocks/ServiceManagerMock.sol";
 import "./mocks/ServiceManagerMock.sol";
 
-contract DelegationTests is DataLayrTestHelper {
+contract DelegationTests is EigenLayrTestHelper {
     using BytesLib for bytes;
     using Math for uint256;
 
-    uint256[] sharesBefore;
-    uint256[] balanceBefore;
-    uint256[] priorTotalShares;
-    uint256[] strategyTokenBalance;
-
     uint256 public PRIVATE_KEY = 420;
 
-    // packed info used to help handle stack-too-deep errors
-    struct DataForTestWithdrawal {
-        IInvestmentStrategy[] delegatorStrategies;
-        uint256[] delegatorShares;
-        IInvestmentManager.WithdrawerAndNonce withdrawerAndNonce;
+    uint32 serveUntil = 100;
+
+    ServiceManagerMock public serviceManager;
+    MiddlewareVoteWeigherMock public voteWeigher;
+    MiddlewareVoteWeigherMock public voteWeigherImplementation;
+
+    function setUp() public virtual override {
+        EigenLayrDeployer.setUp();
+
+        serviceManager = new ServiceManagerMock(investmentManager);
+
+        voteWeigher = MiddlewareVoteWeigherMock(
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
+        );
+
+        voteWeigherImplementation = new MiddlewareVoteWeigherMock(delegation, investmentManager, serviceManager);
+
+        {
+            uint96 multiplier = 1e18;
+            uint8 _NUMBER_OF_QUORUMS = 2;
+            uint256[] memory _quorumBips = new uint256[](_NUMBER_OF_QUORUMS);
+            // split 60% ETH quorum, 40% EIGEN quorum
+            _quorumBips[0] = 6000;
+            _quorumBips[1] = 4000;
+            VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[] memory ethStratsAndMultipliers =
+                new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](1);
+            ethStratsAndMultipliers[0].strategy = wethStrat;
+            ethStratsAndMultipliers[0].multiplier = multiplier;
+            VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[] memory eigenStratsAndMultipliers =
+                new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](1);
+            eigenStratsAndMultipliers[0].strategy = eigenStrat;
+            eigenStratsAndMultipliers[0].multiplier = multiplier;
+
+            eigenLayrProxyAdmin.upgradeAndCall(
+                TransparentUpgradeableProxy(payable(address(voteWeigher))),
+                address(voteWeigherImplementation),
+                abi.encodeWithSelector(MiddlewareVoteWeigherMock.initialize.selector, _quorumBips, ethStratsAndMultipliers, eigenStratsAndMultipliers)
+            );
+        }
     }
 
     /// @notice testing if an operator can register to themselves.
     function testSelfOperatorRegister() public {
-        _testRegisterAdditionalSelfOperator(signers[0], registrationData[0], ephemeralKeyHashes[0]);
+        _testRegisterAdditionalOperator(signers[0], serveUntil);
     }
 
     /// @notice testing if an operator can delegate to themselves.
@@ -42,8 +73,8 @@ contract DelegationTests is DataLayrTestHelper {
     }
 
     function testTwoSelfOperatorsRegister() public {
-        _testRegisterAdditionalSelfOperator(signers[0], registrationData[0], ephemeralKeyHashes[0]);
-        _testRegisterAdditionalSelfOperator(signers[1], registrationData[1], ephemeralKeyHashes[1]);
+        _testRegisterAdditionalOperator(signers[0], serveUntil);
+        _testRegisterAdditionalOperator(signers[1], serveUntil);
     }
 
     /// @notice registers a fixed address as a delegate, delegates to it from a second address,
@@ -59,52 +90,7 @@ contract DelegationTests is DataLayrTestHelper {
         cheats.assume(ethAmount >= 0 && ethAmount <= 1e18);
         cheats.assume(eigenAmount >= 0 && eigenAmount <= 1e18);
         
-
-        if (!delegation.isOperator(operator)) {
-            _testRegisterAsOperator(operator, IDelegationTerms(operator));
-        }
-
-        uint256[3] memory amountsBefore;
-        amountsBefore[0] = dlReg.weightOfOperator(operator, 0);
-        amountsBefore[1] = dlReg.weightOfOperator(operator, 1);
-        amountsBefore[2] = delegation.operatorShares(operator, wethStrat);
-
-        //making additional deposits to the investment strategies
-        assertTrue(delegation.isNotDelegated(staker) == true, "testDelegation: staker is not delegate");
-        _testWethDeposit(staker, ethAmount);
-        _testDepositEigen(staker, eigenAmount);
-        _testDelegateToOperator(staker, operator);
-        assertTrue(delegation.isDelegated(staker) == true, "testDelegation: staker is not delegate");
-
-        (IInvestmentStrategy[] memory updatedStrategies, uint256[] memory updatedShares) =
-            investmentManager.getDeposits(staker);
-
-        {
-            uint256 stakerEthWeight = investmentManager.investorStratShares(staker, updatedStrategies[0]);
-            uint256 stakerEigenWeight = investmentManager.investorStratShares(staker, updatedStrategies[1]);
-
-            uint256 operatorEthWeightAfter = dlReg.weightOfOperator(operator, 0);
-            uint256 operatorEigenWeightAfter = dlReg.weightOfOperator(operator, 1);
-
-            assertTrue(
-                operatorEthWeightAfter - amountsBefore[0] == stakerEthWeight,
-                "testDelegation: operatorEthWeight did not increment by the right amount"
-            );
-            assertTrue(
-                operatorEigenWeightAfter - amountsBefore[1] == stakerEigenWeight,
-                "Eigen weights did not increment by the right amount"
-            );
-        }
-        {
-            IInvestmentStrategy _strat = wethStrat;
-            // IInvestmentStrategy _strat = investmentManager.investorStrats(staker, 0);
-            assertTrue(address(_strat) != address(0), "investorStrats not updated correctly");
-
-            assertTrue(
-                delegation.operatorShares(operator, _strat) - updatedShares[0] == amountsBefore[2],
-                "ETH operatorShares not updated correctly"
-            );
-        }
+        _testDelegation(operator, staker, ethAmount, eigenAmount, voteWeigher);
     }
 
     /// @notice tests delegation to EigenLayr via an ECDSA signatures - meta transactions are the future bby
@@ -191,12 +177,12 @@ contract DelegationTests is DataLayrTestHelper {
         cheats.assume(staker != operator);
 
         cheats.assume(numStratsToAdd > 0 && numStratsToAdd <= 20);
-        uint96 operatorEthWeightBefore = dlReg.weightOfOperator(operator, 0);
-        uint96 operatorEigenWeightBefore = dlReg.weightOfOperator(operator, 1);
+        uint96 operatorEthWeightBefore = voteWeigher.weightOfOperator(operator, 0);
+        uint96 operatorEigenWeightBefore = voteWeigher.weightOfOperator(operator, 1);
         _testRegisterAsOperator(operator, IDelegationTerms(operator));
         _testDepositStrategies(staker, 1e18, numStratsToAdd);
 
-        // add strategies to dlRegistry
+        // add strategies to voteWeigher
         uint96 multiplier = 1e18;
         for (uint16 i = 0; i < numStratsToAdd; ++i) {
             VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[] memory ethStratsAndMultipliers =
@@ -205,13 +191,15 @@ contract DelegationTests is DataLayrTestHelper {
                 );
             ethStratsAndMultipliers[0].strategy = strategies[i];
             ethStratsAndMultipliers[0].multiplier = multiplier;
-            dlReg.addStrategiesConsideredAndMultipliers(0, ethStratsAndMultipliers);
+            cheats.startPrank(voteWeigher.serviceManager().owner());
+            voteWeigher.addStrategiesConsideredAndMultipliers(0, ethStratsAndMultipliers);
+            cheats.stopPrank();
         }
 
         _testDepositEigen(staker, 1e18);
         _testDelegateToOperator(staker, operator);
-        uint96 operatorEthWeightAfter = dlReg.weightOfOperator(operator, 0);
-        uint96 operatorEigenWeightAfter = dlReg.weightOfOperator(operator, 1);
+        uint96 operatorEthWeightAfter = voteWeigher.weightOfOperator(operator, 0);
+        uint96 operatorEigenWeightAfter = voteWeigher.weightOfOperator(operator, 1);
         assertTrue(
             operatorEthWeightAfter > operatorEthWeightBefore, "testDelegation: operatorEthWeight did not increase!"
         );
@@ -248,162 +236,21 @@ contract DelegationTests is DataLayrTestHelper {
         cheats.stopPrank();
     }
 
-    //testing inclusion of nonsigners in DLN quorum, ensuring that nonsigner inclusion proof is working correctly.
-    function testForNonSigners(uint256 ethAmount, uint256 eigenAmount) public {
-        cheats.assume(ethAmount > 0 && ethAmount < 1e18);
-        cheats.assume(eigenAmount > 0 && eigenAmount < 1e10);
+    function _testRegisterAdditionalOperator(address sender, uint32 _serveUntil) internal {
+        //register as both ETH and EIGEN operator
+        uint256 wethToDeposit = 1e18;
+        uint256 eigenToDeposit = 1e10;
+        _testWethDeposit(sender, wethToDeposit);
+        _testDepositEigen(sender, eigenToDeposit);
+        _testRegisterAsOperator(sender, IDelegationTerms(sender));
 
-        // address operator = signers[0];
-        uint8 operatorType = 3;
-        _testInitiateDelegation(0, eigenAmount, ethAmount);
-        _testRegisterBLSPubKey(0);
-        _testRegisterOperatorWithDataLayr(0, operatorType, testEphemeralKey, testSocket);
+        cheats.startPrank(sender);
 
-        NonSignerPK memory nonsignerPK;
-        RegistrantAPK memory registrantAPK;
-        SignerAggSig memory signerAggSig;
+        //whitelist the serviceManager to slash the operator
+        slasher.optIntoSlashing(address(serviceManager));
 
-        nonsignerPK.xA0 = (uint256(10245738255635135293623161230197183222740738674756428343303263476182774511624));
-        nonsignerPK.xA1 = (uint256(10281853605827367652226404263211738087634374304916354347419537904612128636245));
-        nonsignerPK.yA0 = (uint256(3091447672609454381783218377241231503703729871039021245809464784750860882084));
-        nonsignerPK.yA1 = (uint256(18210007982945446441276599406248966847525243540006051743069767984995839204266));
+        voteWeigher.registerOperator(sender, _serveUntil);
 
-        registrantAPK.apk0 = uint256(20820493588973199354272631301248587752629863429201347184003644368113679196121);
-        registrantAPK.apk1 = uint256(18507428821816114421698399069438744284866101909563082454551586195885282320634);
-        registrantAPK.apk2 = uint256(1263326262781780932600377484793962587101562728383804037421955407439695092960);
-        registrantAPK.apk3 = uint256(3512517006108887301063578607317108977425754510174956792003926207778790018672);
-        
-        signerAggSig.sigma0 = uint256(20617740300811009543012419127686924884246271121030353570695308863131407887373);
-        signerAggSig.sigma1 = uint256(11071552465919207288683976891087172465162060876240494884992829947249670282179);
-
-
-        uint32 numberOfSigners = 15;
-        _testRegisterSigners(numberOfSigners, false);
-
-        // scoped block helps fix 'stack too deep' errors
-        {
-            uint256 initTime = 1000000001;
-            IDataLayrServiceManager.DataStoreSearchData memory searchData = _testInitDataStore(initTime, address(this), header);
-            uint32 numberOfNonSigners = 1;
-            uint32 dataStoreId = dlsm.taskNumber() - 1;
-
-            bytes memory data = _getCallData(
-                keccak256(
-                    abi.encodePacked(
-                        searchData.metadata.globalDataStoreId,
-                        searchData.metadata.headerHash,
-                        searchData.duration,
-                        initTime,
-                        uint32(0)
-                    )
-                ),
-                numberOfNonSigners,
-                registrantAPK,
-                signerAggSig,
-                nonsignerPK,
-                searchData.metadata.stakesFromBlockNumber,
-                dataStoreId
-            );
-
-            uint256 gasbefore = gasleft();
-
-            dlsm.confirmDataStore(data, searchData);
-
-            emit log_named_uint("gas cost", gasbefore - gasleft());
-        }
-    }
-
-    function _testCompleteQueuedWithdrawalShares(
-        address depositor,
-        IInvestmentStrategy[] memory strategyArray,
-        IERC20[] memory tokensArray,
-        uint256[] memory shareAmounts,
-        address delegatedTo,
-        IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce,
-        uint32 withdrawalStartBlock,
-        uint256 middlewareTimesIndex
-    )
-        internal
-    {
-        cheats.startPrank(withdrawerAndNonce.withdrawer);
-
-        for (uint256 i = 0; i < strategyArray.length; i++) {
-            sharesBefore.push(investmentManager.investorStratShares(withdrawerAndNonce.withdrawer, strategyArray[i]));
-
-        }
-        // emit log_named_uint("strategies", strategyArray.length);
-        // emit log_named_uint("tokens", tokensArray.length);
-        // emit log_named_uint("shares", shareAmounts.length);
-        // emit log_named_address("depositor", depositor);
-        // emit log_named_uint("withdrawalStartBlock", withdrawalStartBlock);
-        // emit log_named_address("delegatedAddress", delegatedTo);
-        // emit log("************************************************************************************************");
-
-        IInvestmentManager.QueuedWithdrawal memory queuedWithdrawal = IInvestmentManager.QueuedWithdrawal({
-            strategies: strategyArray,
-            tokens: tokensArray,
-            shares: shareAmounts,
-            depositor: depositor,
-            withdrawerAndNonce: withdrawerAndNonce,
-            withdrawalStartBlock: withdrawalStartBlock,
-            delegatedAddress: delegatedTo
-        });
-
-        // complete the queued withdrawal
-        investmentManager.completeQueuedWithdrawal(queuedWithdrawal, middlewareTimesIndex, false);
-
-        for (uint256 i = 0; i < strategyArray.length; i++) {
-            require(
-                investmentManager.investorStratShares(withdrawerAndNonce.withdrawer, strategyArray[i])
-                    == sharesBefore[i] + shareAmounts[i],
-                "_testCompleteQueuedWithdrawalShares: withdrawer shares not incremented"
-            );
-        }
-        cheats.stopPrank();
-    }
-    function _testCompleteQueuedWithdrawalTokens(
-        address depositor,
-        IInvestmentStrategy[] memory strategyArray,
-        IERC20[] memory tokensArray,
-        uint256[] memory shareAmounts,
-        address delegatedTo,
-        IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce,
-        uint32 withdrawalStartBlock,
-        uint256 middlewareTimesIndex
-    )
-        internal
-    {
-        cheats.startPrank(withdrawerAndNonce.withdrawer);
-
-        for (uint256 i = 0; i < strategyArray.length; i++) {
-            balanceBefore.push(strategyArray[i].underlyingToken().balanceOf(withdrawerAndNonce.withdrawer));
-            priorTotalShares.push(strategyArray[i].totalShares());
-            strategyTokenBalance.push(strategyArray[i].underlyingToken().balanceOf(address(strategyArray[i])));
-        }
-
-        
-        IInvestmentManager.QueuedWithdrawal memory queuedWithdrawal = IInvestmentManager.QueuedWithdrawal({
-            strategies: strategyArray,
-            tokens: tokensArray,
-            shares: shareAmounts,
-            depositor: depositor,
-            withdrawerAndNonce: withdrawerAndNonce,
-            withdrawalStartBlock: withdrawalStartBlock,
-            delegatedAddress: delegatedTo
-        });
-        // complete the queued withdrawal
-        investmentManager.completeQueuedWithdrawal(queuedWithdrawal, middlewareTimesIndex, true);
-
-        for (uint256 i = 0; i < strategyArray.length; i++) {
-            //uint256 strategyTokenBalance = strategyArray[i].underlyingToken().balanceOf(address(strategyArray[i]));
-            uint256 tokenBalanceDelta = strategyTokenBalance[i] * shareAmounts[i] / priorTotalShares[i];
-
-            require(
-                strategyArray[i].underlyingToken().balanceOf(withdrawerAndNonce.withdrawer)
-                    == balanceBefore[i] + tokenBalanceDelta,
-                "_testCompleteQueuedWithdrawalTokens: withdrawer balance not incremented"
-            );
-        }
         cheats.stopPrank();
     }
 }
