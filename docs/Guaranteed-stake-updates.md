@@ -4,6 +4,8 @@ EigenLayer uses a 'push' model for it's own core contracts -- when a staker queu
 
 ## Storage Model
 
+Below, a whitelisted contract referrs to a contract that is a part of a middleware that is allowed to freeze the opted in operators.
+
 For each operator, we need to store:
 
 1. A `mapping(address => mapping(address => MiddlewareDetails))`, from operator address to contract whitelisted by the operator to slash them, to details about that contract formatted as
