@@ -3,15 +3,13 @@ pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/utils/math/Math.sol";
 
-import "../test/DataLayrTestHelper.t.sol";
-
 import "../contracts/libraries/BytesLib.sol";
 
 import "./mocks/EigenDARegistryMock.sol";
 import "./mocks/ServiceManagerMock.sol";
-import "./Delegation.t.sol";
+import "./DataLayrTestHelper.t.sol";
 
-contract EphemeralKeyTests is DelegationTests {
+contract EphemeralKeyRegistryTests is DataLayrTestHelper {
 
     EigenDARegistryMock public eigenDAReg;
     EigenDARegistryMock public eigenDARegImplementation;
@@ -37,7 +35,6 @@ contract EphemeralKeyTests is DelegationTests {
         cheats.stopPrank();
         _;
     }
-
 
     function initializeMiddlewares() public {
         eigenDASM = new ServiceManagerMock(investmentManager);
@@ -131,7 +128,7 @@ contract EphemeralKeyTests is DelegationTests {
             internal 
         {
 
-        testDelegation(operator, depositor, ethAmount, eigenAmount);
+        _testDelegation(operator, depositor, ethAmount, eigenAmount, dlReg);
 
         cheats.startPrank(operator);
         investmentManager.slasher().optIntoSlashing(address(eigenDASM));

@@ -4,7 +4,7 @@ pragma solidity ^0.8.9;
 import "./DataLayrTestHelper.t.sol";
 import "../contracts/libraries/BytesLib.sol";
 
-contract RegistrationTests is DataLayrTestHelper {
+contract DataLayrRegistrationTests is DataLayrTestHelper {
     using BytesLib for bytes;
 
     /// @notice This test ensures that the optimistic flow for BLS registration 

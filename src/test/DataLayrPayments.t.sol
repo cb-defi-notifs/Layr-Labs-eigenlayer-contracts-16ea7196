@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/utils/math/Math.sol";
 
 import "../test/DataLayrTestHelper.t.sol";
 
-contract PaymentsTests is DataLayrTestHelper {
+contract DataLayrPaymentsTests is DataLayrTestHelper {
     using BytesLib for bytes;
     using Math for uint256;
 

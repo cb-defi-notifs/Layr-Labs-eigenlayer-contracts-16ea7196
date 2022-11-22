@@ -40,12 +40,12 @@ contract MiddlewareRegistryMock is IRegistry, DSTest{
         serviceManager.recordStakeUpdate(operator, blockNumber, serveUntil, prevElement);
     }
 
-     function isActiveOperator(address operator) external pure returns (bool) {
+    function isActiveOperator(address operator) external pure returns (bool) {
         if (operator != address(0)){
             return true;
         } else {
             return false;
         }
-     }
+    }
 
 }
