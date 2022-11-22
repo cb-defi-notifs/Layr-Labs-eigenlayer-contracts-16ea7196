@@ -19,7 +19,7 @@ To handle upgradability for the EigenPods as withdrawal specs get cleared up, we
 
 ### Staking Beacon Chain ETH via an EigenPod
 In order to stake in the Beacon Chain with EigenLayer, a staker can call the `stake()` function in the `EigenPodManager`. 
-```solidity=
+```solidity
     function stake(
         bytes calldata pubkey, 
         bytes calldata signature, 
@@ -31,7 +31,7 @@ This function deploys an `EigenPod` contract and inititates a Beacon Chain depos
 ## Proving Beacon Chain Balance
 Validators will prove their withdrawal credentials are pointed to their EigenPod against the most recent state root posted by the oracle via a merkle proof. We will also have an oracle that may also submit balance updates via merkle proofs (or perhaps via authority) for any validators that are slashed. These proofs are in the form of an enshrined "beaconChainETH" strategy.  This verification is done via the `verifyCorrectWithdrawalCredentials` function:
 
-```solidity=
+```solidity
 function verifyCorrectWithdrawalCredentials(
         bytes calldata pubkey, 
         bytes32 beaconStateRoot, 
@@ -42,19 +42,17 @@ function verifyCorrectWithdrawalCredentials(
 ### Restaking Beacon Chain ETH
 Once a staker has deployed an EigenPod and initiated a Beacon Chain deposit, they have the option to restake their deposit via EigenLayer by calling the `restakeBeaconChainETH` function.  It is important to note that this function simply accounts for the beacon chain ETH in the InvestmentManager, but does not actively delegate that stake.  
 
-```solidity=
+```solidity
     function restakeBeaconChainETH(
         address podOwner, 
         uint128 amount
     ) external onlyInvestmentManager
 ```
 
-
-
 ## Withdrawals
 
 Whenever a validator triggers a withdrawal (as of now this is from the validating keys) their EigenPod's balance will eventually increase by the amount withdrawn. At that point, the validator will prove their withdrawal against the beacon chain state root via the `verifyBalanceUpdate` function:
-```solidity=
+```solidity
 function verifyBalanceUpdate(
         bytes calldata pubkey, 
         bytes32 beaconStateRoot, 
