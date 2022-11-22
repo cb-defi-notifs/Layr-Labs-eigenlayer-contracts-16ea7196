@@ -110,9 +110,9 @@ abstract contract BLSSignatureChecker {
      * uint32 taskNumberToConfirm
      * uint32 numberOfNonSigners,
      * {uint256[2], apkIndex}[numberOfNonSigners] the public key and the index to query of `pubkeyHashToStakeHistory` for each nonsigner,
-     * uint32 stakeIndex is the index in the stake history from which quorum stake info is retreived.
      * uint32 apkIndex, the index in the `apkUpdates` array at which we want to load the aggregate public key
-     * uint256[4] apk (aggregate public key),
+     * uint256[2] apkG1 (G1 aggregate public key),
+     * uint256[4] apkG2 (G2 aggregate public key),
      * uint256[2] sigma, the aggregate signature itself
      * >
      * 
@@ -140,7 +140,7 @@ abstract contract BLSSignatureChecker {
         uint256 placeholder;
 
         uint256 pointer;
-
+        
         assembly {
             pointer := data.offset
             /**
@@ -148,7 +148,7 @@ abstract contract BLSSignatureChecker {
              * calldata' input type, which represents the msgHash for which the disperser is calling `checkSignatures`
              */
             msgHash := calldataload(pointer)
-
+            
             // Get the 6 bytes immediately after the above, which represent the index of the totalStake in the 'totalStakeHistory' array
             placeholder := shr(BIT_SHIFT_totalStakeIndex, calldataload(add(pointer, CALLDATA_OFFSET_totalStakeIndex)))
         }
@@ -158,12 +158,6 @@ abstract contract BLSSignatureChecker {
             stakesBlockNumber :=
                 shr(BIT_SHIFT_stakesBlockNumber, calldataload(add(pointer, CALLDATA_OFFSET_stakesBlockNumber)))
         }
-
-        /**
-         * @dev Instantiate the memory object used for holding the aggregated public key of all operators that are *not* part of the quorum.
-         * @dev Note that we are storing points in G1 as an array rather than the struct to save gas and not use the BN254 library here
-         */
-        uint256[2] memory aggNonSignerPubkey;
 
         // get information on total stakes
         IQuorumRegistry.OperatorStake memory localStakeObject = registry.getTotalStakeFromIndex(placeholder);
@@ -217,9 +211,9 @@ abstract contract BLSSignatureChecker {
                  * @notice retrieving the pubkey of the node in Jacobian coordinates
                  */
                 // pk.X
-                mstore(add(input, 64), calldataload(pointer))
+                mstore(input, calldataload(pointer))
                 // pk.Y
-                mstore(add(input, 96), calldataload(add(pointer, 32)))
+                mstore(add(input, 32), calldataload(add(pointer, 32)))
 
                 /**
                  * @notice retrieving the index of the stake of the operator in pubkeyHashToStakeHistory in
@@ -234,7 +228,7 @@ abstract contract BLSSignatureChecker {
             }
 
             // get pubkeyHash and add it to pubkeyHashes of operators that aren't part of the quorum.
-            bytes32 pubkeyHash = keccak256(abi.encodePacked(input[2], input[3]));
+            bytes32 pubkeyHash = keccak256(abi.encodePacked(input[0], input[1]));
 
             pubkeyHashes[0] = pubkeyHash;
 
@@ -259,8 +253,8 @@ abstract contract BLSSignatureChecker {
             uint32 stakeIndex;
             assembly {
                 /// @notice retrieving the pubkey of the operator that is not part of the quorum
-                mstore(input, calldataload(pointer))
-                mstore(add(input, 32), calldataload(add(pointer, 32)))
+                mstore(add(input, 64), calldataload(pointer))
+                mstore(add(input, 96), calldataload(add(pointer, 32)))
 
                 /**
                  * @notice retrieving the index of the stake of the operator in pubkeyHashToStakeHistory in
@@ -277,14 +271,14 @@ abstract contract BLSSignatureChecker {
             }
 
             // get pubkeyHash and add it to pubkeyHashes of operators that aren't part of the quorum.
-            bytes32 pubkeyHash = keccak256(abi.encodePacked(input[0], input[1]));
+            bytes32 pubkeyHash = keccak256(abi.encodePacked(input[2], input[3]));
 
             //pubkeys should be ordered in ascending order of hash to make proofs of signing or
             // non signing constant time
             /**
              * @dev this invariant is used in forceOperatorToDisclose in ServiceManager.sol
              */
-            require(uint256(pubkeyHash) > uint256(pubkeyHashes[i - 1]), "Pubkey hashes must be in ascending order");
+            require(uint256(pubkeyHash) > uint256(pubkeyHashes[i - 1]), "BLSSignatureChecker.checkSignatures: Pubkey hashes must be in ascending order");
 
             // recording the pubkey hash
             pubkeyHashes[i] = pubkeyHash;
@@ -301,10 +295,10 @@ abstract contract BLSSignatureChecker {
             signedTotals.signedStakeSecondQuorum -= localStakeObject.secondQuorumStake;
              
             // aggregateNonSignerPublicKey = aggregateNonSignerPublicKey + nonSignerPublicKey
-            // (input[2], input[3])        = (input[2], input[3])        + (input[0], input[1])
+            // (input[0], input[1])        = (input[2], input[3])        + (input[0], input[1])
             // solium-disable-next-line security/no-inline-assembly
             assembly {
-                success := staticcall(sub(gas(), 2000), 6, input, 0x80, add(input, 0x40), 0x40)
+                success := staticcall(sub(gas(), 2000), 6, input, 0x80, input, 0x40)
                 // Use "invalid" to make gas estimation work
                 switch success
                 case 0 {
@@ -323,17 +317,17 @@ abstract contract BLSSignatureChecker {
             assembly {
                 //get next 32 bits which would be the apkIndex of apkUpdates in Registry.sol
                 apkIndex := shr(BIT_SHIFT_apkIndex, calldataload(pointer))
-
+                //00000004
                 // Update pointer to account for the 4 bytes specifying the apkIndex
                 pointer := add(pointer, BYTE_LENGTH_apkIndex)
 
                 /**
                  * @notice Get the aggregated publickey at the moment when pre-commit happened
                  * @dev Aggregated pubkey given as part of calldata instead of being retrieved from voteWeigher reduces number of SLOADs
-                 * @dev (input[0], input[1]) is the apk
+                 * @dev (input[2], input[3]) is the apk
                  */
-                mstore(input, calldataload(pointer))
-                mstore(add(input, 32), calldataload(add(pointer, 32)))
+                mstore(add(input, 64), calldataload(pointer))
+                mstore(add(input, 96), calldataload(add(pointer, 32)))
             }
 
             // We have read (32 + 32) = 64 additional bytes of calldata in the above assembly block.
@@ -344,7 +338,7 @@ abstract contract BLSSignatureChecker {
 
             // make sure the caller has provided the correct aggPubKey
             require(
-                IBLSRegistry(address(registry)).getCorrectApkHash(apkIndex, stakesBlockNumber) == keccak256(abi.encodePacked(input[0], input[1])),
+                IBLSRegistry(address(registry)).getCorrectApkHash(apkIndex, stakesBlockNumber) == keccak256(abi.encodePacked(input[2], input[3])),
                 "BLSSignatureChecker.checkSignatures: Incorrect apk provided"
             );
         }
@@ -356,7 +350,7 @@ abstract contract BLSSignatureChecker {
              * operators that are part of the quorum
              */
             // negate aggNonSignerPubkey
-            input[3] = (BLS.FP_MODULUS - input[3]) % BLS.FP_MODULUS;
+            input[1] = (BLS.FP_MODULUS - input[1]) % BLS.FP_MODULUS;
 
             // singerPublicKey      = apk                  + -aggregateNonSignerPublicKey
             // (input[2], input[3]) = (input[0], input[1]) + (input[2], input[3])
@@ -369,6 +363,21 @@ abstract contract BLSSignatureChecker {
 
         // Now, (input[2], input[3]) is the signingPubkey
 
+        // compute H(M) in G1
+        (input[6], input[7]) = BLS.hashToG1(msgHash);
+
+        // Load the G2 public key into (input[8], input[9], input[10], input[11])
+        assembly {
+            mstore(add(input, 288), calldataload(pointer)) //input[9] = pkG2.X1
+            mstore(add(input, 256), calldataload(add(pointer, 32))) //input[8] = pkG2.X0
+            mstore(add(input, 352), calldataload(add(pointer, 64))) //input[11] = pkG2.Y1
+            mstore(add(input, 320), calldataload(add(pointer, 96))) //input[10] = pkG2.Y0
+        }
+
+        unchecked {
+            pointer += BYTE_LENGTH_G2_POINT;
+        }
+
         // Load the G1 signature into (input[0], input[1])
         assembly {
             mstore(input, calldataload(pointer))
@@ -377,21 +386,6 @@ abstract contract BLSSignatureChecker {
 
         unchecked {
             pointer += BYTE_LENGTH_G1_POINT;
-        }
-
-        // compute H(M) in G1
-        (input[6], input[7]) = BLS.hashToG1(msgHash);
-
-        // Load the G2 public key into (input[8], input[9], input[10], input[11])
-        assembly {
-            mstore(add(input, 256), calldataload(pointer))
-            mstore(add(input, 288), calldataload(add(pointer, 32)))
-            mstore(add(input, 320), calldataload(add(pointer, 64)))
-            mstore(add(input, 354), calldataload(add(pointer, 96)))
-        }
-
-        unchecked {
-            pointer += BYTE_LENGTH_G2_POINT;
         }
 
         // generate random challenge for public key equality 
@@ -441,16 +435,14 @@ abstract contract BLSSignatureChecker {
          * @notice now we verify that e(sigma + gamma * pk, -g2)e(H(m) + gamma * g1, pkG2) == 1
          */
         assembly {
-            // check the pairing; if incorrect, revert
-            if iszero(
-                // staticcall address 8 (ecPairing precompile), forward all gas, send 384 bytes (0x180 in hex) = 12 (32-byte) inputs.
-                // store the return data in input[11] (352 bytes / '0x160' in hex), and copy only 32 bytes of return data (since precompile returns boolean)
-                staticcall(not(0), 8, input, 0x180, add(input, 0x160), 0x20)
-            ) { revert(0, 0) }
+            // check the pairing; if incorrect, revert                
+            // staticcall address 8 (ecPairing precompile), forward all gas, send 384 bytes (0x180 in hex) = 12 (32-byte) inputs.
+            // store the return data in input[11] (352 bytes / '0x160' in hex), and copy only 32 bytes of return data (since precompile returns boolean)
+            success := staticcall(sub(gas(), 2000), 8, input, 384, input, 0x20)
         }
-
+        require(success, "BLSSignatureChecker.checkSignatures: pairing precompile call failed");
         // check that the provided signature is correct
-        require(input[11] == 1, "BLSSignatureChecker.checkSignatures: Pairing unsuccessful");
+        require(input[0] == 1, "BLSSignatureChecker.checkSignatures: Pairing unsuccessful");
 
         emit SignatoryRecord(
             msgHash,
