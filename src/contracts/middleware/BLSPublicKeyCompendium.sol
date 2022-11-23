@@ -33,8 +33,8 @@ contract BLSPublicKeyCompendium is IBLSPublicKeyCompendium, DSTest {
     function registerBLSPublicKey(uint256 s, BN254.G1Point memory rPoint, BN254.G1Point memory pubkeyG1, BN254.G2Point memory pubkeyG2) external {
         // calculate -g1
         BN254.G1Point memory nG1 = BN254.negate(BN254.G1Point({X: 1, Y: 2}));
-        // verify a Schnorr signature (s, r) of pubkeyG1
-        // calculate s*-g1 - (R + H(R, P)P) = 0
+        // verify a Schnorr signature (s, R) of pubkeyG1
+        // calculate s*-g1 - (R + H(msg.sender, P, R)*P) = 0
         // which is the Schnorr signature verification equation
         BN254.G1Point memory shouldBeZero = 
             BN254.plus(
