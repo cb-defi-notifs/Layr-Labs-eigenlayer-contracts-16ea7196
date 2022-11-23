@@ -45,7 +45,7 @@ contract DataLayrTests is DSTest, DataLayrTestHelper {
         emit log_named_uint("gas", g - gasleft());
     }
 
-    function testConfirmDataStoreTwelveOperators() public {
+    function testTwelveOperatorsConfirmDataStore() public {
         _testConfirmDataStoreSelfOperators(12);
     }
 

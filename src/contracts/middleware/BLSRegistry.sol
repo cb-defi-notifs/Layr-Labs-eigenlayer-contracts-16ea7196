@@ -16,7 +16,7 @@ import "forge-std/Test.sol";
  * - committing to and finalizing de-registration as an operator
  * - updating the stakes of the operator
  */
-contract BLSRegistry is RegistryBase, IBLSRegistry {
+contract BLSRegistry is RegistryBase, IBLSRegistry, Test {
     using BytesLib for bytes;
 
     // Hash of the zero public key
@@ -126,6 +126,8 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
 
         // the new aggregate public key is the current one added to registering operator's public key
         BN254.G1Point memory newApk = BN254.plus(apk, pk);
+        emit log_named_uint("apkx", newApk.X);
+        emit log_named_uint("apky", newApk.Y);
 
         // record the APK update and get the hash of the new APK
         bytes32 newApkHash = _processApkUpdate(newApk);

@@ -337,6 +337,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         testDeployAndVerifyNewEigenPod(signature, depositDataRoot);
 
 
+
         //*************************DELEGATION+REGISTRATION OF OPERATOR******************************//
         _testDelegation(operator, podOwner);
 
@@ -412,9 +413,11 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         bool receiveAsTokens = true;
         cheats.startPrank(podOwner);
 
+
         investmentManager.completeQueuedWithdrawal(queuedWithdrawal, middlewareTimesIndex, receiveAsTokens);
 
         cheats.stopPrank();
+
 
         require(podOwner.balance - podOwnerBalanceBefore == shareAmounts[0], "podOwner balance not updated correcty");
 

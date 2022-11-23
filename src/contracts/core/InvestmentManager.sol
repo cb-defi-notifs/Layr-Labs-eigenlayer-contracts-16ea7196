@@ -30,7 +30,7 @@ contract InvestmentManager is
     ReentrancyGuardUpgradeable,
     InvestmentManagerStorage,
     Pausable
-    // ,DSTest
+    ,DSTest
 {
     using SafeERC20 for IERC20;
 
@@ -337,6 +337,7 @@ contract InvestmentManager is
             for (uint256 i = 0; i < strategiesLength;) {
                 
                 if (queuedWithdrawal.strategies[i] == beaconChainETHStrategy) {
+
                     // if the strategy is the beaconchaineth strat, then withdraw through the EigenPod flow
                     eigenPodManager.withdrawBeaconChainETH(queuedWithdrawal.depositor, msg.sender, queuedWithdrawal.shares[i]);
                 } else {

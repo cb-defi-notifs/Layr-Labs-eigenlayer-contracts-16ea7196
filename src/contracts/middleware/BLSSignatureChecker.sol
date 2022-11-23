@@ -7,12 +7,13 @@ import "../libraries/BytesLib.sol";
 import "../libraries/DataStoreUtils.sol";
 import "../libraries/BLS.sol";
 
+import "forge-std/Test.sol";
 /**
  * @title Used for checking BLS aggregate signatures from the operators of a `BLSRegistry`.
  * @author Layr Labs, Inc.
  * @notice This is the contract for checking the validity of aggregate operator signatures.
  */
-abstract contract BLSSignatureChecker {
+abstract contract BLSSignatureChecker is Test {
     using BytesLib for bytes;
     // DATA STRUCTURES
     /**
@@ -335,6 +336,9 @@ abstract contract BLSSignatureChecker {
             unchecked {
                 pointer += BYTE_LENGTH_G1_POINT;
             }
+
+            emit log_named_bytes32("correctapkhash",IBLSRegistry(address(registry)).getCorrectApkHash(apkIndex, stakesBlockNumber));
+            emit log_named_bytes32("input", keccak256(abi.encodePacked(input[2], input[3])));
 
             // make sure the caller has provided the correct aggPubKey
             require(

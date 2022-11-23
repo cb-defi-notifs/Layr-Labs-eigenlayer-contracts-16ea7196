@@ -464,11 +464,11 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
         if(pushToMiddlewareTimes) {
             operatorToMiddlewareTimes[operator].push(next);
         }
-        emit log("____________________________________________");
-        emit log_named_uint("next.latestServeUntil", next.latestServeUntil);
-        emit log_named_uint("next.leastRecentUpdateBlock", next.leastRecentUpdateBlock);
-        emit log_named_uint("updateBlock", updateBlock);
-        emit log("____________________________________________");
+        // emit log("____________________________________________");
+        // emit log_named_uint("next.latestServeUntil", next.latestServeUntil);
+        // emit log_named_uint("next.leastRecentUpdateBlock", next.leastRecentUpdateBlock);
+        // emit log_named_uint("updateBlock", updateBlock);
+        // emit log("____________________________________________");
 
     }
 

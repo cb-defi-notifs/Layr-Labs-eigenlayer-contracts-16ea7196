@@ -249,6 +249,7 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
 
         //register all the operators
         for (uint256 i = 0; i < numSigners; ++i) {
+            emit log_named_uint("i", i);
             _testRegisterAdditionalSelfOperator(i);
         }
 
@@ -270,9 +271,11 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
         IDataLayrServiceManager.DataStoreSearchData memory searchData = _testInitDataStore(initTime, address(this), header);
 
         uint32 numberOfNonSigners = 0;
-        uint256[4] memory apk;
+        uint256[2] memory apkG1;
+        uint256[4] memory apkG2;
         {
-            (apk[0], apk[1], apk[2], apk[3]) = getAggregatePublicKey(uint256(numSigners));
+            (apkG1[0], apkG1[1]) = getAggregatePublicKeyG1(uint256(numSigners));
+            (apkG2[0], apkG2[1], apkG2[2], apkG2[3]) = getAggregatePublicKeyG2(uint256(numSigners));
         }
         (uint256 sigma_0, uint256 sigma_1) = getSignature(uint256(numSigners), index); //(signatureData[index*2], signatureData[2*index + 1]);
 
@@ -290,6 +293,18 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
          * uint256[2] sigma
          * >
          */
+        
+        
+        emit log_named_bytes32("MSG HASH", 
+            keccak256(
+                abi.encodePacked(
+                    searchData.metadata.globalDataStoreId,
+                    searchData.metadata.headerHash,
+                    searchData.duration,
+                    initTime,
+                    searchData.index
+                )
+            ));
 
         bytes memory data = abi.encodePacked(
             keccak256(
@@ -307,10 +322,12 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
             numberOfNonSigners,
             // no pubkeys here since zero nonSigners for now
             uint32(dlReg.getApkUpdatesLength() - 1),
-            apk[0],
-            apk[1],
-            apk[2],
-            apk[3],
+            apkG1[0],
+            apkG1[1],
+            apkG2[0],
+            apkG2[1],
+            apkG2[2],
+            apkG2[3],
             sigma_0,
             sigma_1
         );
