@@ -109,7 +109,7 @@ abstract contract BLSSignatureChecker {
      * uint32 blockNumber, the blockNumber at which the task was initated
      * uint32 taskNumberToConfirm
      * uint32 numberOfNonSigners,
-     * {uint256[2], apkIndex}[numberOfNonSigners] the public key and the index to query of `pubkeyHashToStakeHistory` for each nonsigner,
+     * {uint256[2] pubkeyG1, uint32 stakeIndex}[numberOfNonSigners] the G1 public key and the index to query of `pubkeyHashToStakeHistory` for each nonsigner,
      * uint32 apkIndex, the index in the `apkUpdates` array at which we want to load the aggregate public key
      * uint256[2] apkG1 (G1 aggregate public key),
      * uint256[4] apkG2 (G2 aggregate public key),
