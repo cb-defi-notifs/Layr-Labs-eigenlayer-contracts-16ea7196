@@ -40,7 +40,7 @@ contract EphemeralKeyRegistryTests is DataLayrTestHelper {
         eigenDASM = new ServiceManagerMock(investmentManager);
 
         eigenDAReg = EigenDARegistryMock(
-            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(dataLayrProxyAdmin), ""))
         );
 
         ephemeralKeyRegistry = new EphemeralKeyRegistry(eigenDAReg, eigenDASM);
@@ -52,7 +52,7 @@ contract EphemeralKeyRegistryTests is DataLayrTestHelper {
              ephemeralKeyRegistry
         );
 
-        eigenLayrProxyAdmin.upgrade(
+        dataLayrProxyAdmin.upgrade(
                 TransparentUpgradeableProxy(payable(address(eigenDAReg))),
                 address(eigenDARegImplementation)
         );
@@ -63,7 +63,7 @@ contract EphemeralKeyRegistryTests is DataLayrTestHelper {
 
     function testSlashStaleEphemeralKey(address operator) public initialized(operator) {
         cheats.assume(operator != address(0));
-        cheats.assume(operator != address(eigenLayrProxyAdmin));
+        cheats.assume(operator != address(dataLayrProxyAdmin));
         cheats.startPrank(address(eigenDAReg));
         ephemeralKeyRegistry.postFirstEphemeralKeyHashes(operator, testEphemeralKeyHash1, testEphemeralKeyHash2);
        
@@ -78,7 +78,7 @@ contract EphemeralKeyRegistryTests is DataLayrTestHelper {
     function testSlashLeakedEphemeralKey(address operator) public initialized(operator) {
         cheats.assume(operator != address(0));
         cheats.startPrank(address(eigenDAReg));
-        cheats.assume(operator != address(eigenLayrProxyAdmin));
+        cheats.assume(operator != address(dataLayrProxyAdmin));
         
         ephemeralKeyRegistry.postFirstEphemeralKeyHashes(operator, testEphemeralKeyHash1, testEphemeralKeyHash2);
        
