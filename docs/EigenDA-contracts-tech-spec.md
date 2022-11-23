@@ -5,7 +5,7 @@ See the introduction of the [DataLayr Technical Documentation](https://hackmd.io
 EigenDA builts directly on top of [EigenLayer](https://hackmd.io/@layr/eigenlayer-tech-spec).
 
 ## Assumptions
-We proceed from the same general assumptions as though outlined in the [EigenLayer technical specification](https://hackmd.io/@layr/eigenlayer-tech-spec). The most relevant assumption for EigenDA is the **Honest Watcher Assumption**.
+We proceed from the same general assumptions as outlined in the [EigenLayer technical specification](https://hackmd.io/@layr/eigenlayer-tech-spec). The most relevant assumption for EigenDA is the **Honest Watcher Assumption**.
 
 ## Creating a DataStore
 ### Introduction
@@ -17,18 +17,18 @@ The DataLayrServiceManager contract serves as the central contract for interacti
 
 
 1. First there is the `initDataStore` workflow which involves:
-    - Notifying the settlement layer that the disperser has asserted the data into DataLayr and is waiting for a signature from the DataLayr operator quorum.
-    - Place into escrow the service fees that the DataLayr operators will receive from the disperser.
+    - Notifying the settlement layer that the disperser has asserted the data into DataLayr and is waiting for signatures from the DataLayr operator quorum,
+    - Placing into escrow the service fees that the DataLayr operators will receive from the disperser.
 
 2. Once the dataStore has been initialized, the disperser calls `confirmDataStore` which involves:
-    * Notifying that signatures on the dataStore from quorum of DataLayr nodes have been obtained,
-     * Check that the aggregate signature is valid,
-     * Check whether quorum has been achieved or not.
+    * Notifying that signatures for a given dataStore have been obtained from a quorum of DataLayr nodes,
+     * Checking that the aggregate signature is valid,
+     * Checking whether a sufficient quorum has been achieved or not.
 
 ### PaymentManager
 The PaymentManager contract manages a middleware's payments.  These payments are made per "task", usually over multiple tasks.  Specifically, there are several key functionalities this contract performs.  They are as follows:
-- Payments to operators are split based on terms set by the specific middleware. Due to the (infeasible) complexity of doing these calculations on chain, payments are "rolled up"...the process is as follows. Nodes make claims on the payment that they are owed since their last payment.  In case of a fraudulent payment claim, the claimer must put up collateral to allow for slashing conditions.  
-- Once a payment has been inititated by an operator, a challenger can challenge a payment by initiating an interactive fraud proof. In this fraud proof,  the challenger and the defender work together to prove an invalid payment request. The challenger repeatedly requests the defender to bisect their requested payment into two separate payments, each over half of the tasks.  Then the challenger can pick which half they disagree with.  The process continues until they settle upon the single task for which the payment is disputed - the disputed payment is then resolved on chain.
+- Payments to operators are split based on terms set by the specific middleware. Due to the (infeasible) complexity of doing these calculations on chain, tasks (and their respective fees) are "rolled up" into a single large "due payment". Nodes themselves claim the amount that they are owed since their last  "rolled up" payment. To protect from fraudulent payment claims, claimants must put up collateral to allow for slashing.
+- Once a payment has been initiated by an operator, a challenger can challenge a payment by initiating an interactive fraud proof. In this fraud proof,  the challenger and the defender work together to prove an invalid payment request. The challenger repeatedly requests the defender to bisect their requested payment into two separate payments, each over half of the tasks.  Then the challenger can pick which half they disagree with.  The process continues until they settle upon the single task for which the payment is disputed - the disputed payment is then resolved on chain.
 
 ### DataLayrPaymentManager
 The DataLayrPaymentManager contract manages all DataLayr-related payments.  These payments are made per dataStore, usually over multiple dataStores. This contract inherits all of its functionalityfrom the `PaymentManager` contract. In addition to inherited methods from `PaymentManager`, the `DataLayrPaymentManager` contract specifies a `respondToPaymentChallengeFinal` method which specifies a DataLayr-specific final step to the payment challenge flow.
@@ -36,14 +36,14 @@ The DataLayrPaymentManager contract manages all DataLayr-related payments.  Thes
 ### DataLayrBombVerifier
 The `DataLayrBombVerifier` is the core slashing module of DataLayr. Using Dankrad's Proofs of Custody, DataLayr is able to slash operators who are provably not storing their data.
 
-If a challenger proves that a operator wasn't storing data at certain time, they prove the following 
+A challenger proves that an operator wasn't storing data at certain time by attesting to the four following claims:
 
 1. The existence of a certain datastore referred to as the DETONATION datastore
 2. The existence of a certain datastore referred to as the BOMB datastore, which the operator has certified to storing, that is chosen on-chain via the result of a function of the DETONATION datastore's header hash
 3. The data that the operator was storing for the BOMB datastore, when hashed with the operator's ephemeral key and the DETONATION datastore's header hash, is below a certain threshold defined by the `DataLayrBombVerifier` contract
 4. The operator certified the storing of DETONATION datastore
 
-If these 4 points are proved, the operator is slashed. The operator should be checking the following above requirements against each new header hash it receives in order to not be slashed.
+If these 4 points are proved, the operator is slashed. The operator should be checking the following above requirements against each new header hash it receives in order to prevent being slashed.
 
 ### VoteWeigherBase
 The VoteWeigherBase contract is a minimal contract designed to define "vote weighing functions" for an arbitrary number of quorums, for a single middleware. The number of quorums and `repository` contract for the middleware are defined (immutably) at construction, while the weighing functions themselves can be modified by the `owner` of the `repository` contract.
