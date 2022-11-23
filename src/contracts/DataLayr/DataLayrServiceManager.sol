@@ -72,6 +72,9 @@ contract DataLayrServiceManager is Initializable, OwnableUpgradeable, DataLayrSe
     /// @notice Keeps track of the number of DataStores for each duration, the total number of DataStores, and the `latestTime` until which operators must serve.
     DataStoresForDuration public dataStoresForDuration;
 
+    /// @notice Address that has exclusive power to adjust the `feePerBytePerTime` parameter. This address can be set by the contract owner.
+    address public feeSetter;
+
     // EVENTS
     event InitDataStore(
         address feePayer,
@@ -99,6 +102,8 @@ contract DataLayrServiceManager is Initializable, OwnableUpgradeable, DataLayrSe
 
     event AdversaryThresholdBasisPointsUpdated(uint16 adversaryThresholdBasisPoints);
 
+    event FeeSetterChanged(address previousAddress, address newAddress);
+
     modifier checkValidThresholds(uint16 _quorumThresholdBasisPoints, uint16 _adversaryThresholdBasisPoints) {
         // sanity checks on inputs
         require(_quorumThresholdBasisPoints >= MIN_THRESHOLD_BIPS && _quorumThresholdBasisPoints <= MAX_THRESHOLD_BIPS,
@@ -113,6 +118,12 @@ contract DataLayrServiceManager is Initializable, OwnableUpgradeable, DataLayrSe
     /// @notice when applied to a function, ensures that the function is only callable by the `registry`.
     modifier onlyRegistry() {
         require(msg.sender == address(registry), "onlyRegistry");
+        _;
+    }
+
+    /// @notice when applied to a function, ensures that the function is only callable by the `feeSetter`.
+    modifier onlyFeeSetter() {
+        require(msg.sender == feeSetter, "onlyFeeSetter");
         _;
     }
 
@@ -143,7 +154,8 @@ contract DataLayrServiceManager is Initializable, OwnableUpgradeable, DataLayrSe
         address initialOwner,
         uint16 _quorumThresholdBasisPoints,
         uint16 _adversaryThresholdBasisPoints,
-        uint256 _feePerBytePerTime
+        uint256 _feePerBytePerTime,
+        address _feeSetter
     )
         public
         initializer
@@ -154,10 +166,12 @@ contract DataLayrServiceManager is Initializable, OwnableUpgradeable, DataLayrSe
         dataStoresForDuration.dataStoreId = 1;
         dataStoresForDuration.latestTime = 1;
         _setFeePerBytePerTime(_feePerBytePerTime);
+        _setFeeSetter(_feeSetter);
         quorumThresholdBasisPoints = _quorumThresholdBasisPoints;
         adversaryThresholdBasisPoints = _adversaryThresholdBasisPoints;
     }
 
+    /// @notice Used by DataLayr governance to adjust the value of the `quorumThresholdBasisPoints` variable.
     function setQuorumThresholdBasisPoints(uint16 _quorumThresholdBasisPoints) 
         external 
         onlyOwner 
@@ -167,13 +181,22 @@ contract DataLayrServiceManager is Initializable, OwnableUpgradeable, DataLayrSe
         emit QuorumThresholdBasisPointsUpdated(quorumThresholdBasisPoints);
     }
 
-    function setAdversaryThresholdBasisPoints(uint16 _adversaryThresholdBasisPoints) 
+     /// @notice Used by DataLayr governance to adjust the value of the `adversaryThresholdBasisPoints` variable.
+   function setAdversaryThresholdBasisPoints(uint16 _adversaryThresholdBasisPoints) 
         external 
         onlyOwner
         checkValidThresholds(quorumThresholdBasisPoints, _adversaryThresholdBasisPoints) 
     {
         adversaryThresholdBasisPoints = _adversaryThresholdBasisPoints;
         emit AdversaryThresholdBasisPointsUpdated(adversaryThresholdBasisPoints);
+    }
+
+    /// @notice Used by DataLayr governance to adjust the address of the `feeSetter`, which can adjust the value of `feePerBytePerTime`.
+    function setFeeSetter(address _feeSetter)
+        external
+        onlyOwner
+    {
+        _setFeeSetter(_feeSetter);
     }
 
     /**
@@ -494,8 +517,8 @@ contract DataLayrServiceManager is Initializable, OwnableUpgradeable, DataLayrSe
         ISlasher(investmentManager.slasher()).revokeSlashingAbility(operator, unbondedAfter);
     }
 
-    /// @notice Used by DataLayr governance to adjust the value of the `feePerBytePerTime` variable.
-    function setFeePerBytePerTime(uint256 _feePerBytePerTime) external onlyOwner {
+    /// @notice Used by the feeSetter to adjust the value of the `feePerBytePerTime` variable.
+    function setFeePerBytePerTime(uint256 _feePerBytePerTime) external onlyFeeSetter {
         _setFeePerBytePerTime(_feePerBytePerTime);
     }
 
@@ -614,5 +637,10 @@ contract DataLayrServiceManager is Initializable, OwnableUpgradeable, DataLayrSe
     function _setFeePerBytePerTime(uint256 _feePerBytePerTime) internal {
         emit FeePerBytePerTimeSet(feePerBytePerTime, _feePerBytePerTime);
         feePerBytePerTime = _feePerBytePerTime;
+    }
+
+    function _setFeeSetter(address _feeSetter) internal {
+        emit FeeSetterChanged(feeSetter, _feeSetter);
+        feeSetter = _feeSetter;
     }
 }

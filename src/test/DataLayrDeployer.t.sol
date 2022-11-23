@@ -185,7 +185,8 @@ contract DataLayrDeployer is EigenLayrDeployer {
                     dataLayrReputedMultisig,
                     quorumThresholdBasisPoints,
                     adversaryThresholdBasisPoints,
-                    feePerBytePerTime
+                    feePerBytePerTime,
+                    initialOwner
                 )
             );
         }
