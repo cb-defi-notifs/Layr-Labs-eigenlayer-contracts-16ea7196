@@ -46,6 +46,7 @@ contract DataLayrDeployer is EigenLayrDeployer {
     address storer = address(420);
 
     address public dataLayrReputedMultisig = address(this);
+    address public dataLayrTeamMultisig = address(this);
 
     struct NonSignerPK {
         uint256 xA0;
@@ -186,7 +187,7 @@ contract DataLayrDeployer is EigenLayrDeployer {
                     quorumThresholdBasisPoints,
                     adversaryThresholdBasisPoints,
                     feePerBytePerTime,
-                    initialOwner
+                    dataLayrTeamMultisig
                 )
             );
         }
