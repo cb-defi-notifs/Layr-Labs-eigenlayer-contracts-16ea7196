@@ -11,7 +11,7 @@ import "forge-std/Test.sol";
  * @author Layr Labs, Inc.
  */
 contract BLSPublicKeyCompendium is IBLSPublicKeyCompendium, DSTest {
-    //Hash of the zero public key
+    //Hash of the zero public key: BLS.hashG1Point(G1Point(0,0))
     bytes32 internal constant ZERO_PK_HASH = hex"ad3228b676f7d3cd4284a5443f17f1962b36e491b30a40b2405849e597ba5fb5";
 
     /// @notice mapping from operator address to pubkey hash
@@ -32,13 +32,13 @@ contract BLSPublicKeyCompendium is IBLSPublicKeyCompendium, DSTest {
      */
     function registerBLSPublicKey(uint256 s, BN254.G1Point memory rPoint, BN254.G1Point memory pubkeyG1, BN254.G2Point memory pubkeyG2) external {
         // calculate -g1
-        BN254.G1Point memory nG1 = BN254.negate(BN254.G1Point({X: 1, Y: 2}));
-        // verify a Schnorr signature (s, r) of pubkeyG1
-        // calculate s*-g1 - (R + H(R, P)P) = 0
+        BN254.G1Point memory negGeneratorG1 = BN254.negate(BN254.G1Point({X: 1, Y: 2}));
+        // verify a Schnorr signature (s, R) of pubkeyG1
+        // calculate s*-g1 - (R + H(msg.sender, P, R)*P) = 0
         // which is the Schnorr signature verification equation
         BN254.G1Point memory shouldBeZero = 
             BN254.plus(
-                BN254.scalar_mul(nG1, s),
+                BN254.scalar_mul(negGeneratorG1, s),
                 BN254.plus(
                     rPoint,
                     BN254.scalar_mul(
@@ -55,7 +55,7 @@ contract BLSPublicKeyCompendium is IBLSPublicKeyCompendium, DSTest {
         require(BN254.pairing(
             pubkeyG1,
             BN254.G2Point({X: [BLS.G2x1, BLS.G2x0], Y: [BLS.G2y1, BLS.G2y0]}),
-            nG1,
+            negGeneratorG1,
             pubkeyG2
         ), "BLSPublicKeyCompendium.registerBLSPublicKey: G1 and G2 private key do not match");
 
