@@ -238,7 +238,6 @@ contract DataLayrServiceManager is Initializable, OwnableUpgradeable, DataLayrSe
                 require(totalBytes >= MIN_STORE_SIZE, "DataLayrServiceManager.initDataStore: totalBytes < MIN_STORE_SIZE");
                 require(totalBytes <= MAX_STORE_SIZE, "DataLayrServiceManager.initDataStore: totalBytes > MAX_STORE_SIZE");
 
-
                 /**
                 * @notice coding ratio is numSys/numOperators (where numOperators = numSys + numPar).  This is the minimum 
                 *   percentage of all chunks require to reconstruct the data. 

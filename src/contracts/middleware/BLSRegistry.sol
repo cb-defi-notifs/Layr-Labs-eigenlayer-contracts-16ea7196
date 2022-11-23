@@ -80,6 +80,7 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
         StrategyAndWeightingMultiplier[] memory _firstQuorumStrategiesConsideredAndMultipliers,
         StrategyAndWeightingMultiplier[] memory _secondQuorumStrategiesConsideredAndMultipliers
     ) public virtual initializer {
+        _processApkUpdate(BN254.G1Point(0, 0));
         RegistryBase._initialize(
             _quorumBips,
             _firstQuorumStrategiesConsideredAndMultipliers,

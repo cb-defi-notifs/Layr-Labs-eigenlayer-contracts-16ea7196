@@ -28,14 +28,14 @@ contract DelegationTests is DataLayrTestHelper {
     ServiceManagerMock public generalServiceManager2;
 
     function initializeMiddlewares() public {
-        generalServiceManager1 = new ServiceManagerMock();
+        generalServiceManager1 = new ServiceManagerMock(investmentManager);
 
         generalReg1 = new MiddlewareRegistryMock(
              generalServiceManager1,
              investmentManager
         );
         
-        generalServiceManager2 = new ServiceManagerMock();
+        generalServiceManager2 = new ServiceManagerMock(investmentManager);
 
         generalReg2 = new MiddlewareRegistryMock(
              generalServiceManager2,
