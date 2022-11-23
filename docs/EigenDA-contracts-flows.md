@@ -26,6 +26,14 @@ This outlines some of the details of contract-to-contract communications within 
 
 ### "Committing" a Payment
 
+![Committing a Payment in EigenDA](images/DL_committing_payment.png?raw=true "Committing a Payment in EigenDA")
+
+1. The operator calls `DataLayrPaymentManager.commitPayment`, informing the contract of the `amount` the operator *claims* they are owed, for their services up to the specified `toTaskNumber`.
+2. The DataLayrPaymentManager calls `BLSRegistryWithBomb.isActiveOperator` to confirm that the initial call is indeed an active operator in EigenDA.
+3. The DataLayrPaymentManager calls `DataLayrServiceManager.taskNumber` to get the current taskNumber and compare to the specified `toTaskNumber`, ensuring that no improper claim to future payments is being made.
+4. The DataLayrPaymentManager calls the CollateralToken contract, transferring tokens from the operator to the DataLayrPaymentManager, to be used as the operator's collateral in the case that a payment challenge is raised.
+5. *In the event that this is the operator's first payment claim*, the DataLayrPaymentManager calls `BLSRegistryWithBomb.getFromTaskNumber` in order to determine the proper taskNumber for the payment claim to begin from.
+
 ### Redeeming a Payment
 
 ### Creating a Payment Challenge
