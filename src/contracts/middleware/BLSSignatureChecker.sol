@@ -188,7 +188,7 @@ abstract contract BLSSignatureChecker {
         bytes32[] memory pubkeyHashes = new bytes32[](placeholder);
         // intialize some memory eventually to be the input for call to ecPairing precompile contract
         uint256[12] memory input;
-        // used for verifying that precompile costs work
+        // used for verifying that precompile calls are successful
         bool success;
 
         /**
@@ -201,7 +201,7 @@ abstract contract BLSSignatureChecker {
          * Note that this need not be a special case and *could* be subsumed in the for loop below.
          * However, this implementation saves one ecAdd operation, which would be performed in the i=0 iteration otherwise.
          * @dev Recall that `placeholder` here is the number of operators *not* included in the quorum
-         * @dev (input[2], input[3]) is the aggregated non singer public key
+         * @dev (input[0], input[1]) is the aggregated non singer public key
          */
         if (placeholder != 0) {
             //load compressed pubkey and the index in the stakes array into memory
@@ -245,7 +245,7 @@ abstract contract BLSSignatureChecker {
         }
 
         /**
-         * @dev store each non signer's public key in (input[0], input[1]) and add them to the aggregate non signer public key
+         * @dev store each non signer's public key in (input[2], input[3]) and add them to the aggregate non signer public key
          * @dev keep track of the aggreagate non signing stake too
          */
         for (uint256 i = 1; i < placeholder;) {
@@ -293,9 +293,10 @@ abstract contract BLSSignatureChecker {
             //subtract validator stakes from totals
             signedTotals.signedStakeFirstQuorum -= localStakeObject.firstQuorumStake;
             signedTotals.signedStakeSecondQuorum -= localStakeObject.secondQuorumStake;
-             
+            
+            // call to ecAdd
             // aggregateNonSignerPublicKey = aggregateNonSignerPublicKey + nonSignerPublicKey
-            // (input[0], input[1])        = (input[2], input[3])        + (input[0], input[1])
+            // (input[0], input[1])        = (input[0], input[1])        + (input[2], input[3])
             // solium-disable-next-line security/no-inline-assembly
             assembly {
                 success := staticcall(sub(gas(), 2000), 6, input, 0x80, input, 0x40)
@@ -317,7 +318,6 @@ abstract contract BLSSignatureChecker {
             assembly {
                 //get next 32 bits which would be the apkIndex of apkUpdates in Registry.sol
                 apkIndex := shr(BIT_SHIFT_apkIndex, calldataload(pointer))
-                //00000004
                 // Update pointer to account for the 4 bytes specifying the apkIndex
                 pointer := add(pointer, BYTE_LENGTH_apkIndex)
 
@@ -352,8 +352,9 @@ abstract contract BLSSignatureChecker {
             // negate aggNonSignerPubkey
             input[1] = (BLS.FP_MODULUS - input[1]) % BLS.FP_MODULUS;
 
-            // singerPublicKey      = apk                  + -aggregateNonSignerPublicKey
-            // (input[2], input[3]) = (input[0], input[1]) + (input[2], input[3])
+            // call to ecAdd
+            // singerPublicKey      = -aggregateNonSignerPublicKey + apk
+            // (input[2], input[3]) = (input[0], input[1])         + (input[2], input[3])
             // solium-disable-next-line security/no-inline-assembly
             assembly {
                 success := staticcall(sub(gas(), 2000), 6, input, 0x80, add(input, 0x40), 0x40)
@@ -378,7 +379,7 @@ abstract contract BLSSignatureChecker {
             pointer += BYTE_LENGTH_G2_POINT;
         }
 
-        // Load the G1 signature into (input[0], input[1])
+        // Load the G1 signature, sigma, into (input[0], input[1])
         assembly {
             mstore(input, calldataload(pointer))
             mstore(add(input, 32), calldataload(add(pointer, 32)))
@@ -389,10 +390,11 @@ abstract contract BLSSignatureChecker {
         }
 
         // generate random challenge for public key equality 
-        // gamma = keccack(simga.X, sigma.Y, signingPublicKey.X, signingPublicKey.Y, H(m).X, H(m).Y, 
+        // gamma = keccak(simga.X, sigma.Y, signingPublicKey.X, signingPublicKey.Y, H(m).X, H(m).Y, 
         //         signingPublicKeyG2.X1, signingPublicKeyG2.X0, signingPublicKeyG2.Y1, signingPublicKeyG2.Y0)
         input[4] = uint256(keccak256(abi.encodePacked(input[0], input[1], input[2], input[3], input[6], input[7], input[8], input[9], input[10], input[11])));
 
+        // call ecMul
         // (input[2], input[3]) = (input[2], input[3]) * input[4] = signingPublicKey * gamma
         // solium-disable-next-line security/no-inline-assembly
         assembly {
@@ -400,17 +402,19 @@ abstract contract BLSSignatureChecker {
         }
         require(success, "BLSSignatureChecker.checkSignatures: aggregate signer public key random shift failed");
 
-        // (input[0], input[1]) = (input[0], input[1]) + (input[2], input[3]) = sigma + gamma * siginingPublicKey
+        // call ecAdd
+        // (input[0], input[1]) = (input[0], input[1]) + (input[2], input[3]) = sigma + gamma * signingPublicKey
         // solium-disable-next-line security/no-inline-assembly
         assembly {
             success := staticcall(sub(gas(), 2000), 6, input, 0x80, input, 0x40)
         }
         require(success, "BLSSignatureChecker.checkSignatures: aggregate signer public key and signature addition failed");
 
-        // (input[2], input[3]) = g1
+        // (input[2], input[3]) = g1, the G1 generator
         input[2] = 1;
         input[3] = 2;
 
+        // call ecMul
         // (input[4], input[5]) = (input[2], input[3]) * input[4] = g1 * gamma 
         // solium-disable-next-line security/no-inline-assembly
         assembly {
@@ -430,6 +434,12 @@ abstract contract BLSSignatureChecker {
         input[3] = BLS.nG2x0;
         input[4] = BLS.nG2y1;
         input[5] = BLS.nG2y0;
+
+        // in summary
+        // (input[0], input[1]) =  sigma + gamma * signingPublicKey
+        // (input[2], input[3], input[4], input[5]) = negated generator of G2
+        // (input[6], input[7]) = g1 * gamma + H(m)
+        // (input[8], input[9], input[10], input[11]) = public key in G2
         
         /**
          * @notice now we verify that e(sigma + gamma * pk, -g2)e(H(m) + gamma * g1, pkG2) == 1
@@ -437,8 +447,8 @@ abstract contract BLSSignatureChecker {
         assembly {
             // check the pairing; if incorrect, revert                
             // staticcall address 8 (ecPairing precompile), forward all gas, send 384 bytes (0x180 in hex) = 12 (32-byte) inputs.
-            // store the return data in input[11] (352 bytes / '0x160' in hex), and copy only 32 bytes of return data (since precompile returns boolean)
-            success := staticcall(sub(gas(), 2000), 8, input, 384, input, 0x20)
+            // store the return data in input[0], and copy only 32 bytes of return data (since precompile returns boolean)
+            success := staticcall(sub(gas(), 2000), 8, input, 0x180, input, 0x20)
         }
         require(success, "BLSSignatureChecker.checkSignatures: pairing precompile call failed");
         // check that the provided signature is correct
