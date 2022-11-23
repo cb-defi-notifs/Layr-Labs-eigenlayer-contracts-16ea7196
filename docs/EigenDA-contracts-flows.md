@@ -36,6 +36,14 @@ This outlines some of the details of contract-to-contract communications within 
 
 ### Redeeming a Payment
 
+![Redeeming a Payment in EigenDA](images/DL_redeeming_payment.png?raw=true "Redeeming a Payment in EigenDA")
+
+1. After the payment fraudproof interval has elapsed, the operator calls `DataLayrPaymentManager.commitPayment` to claim their payment.
+2. The DataLayrPaymentManager calls the CollateralToken contract, returning the operator's challenge collateral to them.
+3. The DataLayrPaymentManager calls `EigenLayrDelegation.delegationTerms` to fetch to operator's stored `DelegationTerms`-type contract, which mediates the operator's relationship with stakers who delegate to them.
+4. The DataLayrPaymentManager calls the PaymentToken contract, actually transferring the payment amount to the operator's stored `DelegationTerms`-type contract.
+5. The DataLayrPaymentManager calls the `payForService` function of the operator's stored `DelegationTerms`-type contract, informing it of the payment.
+
 ### Creating a Payment Challenge
 
 ### The Payment Challenge Process
