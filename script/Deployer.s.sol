@@ -279,6 +279,7 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
         address pauser = msg.sender;
         address unpauser = msg.sender;
         address dataLayrReputedMultisig = msg.sender;
+        address dataLayrTeamMultisig = msg.sender;
 
 
 
@@ -376,7 +377,7 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
                     quorumThresholdBasisPoints,
                     adversaryThresholdBasisPoints,
                     feePerBytePerTime,
-                    initialOwner
+                    dataLayrTeamMultisig
                 )
             );
         }
