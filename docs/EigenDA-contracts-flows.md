@@ -46,4 +46,19 @@ This outlines some of the details of contract-to-contract communications within 
 
 ### Creating a Payment Challenge
 
+![Creating a Payment Challenge in EigenDA](images/DL_creating_payment_challenge.png?raw=true "Creating a Payment Challenge in EigenDA")
+
+1. The challenger calls `DataLayrPaymentManager.initPaymentChallenge`
+2. The DataLayrPaymentManager calls the CollateralToken contract, transferring tokens from the challenger to the DataLayrPaymentManager, to be used as the challenger's collateral throughout the challenge process.
+
 ### The Payment Challenge Process
+
+![The Payment Challenge Process in EigenDA](images/DL_payment_challenge_process.png?raw=true "The Payment Challenge Process in EigenDA")
+
+1 - n. The operator and challenger take turns calling `DataLayrPaymentChallenge.performBisectionStep`, until the challenge is focused down to the payment on a single DataStore.
+(n+1). The operator and challenger (whoever's turn it is) calls `DataLayrPaymentChallenge.respondToPaymentChallengeFinal`, triggering a calculation of the *true* payment amount for the single DataStore in question.
+(n+2). As part of verifying the integrity of the provided input data (related to the DataStore in question), the DataLayrPaymentChallenge contract calls `DataLayrServiceManager.getDataStoreHashesForDurationAtTimestamp`.
+(n+3). The DataLayrPaymentChallenge contract calls `BLSRegistryWithBomb.getOperatorPubkeyHash` in order to obtain the correct public key hash for the operator.
+(n+4) & (n+5). The DataLayrPaymentChallenge contract calls `BLSRegistryWithBomb.quorumBips` to understand how the payment should be split between the two quorums. The DataLayrPaymentChallenge now has enough information to calculate the true payment amount. 
+(n+6). In an edge case, the DataLayrPaymentChallenge contract calls `BLSRegistryWithBomb.getFromBlockNumberForOperator` to further ensure the integrity of the provided data (note: this is to verify the case when the task was based off of stakes before the operator registered).
+(n+7). The DataLayrPaymentManager calls the CollateralToken contract, sending the collateral of the 'loser' of the payment challenger process to the 'winner' of the process.
