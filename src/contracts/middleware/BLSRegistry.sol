@@ -32,6 +32,7 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
     ApkUpdate[] internal _apkUpdates;
 
     /**
+     * @dev Initialized value of APK is the point at infinity: (0, 0)
      * @notice used for storing current aggregate public key
      */
     BN254.G1Point public apk;
@@ -80,6 +81,7 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
         StrategyAndWeightingMultiplier[] memory _firstQuorumStrategiesConsideredAndMultipliers,
         StrategyAndWeightingMultiplier[] memory _secondQuorumStrategiesConsideredAndMultipliers
     ) public virtual initializer {
+        // process an apk update to get index and totalStake arrays to the same length
         _processApkUpdate(BN254.G1Point(0, 0));
         RegistryBase._initialize(
             _quorumBips,
