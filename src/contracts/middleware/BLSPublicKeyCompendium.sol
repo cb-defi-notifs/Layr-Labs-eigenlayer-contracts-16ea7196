@@ -34,7 +34,7 @@ contract BLSPublicKeyCompendium is IBLSPublicKeyCompendium, DSTest {
         // calculate -g1
         BN254.G1Point memory negGeneratorG1 = BN254.negate(BN254.G1Point({X: 1, Y: 2}));
         // verify a Schnorr signature (s, R) of pubkeyG1
-        // calculate s*-g1 - (R + H(msg.sender, P, R)*P) = 0
+        // calculate s*-g1 + (R + H(msg.sender, P, R)*P) = 0
         // which is the Schnorr signature verification equation
         BN254.G1Point memory shouldBeZero = 
             BN254.plus(
