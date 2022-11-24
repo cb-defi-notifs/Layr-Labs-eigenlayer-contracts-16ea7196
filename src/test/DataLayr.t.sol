@@ -170,7 +170,7 @@ contract DataLayrTests is DSTest, DataLayrTestHelper {
                     )
                 ),
                 uint48(dlReg.getLengthOfTotalStakeHistory() - 1),
-                searchData.metadata.stakesFromBlockNumber,
+                searchData.metadata.referenceBlockNumber,
                 dataStoreId,
                 numberOfNonSigners
             );
@@ -268,7 +268,7 @@ contract DataLayrTests is DSTest, DataLayrTestHelper {
                 registrantAPK,
                 signerAggSig,
                 nonsignerPK,
-                searchData.metadata.stakesFromBlockNumber,
+                searchData.metadata.referenceBlockNumber,
                 dataStoreId
             );
 

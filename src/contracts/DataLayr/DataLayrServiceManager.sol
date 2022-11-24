@@ -226,7 +226,7 @@ contract DataLayrServiceManager is Initializable, OwnableUpgradeable, DataLayrSe
      * This is a quantized parameter that describes how many factors of DURATION_SCALE
      * does this data blob needs to be stored. The quantization process comes from ease of
      * implementation in DataLayrBombVerifier.sol.
-     * @param stakesFromBlockNumber is the block number in Ethereum for which the confirmation will
+     * @param referenceBlockNumber is the block number in Ethereum for which the confirmation will
      * consult total + operator stake amounts.
      * -- must not be more than 'BLOCK_STALE_MEASURE' (defined in DataLayr) blocks in past
      * @return index The index in the array `dataStoreHashesForDurationAtTimestamp[duration][block.timestamp]` at which the DataStore's hash was stored.
@@ -235,7 +235,7 @@ contract DataLayrServiceManager is Initializable, OwnableUpgradeable, DataLayrSe
         address feePayer,
         address confirmer,
         uint8 duration,
-        uint32 stakesFromBlockNumber,
+        uint32 referenceBlockNumber,
         uint32 totalOperatorsIndex,
         bytes calldata header
     )
@@ -253,8 +253,8 @@ contract DataLayrServiceManager is Initializable, OwnableUpgradeable, DataLayrSe
         {
             uint256 totalBytes;
             {
-                // fetch the total number of operators for the stakesFromBlockNumber from which stakes are being read from
-                uint32 totalOperators = registry.getTotalOperators(stakesFromBlockNumber, totalOperatorsIndex);
+                // fetch the total number of operators for the referenceBlockNumber from which stakes are being read from
+                uint32 totalOperators = registry.getTotalOperators(referenceBlockNumber, totalOperatorsIndex);
 
                 totalBytes = DataStoreUtils.getTotalBytes(header, totalOperators);
 
@@ -302,7 +302,7 @@ contract DataLayrServiceManager is Initializable, OwnableUpgradeable, DataLayrSe
                 headerHash: headerHash,
                 durationDataStoreId: getNumDataStoresForDuration(duration),
                 globalDataStoreId: dataStoresForDuration.dataStoreId,
-                stakesFromBlockNumber: stakesFromBlockNumber,
+                referenceBlockNumber: referenceBlockNumber,
                 blockNumber: uint32(block.number),
                 fee: uint96(fee),
                 confirmer: confirmer,
@@ -335,15 +335,15 @@ contract DataLayrServiceManager is Initializable, OwnableUpgradeable, DataLayrSe
             );
         }
 
-        // sanity check on stakesFromBlockNumber
+        // sanity check on referenceBlockNumber
         {
             require(
-                stakesFromBlockNumber <= block.number, "DataLayrServiceManager.initDataStore: specified stakesFromBlockNumber is in future"
+                referenceBlockNumber <= block.number, "DataLayrServiceManager.initDataStore: specified referenceBlockNumber is in future"
             );
 
             require(
-                (stakesFromBlockNumber + BLOCK_STALE_MEASURE) >= uint32(block.number),
-                "DataLayrServiceManager.initDataStore: specified stakesFromBlockNumber is too far in past"
+                (referenceBlockNumber + BLOCK_STALE_MEASURE) >= uint32(block.number),
+                "DataLayrServiceManager.initDataStore: specified referenceBlockNumber is too far in past"
             );    
         }
 
@@ -446,7 +446,7 @@ contract DataLayrServiceManager is Initializable, OwnableUpgradeable, DataLayrSe
         );
         // verify integrity of `blockNumberFromTaskHash` provided as part of `data` input        
         require(
-            searchData.metadata.stakesFromBlockNumber == blockNumberFromTaskHash,
+            searchData.metadata.referenceBlockNumber == blockNumberFromTaskHash,
             "DataLayrServiceManager.confirmDataStore: blocknumber does not agree with data"
         );
 

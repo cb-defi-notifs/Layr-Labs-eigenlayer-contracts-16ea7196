@@ -14,7 +14,7 @@ interface IDataLayrServiceManager is IServiceManager, IDelayedService {
         bytes32 headerHash; // the hash of the header as defined in the contract
         uint32 durationDataStoreId; // the id of the datastore relative to all other datastores of the same duration
         uint32 globalDataStoreId; // the id of the datastore relative to all other datastores
-        uint32 stakesFromBlockNumber; // the block number from which the stakes were taken for the datastore
+        uint32 referenceBlockNumber; // the block number from which the stakes were taken for the datastore
         uint32 blockNumber; // the block number at the time of initialization
         uint96 fee; // the amount of paymentToken paid for the datastore
         address confirmer; // the address that is allowed to confirm the datastore
