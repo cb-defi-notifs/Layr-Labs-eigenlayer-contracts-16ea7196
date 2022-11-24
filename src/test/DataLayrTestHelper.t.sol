@@ -56,7 +56,7 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
 
         dataLayrPaymentManager.depositFutureFees(storer, 1e11);
 
-        uint32 stakesFromBlockNumber = uint32(block.number);
+        uint32 referenceBlockNumber = uint32(block.number);
         uint32 blockNumber = uint32(block.number);
         uint32 totalOperatorsIndex = uint32(dlReg.getLengthOfTotalOperatorsHistory() - 1);
 
@@ -68,7 +68,7 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
             storer,
             confirmer,
             durationToInit,
-            stakesFromBlockNumber,
+            referenceBlockNumber,
             totalOperatorsIndex,
             header
         );
@@ -93,7 +93,7 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
                 headerHash: headerHash,
                 durationDataStoreId: dlsm.getNumDataStoresForDuration(durationToInit) - 1,
                 globalDataStoreId: dlsm.taskNumber() - 1,
-                stakesFromBlockNumber: stakesFromBlockNumber,
+                referenceBlockNumber: referenceBlockNumber,
                 blockNumber: blockNumber,
                 fee: uint96(fee),
                 confirmer: confirmer,
@@ -317,7 +317,7 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
                 )
             ),
             uint48(dlReg.getLengthOfTotalStakeHistory() - 1),
-            searchData.metadata.stakesFromBlockNumber,
+            searchData.metadata.referenceBlockNumber,
             searchData.metadata.globalDataStoreId,
             numberOfNonSigners,
             // no pubkeys here since zero nonSigners for now

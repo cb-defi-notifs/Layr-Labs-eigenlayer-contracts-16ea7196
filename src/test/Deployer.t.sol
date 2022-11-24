@@ -575,7 +575,7 @@ contract EigenLayrDeployer is Operators, SignatureUtils {
         //         abi.encodePacked(searchData.metadata.globalDataStoreId, searchData.metadata.headerHash, searchData.duration, initTime, searchData.index)
         //     ),
         //     uint48(dlReg.getLengthOfTotalStakeHistory() - 1),
-        //     searchData.metadata.stakesFromBlockNumber,
+        //     searchData.metadata.referenceBlockNumber,
         //     searchData.metadata.globalDataStoreId,
         //     numberOfNonSigners,
         //     // no pubkeys here since zero nonSigners for now

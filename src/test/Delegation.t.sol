@@ -643,7 +643,7 @@ contract DelegationTests is DataLayrTestHelper {
                 registrantApkG1,
                 signerAggSig,
                 nonSignerPK,
-                searchData.metadata.stakesFromBlockNumber,
+                searchData.metadata.referenceBlockNumber,
                 dataStoreId
             );
 
