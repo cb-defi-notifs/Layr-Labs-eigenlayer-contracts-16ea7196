@@ -27,7 +27,7 @@ contract DataStoreUtilsTests is DSTest {
         bytes32 headerHash,
         uint32 durationDataStoreId,
         uint32 globalDataStoreId,
-        uint32 stakesFromBlockNumber,
+        uint32 referenceBlockNumber,
         uint32 blockNumber,
         uint96 fee,
         address confirmer,
@@ -36,7 +36,7 @@ contract DataStoreUtilsTests is DSTest {
 
         // form struct from arguments
         IDataLayrServiceManager.DataStoreMetadata memory metadataStructBeforePacking = dataStoreMetadataFromArgs(
-            headerHash, durationDataStoreId, globalDataStoreId, stakesFromBlockNumber, blockNumber, fee, confirmer, signatoryRecordHash
+            headerHash, durationDataStoreId, globalDataStoreId, referenceBlockNumber, blockNumber, fee, confirmer, signatoryRecordHash
         );
         // pack the struct
         bytes memory packedMetadata = dataStoreUtilsWrapper.packDataStoreMetadataExternal(metadataStructBeforePacking);
@@ -61,8 +61,8 @@ contract DataStoreUtilsTests is DSTest {
             "testPackUnpackDataStoreMetadata: unpacked globalDataStoreId does not match original one"
         );
         assertEq(
-            stakesFromBlockNumber,
-            unpackedStruct.stakesFromBlockNumber,
+            referenceBlockNumber,
+            unpackedStruct.referenceBlockNumber,
             "testPackUnpackDataStoreMetadata: unpacked blockNumber does not match original one"
         );
         assertEq(
@@ -97,7 +97,7 @@ contract DataStoreUtilsTests is DSTest {
         bytes32 headerHash,
         uint32 durationDataStoreId,
         uint32 globalDataStoreId,
-        uint32 stakesFromBlockNumber,
+        uint32 referenceBlockNumber,
         uint32 blockNumber,
         uint96 fee,
         address confirmer,
@@ -111,7 +111,7 @@ contract DataStoreUtilsTests is DSTest {
             headerHash,
             durationDataStoreId,
             globalDataStoreId,
-            stakesFromBlockNumber,
+            referenceBlockNumber,
             blockNumber,
             fee,
             confirmer,
@@ -146,8 +146,8 @@ contract DataStoreUtilsTests is DSTest {
             "testPackUnpackDataStoreSearchData: unpacked globalDataStoreId does not match original one"
         );
         assertEq(
-            stakesFromBlockNumber,
-            unpackedStruct.metadata.stakesFromBlockNumber,
+            referenceBlockNumber,
+            unpackedStruct.metadata.referenceBlockNumber,
             "testPackUnpackDataStoreSearchData: unpacked blockNumber does not match original one"
         );
         assertEq(
@@ -195,7 +195,7 @@ contract DataStoreUtilsTests is DSTest {
         bytes32 headerHash,
         uint32 durationDataStoreId,
         uint32 globalDataStoreId,
-        uint32 stakesFromBlockNumber,
+        uint32 referenceBlockNumber,
         uint32 blockNumber,
         uint96 fee,
         address confirmer,
@@ -206,7 +206,7 @@ contract DataStoreUtilsTests is DSTest {
             headerHash: headerHash,
             durationDataStoreId: durationDataStoreId,
             globalDataStoreId: globalDataStoreId,
-            stakesFromBlockNumber: stakesFromBlockNumber,
+            referenceBlockNumber: referenceBlockNumber,
             blockNumber: blockNumber,
             fee: fee,
             confirmer: confirmer,
@@ -219,7 +219,7 @@ contract DataStoreUtilsTests is DSTest {
         bytes32 headerHash,
         uint32 durationDataStoreId,
         uint32 globalDataStoreId,
-        uint32 stakesFromBlockNumber,
+        uint32 referenceBlockNumber,
         uint32 blockNumber,
         uint96 fee,
         address confirmer,
@@ -229,7 +229,7 @@ contract DataStoreUtilsTests is DSTest {
         uint32 index
     ) internal pure returns (IDataLayrServiceManager.DataStoreSearchData memory searchDataStruct) {
         searchDataStruct.metadata = dataStoreMetadataFromArgs(
-            headerHash, durationDataStoreId, globalDataStoreId, stakesFromBlockNumber, blockNumber, fee, confirmer, signatoryRecordHash
+            headerHash, durationDataStoreId, globalDataStoreId, referenceBlockNumber, blockNumber, fee, confirmer, signatoryRecordHash
         );
         searchDataStruct.duration = duration;
         searchDataStruct.timestamp = timestamp;
