@@ -2,35 +2,36 @@
 pragma solidity ^0.8.9;
 
 import "forge-std/Test.sol";
+import "forge-std/Script.sol";
+import "forge-std/StdJson.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
+
 contract SignatureUtils is Test {
     //numSigners => array of signatures for 5 datastores
     mapping(uint256 => uint256[]) signatures;
+    
+
+    string internal signatureJson;
+
+    constructor() {
+        signatureJson = vm.readFile("./src/test/data/signatures.json");
+    }
+
+    function signaturePrefix(uint256 numSigners) public returns(string memory) {
+        return string.concat(".signatures[", string.concat(vm.toString(numSigners), "]."));
+    }
 
     //returns aggPK.X0, aggPK.X1, aggPK.Y0, aggPK.Y1
     function getAggregatePublicKeyG2(uint256 numSigners)
         internal
-        pure
         returns (uint256 aggPKX0, uint256 aggPKX1, uint256 aggPKY0, uint256 aggPKY1)
     {
-        if (numSigners == 15) {
-            aggPKX0 = uint256(7376274458580875068538505365497674110973608605111371869915951041641187498045);
-            aggPKX1 = uint256(3094945706001872520104452539421662819380827348948823620107090636164879063149);
-            aggPKY0 = uint256(300514952659116390245673944230061207864254950979557757766045418512193657473);
-            aggPKY1 = uint256(11092030367516940214387670815962566851846599159064241705731768948492732902051);
-        }
+        signaturePrefix(15);
 
-        // if (numSigners == 12) {
-        //     aggPKX0 = uint256(20523582188987110963974014007824533452740581058607457454770751475798461856790);
-        //     aggPKX1 = uint256(20393417418446180824691701320817867938900127424537147567714032244707813600661);
-        //     aggPKY0 = uint256(4580400133570387826450637471880405528743156066723364760569449578582741304616);
-        //     aggPKY1 = uint256(18368086142287310978311059387137837113783403751688539310101965155145837418588);
-        // }
-        // if (numSigners == 2) {
-        //     aggPKX0 = uint256(13627094809349703367331537758720731786358666292976582438286769018059426535468);
-        //     aggPKX1 = uint256(15990633073361304694314105299377655728793875331567860871472029130760161396005);
-        //     aggPKY0 = uint256(18114822758555812654133893143402128050216537048086929991467442905992867018238);
-        //     aggPKY1 = uint256(15529882236060906134687395001693316326465762665051267458815387894544183627019);
-        // }
+        aggPKX0 = getUintFromJson(signatureJson, numSigners, "AggPubkeyG2.X.A0");
+        aggPKX1 = getUintFromJson(signatureJson, numSigners, "AggPubkeyG2.X.A1");
+        aggPKY0 = getUintFromJson(signatureJson, numSigners, "AggPubkeyG2.Y.A0");
+        aggPKY1 = getUintFromJson(signatureJson, numSigners, "AggPubkeyG2.Y.A1");
 
         return (aggPKX0, aggPKX1, aggPKY0, aggPKY1);
     }
@@ -40,34 +41,25 @@ contract SignatureUtils is Test {
         internal 
         returns (uint256 aggPKX, uint256 aggPKY)
     {
-        
-        
-        if (numSigners == 15) {
-            aggPKX = uint256(12983748507877516445801030711848696691328044158037221152769366935044672217822);
-            aggPKY = uint256(3329099471873996955795274682525042276934219997746137153411426130230036322381);
-        }
-
-        // if (numSigners == 12) {
-        //     aggPKX = uint256(20523582188987110963974014007824533452740581058607457454770751475798461856790);
-        //     aggPKY = uint256(18368086142287310978311059387137837113783403751688539310101965155145837418588);
-        // }
-        // if (numSigners == 2) {
-        //     aggPKX = uint256(13627094809349703367331537758720731786358666292976582438286769018059426535468);
-        //     aggPKY = uint256(15529882236060906134687395001693316326465762665051267458815387894544183627019);
-        // }
+        aggPKX = getUintFromJson(signatureJson, numSigners, "AggPubkeyG1.X");
+        aggPKY = getUintFromJson(signatureJson, numSigners, "AggPubkeyG1.Y");
 
         return (aggPKX, aggPKY);
     }
 
-    function getSignature(uint256 numSigners, uint256 index) internal view returns (uint256, uint256) {
-        return (signatures[numSigners][2 * index], signatures[numSigners][2 * index + 1]);
+    function getSignature(uint256 numSigners) internal returns (uint256 sigX, uint256 sigY) {
+
+        sigX = getUintFromJson(signatureJson, numSigners, "Signature.X");
+        sigY = getUintFromJson(signatureJson, numSigners, "Signature.Y");
+
+        return (sigX, sigY);
     }
 
     function setSignatures() internal {
         //X-coordinate for signature
-        signatures[15].push(uint256(5271885887808767564431391467360670698669934366873223769414372420690360622123));
+        signatures[15].push(uint256(8948534429609633165965303176051337508823928923777758842886744023440854204267));
         //Y-coordinate for signature
-        signatures[15].push(uint256(1598651173596906994936146249926796260210958417922248864381156409483173072775));
+        signatures[15].push(uint256(4622408548686949531175238473896974870555776834372530175532799335740509601351));
 
 
         /// @dev these next 4 aggregate signatures are specifically for testConfirmDataStoreLoop, where 
@@ -102,10 +94,22 @@ contract SignatureUtils is Test {
         // signatures[2].push(uint256(15462773903105570423983200028906973961348449005977379407744153690820070538946));
         // //Y-coordinate for signature
         // signatures[2].push(uint256(1958496896045946333699360997077644865789632650763255938686790892516574013948));
-
-
-
-
         
+    }
+
+    function getUintFromJson(string memory json, uint numSigners, string memory key) internal returns(uint256){
+        string memory word =  stdJson.readString(json, string.concat(Strings.toString(numSigners), ".", key));
+        return convertStringToUint(word);
+    }
+
+    function convertStringToUint(string memory s) public pure returns (uint) {
+        bytes memory b = bytes(s);
+        uint result = 0;
+        for (uint i = 0; i < b.length; i++) {
+            if (uint256(uint8(b[i])) >= 48 && uint256(uint8(b[i])) <= 57) {
+                result = result * 10 + (uint256(uint8(b[i])) - 48); 
+            }
+        }
+        return result;
     }
 }

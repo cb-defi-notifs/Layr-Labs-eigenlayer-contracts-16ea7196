@@ -130,7 +130,6 @@ contract EigenLayrDeployer is Operators, SignatureUtils {
 
 
     address storer = address(420);
-    address eigenPodManagerFixed = address(2030);
     address pauser = address(69);
     address unpauser = address(489);
     address operator = address(0x4206904396bF2f8b173350ADdEc5007A52664293); //sk: e88d9d864d5d731226020c5d2f02b62a4ce2a4534a39c225d32d3db795f83319
@@ -303,8 +302,6 @@ contract EigenLayrDeployer is Operators, SignatureUtils {
         slashingContracts.push(address(eigenPodManager));
         investmentManager.slasher().addGloballyPermissionedContracts(slashingContracts);
 
-        bytes memory code = address(eigenPodManager).code;
-        cheats.etch(eigenPodManagerFixed, code);
         
         //loads signatures
         setSignatures();
@@ -587,5 +584,88 @@ contract EigenLayrDeployer is Operators, SignatureUtils {
         //     sigma_0,
         //     sigma_1
         // );
+    }
+
+    function testBLSPairing() internal {
+            uint256[12] memory input;
+
+            uint256 sigmaX = 8948534429609633165965303176051337508823928923777758842886744023440854204267;
+            uint256 sigmaY = 4622408548686949531175238473896974870555776834372530175532799335740509601351;
+
+            bytes32 msgHash = 0x536ea2113b06bc65d2d6310b51424f268f1b3155e1fe82cbc90d9b8712d14a0a;
+            (uint256 msgHashX, uint256 msgHashY) = BLS.hashToG1(msgHash);
+
+            emit log_named_uint("msgHashX", msgHashX);
+            emit log_named_uint("msgHashY", msgHashY);
+
+            input[0] = sigmaX;
+            input[1] = sigmaY;
+            input[2] = BLS.nG2x1;
+            input[3] = BLS.nG2x0;
+            input[4] = BLS.nG2y1;
+            input[5] = BLS.nG2y0;
+
+            input[6] = msgHashX;
+            input[7] = msgHashY;
+            // insert negated coordinates of the generator for G2
+            input[
+                8
+            ] = 3094945706001872520104452539421662819380827348948823620107090636164879063149;
+            input[
+                9
+            ] = 7376274458580875068538505365497674110973608605111371869915951041641187498045;
+            input[
+                10
+            ] = 11092030367516940214387670815962566851846599159064241705731768948492732902051;
+            input[
+                11
+            ] = 300514952659116390245673944230061207864254950979557757766045418512193657473;
+
+            assembly {
+                // check the pairing; if incorrect, revert
+                if iszero(
+                    staticcall(sub(gas(), 2000), 8, input, 0x180, input, 0x20)
+                ) {
+                    revert(0, 0)
+                }
+            }
+
+            require(
+                input[0] == 1,
+                "BLSSignatureChecker.checkSignatures: Pairing unsuccessful"
+            );
+        }
+
+    function testVKPairing() internal {
+        uint256[12] memory input;
+
+        uint256 pkg1X = 12983748507877516445801030711848696691328044158037221152769366935044672217822;
+        uint256 pkg1Y = 3329099471873996955795274682525042276934219997746137153411426130230036322381;
+
+
+        input[0] = pkg1X;
+        input[1] = pkg1Y;
+        input[2] = BLS.nG2x1;
+        input[3] = BLS.nG2x0;
+        input[4] = BLS.nG2y1;
+        input[5] = BLS.nG2y0;
+        
+        input[6] = 1;
+        input[7] = 2;
+        // insert negated coordinates of the generator for G2
+        input[8] = 3094945706001872520104452539421662819380827348948823620107090636164879063149;
+        input[9] = 7376274458580875068538505365497674110973608605111371869915951041641187498045;
+        input[10] = 11092030367516940214387670815962566851846599159064241705731768948492732902051;
+        input[11] = 300514952659116390245673944230061207864254950979557757766045418512193657473;
+
+        assembly {
+            // check the pairing; if incorrect, revert
+            if iszero(
+                staticcall(sub(gas(), 2000), 8, input, 0x180, input, 0x20)
+            ) { revert(0, 0) }
+        }
+
+        require(input[0] == 1, "BLSSignatureChecker.checkSignatures: Pairing unsuccessful");
+
     }
 }

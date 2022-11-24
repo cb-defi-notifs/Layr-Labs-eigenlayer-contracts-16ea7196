@@ -69,7 +69,6 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         );
 
         beaconChainOracle = new BeaconChainOracleMock();
-        beaconChainOracle.setBeaconChainStateRoot(0xaf3bf0770df5dd35b984eda6586e6f6eb20af904a5fb840fe65df9a6415293bd);
 
         ethPOSDeposit = new ETHPOSDepositMock();
         pod = new EigenPod(ethPOSDeposit);
@@ -243,7 +242,6 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         cheats.assume(operator != address(eigenLayrProxyAdmin));
         cheats.assume(operator != address(beaconChainETHReceiver));
 
-        beaconChainOracle.setBeaconChainStateRoot(0xace9b7b6b5d7921dd2d61d4a2cf9a61db92119faf66c25dde5e2bc030e71d41b);
         //make initial deposit
         podOwner = address(beaconChainETHReceiver);
         _testDeployAndVerifyNewEigenPod(podOwner, signature, depositDataRoot, true);

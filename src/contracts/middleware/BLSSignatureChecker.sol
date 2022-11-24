@@ -337,9 +337,7 @@ abstract contract BLSSignatureChecker is Test {
                 pointer += BYTE_LENGTH_G1_POINT;
             }
 
-            emit log_named_bytes32("correctapkhash",IBLSRegistry(address(registry)).getCorrectApkHash(apkIndex, stakesBlockNumber));
-            emit log_named_bytes32("input", keccak256(abi.encodePacked(input[2], input[3])));
-
+ 
             // make sure the caller has provided the correct aggPubKey
             require(
                 IBLSRegistry(address(registry)).getCorrectApkHash(apkIndex, stakesBlockNumber) == keccak256(abi.encodePacked(input[2], input[3])),
@@ -370,6 +368,7 @@ abstract contract BLSSignatureChecker is Test {
 
         // compute H(M) in G1
         (input[6], input[7]) = BLS.hashToG1(msgHash);
+
 
         // Load the G2 public key into (input[8], input[9], input[10], input[11])
         assembly {
@@ -405,6 +404,8 @@ abstract contract BLSSignatureChecker is Test {
             success := staticcall(sub(gas(), 2000), 7, add(input, 0x40), 0x60, add(input, 0x40), 0x40)
         }
         require(success, "BLSSignatureChecker.checkSignatures: aggregate signer public key random shift failed");
+        
+
 
         // call ecAdd
         // (input[0], input[1]) = (input[0], input[1]) + (input[2], input[3]) = sigma + gamma * signingPublicKey
@@ -448,6 +449,7 @@ abstract contract BLSSignatureChecker is Test {
         /**
          * @notice now we verify that e(sigma + gamma * pk, -g2)e(H(m) + gamma * g1, pkG2) == 1
          */
+
         assembly {
             // check the pairing; if incorrect, revert                
             // staticcall address 8 (ecPairing precompile), forward all gas, send 384 bytes (0x180 in hex) = 12 (32-byte) inputs.

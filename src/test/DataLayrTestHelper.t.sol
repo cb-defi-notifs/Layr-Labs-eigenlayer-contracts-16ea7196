@@ -249,7 +249,6 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
 
         //register all the operators
         for (uint256 i = 0; i < numSigners; ++i) {
-            emit log_named_uint("i", i);
             _testRegisterAdditionalSelfOperator(i);
         }
 
@@ -277,7 +276,8 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
             (apkG1[0], apkG1[1]) = getAggregatePublicKeyG1(uint256(numSigners));
             (apkG2[0], apkG2[1], apkG2[2], apkG2[3]) = getAggregatePublicKeyG2(uint256(numSigners));
         }
-        (uint256 sigma_0, uint256 sigma_1) = getSignature(uint256(numSigners), index); //(signatureData[index*2], signatureData[2*index + 1]);
+
+        (uint256 sigma_0, uint256 sigma_1) = getSignature(uint256(numSigners)); //(signatureData[index*2], signatureData[2*index + 1]);
 
         /**
          * @param data This calldata is of the format:
