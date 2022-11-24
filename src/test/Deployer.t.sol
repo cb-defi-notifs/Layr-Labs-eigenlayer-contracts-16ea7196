@@ -142,11 +142,8 @@ contract EigenLayrDeployer is Operators, SignatureUtils {
     address initialOwner = address(this);
 
     struct NonSignerPK {
-
-        uint256 xA0;
-        uint256 xA1;
-        uint256 yA0;
-        uint256 yA1;
+        uint256 x;
+        uint256 y;
     }
 
     struct RegistrantAPK {

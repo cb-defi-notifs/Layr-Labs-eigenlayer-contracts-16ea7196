@@ -273,11 +273,11 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
         uint256[2] memory apkG1;
         uint256[4] memory apkG2;
         {
-            (apkG1[0], apkG1[1]) = getAggregatePublicKeyG1(uint256(numSigners));
-            (apkG2[0], apkG2[1], apkG2[2], apkG2[3]) = getAggregatePublicKeyG2(uint256(numSigners));
+            (apkG1[0], apkG1[1]) = getAggregatePublicKeyG1();
+            (apkG2[0], apkG2[1], apkG2[2], apkG2[3]) = getAggregatePublicKeyG2();
         }
 
-        (uint256 sigma_0, uint256 sigma_1) = getSignature(uint256(numSigners)); //(signatureData[index*2], signatureData[2*index + 1]);
+        (uint256 sigma_0, uint256 sigma_1) = getAggSignature(); //(signatureData[index*2], signatureData[2*index + 1]);
 
         /**
          * @param data This calldata is of the format:
@@ -367,7 +367,7 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
 
 
     //Internal function for assembling calldata - prevents stack too deep errors
-    function _getCallData(
+    function _getOneNonSignerCallData(
         bytes32 msgHash,
         uint32 numberOfNonSigners,
         RegistrantAPK memory registrantAPK,
@@ -401,10 +401,8 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
             blockNumber,
             dataStoreId,
             numberOfNonSigners,
-            nonSignerPK.xA0,
-            nonSignerPK.xA1,
-            nonSignerPK.yA0,
-            nonSignerPK.yA1
+            nonSignerPK.x,
+            nonSignerPK.y
         );
 
         data = abi.encodePacked(
