@@ -26,10 +26,10 @@ contract SignatureUtils is Test {
         internal
         returns (uint256 aggPKX0, uint256 aggPKX1, uint256 aggPKY0, uint256 aggPKY1)
     {
-        aggPKX0 = getUintFromJson(signatureJson, "AggPubkeyG2.X.A0");
-        aggPKX1 = getUintFromJson(signatureJson, "AggPubkeyG2.X.A1");
-        aggPKY0 = getUintFromJson(signatureJson, "AggPubkeyG2.Y.A0");
-        aggPKY1 = getUintFromJson(signatureJson, "AggPubkeyG2.Y.A1");
+        aggPKX0 = getUintFromJson(signatureJson, "aggregateSignature.AggPubkeyG2.X.A0");
+        aggPKX1 = getUintFromJson(signatureJson, "aggregateSignature.AggPubkeyG2.X.A1");
+        aggPKY0 = getUintFromJson(signatureJson, "aggregateSignature.AggPubkeyG2.Y.A0");
+        aggPKY1 = getUintFromJson(signatureJson, "aggregateSignature.AggPubkeyG2.Y.A1");
 
         return (aggPKX0, aggPKX1, aggPKY0, aggPKY1);
     }
@@ -39,8 +39,8 @@ contract SignatureUtils is Test {
         internal 
         returns (uint256 aggPKX, uint256 aggPKY)
     {
-        aggPKX = getUintFromJson(signatureJson, "AggPubkeyG1.X");
-        aggPKY = getUintFromJson(signatureJson, "AggPubkeyG1.Y");
+        aggPKX = getUintFromJson(signatureJson, "aggregateSignature.AggPubkeyG1.X");
+        aggPKY = getUintFromJson(signatureJson, "aggregateSignature.AggPubkeyG1.Y");
 
         return (aggPKX, aggPKY);
     }
@@ -48,15 +48,20 @@ contract SignatureUtils is Test {
     //get the aggregate signature of all 15 signers
     function getAggSignature() internal returns (uint256 sigX, uint256 sigY) {
 
-        sigX = getUintFromJson(signatureJson, "Signature.X");
-        sigY = getUintFromJson(signatureJson, "Signature.Y");
+        sigX = getUintFromJson(signatureJson, "aggregateSignature.Signature.X");
+        sigY = getUintFromJson(signatureJson, "aggregateSignature.Signature.Y");
 
         return (sigX, sigY);
     }
 
-    function getNonSignerPublicKeyG1(uint256 numSigners) internal returns (uint256 PKX, uint256 PKY) {
-        PKX = getUintFromJson(signatureJson, "NonSignerPK.PubkeyG1.X");
-        PKY = getUintFromJson(signatureJson, "NonSignerPK.PubkeyG1.Y");
+    function getNonSignerInfo(uint32 index) internal returns (uint256 PKX, uint256 PKY, uint256 sigmaX, uint256 sigmaY) {
+        PKX = getNonSignerPKFromJson(signatureJson, index, "PubkeyG1.X");
+        PKY = getNonSignerPKFromJson(signatureJson, index, "PubkeyG1.Y");
+
+        sigmaX = getUintFromJson(signatureJson, "nonSignersData.AggSignature.X");
+        sigmaY = getUintFromJson(signatureJson, "nonSignersData.AggSignature.Y");
+
+        return(PKX, PKY, sigmaX, sigmaY);
     }
 
     function setSignatures() internal {
@@ -102,7 +107,15 @@ contract SignatureUtils is Test {
     }
 
     function getUintFromJson(string memory json, string memory key) internal returns(uint256){
-        string memory word =  stdJson.readString(json, string.concat("aggregateSignature.", key));
+        string memory word =  stdJson.readString(json, key);
+        return convertStringToUint(word);
+    }
+
+    function getNonSignerPKFromJson(string memory json, uint256 index, string memory key) internal returns(uint256){
+        string memory idx = string.concat(vm.toString(index), "].");
+        string memory pubKeyEntry = string.concat("nonSignersData.NonSigners[", idx);
+        string memory word =  stdJson.readString(json, string.concat(pubKeyEntry, key));
+
         return convertStringToUint(word);
     }
 

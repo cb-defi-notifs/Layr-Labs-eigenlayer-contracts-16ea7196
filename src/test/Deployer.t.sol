@@ -144,15 +144,21 @@ contract EigenLayrDeployer is Operators, SignatureUtils {
     struct NonSignerPK {
         uint256 x;
         uint256 y;
+        uint32 stakeIndex;
     }
 
-    struct RegistrantAPK {
-
+    struct RegistrantAPKG2 {
         uint256 apk0;
         uint256 apk1;
         uint256 apk2;
         uint256 apk3;
     }
+
+    struct RegistrantAPKG1 {
+        uint256 apk0;
+        uint256 apk1;
+    }
+
     struct SignerAggSig{
         uint256 sigma0;
         uint256 sigma1;

@@ -606,18 +606,18 @@ contract DelegationTests is DataLayrTestHelper {
         _testRegisterBLSPubKey(0);
         _testRegisterOperatorWithDataLayr(0, operatorType, testEphemeralKey, testSocket);
 
-        NonSignerPK memory nonsignerPK;
-        RegistrantAPK memory registrantAPK;
+        NonSignerPK memory nonSignerPK;
+        RegistrantAPKG2 memory registrantApkG2;
+        RegistrantAPKG1 memory registrantApkG1;
         SignerAggSig memory signerAggSig;
+        uint32 numberOfNonSigners = 1; 
 
-        (nonsignerPK.x, nonsignerPK.y) = getNonSignerPublicKeyG1(14);
-
-        (registrantAPK.apk0, registrantAPK.apk1, registrantAPK.apk2, registrantAPK.apk3) = getAggregatePublicKeyG2();
-
-
+        (nonSignerPK.x, nonSignerPK.y, signerAggSig.sigma0,  signerAggSig.sigma1) = getNonSignerInfo(numberOfNonSigners-1);
         
-        (signerAggSig.sigma0,  signerAggSig.sigma1) = getAggSignature();
-
+        //the non signer is the 15th operator with stake Index 14
+        nonSignerPK.stakeIndex = 14;
+        (registrantApkG2.apk0, registrantApkG2.apk1, registrantApkG2.apk2, registrantApkG2.apk3) = getAggregatePublicKeyG2();
+        (registrantApkG1.apk0, registrantApkG1.apk1) = getAggregatePublicKeyG1();
 
         uint32 numberOfSigners = 15;
         _testRegisterSigners(numberOfSigners, false);
@@ -626,7 +626,6 @@ contract DelegationTests is DataLayrTestHelper {
         {
             uint256 initTime = 1000000001;
             IDataLayrServiceManager.DataStoreSearchData memory searchData = _testInitDataStore(initTime, address(this), header);
-            uint32 numberOfNonSigners = 1;
             uint32 dataStoreId = dlsm.taskNumber() - 1;
 
             bytes memory data = _getOneNonSignerCallData(
@@ -640,9 +639,10 @@ contract DelegationTests is DataLayrTestHelper {
                     )
                 ),
                 numberOfNonSigners,
-                registrantAPK,
+                registrantApkG2,
+                registrantApkG1,
                 signerAggSig,
-                nonsignerPK,
+                nonSignerPK,
                 searchData.metadata.stakesFromBlockNumber,
                 dataStoreId
             );

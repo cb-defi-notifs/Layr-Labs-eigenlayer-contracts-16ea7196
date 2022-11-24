@@ -20,7 +20,7 @@
             }
         }
     },
-    "nonSigners": {
+    "nonSignersData": {
         "NumNonSigners": 1,
         "NonSigners": [
             {

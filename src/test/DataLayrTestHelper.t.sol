@@ -370,7 +370,8 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
     function _getOneNonSignerCallData(
         bytes32 msgHash,
         uint32 numberOfNonSigners,
-        RegistrantAPK memory registrantAPK,
+        RegistrantAPKG2 memory registrantApkG2,
+        RegistrantAPKG1 memory registrantApkG1,
         SignerAggSig memory signerAggSig,
         NonSignerPK memory nonSignerPK,
         uint32 blockNumber,
@@ -408,11 +409,18 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
         data = abi.encodePacked(
             data,
             uint32(0),
+            //nonSignerPK.stakeIndex,
             uint32(dlReg.getApkUpdatesLength() - 1),
-            registrantAPK.apk0,
-            registrantAPK.apk1,
-            registrantAPK.apk2,
-            registrantAPK.apk3,
+            registrantApkG1.apk0,
+            registrantApkG1.apk1
+        );
+
+        data = abi.encodePacked(
+            data,
+            registrantApkG2.apk0,
+            registrantApkG2.apk1,
+            registrantApkG2.apk2,
+            registrantApkG2.apk3,
             signerAggSig.sigma0,
             signerAggSig.sigma1
         );
