@@ -19,11 +19,17 @@ contract TestHelper is EigenLayrDeployer {
     )
         public returns (uint256 amountEthStaked, uint256 amountEigenStaked)
     {
+                emit log("334");
+
         address operator = getOperatorAddress(operatorIndex);
+                emit log("334");
+
         //setting up operator's delegation terms
         weth.transfer(operator, 1e18);
         weth.transfer(_challenger, 1e18);
+        emit log("334");
         _testRegisterAsOperator(operator, IDelegationTerms(operator));
+        emit log("334");
 
         for (uint256 i; i < delegates.length; i++) {
             //initialize weth, eigen and eth balances for delegator

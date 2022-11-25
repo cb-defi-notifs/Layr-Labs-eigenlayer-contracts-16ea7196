@@ -16,8 +16,11 @@ contract RegistrationTests is DataLayrTestHelper {
     ) fuzzedOperatorIndex(operatorIndex) public {
         cheats.assume(ethAmount > 0 && ethAmount < 1e18);
         cheats.assume(eigenAmount > 0 && eigenAmount < 1e18);
-        
+                emit log("1");
+
         uint8 operatorType = 3;
+                emit log("1");
+
         (
             uint256 amountEthStaked, 
             uint256 amountEigenStaked
@@ -27,7 +30,11 @@ contract RegistrationTests is DataLayrTestHelper {
                 ethAmount
             );
 
+        emit log("1");
+
         _testRegisterBLSPubKey(operatorIndex);
+                emit log("2");
+
 
         bytes32 hashofPk = BLS.hashG1Point(getOperatorPubkeyG1(operatorIndex));
         require(pubkeyCompendium.operatorToPubkeyHash(getOperatorAddress(operatorIndex)) == hashofPk, "hash not stored correctly");
@@ -37,12 +44,16 @@ contract RegistrationTests is DataLayrTestHelper {
 
             uint96 ethStakedBefore = dlReg.getTotalStakeFromIndex(dlReg.getLengthOfTotalStakeHistory()-1).firstQuorumStake;
             uint96 eigenStakedBefore = dlReg.getTotalStakeFromIndex(dlReg.getLengthOfTotalStakeHistory()-1).secondQuorumStake;
+                    emit log("1");
+
             _testRegisterOperatorWithDataLayr(
                 operatorIndex,
                 operatorType,
                 testEphemeralKeyHash,
                 testSocket
             );
+                    emit log("2");
+
 
             uint256 numOperators = dlReg.numOperators();
             require(dlReg.operatorList(numOperators-1) == getOperatorAddress(operatorIndex), "operatorList not updated");
