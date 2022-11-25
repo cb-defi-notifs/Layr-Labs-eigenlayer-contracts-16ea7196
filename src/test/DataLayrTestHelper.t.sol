@@ -120,64 +120,6 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
         return searchData;
     }
 
-    //commits data store to data layer
-    function _testCommitDataStore(
-        bytes32 msgHash,
-        uint256 initTime,
-        uint32 numberOfNonSigners,
-        uint256[] memory apkG1,
-        uint256[] memory apkG2,
-        uint256[] memory sigma,
-        uint32 blockNumber,
-        uint32 dataStoreId,
-        IDataLayrServiceManager.DataStoreSearchData memory searchData
-    )
-        internal
-    {
-        /**
-         * @param data This calldata is of the format:
-         * <
-         * bytes32 headerHash,
-         * uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the BLSRegistryWithBomb
-         * uint32 blockNumber
-         * uint32 dataStoreId
-         * uint32 numberOfNonSigners,
-         * uint256[numberOfSigners][4] pubkeys of nonsigners,
-         * uint32 apkIndex,
-         * uint256[4] apk,
-         * uint256[2] sigma
-         * >
-         */
-
-        bytes memory data = abi.encodePacked(
-            keccak256(
-                abi.encodePacked(
-                    searchData.metadata.globalDataStoreId,
-                    searchData.metadata.headerHash,
-                    searchData.duration,
-                    initTime,
-                    searchData.index
-                )
-            ),
-            uint48(dlReg.getLengthOfTotalStakeHistory() - 1),
-            searchData.metadata.referenceBlockNumber,
-            searchData.metadata.globalDataStoreId,
-            numberOfNonSigners,
-            // no pubkeys here since zero nonSigners for now
-            uint32(dlReg.getApkUpdatesLength() - 1),
-            apkG1[0],
-            apkG1[1],
-            apkG2[0],
-            apkG2[1],
-            apkG2[2],
-            apkG2[3],
-            sigma[0],
-            sigma[1]
-        );
-
-        dlsm.confirmDataStore(data, searchData);
-    }
-
     function _testRegisterBLSPubKey(
         uint8 operatorIndex
     ) public {

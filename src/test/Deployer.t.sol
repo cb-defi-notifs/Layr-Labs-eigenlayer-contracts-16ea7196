@@ -116,10 +116,6 @@ contract EigenLayrDeployer is Operators, SignatureUtils {
     uint256[] sample_sig;
     address sample_registrant = cheats.addr(436364636);
 
-    // uint256[] apkG1;
-    // uint256[] apkG2;
-    // uint256[] sigmas;
-
     address[] public slashingContracts;
 
     uint256 wethInitialSupply = 10e50;
