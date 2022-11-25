@@ -302,9 +302,6 @@ contract EigenLayrDeployer is Operators, SignatureUtils {
         slashingContracts.push(address(eigenPodManager));
         investmentManager.slasher().addGloballyPermissionedContracts(slashingContracts);
 
-        
-        //loads signatures
-        setSignatures();
 
         ephemeralKeyHashes.push(0x3f9554986ff07e7ac0ca5d6e2094788cedcbbe5b9398dec9b124b28d0edca976);
         ephemeralKeyHashes.push(0x1f9554986ff07e7ac0ca5d6e2094788cedcbbe5b9398dec9b124b28d0edca976);

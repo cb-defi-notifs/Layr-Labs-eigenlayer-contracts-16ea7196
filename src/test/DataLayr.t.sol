@@ -39,7 +39,7 @@ contract DataLayrTests is DSTest, DataLayrTestHelper {
     function testLoopConfirmDataStore() public {
         _testConfirmDataStoreSelfOperators(15);
         uint256 g = gasleft();
-        for (uint256 i = 1; i < 5; i++) {
+        for (uint256 i = 1; i < 3; i++) {
             _testConfirmDataStoreWithoutRegister(block.timestamp, i, 15);
         }
         emit log_named_uint("gas", g - gasleft());

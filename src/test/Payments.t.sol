@@ -111,7 +111,7 @@ contract PaymentsTests is DataLayrTestHelper {
             (apkG1[0], apkG1[1]) = getAggregatePublicKeyG1();
             (apkG2[0], apkG2[1], apkG2[2], apkG2[3]) = getAggregatePublicKeyG2();
         }
-        (sigma[0], sigma[1]) = getAggSignature(); //(signatureData[index*2], signatureData[2*index + 1]);
+        (sigma[0], sigma[1]) = getAggSignature(0);
 
         //hardcoding values
         address operator = getOperatorAddress(0);

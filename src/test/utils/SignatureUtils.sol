@@ -58,10 +58,17 @@ contract SignatureUtils is Test {
     }
 
     //get the aggregate signature of all 15 signers
-    function getAggSignature() internal returns (uint256 sigX, uint256 sigY) {
+    function getAggSignature(uint256 index) internal returns (uint256 sigX, uint256 sigY) {
 
-        sigX = getUintFromJson(signatureJson, "aggregateSignature.Signature.X");
-        sigY = getUintFromJson(signatureJson, "aggregateSignature.Signature.Y");
+        if (index == 0){
+            sigX = getUintFromJson(signatureJson, "aggregateSignature.Signature.X");
+            sigY = getUintFromJson(signatureJson, "aggregateSignature.Signature.Y");
+        }
+        //if index is > 0 that means there are multiple datastores in the test.
+        //In this case only the signature changes, so we pull it from a helper function
+        else{
+            (sigX, sigY) = getSignatureOnAdditionalDataStore(index);
+        }
 
         return (sigX, sigY);
     }
@@ -79,45 +86,16 @@ contract SignatureUtils is Test {
         return(sigmaX, sigmaY);
     }
 
-    function setSignatures() internal {
-        //X-coordinate for signature
-        signatures[15].push(uint256(8948534429609633165965303176051337508823928923777758842886744023440854204267));
-        //Y-coordinate for signature
-        signatures[15].push(uint256(4622408548686949531175238473896974870555776834372530175532799335740509601351));
-
-
-        /// @dev these next 4 aggregate signatures are specifically for testConfirmDataStoreLoop, where 
-        ///      globalDataStoreID and index are incremented, which changes the msgHash, requiring new agg signatures.
-
-        // //X-coordinate for signature
-        // signatures[15].push(uint256(3768102256762337404052867633199540834071715013336059969755534978335414815915));
-        // //Y-coordinate for signature
-        // signatures[15].push(uint256(1347732725763368146376839019105722102118183430445244463171147039833656430554));
-        
-        // //X-coordinate for signature
-        // signatures[15].push(uint256(17726052552451194045498831446622391523712052718156013644001539561406531574296));
-        // //Y-coordinate for signature
-        // signatures[15].push(uint256(21548143511877874702515855361829893658157938210262199838254421299589869143948));
-
-        // //X-coordinate for signature
-        // signatures[15].push(uint256(18456695013140797630139570327999178712970087934218862167996303262756077265885));
-        // //Y-coordinate for signature
-        // signatures[15].push(uint256(6692040044674932411543245093209937967397201373852910194529170609645372186580));
-
-        // //X-coordinate for signature
-        // signatures[15].push(uint256(16936593860632559597797231574125317688131352946934229986716277496846837045926));
-        // //Y-coordinate for signature
-        // signatures[15].push(uint256(8419080474874111328448521941401302337127845046207972316360714449012068914811));
-
-        // //X-coordinate for signature
-        // signatures[12].push(uint256(18984184697644363675345717428833426720816735538703890129083867845101356547512));
-        // //Y-coordinate for signature
-        // signatures[12].push(uint256(13901218866265249360377869173958633007705926687970641308083042116030556327083));
-
-        // //X-coordinate for signature
-        // signatures[2].push(uint256(15462773903105570423983200028906973961348449005977379407744153690820070538946));
-        // //Y-coordinate for signature
-        // signatures[2].push(uint256(1958496896045946333699360997077644865789632650763255938686790892516574013948));
+    function getSignatureOnAdditionalDataStore(uint256 index) internal pure returns(uint256 sigX, uint256 sigY){
+        if(index == 1){
+            sigX = 8733421643731740631536151352850909620731477919778472879183197990316971409408;
+            sigY = 13039511527876118055099735862345750567119937347959409814678461768562329210287;
+        }
+        if(index == 2){
+            sigX = 6538597068907069739387395712285884705875484283135662276126649661004687333241;
+            sigY = 16337857511690675761965203377410131750898415908969868647246684783625084131030;
+        }
+        return(sigX, sigY);
         
     }
 

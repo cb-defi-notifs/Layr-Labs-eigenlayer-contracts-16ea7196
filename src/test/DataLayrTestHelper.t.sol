@@ -232,8 +232,8 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
             (apkG2[0], apkG2[1], apkG2[2], apkG2[3]) = getAggregatePublicKeyG2();
         }
 
-        (uint256 sigma_0, uint256 sigma_1) = getAggSignature(); //(signatureData[index*2], signatureData[2*index + 1]);
-
+        (uint256 sigma_0, uint256 sigma_1) = getAggSignature(index);
+        
         /**
          * @param data This calldata is of the format:
          * <

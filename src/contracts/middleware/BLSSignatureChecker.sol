@@ -340,10 +340,6 @@ abstract contract BLSSignatureChecker is Test {
                 pointer += BYTE_LENGTH_G1_POINT;
             }
 
-            emit log_named_uint("input 1", input[2]);
-            emit log_named_uint("input 2", input[3]);
-            emit log_named_bytes32("input hash", keccak256(abi.encodePacked(input[2], input[3])));
-            emit log_named_bytes32("correct apk hash", IBLSRegistry(address(registry)).getCorrectApkHash(apkIndex, stakesBlockNumber));
             // make sure the caller has provided the correct aggPubKey
             require(
                 IBLSRegistry(address(registry)).getCorrectApkHash(apkIndex, stakesBlockNumber) == keccak256(abi.encodePacked(input[2], input[3])),
@@ -371,8 +367,8 @@ abstract contract BLSSignatureChecker is Test {
             }
             require(success, "BLSSignatureChecker.checkSignatures: aggregate non signer addition failed");
 
-            emit log_named_uint("agg new pubkey", input[2]);
-            emit log_named_uint("agg new pubkey", input[3]);
+            // emit log_named_uint("agg new pubkey", input[2]);
+            // emit log_named_uint("agg new pubkey", input[3]);
             
         }
 
@@ -381,8 +377,8 @@ abstract contract BLSSignatureChecker is Test {
         // compute H(M) in G1
         (input[6], input[7]) = BLS.hashToG1(msgHash);
 
-        emit log_named_uint("msgHash G1", input[6]);
-        emit log_named_uint("msgHash G1", pointer);
+        // emit log_named_uint("msgHash G1", input[6]);
+        // emit log_named_uint("msgHash G1", pointer);
 
 
         // Load the G2 public key into (input[8], input[9], input[10], input[11])
@@ -461,10 +457,10 @@ abstract contract BLSSignatureChecker is Test {
         // (input[6], input[7]) = g1 * gamma + H(m)
         // (input[8], input[9], input[10], input[11]) = public key in G2
 
-        emit log_named_uint("input[8]",input[8]);
-        emit log_named_uint("input[9]",input[9]);
-        emit log_named_uint("input[10]",input[10]);
-        emit log_named_uint("input[11]",input[11]);
+        // emit log_named_uint("input[8]",input[8]);
+        // emit log_named_uint("input[9]",input[9]);
+        // emit log_named_uint("input[10]",input[10]);
+        // emit log_named_uint("input[11]",input[11]);
         
         
         /**
