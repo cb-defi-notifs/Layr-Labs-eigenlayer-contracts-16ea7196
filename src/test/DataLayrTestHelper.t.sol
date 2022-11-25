@@ -32,13 +32,14 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
 
     function _testDeregisterOperatorWithDataLayr(
         uint8 operatorIndex,
-        uint8 operatorListIndex
+        uint8 operatorListIndex,
+        BN254.G1Point memory pkToRemove
     ) public {
 
         address operator = getOperatorAddress(operatorIndex);
 
         cheats.startPrank(operator);
-        dlReg.deregisterOperator(getOperatorPubkeyG1(operatorIndex), operatorListIndex);
+        dlReg.deregisterOperator(pkToRemove, operatorListIndex);
         cheats.stopPrank();
     }
     //initiates a data store

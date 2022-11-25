@@ -27,7 +27,7 @@ contract DeregistrationTests is DataLayrTestHelper {
 
         bytes32 pubkeyHash = BLS.hashG1Point(operatorPubkey);    
 
-        _testDeregisterOperatorWithDataLayr(operatorIndex, uint8(dlReg.numOperators()-1));
+        _testDeregisterOperatorWithDataLayr(operatorIndex, uint8(dlReg.numOperators()-1), getOperatorPubkeyG1(operatorIndex));
 
         (,uint32 nextUpdateBlockNumber,uint96 firstQuorumStake, uint96 secondQuorumStake) = dlReg.pubkeyHashToStakeHistory(pubkeyHash, dlReg.getStakeHistoryLength(pubkeyHash)-1);
         require( nextUpdateBlockNumber == 0, "Stake history not updated correctly");
@@ -45,16 +45,18 @@ contract DeregistrationTests is DataLayrTestHelper {
     function testMismatchedPubkeyHashAndProvidedPubkeyHash(
         uint8 operatorIndex,
         uint256 ethAmount, 
-        uint256 eigenAmount
+        uint256 eigenAmount,
+        BN254.G1Point memory pkToRemove
     ) public fuzzedOperatorIndex(operatorIndex) {
         cheats.assume(ethAmount > 0 && ethAmount < 1e18);
         cheats.assume(eigenAmount > 0 && eigenAmount < 1e18);
+        cheats.assume(pkToRemove.X != getOperatorPubkeyG1(operatorIndex).X);
 
     
         _BLSRegistration(operatorIndex, ethAmount, eigenAmount);
         uint8 operatorListIndex = uint8(dlReg.numOperators()-1);
         cheats.expectRevert(bytes("BLSRegistry._deregisterOperator: pubkey input does not match stored pubkeyHash"));
-        _testDeregisterOperatorWithDataLayr(operatorIndex, operatorListIndex);
+        _testDeregisterOperatorWithDataLayr(operatorIndex, operatorListIndex, pkToRemove);
     }
 
     /**
@@ -76,7 +78,7 @@ contract DeregistrationTests is DataLayrTestHelper {
 
         uint8 operatorListIndex = uint8(dlReg.numOperators()-1);
         //cheats.expectRevert(bytes("EphemeralKeyRegistry.postLastEphemeralKeyPreImage: Ephemeral key does not match previous ephemeral key commitment"));
-        _testDeregisterOperatorWithDataLayr(operatorIndex, operatorListIndex);
+        _testDeregisterOperatorWithDataLayr(operatorIndex, operatorListIndex, getOperatorPubkeyG1(operatorIndex));
     }
     /**
     *   @notice Tests that deregistering an operator who has already 
@@ -92,10 +94,10 @@ contract DeregistrationTests is DataLayrTestHelper {
 
 
         uint8 operatorListIndex = uint8(dlReg.numOperators());                  
-        _testDeregisterOperatorWithDataLayr(operatorIndex, operatorListIndex-1);
+        _testDeregisterOperatorWithDataLayr(operatorIndex, operatorListIndex-1, getOperatorPubkeyG1(operatorIndex));
         
         cheats.expectRevert(bytes("RegistryBase._deregistrationCheck: Operator is not registered"));
-        _testDeregisterOperatorWithDataLayr(operatorIndex, operatorListIndex-1);
+        _testDeregisterOperatorWithDataLayr(operatorIndex, operatorListIndex-1, getOperatorPubkeyG1(operatorIndex));
 
     }
 
