@@ -34,6 +34,18 @@ contract SignatureUtils is Test {
         return (aggPKX0, aggPKX1, aggPKY0, aggPKY1);
     }
 
+    function getAggPubKeyG2WithoutNonSigners(uint32 nonSignerDataIndex)
+        internal
+        returns (uint256 aggPKX0, uint256 aggPKX1, uint256 aggPKY0, uint256 aggPKY1)
+    {
+        aggPKX0 = getAggPubKeyG2WithoutNonSignersFromJson(signatureJson, nonSignerDataIndex, "AggPubkeyG2WithoutNonSigners.X.A0");
+        aggPKX1 = getAggPubKeyG2WithoutNonSignersFromJson(signatureJson, nonSignerDataIndex, "AggPubkeyG2WithoutNonSigners.X.A1");
+        aggPKY0 = getAggPubKeyG2WithoutNonSignersFromJson(signatureJson, nonSignerDataIndex, "AggPubkeyG2WithoutNonSigners.Y.A0");
+        aggPKY1 = getAggPubKeyG2WithoutNonSignersFromJson(signatureJson, nonSignerDataIndex, "AggPubkeyG2WithoutNonSigners.Y.A1");
+
+        return (aggPKX0, aggPKX1, aggPKY0, aggPKY1);
+    }
+
     //returns aggPK.X, aggPK.Y
     function getAggregatePublicKeyG1()
         internal 
@@ -118,10 +130,8 @@ contract SignatureUtils is Test {
         string memory temp3 = string.concat(temp2, "NonSigners[");
         string memory temp4 = string.concat(vm.toString(pubkeyIndex), "].");
         string memory pubKeyEntry = string.concat(temp3, temp4);
-        emit log(pubKeyEntry);
         string memory word =  stdJson.readString(json, string.concat(pubKeyEntry, key));
 
-        emit log(word);
 
         return convertStringToUint(word);
     }
@@ -130,11 +140,15 @@ contract SignatureUtils is Test {
         
         string memory temp1 = string.concat(vm.toString(nonSignersDataIndex), "].");
         string memory pubKeyEntry = string.concat("nonSignersData[", temp1);
-        emit log(pubKeyEntry);
         string memory word =  stdJson.readString(json, string.concat(pubKeyEntry, key));
+        return convertStringToUint(word);
+    }
 
-        emit log(word);
-
+    function getAggPubKeyG2WithoutNonSignersFromJson(string memory json, uint256 nonSignersDataIndex, string memory key) internal returns(uint256){
+        
+        string memory temp1 = string.concat(vm.toString(nonSignersDataIndex), "].");
+        string memory pubKeyEntry = string.concat("nonSignersData[", temp1);
+        string memory word =  stdJson.readString(json, string.concat(pubKeyEntry, key));
         return convertStringToUint(word);
     }
 

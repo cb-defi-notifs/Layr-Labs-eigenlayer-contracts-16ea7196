@@ -112,8 +112,8 @@ abstract contract BLSSignatureChecker is Test {
      * uint32 numberOfNonSigners,
      * {uint256[2] pubkeyG1, uint32 stakeIndex}[numberOfNonSigners] the G1 public key and the index to query of `pubkeyHashToStakeHistory` for each nonsigner,
      * uint32 apkIndex, the index in the `apkUpdates` array at which we want to load the aggregate public key
-     * uint256[2] apkG1 (G1 aggregate public key),
-     * uint256[4] apkG2 (G2 aggregate public key),
+     * uint256[2] apkG1 (G1 aggregate public key, including nonSigners),
+     * uint256[4] apkG2 (G2 aggregate public key, not including nonSigners),
      * uint256[2] sigma, the aggregate signature itself
      * >
      * 
@@ -230,6 +230,8 @@ abstract contract BLSSignatureChecker is Test {
 
             // get pubkeyHash and add it to pubkeyHashes of operators that aren't part of the quorum.
             bytes32 pubkeyHash = keccak256(abi.encodePacked(input[0], input[1]));
+            emit log_named_uint("aggregateNonSignerPublicKey", input[0]);
+            emit log_named_uint("aggregateNonSignerPublicKey", input[1]);
 
             pubkeyHashes[0] = pubkeyHash;
 
@@ -244,6 +246,7 @@ abstract contract BLSSignatureChecker is Test {
             signedTotals.signedStakeFirstQuorum -= localStakeObject.firstQuorumStake;
             signedTotals.signedStakeSecondQuorum -= localStakeObject.secondQuorumStake;
         }
+        emit log_named_uint("placeholder", placeholder);
 
         /**
          * @dev store each non signer's public key in (input[2], input[3]) and add them to the aggregate non signer public key
@@ -343,6 +346,8 @@ abstract contract BLSSignatureChecker is Test {
                 IBLSRegistry(address(registry)).getCorrectApkHash(apkIndex, stakesBlockNumber) == keccak256(abi.encodePacked(input[2], input[3])),
                 "BLSSignatureChecker.checkSignatures: Incorrect apk provided"
             );
+
+            
         }
 
         // if at least 1 non-signer
@@ -362,12 +367,19 @@ abstract contract BLSSignatureChecker is Test {
                 success := staticcall(sub(gas(), 2000), 6, input, 0x80, add(input, 0x40), 0x40)
             }
             require(success, "BLSSignatureChecker.checkSignatures: aggregate non signer addition failed");
+
+            emit log_named_uint("agg new pubkey", input[2]);
+            emit log_named_uint("agg new pubkey", input[3]);
+            
         }
 
         // Now, (input[2], input[3]) is the signingPubkey
 
         // compute H(M) in G1
         (input[6], input[7]) = BLS.hashToG1(msgHash);
+
+        emit log_named_uint("msgHash G1", input[6]);
+        emit log_named_uint("msgHash G1", pointer);
 
 
         // Load the G2 public key into (input[8], input[9], input[10], input[11])
@@ -445,6 +457,12 @@ abstract contract BLSSignatureChecker is Test {
         // (input[2], input[3], input[4], input[5]) = negated generator of G2
         // (input[6], input[7]) = g1 * gamma + H(m)
         // (input[8], input[9], input[10], input[11]) = public key in G2
+
+        emit log_named_uint("input[8]",input[8]);
+        emit log_named_uint("input[9]",input[9]);
+        emit log_named_uint("input[10]",input[10]);
+        emit log_named_uint("input[11]",input[11]);
+        
         
         /**
          * @notice now we verify that e(sigma + gamma * pk, -g2)e(H(m) + gamma * g1, pkG2) == 1
