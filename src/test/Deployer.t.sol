@@ -525,27 +525,9 @@ contract EigenLayrDeployer is Operators, SignatureUtils {
 
         // check that the provided signature is correct
         require(input[11] == 1, "BLSSignatureChecker.checkSignatures: Pairing unsuccessful");
-
-        // abi.encodePacked(
-        //     keccak256(
-        //         abi.encodePacked(searchData.metadata.globalDataStoreId, searchData.metadata.headerHash, searchData.duration, initTime, searchData.index)
-        //     ),
-        //     uint48(dlReg.getLengthOfTotalStakeHistory() - 1),
-        //     searchData.metadata.referenceBlockNumber,
-        //     searchData.metadata.globalDataStoreId,
-        //     numberOfNonSigners,
-        //     // no pubkeys here since zero nonSigners for now
-        //     uint32(dlReg.getApkUpdatesLength() - 1),
-        //     apk_0,
-        //     apk_1,
-        //     apk_2,
-        //     apk_3,
-        //     sigma_0,
-        //     sigma_1
-        // );
     }
 
-    function testBLSPairing() public {
+    function testBLSPairing() internal {
             uint256[12] memory input;
 
             uint256 sigmaX = 18033935401377046968253993369420882761639101147199761382164100964672839397476;
@@ -587,7 +569,7 @@ contract EigenLayrDeployer is Operators, SignatureUtils {
             );
         }
 
-    function testVKPairing() public {
+    function testVKPairing() internal {
         uint256[12] memory input;
 
         uint256 pkg1X = 11746114415387181186350609321861313487282937637157292915572974055983718048797;
