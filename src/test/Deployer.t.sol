@@ -125,7 +125,7 @@ contract EigenLayrDeployer is Operators, SignatureUtils {
     uint256 nonce = 69;
     uint256 public gasLimit = 750000;
 
-
+    address podManagerAddress = 0x1d1499e622D69689cdf9004d05Ec547d650Ff211;              
     address storer = address(420);
     address pauser = address(69);
     address unpauser = address(489);
@@ -301,6 +301,14 @@ contract EigenLayrDeployer is Operators, SignatureUtils {
 
         slashingContracts.push(address(eigenPodManager));
         investmentManager.slasher().addGloballyPermissionedContracts(slashingContracts);
+
+        //ensuring that the address of eigenpodmanager doesn't change
+        bytes memory code = address(eigenPodManager).code;
+        vm.etch(podManagerAddress, code);
+
+
+        eigenPodManager = IEigenPodManager(podManagerAddress);
+
 
 
         ephemeralKeyHashes.push(0x3f9554986ff07e7ac0ca5d6e2094788cedcbbe5b9398dec9b124b28d0edca976);

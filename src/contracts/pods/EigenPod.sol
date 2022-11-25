@@ -81,6 +81,7 @@ contract EigenPod is IEigenPod, Initializable, Test
     ) external {
         //TODO: tailor this to production oracle
         bytes32 beaconStateRoot = eigenPodManager.getBeaconChainStateRoot();
+        emit log_named_bytes32("beaconStateRoot", beaconStateRoot);
 
         // get merklizedPubkey: https://github.com/prysmaticlabs/prysm/blob/de8e50d8b6bcca923c38418e80291ca4c329848b/beacon-chain/state/stateutil/sync_committee.root.go#L45
         bytes32 merklizedPubkey = sha256(abi.encodePacked(pubkey, bytes16(0)));
