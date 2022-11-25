@@ -66,14 +66,17 @@ contract SignatureUtils is Test {
         return (sigX, sigY);
     }
 
-    function getNonSignerInfo(uint32 pkIndex, uint32 nonSignerDataIndex) internal returns (uint256 PKX, uint256 PKY, uint256 sigmaX, uint256 sigmaY) {
+    function getNonSignerPK(uint32 pkIndex, uint32 nonSignerDataIndex) internal returns (uint256 PKX, uint256 PKY) {
         PKX = getNonSignerPKFromJson(signatureJson, pkIndex, nonSignerDataIndex, "PubkeyG1.X");
         PKY = getNonSignerPKFromJson(signatureJson, pkIndex, nonSignerDataIndex, "PubkeyG1.Y");
+        return(PKX, PKY);
+    }
 
+    function getNonSignerAggSig(uint32 nonSignerDataIndex) internal returns (uint256 sigmaX, uint256 sigmaY) {
         sigmaX = getNonSignerAggSigFromJson(signatureJson, nonSignerDataIndex, "AggSignature.X");
         sigmaY = getNonSignerAggSigFromJson(signatureJson, nonSignerDataIndex, "AggSignature.Y");
 
-        return(PKX, PKY, sigmaX, sigmaY);
+        return(sigmaX, sigmaY);
     }
 
     function setSignatures() internal {

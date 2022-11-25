@@ -612,7 +612,8 @@ contract DelegationTests is DataLayrTestHelper {
         SignerAggSig memory signerAggSig;
         uint32 numberOfNonSigners = 1; 
 
-        (nonSignerPK.x, nonSignerPK.y, signerAggSig.sigma0,  signerAggSig.sigma1) = getNonSignerInfo(numberOfNonSigners-1, 0);
+        (nonSignerPK.x, nonSignerPK.y) = getNonSignerPK(numberOfNonSigners-1, 0);
+        (signerAggSig.sigma0,  signerAggSig.sigma1) = getNonSignerAggSig(0);
         //the non signer is the 15th operator with stake Index 14
         (registrantApkG2.apk0, registrantApkG2.apk1, registrantApkG2.apk2, registrantApkG2.apk3) = getAggPubKeyG2WithoutNonSigners(0);
         //in BLSSignatureChecker we only is G1 PK to subtract NonSignerPK's from, so we pass in the full signer set aggPK

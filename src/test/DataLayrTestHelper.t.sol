@@ -383,6 +383,75 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
         return data;
     }
 
+    function _getTwoNonSignerCallData(
+        bytes32 msgHash,
+        uint32 numberOfNonSigners,
+        RegistrantAPKG1 memory registrantApkG1,
+        RegistrantAPKG2 memory registrantApkG2,
+        SignerAggSig memory signerAggSig,
+        NonSignerPK memory nonSignerPK1,
+        NonSignerPK memory nonSignerPK2,
+        uint32 blockNumber,
+        uint32 dataStoreId
+    )
+        internal
+        view
+        returns (bytes memory)
+    {
+        /**
+         * @param data This calldata is of the format:
+         * <
+         * bytes32 msgHash,
+         * uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the BLSRegistryWithBomb
+         * uint32 blockNumber
+         * uint32 dataStoreId
+         * uint32 numberOfNonSigners,
+         * uint256[numberOfSigners][4] pubkeys of nonsigners,
+         * uint32 stakeIndex
+         * uint32 apkIndex,
+         * uint256[4] apk,
+         * uint256[2] sigma
+         * >s
+         */
+        bytes memory data = abi.encodePacked(
+            msgHash,
+            uint48(dlReg.getLengthOfTotalStakeHistory() - 1),
+            blockNumber,
+            dataStoreId,
+            numberOfNonSigners
+        );
+        data = abi.encodePacked(
+            data,
+            nonSignerPK1.x,
+            nonSignerPK1.y,
+            uint32(0)
+        );
+        data = abi.encodePacked(
+            data,
+            nonSignerPK2.x,
+            nonSignerPK2.y,
+            uint32(0)
+        );
+        data = abi.encodePacked(
+            data,
+            uint32(dlReg.getApkUpdatesLength() - 1),
+            registrantApkG1.apk0,
+            registrantApkG1.apk1
+        );
+
+        data = abi.encodePacked(
+            data,
+            registrantApkG2.apk0,
+            registrantApkG2.apk1,
+            registrantApkG2.apk2,
+            registrantApkG2.apk3,
+            signerAggSig.sigma0,
+            signerAggSig.sigma1
+        );
+
+        return data;
+    }
+
     function _testInitDataStoreExpectRevert(
         uint256 initTimestamp, 
         address confirmer, 

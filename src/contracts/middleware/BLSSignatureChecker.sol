@@ -340,7 +340,10 @@ abstract contract BLSSignatureChecker is Test {
                 pointer += BYTE_LENGTH_G1_POINT;
             }
 
- 
+            emit log_named_uint("input 1", input[2]);
+            emit log_named_uint("input 2", input[3]);
+            emit log_named_bytes32("input hash", keccak256(abi.encodePacked(input[2], input[3])));
+            emit log_named_bytes32("correct apk hash", IBLSRegistry(address(registry)).getCorrectApkHash(apkIndex, stakesBlockNumber));
             // make sure the caller has provided the correct aggPubKey
             require(
                 IBLSRegistry(address(registry)).getCorrectApkHash(apkIndex, stakesBlockNumber) == keccak256(abi.encodePacked(input[2], input[3])),
