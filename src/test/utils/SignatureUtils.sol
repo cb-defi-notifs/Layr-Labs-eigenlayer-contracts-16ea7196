@@ -54,12 +54,12 @@ contract SignatureUtils is Test {
         return (sigX, sigY);
     }
 
-    function getNonSignerInfo(uint32 index) internal returns (uint256 PKX, uint256 PKY, uint256 sigmaX, uint256 sigmaY) {
-        PKX = getNonSignerPKFromJson(signatureJson, index, "PubkeyG1.X");
-        PKY = getNonSignerPKFromJson(signatureJson, index, "PubkeyG1.Y");
+    function getNonSignerInfo(uint32 pkIndex, uint32 nonSignerDataIndex) internal returns (uint256 PKX, uint256 PKY, uint256 sigmaX, uint256 sigmaY) {
+        PKX = getNonSignerPKFromJson(signatureJson, pkIndex, nonSignerDataIndex, "PubkeyG1.X");
+        PKY = getNonSignerPKFromJson(signatureJson, pkIndex, nonSignerDataIndex, "PubkeyG1.Y");
 
-        sigmaX = getUintFromJson(signatureJson, "nonSignersData.AggSignature.X");
-        sigmaY = getUintFromJson(signatureJson, "nonSignersData.AggSignature.Y");
+        sigmaX = getNonSignerAggSigFromJson(signatureJson, nonSignerDataIndex, "AggSignature.X");
+        sigmaY = getNonSignerAggSigFromJson(signatureJson, nonSignerDataIndex, "AggSignature.Y");
 
         return(PKX, PKY, sigmaX, sigmaY);
     }
@@ -111,10 +111,29 @@ contract SignatureUtils is Test {
         return convertStringToUint(word);
     }
 
-    function getNonSignerPKFromJson(string memory json, uint256 index, string memory key) internal returns(uint256){
-        string memory idx = string.concat(vm.toString(index), "].");
-        string memory pubKeyEntry = string.concat("nonSignersData.NonSigners[", idx);
+    function getNonSignerPKFromJson(string memory json, uint256 pubkeyIndex, uint256 nonSignersDataIndex, string memory key) internal returns(uint256){
+        
+        string memory temp1 = string.concat(vm.toString(nonSignersDataIndex), "].");
+        string memory temp2 = string.concat("nonSignersData[", temp1);
+        string memory temp3 = string.concat(temp2, "NonSigners[");
+        string memory temp4 = string.concat(vm.toString(pubkeyIndex), "].");
+        string memory pubKeyEntry = string.concat(temp3, temp4);
+        emit log(pubKeyEntry);
         string memory word =  stdJson.readString(json, string.concat(pubKeyEntry, key));
+
+        emit log(word);
+
+        return convertStringToUint(word);
+    }
+
+    function getNonSignerAggSigFromJson(string memory json, uint256 nonSignersDataIndex, string memory key) internal returns(uint256){
+        
+        string memory temp1 = string.concat(vm.toString(nonSignersDataIndex), "].");
+        string memory pubKeyEntry = string.concat("nonSignersData[", temp1);
+        emit log(pubKeyEntry);
+        string memory word =  stdJson.readString(json, string.concat(pubKeyEntry, key));
+
+        emit log(word);
 
         return convertStringToUint(word);
     }
