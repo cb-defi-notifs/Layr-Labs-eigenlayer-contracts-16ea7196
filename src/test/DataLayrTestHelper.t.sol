@@ -123,8 +123,10 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
     //commits data store to data layer
     function _testCommitDataStore(
         bytes32 msgHash,
+        uint256 initTime,
         uint32 numberOfNonSigners,
-        uint256[] memory apk,
+        uint256[] memory apkG1,
+        uint256[] memory apkG2,
         uint256[] memory sigma,
         uint32 blockNumber,
         uint32 dataStoreId,
@@ -148,17 +150,27 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
          */
 
         bytes memory data = abi.encodePacked(
-            msgHash,
+            keccak256(
+                abi.encodePacked(
+                    searchData.metadata.globalDataStoreId,
+                    searchData.metadata.headerHash,
+                    searchData.duration,
+                    initTime,
+                    searchData.index
+                )
+            ),
             uint48(dlReg.getLengthOfTotalStakeHistory() - 1),
-            blockNumber,
-            dataStoreId,
+            searchData.metadata.referenceBlockNumber,
+            searchData.metadata.globalDataStoreId,
             numberOfNonSigners,
             // no pubkeys here since zero nonSigners for now
             uint32(dlReg.getApkUpdatesLength() - 1),
-            apk[0],
-            apk[1],
-            apk[2],
-            apk[3],
+            apkG1[0],
+            apkG1[1],
+            apkG2[0],
+            apkG2[1],
+            apkG2[2],
+            apkG2[3],
             sigma[0],
             sigma[1]
         );
