@@ -230,8 +230,7 @@ abstract contract BLSSignatureChecker is Test {
 
             // get pubkeyHash and add it to pubkeyHashes of operators that aren't part of the quorum.
             bytes32 pubkeyHash = keccak256(abi.encodePacked(input[0], input[1]));
-            emit log_named_uint("aggregateNonSignerPublicKey", input[0]);
-            emit log_named_uint("aggregateNonSignerPublicKey", input[1]);
+
 
             pubkeyHashes[0] = pubkeyHash;
 
@@ -246,7 +245,6 @@ abstract contract BLSSignatureChecker is Test {
             signedTotals.signedStakeFirstQuorum -= localStakeObject.firstQuorumStake;
             signedTotals.signedStakeSecondQuorum -= localStakeObject.secondQuorumStake;
         }
-        emit log_named_uint("placeholder", placeholder);
 
         /**
          * @dev store each non signer's public key in (input[2], input[3]) and add them to the aggregate non signer public key
@@ -456,11 +454,6 @@ abstract contract BLSSignatureChecker is Test {
         // (input[2], input[3], input[4], input[5]) = negated generator of G2
         // (input[6], input[7]) = g1 * gamma + H(m)
         // (input[8], input[9], input[10], input[11]) = public key in G2
-
-        // emit log_named_uint("input[8]",input[8]);
-        // emit log_named_uint("input[9]",input[9]);
-        // emit log_named_uint("input[10]",input[10]);
-        // emit log_named_uint("input[11]",input[11]);
         
         
         /**
