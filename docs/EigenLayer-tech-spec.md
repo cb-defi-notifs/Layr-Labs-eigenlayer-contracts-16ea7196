@@ -22,7 +22,7 @@ A **staker** is any party who has assets deposited into EigenLayer. In general, 
 **Operators** in EigenLayer are those users who actually run the software built on top of EigenLayer. Operators register in EigenLayer, allowing stakers to delegate to them, and then opt-in to any mix of services built on top of EigenLayer; each service that an operator chooses to serve may impose its own slashing conditions on the operator.
 
 ### Watchers
-Some operations in EigenLayer are "**rolled up**". This is a design pattern used where it is either impossible or infeasible to prove that some claim it true, but *easy to check a counterexample that proves the claim is false*. The general pattern is:
+Some operations in EigenLayer are "**rolled up**". This is a design pattern used where it is either impossible or infeasible to prove that some claim is true, but *easy to check a counterexample that proves the claim is false*. The general pattern is:
 1. A "rolled-up" claim is made, asserting that some condition is true.
 2. There is a "fraudproof period", during which anyone can *disprove* the claim with a single counterexample. If a claim is disproven, then the original claimant is punished in some way (e.g. by forfeiting some collateral or being slashed).
 3. If the claim is *not* disproved during the fraudproof period, then it is assumed to be true, and the system proceeds from this assumption.
@@ -52,10 +52,10 @@ The `InvestmentManager` contract is the primary coordinator for inflows and outf
 
 Any staker in EigenLayer can choose *either* to register as an operator *or* to delegate their restaked assets to an existing operator. These actions are performed on the `EigenLayerDelegation` contract. 
 
-Withdrawals and undelegation are handled through the `InvestmentManager`. both *necessitate delays*, since it is infeasible to immediately know whether or not specific restaked funds are "at stake" on any existing tasks created by services. Instead, stakers who wish to withdraw and/or undelegate must go through a *queued withdrawal* process, in which they:
+Withdrawals and undelegation are handled through the `InvestmentManager`. Both *necessitate delays*, since it is infeasible to immediately know whether or not specific restaked funds are "at stake" on any existing tasks created by services. Instead, stakers who wish to withdraw and/or undelegate must go through a *queued withdrawal* process, in which they:
 1. Begin the withdrawal, signaling that the funds they are withdrawing should no longer be placed "at stake" on new tasks.
 2. Push any necessary updates to middlewares (or wait for someone else to do so), recording the decrease in funds to place at stake on new tasks.
-3. Complete their withdrawal after an appropriate delay, i.e. once all tasks have been completed upon which the too-be-withdrawn funds were placed at stake.
+3. Complete their withdrawal after an appropriate delay, i.e. once all tasks have been completed upon which the to-be-withdrawn funds were placed at stake.
 
 <!-- TODO: link to specific "flow" docs-->
 
@@ -64,9 +64,9 @@ Withdrawals and undelegation are handled through the `InvestmentManager`. both *
 ### InvestmentManager
 The InvestmentManager contract keeps track of all stakers’ investments, in the form of “shares” in the InvestmentStrategy contracts. Stakers who wish to deposit ERC20 tokens can do so by calling the InvestmentManager, which will transfer the depositor’s tokens to a user-specified InvestmentStrategy contract, which in turn manages the tokens to generate yields in the deposited token (or just passively holds them, if the depositor is risk-averse or the token lacks good yield-generating opportunities).
 
-As the arbiter of share amounts, the InvestmentManager is also the main interaction point for withdrawals from EigenLayer. In general, withdrawals from EigenLayer must ensure that restaked assets cannot be withdrawn until they are no longer placed at risk of slashing by securing some service on EigenLayer. To accomplish this, EigenLayer enforces "gauanteed stake updates on withdrawals". The full withdrawal process is outlined in [TODO: add link to withdrawal flow doc](link-here).
+As the arbiter of share amounts, the InvestmentManager is also the main interaction point for withdrawals from EigenLayer. In general, withdrawals from EigenLayer must ensure that restaked assets cannot be withdrawn until they are no longer placed at risk of slashing by securing some service on EigenLayer. To accomplish this, EigenLayer enforces "guaranteed stake updates on withdrawals". The full withdrawal process is outlined in [TODO: add link to withdrawal flow doc](link-here).
 
-Lastly, the InvestmentManager processes slashing actions, in which some (or all) of a user's shares are transferred to an specified address. Slashing of this kind should only ever occur as the result of an operator taking a provably malicious action.
+Lastly, the InvestmentManager processes slashing actions, in which some (or all) of a user's shares are transferred to a specified address. Slashing of this kind should only ever occur as the result of an operator taking a provably malicious action.
 
 
 #### Storage in InvestmentManager
