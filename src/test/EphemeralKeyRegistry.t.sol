@@ -61,10 +61,8 @@ contract EphemeralKeyRegistryTests is DataLayrTestHelper {
         ephemeralKeys.push(testEphemeralKey2);
     }
 
-    function testSlashStaleEphemeralKey(address operator) public initialized(operator) {
+    function testSlashStaleEphemeralKey(address operator) public initialized(operator) fuzzedAddress(operator){
         cheats.assume(operator != address(0));
-        cheats.assume(operator != address(dataLayrProxyAdmin));
-        cheats.assume(operator != address(eigenLayrProxyAdmin));
         cheats.startPrank(address(eigenDAReg));
         ephemeralKeyRegistry.postFirstEphemeralKeyHashes(operator, testEphemeralKeyHash1, testEphemeralKeyHash2);
        
@@ -76,11 +74,9 @@ contract EphemeralKeyRegistryTests is DataLayrTestHelper {
         cheats.stopPrank();
     }
 
-    function testSlashLeakedEphemeralKey(address operator) public initialized(operator) {
+    function testSlashLeakedEphemeralKey(address operator) public initialized(operator) fuzzedAddress(operator) {
         cheats.assume(operator != address(0));
         cheats.startPrank(address(eigenDAReg));
-        cheats.assume(operator != address(dataLayrProxyAdmin));
-        cheats.assume(operator != address(eigenLayrProxyAdmin));
         
         ephemeralKeyRegistry.postFirstEphemeralKeyHashes(operator, testEphemeralKeyHash1, testEphemeralKeyHash2);
        
