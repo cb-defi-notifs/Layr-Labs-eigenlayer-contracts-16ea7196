@@ -21,7 +21,7 @@ The DataLayrServiceManager contract serves as the central contract for interacti
     - Placing into escrow the service fees that the DataLayr operators will receive from the disperser.
 
 2. Once the dataStore has been initialized, the disperser calls `confirmDataStore` which involves:
-    * Notifying that signatures for a given dataStore have been obtained from a quorum of DataLayr nodes,
+     * Notifying that signatures for a given dataStore have been obtained from a quorum of DataLayr nodes,
      * Checking that the aggregate signature is valid,
      * Checking whether a sufficient quorum has been achieved or not.
 
@@ -37,7 +37,6 @@ The DataLayrPaymentManager contract manages all DataLayr-related payments.  Thes
 The `DataLayrBombVerifier` is the core slashing module of DataLayr. Using Dankrad's Proofs of Custody, DataLayr is able to slash operators who are provably not storing their data.
 
 A challenger proves that an operator wasn't storing data at certain time by attesting to the four following claims:
-
 1. The existence of a certain datastore referred to as the DETONATION datastore
 2. The existence of a certain datastore referred to as the BOMB datastore, which the operator has certified to storing, that is chosen on-chain via the result of a function of the DETONATION datastore's header hash
 3. The data that the operator was storing for the BOMB datastore, when hashed with the operator's ephemeral key and the DETONATION datastore's header hash, is below a certain threshold defined by the `DataLayrBombVerifier` contract
@@ -101,4 +100,3 @@ Each *public key* can only be registered by a single operator (i.e. no "sharing"
 A contract fulfilling the Repository role is expected to provide address for all of the other contracts within a single middleware. The Repository contract is intended to be the central source of "ground truth" for a single middleware on EigenLayer. Other contracts can refer to the Repository in order to determine the "official" contracts for the middleware, making it the central point for upgrades-by-changing-contract-addresses. The owner of the Repository for a middleware holds *tremendous power* – this role should only be given to a multisig or governance contract.
 
 Note that despite inheriting from `Initializable`, this contract is **not** designed to be deployed as an upgradeable proxy -- rather, it is designed so that it can be deployed from a factory contract and automatically verified on block explorers like Etherscan, since each new contract created by the Repository will use the same constructor parameters, but may have different `initialize` arguments.
-

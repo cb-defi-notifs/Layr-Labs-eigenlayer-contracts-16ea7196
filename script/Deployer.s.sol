@@ -78,8 +78,8 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
     PauserRegistry public eigenLayrPauserReg;
     Slasher public slasher;
     EigenLayrDelegation public delegation;
+    EigenPodManager public eigenPodManager;
     InvestmentManager public investmentManager;
-    IEigenPodManager public eigenPodManager;
     IEigenPod public pod;
     IETHPOSDeposit public ethPOSDeposit;
     IBeacon public eigenPodBeacon;
@@ -263,7 +263,6 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
         slashingContracts.push(address(eigenPodManager));
         investmentManager.slasher().addGloballyPermissionedContracts(slashingContracts);
         
-
         vm.writeFile("data/investmentManager.addr", vm.toString(address(investmentManager)));
         vm.writeFile("data/delegation.addr", vm.toString(address(delegation)));
         vm.writeFile("data/weth.addr", vm.toString(address(weth)));

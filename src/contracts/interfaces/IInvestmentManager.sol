@@ -119,7 +119,6 @@ interface IInvestmentManager {
     )
         external returns(bytes32);
 
-
     /**
      * @notice Used to complete the specified `queuedWithdrawal`. The function caller must match `queuedWithdrawal.withdrawer`
      * @param queuedWithdrawal The QueuedWithdrawal to complete.
