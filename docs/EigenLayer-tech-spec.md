@@ -22,7 +22,7 @@ A **staker** is any party who has assets deposited into EigenLayer. In general, 
 **Operators** in EigenLayer are those users who actually run the software built on top of EigenLayer. Operators register in EigenLayer, allowing stakers to delegate to them, and then opt-in to any mix of services built on top of EigenLayer; each service that an operator chooses to serve may impose its own slashing conditions on the operator.
 
 ### Watchers
-Some operations in EigenLayer are "**rolled up**". This is a design pattern used where it is either impossible or infeasible to prove that some claim is true, but *easy to check a counterexample that proves the claim is false*. The general pattern is:
+Some operations in EigenLayer are "**optimisitically rolled up**". This is a design pattern used where it is either impossible or infeasible to prove that some claim is true, but *easy to check a counterexample that proves the claim is false*. The general pattern is:
 1. A "rolled-up" claim is made, asserting that some condition is true.
 2. There is a "fraudproof period", during which anyone can *disprove* the claim with a single counterexample. If a claim is disproven, then the original claimant is punished in some way (e.g. by forfeiting some collateral or being slashed).
 3. If the claim is *not* disproved during the fraudproof period, then it is assumed to be true, and the system proceeds from this assumption.
@@ -146,4 +146,3 @@ Details TBD.
     * assuming that services use a "task-denominated" model helps to enable this paradigm
     * the queued withdrawal mechanism is designed to first stop the withdrawn funds from being placed at risk on new tasks, and then to verify when the funds are indeed no longer at risk
     * the undelegation process enforces similar delays -- it is only possible for a staker to undelegate by queuing a withdrawal for all of their assets currently deposited in EigenLayer
-

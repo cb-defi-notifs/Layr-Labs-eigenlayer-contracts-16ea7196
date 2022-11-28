@@ -168,7 +168,6 @@ contract DataLayrServiceManager is Initializable, OwnableUpgradeable, DataLayrSe
         _setFeePerBytePerTime(_feePerBytePerTime);
         _setFeeSetter(_feeSetter);
         quorumThresholdBasisPoints = _quorumThresholdBasisPoints;
-        adversaryThresholdBasisPoints = _adversaryThresholdBasisPoints;
     }
 
     /// @notice Used by DataLayr governance to adjust the value of the `quorumThresholdBasisPoints` variable.
@@ -189,6 +188,15 @@ contract DataLayrServiceManager is Initializable, OwnableUpgradeable, DataLayrSe
     {
         adversaryThresholdBasisPoints = _adversaryThresholdBasisPoints;
         emit AdversaryThresholdBasisPointsUpdated(adversaryThresholdBasisPoints);
+    }
+    
+    
+    function setFirstQuorumThresholdPercentage(uint128 _firstQuorumThresholdPercentage) external onlyRepositoryGovernance {
+        _setFirstQuorumThresholdPercentage(_firstQuorumThresholdPercentage);
+    }
+
+    function setSecondQuorumThresholdPercentage(uint128 _secondQuorumThresholdPercentage) external onlyRepositoryGovernance {
+        _setSecondQuorumThresholdPercentage(_secondQuorumThresholdPercentage);
     }
 
     /// @notice Used by DataLayr governance to adjust the address of the `feeSetter`, which can adjust the value of `feePerBytePerTime`.
@@ -643,4 +651,36 @@ contract DataLayrServiceManager is Initializable, OwnableUpgradeable, DataLayrSe
         emit FeeSetterChanged(feeSetter, _feeSetter);
         feeSetter = _feeSetter;
     }
+
+    function _setFeePerBytePerTime(uint256 _feePerBytePerTime) internal {
+        emit FeePerBytePerTimeSet(feePerBytePerTime, _feePerBytePerTime);
+        feePerBytePerTime = _feePerBytePerTime;
+    }
+
+    function _setFirstQuorumThresholdPercentage(uint128 _firstQuorumThresholdPercentage) internal {
+        require(
+            _firstQuorumThresholdPercentage >= MIN_THRESHOLD_PERCENTAGE,
+            "DataLayrServiceManager.setFirstQuorumThresholdPercentage: input too low"
+        );
+        require(
+            _firstQuorumThresholdPercentage <= MAX_THRESHOLD_PERCENTAGE,
+            "DataLayrServiceManager.setFirstQuorumThresholdPercentage: input too high"
+        );
+        emit FirstQuorumThresholdPercentageSet(firstQuorumThresholdPercentage, _firstQuorumThresholdPercentage);
+        firstQuorumThresholdPercentage = _firstQuorumThresholdPercentage;
+    }
+
+    function _setSecondQuorumThresholdPercentage(uint128 _secondQuorumThresholdPercentage) internal {
+        require(
+            _secondQuorumThresholdPercentage >= MIN_THRESHOLD_PERCENTAGE,
+            "DataLayrServiceManager.setSecondQuorumThresholdPercentage: input too low"
+        );
+        require(
+            _secondQuorumThresholdPercentage <= MAX_THRESHOLD_PERCENTAGE,
+            "DataLayrServiceManager.setSecondQuorumThresholdPercentage: input too high"
+        );
+        emit SecondQuorumThresholdPercentageSet(secondQuorumThresholdPercentage, _secondQuorumThresholdPercentage);
+        secondQuorumThresholdPercentage = _secondQuorumThresholdPercentage;
+    }
+
 }

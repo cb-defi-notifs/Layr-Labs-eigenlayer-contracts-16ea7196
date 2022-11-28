@@ -36,6 +36,3 @@ Once the above is done, then when the withdrawal is completed through calling `I
 
 If the staker fails to trigger a withdrawal from the Beacon Chain, then the ultimate call to `EigenPod.withdrawBeaconChainETH` will fail. If the staker fails to prove their EigenPod's udpated beacon chain balance (i.e. never calls `EigenPod.verifyBalanceUpdate`), then...
 <!-- TODO: @gpsanant to review and fill out any missing details -->
-
-
-
