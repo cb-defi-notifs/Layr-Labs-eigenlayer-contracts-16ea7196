@@ -371,7 +371,7 @@ contract DataLayrChallengeUtils is Initializable {
                     multiRevealProof.interpolationPoly.Y
                 )
             )
-        ) % BLS.MODULUS;
+        ) % BLS.FR_MODULUS;
         uint256 s = linearPolynomialEvaluation(poly, r);
         return
             openPolynomialAtPoint(
@@ -396,7 +396,7 @@ contract DataLayrChallengeUtils is Initializable {
                     interpolationPoly.Y
                 )
             )
-        ) % BLS.MODULUS;
+        ) % BLS.FR_MODULUS;
         uint256 s = linearPolynomialEvaluation(poly, r);
         bool ok = openPolynomialAtPoint(
             interpolationPoly,
@@ -424,13 +424,13 @@ contract DataLayrChallengeUtils is Initializable {
             );
         }
         //this is the point to open each polynomial at
-        uint256 r = uint256(keccak256(abi.encodePacked(rs))) % BLS.MODULUS;
+        uint256 r = uint256(keccak256(abi.encodePacked(rs))) % BLS.FR_MODULUS;
         //this is the offset we add to each polynomial to prevent collision
         //we use array to help with stack
         uint256[2] memory gammaAndGammaPower;
         gammaAndGammaPower[0] =
             uint256(keccak256(abi.encodePacked(rs, uint256(0)))) %
-            BLS.MODULUS;
+            BLS.FR_MODULUS;
         gammaAndGammaPower[1] = gammaAndGammaPower[0];
         //store I1
         BN254.G1Point memory gammaShiftedCommitmentSum = interpolationPolys[0];
@@ -449,14 +449,14 @@ contract DataLayrChallengeUtils is Initializable {
             uint256 eval = linearPolynomialEvaluation(polys[i], r);
             gammaShiftedEvaluationSum = addmod(
                 gammaShiftedEvaluationSum,
-                mulmod(gammaAndGammaPower[1], eval, BLS.MODULUS),
-                BLS.MODULUS
+                mulmod(gammaAndGammaPower[1], eval, BLS.FR_MODULUS),
+                BLS.FR_MODULUS
             );
             // gammaPower = gamma^(i+1)
             gammaAndGammaPower[1] = mulmod(
                 gammaAndGammaPower[0],
                 gammaAndGammaPower[1],
-                BLS.MODULUS
+                BLS.FR_MODULUS
             );
         }
 
@@ -518,13 +518,13 @@ contract DataLayrChallengeUtils is Initializable {
             }
         }
         //this is the point to open each polynomial at
-        uint256 r = uint256(keccak256(abi.encodePacked(rs))) % BLS.MODULUS;
+        uint256 r = uint256(keccak256(abi.encodePacked(rs))) % BLS.FR_MODULUS;
         //this is the offset we add to each polynomial to prevent collision
         //we use array to help with stack
         uint256[2] memory gammaAndGammaPower;
         gammaAndGammaPower[0] =
             uint256(keccak256(abi.encodePacked(rs, uint256(0)))) %
-            BLS.MODULUS;
+            BLS.FR_MODULUS;
         gammaAndGammaPower[1] = gammaAndGammaPower[0];
         //store I1
         BN254.G1Point memory gammaShiftedCommitmentSum = multiRevealProofs[0]
@@ -547,14 +547,14 @@ contract DataLayrChallengeUtils is Initializable {
             uint256 eval = linearPolynomialEvaluation(polys[i], r);
             gammaShiftedEvaluationSum = gammaShiftedEvaluationSum = addmod(
                 gammaShiftedEvaluationSum,
-                mulmod(gammaAndGammaPower[1], eval, BLS.MODULUS),
-                BLS.MODULUS
+                mulmod(gammaAndGammaPower[1], eval, BLS.FR_MODULUS),
+                BLS.FR_MODULUS
             );
             // gammaPower = gamma^(i+1)
             gammaAndGammaPower[1] = mulmod(
                 gammaAndGammaPower[0],
                 gammaAndGammaPower[1],
-                BLS.MODULUS
+                BLS.FR_MODULUS
             );
         }
 
@@ -578,8 +578,8 @@ contract DataLayrChallengeUtils is Initializable {
         uint256 rPower = 1;
         for (uint i = 0; i < length; ) {
             uint256 coefficient = uint256(bytes32(poly[i:i + 32]));
-            sum = addmod(sum, mulmod(coefficient, rPower, BLS.MODULUS), BLS.MODULUS);
-            rPower = mulmod(rPower, r, BLS.MODULUS);
+            sum = addmod(sum, mulmod(coefficient, rPower, BLS.FR_MODULUS), BLS.FR_MODULUS);
+            rPower = mulmod(rPower, r, BLS.FR_MODULUS);
             i += 32;
         }
         return sum;

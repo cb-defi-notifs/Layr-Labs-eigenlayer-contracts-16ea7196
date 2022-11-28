@@ -34,7 +34,6 @@ import "../src/contracts/libraries/BLS.sol";
 import "../src/contracts/libraries/BytesLib.sol";
 import "../src/contracts/libraries/DataStoreUtils.sol";
 
-import "../src/test/utils/Signers.sol";
 import "../src/test/utils/SignatureUtils.sol";
 
 import "../src/test/mocks/EmptyContract.sol";
@@ -215,7 +214,7 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
         eigenLayrProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(eigenPodManager))),
             address(eigenPodManagerImplementation),
-            abi.encodeWithSelector(EigenPodManager.initialize.selector, beaconChainOracle)
+            abi.encodeWithSelector(EigenPodManager.initialize.selector, beaconChainOracle, initialOwner)
         );
 
 
@@ -269,6 +268,7 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
         vm.writeFile("data/wethStrat.addr", vm.toString(address(wethStrat)));
         vm.writeFile("data/eigen.addr", vm.toString(address(eigenToken)));
         vm.writeFile("data/eigenStrat.addr", vm.toString(address(eigenStrat)));
+        vm.writeFile("data/eigenStrat.addr", vm.toString(address(eigenStrat)));
 
         vm.stopBroadcast();
     }
@@ -279,9 +279,6 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
         address unpauser = msg.sender;
         address dataLayrReputedMultisig = msg.sender;
         address dataLayrTeamMultisig = msg.sender;
-
-
-
 
         // deploy proxy admin for ability to upgrade proxy contracts
         dataLayrProxyAdmin = new ProxyAdmin();
@@ -423,6 +420,7 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
         // vm.writeFile("data/dlRepository.addr", vm.toString(address(dlRepository)));
         vm.writeFile("data/dlsm.addr", vm.toString(address(dlsm)));
         vm.writeFile("data/dlReg.addr", vm.toString(address(dlReg)));
+        vm.writeFile("data/pubkeyCompendium.addr", vm.toString(address(pubkeyCompendium)));
     }
 
     function numberFromAscII(bytes1 b) private pure returns (uint8 res) {

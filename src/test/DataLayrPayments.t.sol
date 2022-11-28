@@ -12,6 +12,10 @@ contract DataLayrPaymentsTests is DataLayrTestHelper {
 
     IERC20 paymentToken;
 
+    uint256[2] apkG1;
+    uint256[4] apkG2;
+    uint256[2] sigma;
+
     ///@notice this function tests depositing fees on behalf of a rollupContract to an operator
     ///@param user is the user of the middleware who is paying fees to the operator
     ///            (a rollup contract in the case of DL, for example)
@@ -103,18 +107,14 @@ contract DataLayrPaymentsTests is DataLayrTestHelper {
     function testRewardPayouts(uint8 index, uint256 ethAmount, uint256 eigenAmount) public fuzzedOperatorIndex(index) {
         cheats.assume(ethAmount > 0 && ethAmount < 1e18);
         cheats.assume(eigenAmount > 0 && eigenAmount < 1e18);
-        //G2 coordinates for aggregate PKs for 15 signers
-        apks.push(uint256(20820493588973199354272631301248587752629863429201347184003644368113679196121));
-        apks.push(uint256(18507428821816114421698399069438744284866101909563082454551586195885282320634));
-        apks.push(uint256(1263326262781780932600377484793962587101562728383804037421955407439695092960));
-        apks.push(uint256(3512517006108887301063578607317108977425754510174956792003926207778790018672));
-
-        //15 signers' associated sigma
-        sigmas.push(uint256(14005151012295943468571466503624729738556853309637562160124030086927491834214));
-        sigmas.push(uint256(12566674592166568848678401197324110475246083043677109258952934644133571450621));
+        {
+            (apkG1[0], apkG1[1]) = getAggregatePublicKeyG1();
+            (apkG2[0], apkG2[1], apkG2[2], apkG2[3]) = getAggregatePublicKeyG2();
+        }
+        (sigma[0], sigma[1]) = getAggSignature(0);
 
         //hardcoding values
-        address operator = signers[0];
+        address operator = getOperatorAddress(0);
         uint32 numberOfSigners = 15;
         uint96 amountRewards = 10;
 
@@ -125,7 +125,7 @@ contract DataLayrPaymentsTests is DataLayrTestHelper {
         _testRegisterOperatorWithDataLayr(0, operatorType, testEphemeralKey, testSocket);
 
         _testRegisterSigners(numberOfSigners, false);
-        _testInitandCommitDataStore();
+        _testInitandConfirmDataStore();
         _incrementDataStoreID();
         _testCommitPayment(operator, amountRewards);
     }
@@ -158,7 +158,7 @@ contract DataLayrPaymentsTests is DataLayrTestHelper {
     }
 
     ///@notice simulating init and commit for a datastore
-    function _testInitandCommitDataStore() internal {
+    function _testInitandConfirmDataStore() internal {
         uint32 blockNumber;
         // scoped block helps fix 'stack too deep' errors
         {
@@ -168,25 +168,34 @@ contract DataLayrPaymentsTests is DataLayrTestHelper {
 
             blockNumber = uint32(block.number);
             uint32 dataStoreId = dlsm.taskNumber() - 1;
-            _testCommitDataStore(
-                keccak256(
-                    abi.encodePacked(
-                        searchData.metadata.globalDataStoreId,
-                        searchData.metadata.headerHash,
-                        searchData.duration,
-                        initTime,
-                        uint32(0)
-                    )
-                ),
-                numberOfNonSigners,
-                apks,
-                sigmas,
-                searchData.metadata.referenceBlockNumber,
-                dataStoreId,
-                searchData
-            );
-            // bytes32 sighash = dlsm.getDataStoreIdSignatureHash(dlsm.taskNumber() - 1);
-            // assertTrue(sighash != bytes32(0), "Data store not committed");
+
+            bytes memory data = abi.encodePacked(
+            keccak256(
+                abi.encodePacked(
+                    searchData.metadata.globalDataStoreId,
+                    searchData.metadata.headerHash,
+                    searchData.duration,
+                    initTime,
+                    searchData.index
+                )
+            ),
+            uint48(dlReg.getLengthOfTotalStakeHistory() - 1),
+            searchData.metadata.referenceBlockNumber,
+            searchData.metadata.globalDataStoreId,
+            numberOfNonSigners,
+            // no pubkeys here since zero nonSigners for now
+            uint32(dlReg.getApkUpdatesLength() - 1),
+            apkG1[0],
+            apkG1[1],
+            apkG2[0],
+            apkG2[1],
+            apkG2[2],
+            apkG2[3],
+            sigma[0],
+            sigma[1]
+        );
+
+        dlsm.confirmDataStore(data, searchData);
         }
         cheats.stopPrank();
 

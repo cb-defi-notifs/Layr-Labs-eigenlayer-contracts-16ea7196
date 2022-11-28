@@ -1,88 +1,146 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "ds-test/test.sol";
+import "forge-std/Test.sol";
+import "forge-std/Script.sol";
+import "forge-std/StdJson.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
 
-contract SignatureUtils {
+contract SignatureUtils is Test {
     //numSigners => array of signatures for 5 datastores
     mapping(uint256 => uint256[]) signatures;
+    
+
+    string internal signatureJson;
+
+    constructor() {
+        signatureJson = vm.readFile("./src/test/data/signatures.json");
+    }
+
+    function signaturePrefix(uint256 numSigners) public returns(string memory) {
+        return string.concat(".signatures[", string.concat(vm.toString(numSigners), "]."));
+    }
 
     //returns aggPK.X0, aggPK.X1, aggPK.Y0, aggPK.Y1
-    function getAggregatePublicKey(uint256 numSigners)
+    function getAggregatePublicKeyG2()
         internal
-        pure
         returns (uint256 aggPKX0, uint256 aggPKX1, uint256 aggPKY0, uint256 aggPKY1)
     {
-        if (numSigners == 15) {
-            aggPKX0 = uint256(20820493588973199354272631301248587752629863429201347184003644368113679196121);
-            aggPKX1 = uint256(18507428821816114421698399069438744284866101909563082454551586195885282320634);
-            aggPKY0 = uint256(1263326262781780932600377484793962587101562728383804037421955407439695092960);
-            aggPKY1 = uint256(3512517006108887301063578607317108977425754510174956792003926207778790018672);
-        }
-
-        if (numSigners == 12) {
-            aggPKX0 = uint256(20523582188987110963974014007824533452740581058607457454770751475798461856790);
-            aggPKX1 = uint256(20393417418446180824691701320817867938900127424537147567714032244707813600661);
-            aggPKY0 = uint256(4580400133570387826450637471880405528743156066723364760569449578582741304616);
-            aggPKY1 = uint256(18368086142287310978311059387137837113783403751688539310101965155145837418588);
-        }
-        if (numSigners == 2) {
-            aggPKX0 = uint256(13627094809349703367331537758720731786358666292976582438286769018059426535468);
-            aggPKX1 = uint256(15990633073361304694314105299377655728793875331567860871472029130760161396005);
-            aggPKY0 = uint256(18114822758555812654133893143402128050216537048086929991467442905992867018238);
-            aggPKY1 = uint256(15529882236060906134687395001693316326465762665051267458815387894544183627019);
-        }
+        aggPKX0 = getUintFromJson(signatureJson, "aggregateSignature.AggPubkeyG2.X.A0");
+        aggPKX1 = getUintFromJson(signatureJson, "aggregateSignature.AggPubkeyG2.X.A1");
+        aggPKY0 = getUintFromJson(signatureJson, "aggregateSignature.AggPubkeyG2.Y.A0");
+        aggPKY1 = getUintFromJson(signatureJson, "aggregateSignature.AggPubkeyG2.Y.A1");
 
         return (aggPKX0, aggPKX1, aggPKY0, aggPKY1);
     }
 
-    function getSignature(uint256 numSigners, uint256 index) internal view returns (uint256, uint256) {
-        return (signatures[numSigners][2 * index], signatures[numSigners][2 * index + 1]);
+    function getAggPubKeyG2WithoutNonSigners(uint32 nonSignerDataIndex)
+        internal
+        returns (uint256 aggPKX0, uint256 aggPKX1, uint256 aggPKY0, uint256 aggPKY1)
+    {
+        aggPKX0 = getAggPubKeyG2WithoutNonSignersFromJson(signatureJson, nonSignerDataIndex, "AggPubkeyG2WithoutNonSigners.X.A0");
+        aggPKX1 = getAggPubKeyG2WithoutNonSignersFromJson(signatureJson, nonSignerDataIndex, "AggPubkeyG2WithoutNonSigners.X.A1");
+        aggPKY0 = getAggPubKeyG2WithoutNonSignersFromJson(signatureJson, nonSignerDataIndex, "AggPubkeyG2WithoutNonSigners.Y.A0");
+        aggPKY1 = getAggPubKeyG2WithoutNonSignersFromJson(signatureJson, nonSignerDataIndex, "AggPubkeyG2WithoutNonSigners.Y.A1");
+
+        return (aggPKX0, aggPKX1, aggPKY0, aggPKY1);
     }
 
-    function setSignatures() internal {
-        //X-coordinate for signature
-        signatures[15].push(uint256(14005151012295943468571466503624729738556853309637562160124030086927491834214));
-        //Y-coordinate for signature
-        signatures[15].push(uint256(12566674592166568848678401197324110475246083043677109258952934644133571450621));
+    //returns aggPK.X, aggPK.Y
+    function getAggregatePublicKeyG1()
+        internal 
+        returns (uint256 aggPKX, uint256 aggPKY)
+    {
+        aggPKX = getUintFromJson(signatureJson, "aggregateSignature.AggPubkeyG1.X");
+        aggPKY = getUintFromJson(signatureJson, "aggregateSignature.AggPubkeyG1.Y");
 
+        return (aggPKX, aggPKY);
+    }
 
-        /// @dev these next 4 aggregate signatures are specifically for testConfirmDataStoreLoop, where 
-        ///      globalDataStoreID and index are incremented, which changes the msgHash, requiring new agg signatures.
+    //get the aggregate signature of all 15 signers
+    function getAggSignature(uint256 index) internal returns (uint256 sigX, uint256 sigY) {
 
-        //X-coordinate for signature
-        signatures[15].push(uint256(3768102256762337404052867633199540834071715013336059969755534978335414815915));
-        //Y-coordinate for signature
-        signatures[15].push(uint256(1347732725763368146376839019105722102118183430445244463171147039833656430554));
+        if (index == 0){
+            sigX = getUintFromJson(signatureJson, "aggregateSignature.Signature.X");
+            sigY = getUintFromJson(signatureJson, "aggregateSignature.Signature.Y");
+        }
+        //if index is > 0 that means there are multiple datastores in the test.
+        //In this case only the signature changes, so we pull it from a helper function
+        else{
+            (sigX, sigY) = getSignatureOnAdditionalDataStore(index);
+        }
+
+        return (sigX, sigY);
+    }
+
+    function getNonSignerPK(uint32 pkIndex, uint32 nonSignerDataIndex) internal returns (uint256 PKX, uint256 PKY) {
+        PKX = getNonSignerPKFromJson(signatureJson, pkIndex, nonSignerDataIndex, "PubkeyG1.X");
+        PKY = getNonSignerPKFromJson(signatureJson, pkIndex, nonSignerDataIndex, "PubkeyG1.Y");
+        return(PKX, PKY);
+    }
+
+    function getNonSignerAggSig(uint32 nonSignerDataIndex) internal returns (uint256 sigmaX, uint256 sigmaY) {
+        sigmaX = getNonSignerAggSigFromJson(signatureJson, nonSignerDataIndex, "AggSignature.X");
+        sigmaY = getNonSignerAggSigFromJson(signatureJson, nonSignerDataIndex, "AggSignature.Y");
+
+        return(sigmaX, sigmaY);
+    }
+
+    function getSignatureOnAdditionalDataStore(uint256 index) internal pure returns(uint256 sigX, uint256 sigY){
+        if(index == 1){
+            sigX = 8733421643731740631536151352850909620731477919778472879183197990316971409408;
+            sigY = 13039511527876118055099735862345750567119937347959409814678461768562329210287;
+        }
+        if(index == 2){
+            sigX = 6538597068907069739387395712285884705875484283135662276126649661004687333241;
+            sigY = 16337857511690675761965203377410131750898415908969868647246684783625084131030;
+        }
+        return(sigX, sigY);
         
-        //X-coordinate for signature
-        signatures[15].push(uint256(17726052552451194045498831446622391523712052718156013644001539561406531574296));
-        //Y-coordinate for signature
-        signatures[15].push(uint256(21548143511877874702515855361829893658157938210262199838254421299589869143948));
+    }
 
-        //X-coordinate for signature
-        signatures[15].push(uint256(18456695013140797630139570327999178712970087934218862167996303262756077265885));
-        //Y-coordinate for signature
-        signatures[15].push(uint256(6692040044674932411543245093209937967397201373852910194529170609645372186580));
+    function getUintFromJson(string memory json, string memory key) internal returns(uint256){
+        string memory word =  stdJson.readString(json, key);
+        return convertStringToUint(word);
+    }
 
-        //X-coordinate for signature
-        signatures[15].push(uint256(16936593860632559597797231574125317688131352946934229986716277496846837045926));
-        //Y-coordinate for signature
-        signatures[15].push(uint256(8419080474874111328448521941401302337127845046207972316360714449012068914811));
-
-        //X-coordinate for signature
-        signatures[12].push(uint256(18984184697644363675345717428833426720816735538703890129083867845101356547512));
-        //Y-coordinate for signature
-        signatures[12].push(uint256(13901218866265249360377869173958633007705926687970641308083042116030556327083));
-
-        //X-coordinate for signature
-        signatures[2].push(uint256(15462773903105570423983200028906973961348449005977379407744153690820070538946));
-        //Y-coordinate for signature
-        signatures[2].push(uint256(1958496896045946333699360997077644865789632650763255938686790892516574013948));
-
-
-
-
+    function getNonSignerPKFromJson(string memory json, uint256 pubkeyIndex, uint256 nonSignersDataIndex, string memory key) internal returns(uint256){
         
+        string memory temp1 = string.concat(vm.toString(nonSignersDataIndex), "].");
+        string memory temp2 = string.concat("nonSignersData[", temp1);
+        string memory temp3 = string.concat(temp2, "NonSigners[");
+        string memory temp4 = string.concat(vm.toString(pubkeyIndex), "].");
+        string memory pubKeyEntry = string.concat(temp3, temp4);
+        string memory word =  stdJson.readString(json, string.concat(pubKeyEntry, key));
+
+
+        return convertStringToUint(word);
+    }
+
+    function getNonSignerAggSigFromJson(string memory json, uint256 nonSignersDataIndex, string memory key) internal returns(uint256){
+        
+        string memory temp1 = string.concat(vm.toString(nonSignersDataIndex), "].");
+        string memory pubKeyEntry = string.concat("nonSignersData[", temp1);
+        string memory word =  stdJson.readString(json, string.concat(pubKeyEntry, key));
+        return convertStringToUint(word);
+    }
+
+    function getAggPubKeyG2WithoutNonSignersFromJson(string memory json, uint256 nonSignersDataIndex, string memory key) internal returns(uint256){
+        
+        string memory temp1 = string.concat(vm.toString(nonSignersDataIndex), "].");
+        string memory pubKeyEntry = string.concat("nonSignersData[", temp1);
+        string memory word =  stdJson.readString(json, string.concat(pubKeyEntry, key));
+        return convertStringToUint(word);
+    }
+
+    function convertStringToUint(string memory s) public pure returns (uint) {
+        bytes memory b = bytes(s);
+        uint result = 0;
+        for (uint i = 0; i < b.length; i++) {
+            if (uint256(uint8(b[i])) >= 48 && uint256(uint8(b[i])) <= 57) {
+                result = result * 10 + (uint256(uint8(b[i])) - 48); 
+            }
+        }
+        return result;
     }
 }

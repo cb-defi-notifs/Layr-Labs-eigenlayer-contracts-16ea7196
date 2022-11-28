@@ -171,6 +171,7 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager,
                     )
                 )
             );
+        emit log_named_address("pod addy", address(pod));
         return pod;
     }
 

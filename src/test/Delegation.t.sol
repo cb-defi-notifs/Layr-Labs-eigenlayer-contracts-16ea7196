@@ -27,6 +27,24 @@ contract DelegationTests is EigenLayrTestHelper {
     function setUp() public virtual override {
         EigenLayrDeployer.setUp();
 
+        initializeMiddlewares();
+    }
+
+    function initializeMiddlewares() public {
+        generalServiceManager1 = new ServiceManagerMock(investmentManager);
+
+        generalReg1 = new MiddlewareRegistryMock(
+             generalServiceManager1,
+             investmentManager
+        );
+        
+        generalServiceManager2 = new ServiceManagerMock(investmentManager);
+
+        generalReg2 = new MiddlewareRegistryMock(
+             generalServiceManager2,
+             investmentManager
+        );
+
         serviceManager = new ServiceManagerMock(investmentManager);
 
         voteWeigher = MiddlewareVoteWeigherMock(
@@ -226,12 +244,12 @@ contract DelegationTests is EigenLayrTestHelper {
     /// @notice This function tests to ensure that a staker cannot delegate to an unregistered operator
     /// @param delegate is the unregistered operator
     function testDelegationToUnregisteredDelegate(address delegate) public fuzzedAddress(delegate) {
-        //deposit into 1 strategy for signers[1], who is delegating to the unregistered operator
-        _testDepositStrategies(signers[1], 1e18, 1);
-        _testDepositEigen(signers[1], 1e18);
+        //deposit into 1 strategy for getOperatorAddress(1), who is delegating to the unregistered operator
+        _testDepositStrategies(getOperatorAddress(1), 1e18, 1);
+        _testDepositEigen(getOperatorAddress(1), 1e18);
 
         cheats.expectRevert(bytes("EigenLayrDelegation._delegate: operator has not yet registered as a delegate"));
-        cheats.startPrank(signers[1]);
+        cheats.startPrank(getOperatorAddress(1));
         delegation.delegateTo(delegate);
         cheats.stopPrank();
     }

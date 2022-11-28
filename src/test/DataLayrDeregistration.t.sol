@@ -16,25 +16,18 @@ contract DataLayrDeregistrationTests is DataLayrTestHelper {
         uint256 ethAmount, 
         uint256 eigenAmount
     ) public fuzzedOperatorIndex(operatorIndex) {
-
         //TODO: probably a stronger test would be to register a few operators and then ensure that apk is updated correctly
-        uint256[4] memory prevAPK;
-        prevAPK[0] = dlReg.apk(0);
-        prevAPK[1] = dlReg.apk(1);
-        prevAPK[2] = dlReg.apk(2);
-        prevAPK[3] = dlReg.apk(3);
-        bytes32 prevAPKHash = BLS.hashPubkey(prevAPK);
+        (uint256 x, uint256 y) = dlReg.apk();
+        BN254.G1Point memory apk = BN254.G1Point({X: x, Y: y});
+        bytes32 prevAPKHash = BLS.hashG1Point(apk);
 
         _BLSRegistration(operatorIndex, ethAmount, eigenAmount);
 
+        BN254.G1Point memory operatorPubkey = getOperatorPubkeyG1(operatorIndex);
 
-        uint256[4] memory pubkeyToRemoveAff = getG2PKOfRegistrationData(operatorIndex);
+        bytes32 pubkeyHash = BLS.hashG1Point(operatorPubkey);    
 
-        bytes32 pubkeyHash = BLS.hashPubkey(pubkeyToRemoveAff);    
-
-
-        _testDeregisterOperatorWithDataLayr(operatorIndex, pubkeyToRemoveAff, uint8(dlReg.numOperators()-1));
-
+        _testDeregisterOperatorWithDataLayr(operatorIndex, uint8(dlReg.numOperators()-1), getOperatorPubkeyG1(operatorIndex));
 
         (,uint32 nextUpdateBlockNumber,uint96 firstQuorumStake, uint96 secondQuorumStake) = dlReg.pubkeyHashToStakeHistory(pubkeyHash, dlReg.getStakeHistoryLength(pubkeyHash)-1);
         require( nextUpdateBlockNumber == 0, "Stake history not updated correctly");
@@ -43,7 +36,6 @@ contract DataLayrDeregistrationTests is DataLayrTestHelper {
 
         bytes32 currAPKHash = dlReg.apkHashes(dlReg.getApkUpdatesLength()-1);
         require(currAPKHash == prevAPKHash, "aggregate public key has not been updated correctly following deregistration");
-
     }
 
     /**
@@ -54,17 +46,17 @@ contract DataLayrDeregistrationTests is DataLayrTestHelper {
         uint8 operatorIndex,
         uint256 ethAmount, 
         uint256 eigenAmount,
-        uint256[4] memory pubkeyToRemoveAff
+        BN254.G1Point memory pkToRemove
     ) public fuzzedOperatorIndex(operatorIndex) {
         cheats.assume(ethAmount > 0 && ethAmount < 1e18);
         cheats.assume(eigenAmount > 0 && eigenAmount < 1e18);
-        cheats.assume(BLS.hashPubkey(pubkeyToRemoveAff) != BLS.hashPubkey(getG2PKOfRegistrationData(operatorIndex)));
+        cheats.assume(pkToRemove.X != getOperatorPubkeyG1(operatorIndex).X);
 
     
         _BLSRegistration(operatorIndex, ethAmount, eigenAmount);
         uint8 operatorListIndex = uint8(dlReg.numOperators()-1);
         cheats.expectRevert(bytes("BLSRegistry._deregisterOperator: pubkey input does not match stored pubkeyHash"));
-        _testDeregisterOperatorWithDataLayr(operatorIndex, pubkeyToRemoveAff, operatorListIndex);
+        _testDeregisterOperatorWithDataLayr(operatorIndex, operatorListIndex, pkToRemove);
     }
 
     /**
@@ -84,10 +76,9 @@ contract DataLayrDeregistrationTests is DataLayrTestHelper {
 
         _BLSRegistration(operatorIndex, ethAmount, eigenAmount);
 
-        uint256[4] memory pubkeyToRemoveAff = getG2PKOfRegistrationData(operatorIndex);
         uint8 operatorListIndex = uint8(dlReg.numOperators()-1);
         //cheats.expectRevert(bytes("EphemeralKeyRegistry.postLastEphemeralKeyPreImage: Ephemeral key does not match previous ephemeral key commitment"));
-        _testDeregisterOperatorWithDataLayr(operatorIndex, pubkeyToRemoveAff, operatorListIndex);
+        _testDeregisterOperatorWithDataLayr(operatorIndex, operatorListIndex, getOperatorPubkeyG1(operatorIndex));
     }
     /**
     *   @notice Tests that deregistering an operator who has already 
@@ -101,13 +92,12 @@ contract DataLayrDeregistrationTests is DataLayrTestHelper {
 
         _BLSRegistration(operatorIndex, ethAmount, eigenAmount);
 
-        uint256[4] memory pubkeyToRemoveAff = getG2PKOfRegistrationData(operatorIndex);      
 
         uint8 operatorListIndex = uint8(dlReg.numOperators());                  
-        _testDeregisterOperatorWithDataLayr(operatorIndex, pubkeyToRemoveAff, operatorListIndex-1);
+        _testDeregisterOperatorWithDataLayr(operatorIndex, operatorListIndex-1, getOperatorPubkeyG1(operatorIndex));
         
         cheats.expectRevert(bytes("RegistryBase._deregistrationCheck: Operator is not registered"));
-        _testDeregisterOperatorWithDataLayr(operatorIndex, pubkeyToRemoveAff, operatorListIndex-1);
+        _testDeregisterOperatorWithDataLayr(operatorIndex, operatorListIndex-1, getOperatorPubkeyG1(operatorIndex));
 
     }
 
