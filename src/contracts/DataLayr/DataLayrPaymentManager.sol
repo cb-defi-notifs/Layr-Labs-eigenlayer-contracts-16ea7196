@@ -77,9 +77,6 @@ contract DataLayrPaymentManager is PaymentManager, IDataLayrPaymentManager {
             "DataLayrPaymentManager.respondToPaymentChallengeFinal: provided nonSignerPubKeyHashes or totalStakesSigned is incorrect"
         );
 
-        // get the registry address
-        IQuorumRegistry registry = IQuorumRegistry(address(repository.registry()));
-
         // pull the operator's pubkey hash
         bytes32 operatorPubkeyHash = registry.getOperatorPubkeyHash(operator);
 

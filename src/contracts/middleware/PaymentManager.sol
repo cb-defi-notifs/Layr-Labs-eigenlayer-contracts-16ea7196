@@ -97,6 +97,24 @@ abstract contract PaymentManager is Initializable, IPaymentManager, Pausable {
     /// @dev Emitted when a low-level call to `delegationTerms.payForService` fails, returning `returnData`
     event OnPayForServiceCallFailure(IDelegationTerms indexed delegationTerms, bytes32 returnData);
 
+    /// @notice when applied to a function, ensures that the function is only callable by the `serviceManager`
+    modifier onlyServiceManager() {
+        require(msg.sender == address(serviceManager), "onlyServiceManager");
+        _;
+    }
+
+    /// @notice when applied to a function, ensures that the function is only callable by the `registry`
+    modifier onlyRegistry() {
+        require(msg.sender == address(registry), "onlyRegistry");
+        _;
+    }
+
+    /// @notice when applied to a function, ensures that the function is only callable by the owner of the `serviceManager`
+    modifier onlyServiceManagerOwner() {
+        require(msg.sender == serviceManager.owner(), "onlyServiceManagerOwner");
+        _;
+    }
+
     constructor(
         IEigenLayrDelegation _eigenLayrDelegation,
         IServiceManager _serviceManager,

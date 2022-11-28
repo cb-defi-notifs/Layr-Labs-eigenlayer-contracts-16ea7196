@@ -34,15 +34,8 @@ interface IServiceManager {
     /// @notice The Delegation contract of EigenLayer.
     function eigenLayrDelegation() external view returns (IEigenLayrDelegation);
 
-    /**
-     * @notice Verifies that a task for this middleware exists which was created *at or before* `initTimestamp` *AND* that expires *strictly prior to* the
-     * specified `unlockTime`.
-     * @dev Function reverts if the verification fails.
-     */
-    function stakeWithdrawalVerification(bytes calldata data, uint256 initTimestamp, uint256 unlockTime)
-        external
-        view;
-
     /// @notice Returns the `latestTime` until which operators must serve.
     function latestTime() external view returns (uint32);
+
+    function owner() external view returns (address);
 }
