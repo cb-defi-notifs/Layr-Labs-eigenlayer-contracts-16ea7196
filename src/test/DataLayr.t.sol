@@ -160,36 +160,29 @@ contract DataLayrTests is DSTest, DataLayrTestHelper {
 
     }
 
-/*
-TODO: reimplement -- test currently broken due to other changes
-    //testing inclusion of nonsigners in DLN quorum, ensuring that nonsigner inclusion proof is working correctly.
+//testing inclusion of nonsigners in DLN quorum, ensuring that nonsigner inclusion proof is working correctly.
     function testForNonSigners(uint256 ethAmount, uint256 eigenAmount) public {
         cheats.assume(ethAmount > 0 && ethAmount < 1e18);
         cheats.assume(eigenAmount > 0 && eigenAmount < 1e10);
 
-        // address operator = signers[0];
+        // address operator = getOperatorAddress(0);
         uint8 operatorType = 3;
         _testInitiateDelegation(0, eigenAmount, ethAmount);
         _testRegisterBLSPubKey(0);
         _testRegisterOperatorWithDataLayr(0, operatorType, testEphemeralKey, testSocket);
 
-        NonSignerPK memory nonsignerPK;
-        RegistrantAPKG2 memory registrantAPKG2;
+        NonSignerPK memory nonSignerPK;
+        RegistrantAPKG2 memory registrantApkG2;
+        RegistrantAPKG1 memory registrantApkG1;
         SignerAggSig memory signerAggSig;
+        uint32 numberOfNonSigners = 1; 
 
-        nonsignerPK.xA0 = (uint256(10245738255635135293623161230197183222740738674756428343303263476182774511624));
-        nonsignerPK.xA1 = (uint256(10281853605827367652226404263211738087634374304916354347419537904612128636245));
-        nonsignerPK.yA0 = (uint256(3091447672609454381783218377241231503703729871039021245809464784750860882084));
-        nonsignerPK.yA1 = (uint256(18210007982945446441276599406248966847525243540006051743069767984995839204266));
-
-        registrantAPKG2.apk0 = uint256(20820493588973199354272631301248587752629863429201347184003644368113679196121);
-        registrantAPKG2.apk1 = uint256(18507428821816114421698399069438744284866101909563082454551586195885282320634);
-        registrantAPKG2.apk2 = uint256(1263326262781780932600377484793962587101562728383804037421955407439695092960);
-        registrantAPKG2.apk3 = uint256(3512517006108887301063578607317108977425754510174956792003926207778790018672);
-        
-        signerAggSig.sigma0 = uint256(20617740300811009543012419127686924884246271121030353570695308863131407887373);
-        signerAggSig.sigma1 = uint256(11071552465919207288683976891087172465162060876240494884992829947249670282179);
-
+        (nonSignerPK.x, nonSignerPK.y) = getNonSignerPK(numberOfNonSigners-1, 0);
+        (signerAggSig.sigma0,  signerAggSig.sigma1) = getNonSignerAggSig(0);
+        //the non signer is the 15th operator with stake Index 14
+        (registrantApkG2.apk0, registrantApkG2.apk1, registrantApkG2.apk2, registrantApkG2.apk3) = getAggPubKeyG2WithoutNonSigners(0);
+        //in BLSSignatureChecker we only is G1 PK to subtract NonSignerPK's from, so we pass in the full signer set aggPK
+        (registrantApkG1.apk0, registrantApkG1.apk1) = getAggregatePublicKeyG1();
 
         uint32 numberOfSigners = 15;
         _testRegisterSigners(numberOfSigners, false);
@@ -198,10 +191,9 @@ TODO: reimplement -- test currently broken due to other changes
         {
             uint256 initTime = 1000000001;
             IDataLayrServiceManager.DataStoreSearchData memory searchData = _testInitDataStore(initTime, address(this), header);
-            uint32 numberOfNonSigners = 1;
             uint32 dataStoreId = dlsm.taskNumber() - 1;
 
-            bytes memory data = _getCallData(
+            bytes memory data = _getOneNonSignerCallData(
                 keccak256(
                     abi.encodePacked(
                         searchData.metadata.globalDataStoreId,
@@ -212,9 +204,10 @@ TODO: reimplement -- test currently broken due to other changes
                     )
                 ),
                 numberOfNonSigners,
-                registrantAPKG2,
+                registrantApkG2,
+                registrantApkG1,
                 signerAggSig,
-                nonsignerPK,
+                nonSignerPK,
                 searchData.metadata.referenceBlockNumber,
                 dataStoreId
             );
@@ -226,7 +219,7 @@ TODO: reimplement -- test currently broken due to other changes
             emit log_named_uint("gas cost", gasbefore - gasleft());
         }
     }
-*/
+
 
     function _registerNumSigners(uint256 numSigners) internal {
         for (uint256 i = 0; i < numSigners; ++i) {
