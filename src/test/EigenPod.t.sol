@@ -241,8 +241,6 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         cheats.assume(operator != address(eigenLayrProxyAdmin));
         cheats.assume(operator != address(beaconChainETHReceiver));
 
-        beaconChainOracle.setBeaconChainStateRoot(0xace9b7b6b5d7921dd2d61d4a2cf9a61db92119faf66c25dde5e2bc030e71d41b);
-
         //make initial deposit
         podOwner = address(beaconChainETHReceiver);
         _testDeployAndVerifyNewEigenPod(podOwner, signature, depositDataRoot, true);
@@ -489,17 +487,18 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     }
 
     function _testDeployAndVerifyNewEigenPod(address _podOwner, bytes memory signature, bytes32 depositDataRoot, bool isContract) internal {
-        (, beaconStateMerkleProof, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) = getInitialDepositProof();
+        (beaconStateRoot, beaconStateMerkleProof, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) = getInitialDepositProof();
 
         //if the _podOwner is a contract, we get the beacon state proof for the contract-specific withdrawal credential
-        if(isContract){
-            (, beaconStateMerkleProof, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) = getContractAddressWithdrawalCred();
+        if(isContract) {
+            (beaconStateRoot, beaconStateMerkleProof, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) = getContractAddressWithdrawalCred();
         }
 
         cheats.startPrank(_podOwner);
         eigenPodManager.stake(pubkey, signature, depositDataRoot);
         cheats.stopPrank();
 
+        beaconChainOracle.setBeaconChainStateRoot(beaconStateRoot);
 
         IEigenPod newPod;
 
