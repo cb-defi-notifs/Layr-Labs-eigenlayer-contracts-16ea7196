@@ -158,7 +158,6 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager,
 
     // INTERNAL FUNCTIONS
     function _deployPod() internal returns (IEigenPod) {
-        emit log_named_address("deployer address", msg.sender);
         IEigenPod pod = 
             IEigenPod(
                 Create2.deploy(
@@ -171,7 +170,6 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager,
                     )
                 )
             );
-        emit log_named_address("pod addy", address(pod));
         return pod;
     }
 
