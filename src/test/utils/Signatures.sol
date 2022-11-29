@@ -85,7 +85,8 @@ contract SignatureUtils is Test {
 
         return(sigmaX, sigmaY);
     }
-
+    //this is for testConfirmDataStoreLoop.  The signature changes when you increment the datastoreID.  That tests
+    // Increments it twice more, so we have two additional signatures for 15 signers.
     function getSignatureOnAdditionalDataStore(uint256 index) internal pure returns(uint256 sigX, uint256 sigY){
         if(index == 1){
             sigX = 8733421643731740631536151352850909620731477919778472879183197990316971409408;
