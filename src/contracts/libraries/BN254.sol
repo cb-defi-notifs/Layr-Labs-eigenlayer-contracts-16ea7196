@@ -22,7 +22,8 @@
 pragma solidity ^0.8.12;
 
 library BN254 {
-    uint256 internal constant PRIME_Q = 21888242871839275222246405745257275088696311157297823662689037894645226208583;
+    uint256 internal constant PRIME_Q =
+        21888242871839275222246405745257275088696311157297823662689037894645226208583;
 
     struct G1Point {
         uint256 X;
@@ -36,8 +37,8 @@ library BN254 {
     }
 
     /*
-   * @return The negation of p, i.e. p.plus(p.negate()) should be zero.
-   */
+     * @return The negation of p, i.e. p.plus(p.negate()) should be zero.
+     */
     function negate(G1Point memory p) internal pure returns (G1Point memory) {
         // The prime q in the base field F_q for G1
         if (p.X == 0 && p.Y == 0) {
@@ -48,9 +49,13 @@ library BN254 {
     }
 
     /*
-   * @return r the sum of two points of G1
-   */
-    function plus(G1Point memory p1, G1Point memory p2) internal view returns (G1Point memory r) {
+     * @return r the sum of two points of G1
+     */
+    function plus(G1Point memory p1, G1Point memory p2)
+        internal
+        view
+        returns (G1Point memory r)
+    {
         uint256[4] memory input;
         input[0] = p1.X;
         input[1] = p1.Y;
@@ -63,18 +68,24 @@ library BN254 {
             success := staticcall(sub(gas(), 2000), 6, input, 0x80, r, 0x40)
             // Use "invalid" to make gas estimation work
             switch success
-            case 0 { invalid() }
+            case 0 {
+                invalid()
+            }
         }
 
         require(success, "ec-add-failed");
     }
 
     /*
-   * @return r the product of a point on G1 and a scalar, i.e.
-   *         p == p.scalar_mul(1) and p.plus(p) == p.scalar_mul(2) for all
-   *         points p.
-   */
-    function scalar_mul(G1Point memory p, uint256 s) internal view returns (G1Point memory r) {
+     * @return r the product of a point on G1 and a scalar, i.e.
+     *         p == p.scalar_mul(1) and p.plus(p) == p.scalar_mul(2) for all
+     *         points p.
+     */
+    function scalar_mul(G1Point memory p, uint256 s)
+        internal
+        view
+        returns (G1Point memory r)
+    {
         uint256[3] memory input;
         input[0] = p.X;
         input[1] = p.Y;
@@ -85,21 +96,24 @@ library BN254 {
             success := staticcall(sub(gas(), 2000), 7, input, 0x60, r, 0x40)
             // Use "invalid" to make gas estimation work
             switch success
-            case 0 { invalid() }
+            case 0 {
+                invalid()
+            }
         }
         require(success, "ec-mul-failed");
     }
 
     /* @return The result of computing the pairing check
-   *         e(p1[0], p2[0]) *  .... * e(p1[n], p2[n]) == 1
-   *         For example,
-   *         pairing([P1(), P1().negate()], [P2(), P2()]) should return true.
-   */
-    function pairing(G1Point memory a1, G2Point memory a2, G1Point memory b1, G2Point memory b2)
-        internal
-        view
-        returns (bool)
-    {
+     *         e(p1[0], p2[0]) *  .... * e(p1[n], p2[n]) == 1
+     *         For example,
+     *         pairing([P1(), P1().negate()], [P2(), P2()]) should return true.
+     */
+    function pairing(
+        G1Point memory a1,
+        G2Point memory a2,
+        G1Point memory b1,
+        G2Point memory b2
+    ) internal view returns (bool) {
         G1Point[2] memory p1 = [a1, b1];
         G2Point[2] memory p2 = [a2, b2];
 
@@ -120,10 +134,19 @@ library BN254 {
 
         // solium-disable-next-line security/no-inline-assembly
         assembly {
-            success := staticcall(sub(gas(), 2000), 8, input, mul(12, 0x20), out, 0x20)
+            success := staticcall(
+                sub(gas(), 2000),
+                8,
+                input,
+                mul(12, 0x20),
+                out,
+                0x20
+            )
             // Use "invalid" to make gas estimation work
             switch success
-            case 0 { invalid() }
+            case 0 {
+                invalid()
+            }
         }
 
         require(success, "pairing-opcode-failed");
@@ -132,20 +155,16 @@ library BN254 {
     }
 
     /*
-    * This function is functionally the same as pairing(), however it specifies a gas limit 
-    * the user can set, as a precompile may use the entire gas budget if it reverts.
-    */
+     * This function is functionally the same as pairing(), however it specifies a gas limit
+     * the user can set, as a precompile may use the entire gas budget if it reverts.
+     */
     function safePairing(
-        G1Point memory a1, 
-        G2Point memory a2, 
-        G1Point memory b1, 
+        G1Point memory a1,
+        G2Point memory a2,
+        G1Point memory b1,
         G2Point memory b2,
         uint256 pairingGas
-    )
-        internal
-        view
-        returns (bool, bool)
-    {
+    ) internal view returns (bool, bool) {
         G1Point[2] memory p1 = [a1, b1];
         G2Point[2] memory p2 = [a2, b2];
 
@@ -166,12 +185,19 @@ library BN254 {
 
         // solium-disable-next-line security/no-inline-assembly
         assembly {
-            success := staticcall(pairingGas, 8, input, mul(12, 0x20), out, 0x20)
+            success := staticcall(
+                pairingGas,
+                8,
+                input,
+                mul(12, 0x20),
+                out,
+                0x20
+            )
         }
 
         //Out is the output of the pairing precompile, either 0 or 1 based on whether the two pairings are equal.
         //Success is true if the precompile actually goes through (aka all inputs are valid)
 
-        return(success, out[0] != 0);
+        return (success, out[0] != 0);
     }
 }

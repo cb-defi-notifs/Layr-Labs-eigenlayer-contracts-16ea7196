@@ -30,24 +30,29 @@ contract DataLayrTestHelper is DataLayrDeployer, EigenLayrTestHelper {
         string memory socket
     ) public {
 
-        address operator = signers[operatorIndex];
+        address operator = getOperatorAddress(operatorIndex);
 
         cheats.startPrank(operator);
-        dlReg.registerOperator(operatorType, ephemeralKeyHash, keccak256(abi.encodePacked(uint256(ephemeralKeyHash) | 1234567876543)), registrationData[operatorIndex].slice(0, 128), socket);
+        dlReg.registerOperator(operatorType, 
+            ephemeralKeyHash, 
+            keccak256(abi.encodePacked(uint256(ephemeralKeyHash) | 1234567876543)), 
+            getOperatorPubkeyG1(operatorIndex), 
+            socket
+        );
         cheats.stopPrank();
 
     }
 
     function _testDeregisterOperatorWithDataLayr(
         uint8 operatorIndex,
-        uint256[4] memory pubkeyToRemoveAff,
-        uint8 operatorListIndex
+        uint8 operatorListIndex,
+        BN254.G1Point memory pkToRemove
     ) public {
 
-        address operator = signers[operatorIndex];
+        address operator = getOperatorAddress(operatorIndex);
 
         cheats.startPrank(operator);
-        dlReg.deregisterOperator(pubkeyToRemoveAff, operatorListIndex);
+        dlReg.deregisterOperator(pkToRemove, operatorListIndex);
         cheats.stopPrank();
     }
     //initiates a data store
@@ -129,61 +134,16 @@ contract DataLayrTestHelper is DataLayrDeployer, EigenLayrTestHelper {
         return searchData;
     }
 
-    //commits data store to data layer
-    function _testCommitDataStore(
-        bytes32 msgHash,
-        uint32 numberOfNonSigners,
-        uint256[] memory apk,
-        uint256[] memory sigma,
-        uint32 blockNumber,
-        uint32 dataStoreId,
-        IDataLayrServiceManager.DataStoreSearchData memory searchData
-    )
-        internal
-    {
-        /**
-         * @param data This calldata is of the format:
-         * <
-         * bytes32 headerHash,
-         * uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the BLSRegistryWithBomb
-         * uint32 blockNumber
-         * uint32 dataStoreId
-         * uint32 numberOfNonSigners,
-         * uint256[numberOfSigners][4] pubkeys of nonsigners,
-         * uint32 apkIndex,
-         * uint256[4] apk,
-         * uint256[2] sigma
-         * >
-         */
-
-        bytes memory data = abi.encodePacked(
-            msgHash,
-            uint48(dlReg.getLengthOfTotalStakeHistory() - 1),
-            blockNumber,
-            dataStoreId,
-            numberOfNonSigners,
-            // no pubkeys here since zero nonSigners for now
-            uint32(dlReg.getApkUpdatesLength() - 1),
-            apk[0],
-            apk[1],
-            apk[2],
-            apk[3],
-            sigma[0],
-            sigma[1]
-        );
-
-        dlsm.confirmDataStore(data, searchData);
-    }
-
     function _testRegisterBLSPubKey(
         uint8 operatorIndex
     ) public {
-        address operator = signers[operatorIndex];
+        address operator = getOperatorAddress(operatorIndex);
 
         cheats.startPrank(operator);
         //whitelist the dlsm to slash the operator
         slasher.optIntoSlashing(address(dlsm));
-        pubkeyCompendium.registerBLSPublicKey(registrationData[operatorIndex]);
+        (uint256 s, BN254.G1Point memory rPoint) = getOperatorSchnorrSignature(operatorIndex);
+        pubkeyCompendium.registerBLSPublicKey(s, rPoint, getOperatorPubkeyG1(operatorIndex), getOperatorPubkeyG2(operatorIndex));
         cheats.stopPrank();
     }
 
@@ -200,13 +160,15 @@ contract DataLayrTestHelper is DataLayrDeployer, EigenLayrTestHelper {
         }
 
         //register all the operators
-        //skip i = 0 since we have already registered signers[0] !!
+        //skip i = 0 since we have already registered getOperatorAddress(0) !!
         for (uint256 i = start; i < numberOfSigners; ++i) {
-            _testRegisterAdditionalSelfOperator(signers[i], registrationData[i], ephemeralKeyHashes[i]);
+            _testRegisterAdditionalSelfOperator(i);
         }
     }
 
-    function _testRegisterAdditionalSelfOperator(address sender, bytes memory data, bytes32 ephemeralKeyHash) internal {
+    function _testRegisterAdditionalSelfOperator(uint256 index) internal {
+        address sender = getOperatorAddress(index);
+        bytes32 ephemeralKeyHash = ephemeralKeyHashes[index];
         //register as both ETH and EIGEN operator
         uint8 operatorType = 3;
         uint256 wethToDeposit = 1e18;
@@ -221,8 +183,15 @@ contract DataLayrTestHelper is DataLayrDeployer, EigenLayrTestHelper {
         //whitelist the dlsm to slash the operator
         slasher.optIntoSlashing(address(dlsm));
 
-        pubkeyCompendium.registerBLSPublicKey(data);
-        dlReg.registerOperator(operatorType, ephemeralKeyHash, keccak256(abi.encodePacked(uint256(ephemeralKeyHash) | 1234567876543)), data.slice(0, 128), socket);
+        (uint256 s, BN254.G1Point memory rPoint) = getOperatorSchnorrSignature(index);
+        pubkeyCompendium.registerBLSPublicKey(s, rPoint, getOperatorPubkeyG1(index), getOperatorPubkeyG2(index));
+        dlReg.registerOperator(
+            operatorType, 
+            ephemeralKeyHash, 
+            keccak256(abi.encodePacked(uint256(ephemeralKeyHash) | 1234567876543)), 
+            getOperatorPubkeyG1(index), 
+            socket
+        );
 
         cheats.stopPrank();
 
@@ -248,7 +217,7 @@ contract DataLayrTestHelper is DataLayrDeployer, EigenLayrTestHelper {
 
         //register all the operators
         for (uint256 i = 0; i < numSigners; ++i) {
-            _testRegisterAdditionalSelfOperator(signers[i], registrationData[i], ephemeralKeyHashes[i]);
+            _testRegisterAdditionalSelfOperator(i);
         }
 
         // hard-coded values
@@ -262,19 +231,22 @@ contract DataLayrTestHelper is DataLayrDeployer, EigenLayrTestHelper {
         return _testConfirmDataStoreWithoutRegister(initTime, index, numSigners);
     }
 
-    function _testConfirmDataStoreWithoutRegister(uint256 initTime, uint256 index, uint8 numSigners)
+    function _testConfirmDataStoreWithoutRegister(uint256 initTime, uint256 index, uint8 /* numSigners */)
         internal
         returns (bytes memory, IDataLayrServiceManager.DataStoreSearchData memory)
     {
         IDataLayrServiceManager.DataStoreSearchData memory searchData = _testInitDataStore(initTime, address(this), header);
 
         uint32 numberOfNonSigners = 0;
-        uint256[4] memory apk;
+        uint256[2] memory apkG1;
+        uint256[4] memory apkG2;
         {
-            (apk[0], apk[1], apk[2], apk[3]) = getAggregatePublicKey(uint256(numSigners));
+            (apkG1[0], apkG1[1]) = getAggregatePublicKeyG1();
+            (apkG2[0], apkG2[1], apkG2[2], apkG2[3]) = getAggregatePublicKeyG2();
         }
-        (uint256 sigma_0, uint256 sigma_1) = getSignature(uint256(numSigners), index); //(signatureData[index*2], signatureData[2*index + 1]);
 
+        (uint256 sigma_0, uint256 sigma_1) = getAggSignature(index);
+        
         /**
          * @param data This calldata is of the format:
          * <
@@ -289,6 +261,18 @@ contract DataLayrTestHelper is DataLayrDeployer, EigenLayrTestHelper {
          * uint256[2] sigma
          * >
          */
+        
+        
+        emit log_named_bytes32("MSG HASH", 
+            keccak256(
+                abi.encodePacked(
+                    searchData.metadata.globalDataStoreId,
+                    searchData.metadata.headerHash,
+                    searchData.duration,
+                    initTime,
+                    searchData.index
+                )
+            ));
 
         bytes memory data = abi.encodePacked(
             keccak256(
@@ -306,10 +290,12 @@ contract DataLayrTestHelper is DataLayrDeployer, EigenLayrTestHelper {
             numberOfNonSigners,
             // no pubkeys here since zero nonSigners for now
             uint32(dlReg.getApkUpdatesLength() - 1),
-            apk[0],
-            apk[1],
-            apk[2],
-            apk[3],
+            apkG1[0],
+            apkG1[1],
+            apkG2[0],
+            apkG2[1],
+            apkG2[2],
+            apkG2[3],
             sigma_0,
             sigma_1
         );
@@ -349,10 +335,11 @@ contract DataLayrTestHelper is DataLayrDeployer, EigenLayrTestHelper {
 
 
     //Internal function for assembling calldata - prevents stack too deep errors
-    function _getCallData(
+    function _getOneNonSignerCallData(
         bytes32 msgHash,
         uint32 numberOfNonSigners,
-        RegistrantAPK memory registrantAPK,
+        RegistrantAPKG2 memory registrantApkG2,
+        RegistrantAPKG1 memory registrantApkG1,
         SignerAggSig memory signerAggSig,
         NonSignerPK memory nonSignerPK,
         uint32 blockNumber,
@@ -383,20 +370,94 @@ contract DataLayrTestHelper is DataLayrDeployer, EigenLayrTestHelper {
             blockNumber,
             dataStoreId,
             numberOfNonSigners,
-            nonSignerPK.xA0,
-            nonSignerPK.xA1,
-            nonSignerPK.yA0,
-            nonSignerPK.yA1
+            nonSignerPK.x,
+            nonSignerPK.y
         );
 
         data = abi.encodePacked(
             data,
             uint32(0),
+            //nonSignerPK.stakeIndex,
             uint32(dlReg.getApkUpdatesLength() - 1),
-            registrantAPK.apk0,
-            registrantAPK.apk1,
-            registrantAPK.apk2,
-            registrantAPK.apk3,
+            registrantApkG1.apk0,
+            registrantApkG1.apk1
+        );
+
+        data = abi.encodePacked(
+            data,
+            registrantApkG2.apk0,
+            registrantApkG2.apk1,
+            registrantApkG2.apk2,
+            registrantApkG2.apk3,
+            signerAggSig.sigma0,
+            signerAggSig.sigma1
+        );
+
+        return data;
+    }
+
+    function _getTwoNonSignerCallData(
+        bytes32 msgHash,
+        uint32 numberOfNonSigners,
+        RegistrantAPKG1 memory registrantApkG1,
+        RegistrantAPKG2 memory registrantApkG2,
+        SignerAggSig memory signerAggSig,
+        NonSignerPK memory nonSignerPK1,
+        NonSignerPK memory nonSignerPK2,
+        uint32 blockNumber,
+        uint32 dataStoreId
+    )
+        internal
+        view
+        returns (bytes memory)
+    {
+        /**
+         * @param data This calldata is of the format:
+         * <
+         * bytes32 msgHash,
+         * uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the BLSRegistryWithBomb
+         * uint32 blockNumber
+         * uint32 dataStoreId
+         * uint32 numberOfNonSigners,
+         * uint256[numberOfSigners][4] pubkeys of nonsigners,
+         * uint32 stakeIndex
+         * uint32 apkIndex,
+         * uint256[4] apk,
+         * uint256[2] sigma
+         * >s
+         */
+        bytes memory data = abi.encodePacked(
+            msgHash,
+            uint48(dlReg.getLengthOfTotalStakeHistory() - 1),
+            blockNumber,
+            dataStoreId,
+            numberOfNonSigners
+        );
+        data = abi.encodePacked(
+            data,
+            nonSignerPK1.x,
+            nonSignerPK1.y,
+            uint32(0)
+        );
+        data = abi.encodePacked(
+            data,
+            nonSignerPK2.x,
+            nonSignerPK2.y,
+            uint32(0)
+        );
+        data = abi.encodePacked(
+            data,
+            uint32(dlReg.getApkUpdatesLength() - 1),
+            registrantApkG1.apk0,
+            registrantApkG1.apk1
+        );
+
+        data = abi.encodePacked(
+            data,
+            registrantApkG2.apk0,
+            registrantApkG2.apk1,
+            registrantApkG2.apk2,
+            registrantApkG2.apk3,
             signerAggSig.sigma0,
             signerAggSig.sigma1
         );
@@ -435,16 +496,6 @@ contract DataLayrTestHelper is DataLayrDeployer, EigenLayrTestHelper {
             totalOperatorsIndex,
             header
         );
-    }
-
-    function getG2PublicKeyHash(bytes calldata data, address signer) public view returns(bytes32 pkHash){
-        uint256[4] memory pk;
-        // verify sig of public key and get pubkeyHash back, slice out compressed apk
-        (pk[0], pk[1], pk[2], pk[3]) = BLS.verifyBLSSigOfPubKeyHash(data, signer);
-
-        pkHash = keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3]));
-
-        return pkHash;
     }
 
     function getG2PKOfRegistrationData(uint8 operatorIndex) internal view returns(uint256[4] memory){

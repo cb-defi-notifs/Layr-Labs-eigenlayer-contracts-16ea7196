@@ -14,6 +14,8 @@ import "../interfaces/IBeaconChainETHReceiver.sol";
  import "forge-std/Test.sol";
 
 
+import "forge-std/Test.sol";
+
 
 /**
  * @title The implementation contract used for restaking beacon chain ETH on EigenLayer 
@@ -85,7 +87,7 @@ contract EigenPod is IEigenPod, Initializable, DSTest
         bytes32 merklizedPubkey = sha256(abi.encodePacked(pubkey, bytes16(0)));
 
         require(validators[merklizedPubkey].status == VALIDATOR_STATUS.INACTIVE, "EigenPod.verifyCorrectWithdrawalCredentials: Validator not inactive");
-        //verify validator proof
+        // verify validator proof
         BeaconChainProofs.verifyValidatorFields(
             beaconStateRoot,
             proofs,
@@ -94,7 +96,6 @@ contract EigenPod is IEigenPod, Initializable, DSTest
         // require that the first field is the merkleized pubkey
         require(validatorFields[0] == merklizedPubkey, "EigenPod.verifyCorrectWithdrawalCredentials: Proof is not for provided pubkey");
 
-        emit log_named_bytes32("pod withdrawal cred", podWithdrawalCredentials().toBytes32(0));
         require(validatorFields[1] == podWithdrawalCredentials().toBytes32(0), "EigenPod.verifyCorrectWithdrawalCredentials: Proof is not for this EigenPod");
         // convert the balance field from 8 bytes of little endian to uint64 big endian 💪
         uint64 validatorBalance = Endian.fromLittleEndianUint64(validatorFields[2]);

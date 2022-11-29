@@ -43,25 +43,32 @@ contract DataLayrDeployer is EigenLayrDeployer {
     bytes32[] ephemeralKeyHashes;
     uint256[] sample_pk;
     uint256[] sample_sig;
+
+    address podManagerAddress = 0x1d1499e622D69689cdf9004d05Ec547d650Ff211;              
+
     address storer = address(420);
 
     address public dataLayrReputedMultisig = address(this);
     address public dataLayrTeamMultisig = address(this);
 
     struct NonSignerPK {
-        uint256 xA0;
-        uint256 xA1;
-        uint256 yA0;
-        uint256 yA1;
+        uint256 x;
+        uint256 y;
+        uint32 stakeIndex;
     }
 
-    struct RegistrantAPK {
-
+    struct RegistrantAPKG2 {
         uint256 apk0;
         uint256 apk1;
         uint256 apk2;
         uint256 apk3;
     }
+
+    struct RegistrantAPKG1 {
+        uint256 apk0;
+        uint256 apk1;
+    }
+
     struct SignerAggSig{
         uint256 sigma0;
         uint256 sigma1;
@@ -77,8 +84,7 @@ contract DataLayrDeployer is EigenLayrDeployer {
     }
 
     modifier fuzzedOperatorIndex(uint8 operatorIndex) {
-        require(registrationData.length != 0, "fuzzedOperatorIndex: setup incorrect");
-        cheats.assume(operatorIndex < registrationData.length);
+        cheats.assume(operatorIndex < getNumOperators());
         _;
     }
 
@@ -86,10 +92,13 @@ contract DataLayrDeployer is EigenLayrDeployer {
     function setUp() public virtual override {
         // do the EigenLayer deployment
         _deployEigenLayrContracts();
-        _setUpSignersAndSignatures();
         // deploy all the DataLayr contracts
         _deployDataLayrContracts();
         _setUpTestingParameters();
+
+        //ensuring that the address of eigenpodmanager doesn't change
+        bytes memory code = address(eigenPodManager).code;
+        vm.etch(podManagerAddress, code);
     }
 
     // deploy all the DataLayr contracts. Relies on many EL contracts having already been deployed.
@@ -343,23 +352,79 @@ contract DataLayrDeployer is EigenLayrDeployer {
 
         // check that the provided signature is correct
         require(input[11] == 1, "BLSSignatureChecker.checkSignatures: Pairing unsuccessful");
+    }
 
-        // abi.encodePacked(
-        //     keccak256(
-        //         abi.encodePacked(searchData.metadata.globalDataStoreId, searchData.metadata.headerHash, searchData.duration, initTime, searchData.index)
-        //     ),
-        //     uint48(dlReg.getLengthOfTotalStakeHistory() - 1),
-        //     searchData.metadata.referenceBlockNumber,
-        //     searchData.metadata.globalDataStoreId,
-        //     numberOfNonSigners,
-        //     // no pubkeys here since zero nonSigners for now
-        //     uint32(dlReg.getApkUpdatesLength() - 1),
-        //     apk_0,
-        //     apk_1,
-        //     apk_2,
-        //     apk_3,
-        //     sigma_0,
-        //     sigma_1
-        // );
+    function testBLSPairing() internal {
+            uint256[12] memory input;
+
+            uint256 sigmaX = 18033935401377046968253993369420882761639101147199761382164100964672839397476;
+            uint256 sigmaY = 1296611607075364961854999662642612779184492063389140410860059877500726169961;
+
+            bytes32 msgHash = 0x536ea2113b06bc65d2d6310b51424f268f1b3155e1fe82cbc90d9b8712d14a0a;
+            (uint256 msgHashX, uint256 msgHashY) = BLS.hashToG1(msgHash);
+
+            emit log_named_uint("msgHashX", msgHashX);
+            emit log_named_uint("msgHashY", msgHashY);
+
+            input[0] = sigmaX;
+            input[1] = sigmaY;
+            input[2] = BLS.nG2x1;
+            input[3] = BLS.nG2x0;
+            input[4] = BLS.nG2y1;
+            input[5] = BLS.nG2y0;
+
+            input[6] = msgHashX;
+            input[7] = msgHashY;
+            // insert negated coordinates of the generator for G2
+            input[8] = 2548741418739206695596229529236657819733103689248810431091319058064536250278;
+            input[9] = 17890127137359027111482509378509337249586291091685072336190236845225812702820;
+            input[10] = 12498134380415317036640719391312524222291167329168408451224344109201613968031;
+            input[11] = 18577908915005185161399472001797886901908616360139528062172259974922524099491;
+
+            assembly {
+                // check the pairing; if incorrect, revert
+                if iszero(
+                    staticcall(sub(gas(), 2000), 8, input, 0x180, input, 0x20)
+                ) {
+                    revert(0, 0)
+                }
+            }
+
+            require(
+                input[0] == 1,
+                "BLSSignatureChecker.checkSignatures: Pairing unsuccessful"
+            );
+        }
+
+    function testVKPairing() public view {
+        uint256[12] memory input;
+
+        uint256 pkg1X = 11746114415387181186350609321861313487282937637157292915572974055983718048797;
+        uint256 pkg1Y = 6199836912972052411871307285755230980030751238632264470990041456311661808876;
+
+
+        input[0] = pkg1X;
+        input[1] = pkg1Y;
+        input[2] = BLS.nG2x1;
+        input[3] = BLS.nG2x0;
+        input[4] = BLS.nG2y1;
+        input[5] = BLS.nG2y0;
+        
+        input[6] = 1;
+        input[7] = 2;
+        // insert negated coordinates of the generator for G2
+        input[8] = 2548741418739206695596229529236657819733103689248810431091319058064536250278;
+        input[9] = 17890127137359027111482509378509337249586291091685072336190236845225812702820;
+        input[10] = 12498134380415317036640719391312524222291167329168408451224344109201613968031;
+        input[11] = 18577908915005185161399472001797886901908616360139528062172259974922524099491;
+
+        assembly {
+            // check the pairing; if incorrect, revert
+            if iszero(
+                staticcall(sub(gas(), 2000), 8, input, 0x180, input, 0x20)
+            ) { revert(0, 0) }
+        }
+
+        require(input[0] == 1, "BLSSignatureChecker.checkSignatures: Pairing unsuccessful");
     }
 }

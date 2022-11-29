@@ -35,8 +35,8 @@ import "../contracts/libraries/BLS.sol";
 import "../contracts/libraries/BytesLib.sol";
 import "../contracts/libraries/DataStoreUtils.sol";
 
-import "./utils/Signers.sol";
-import "./utils/SignatureUtils.sol";
+import "./utils/Operators.sol";
+import "./utils/Signatures.sol";
 
 import "./mocks/LiquidStakingToken.sol";
 import "./mocks/EmptyContract.sol";
@@ -45,7 +45,7 @@ import "./mocks/ETHDepositMock.sol";
 
  import "forge-std/Test.sol";
 
-contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
+contract EigenLayrDeployer is Operators, SignatureUtils {
     using BytesLib for bytes;
 
     Vm cheats = Vm(HEVM_ADDRESS);
@@ -129,7 +129,6 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
     //performs basic deployment before each test
     function setUp() public virtual {
         _deployEigenLayrContracts();
-        _setUpSignersAndSignatures();
     }
 
     function _deployEigenLayrContracts() internal {
@@ -249,13 +248,5 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
 
         slashingContracts.push(address(eigenPodManager));
         investmentManager.slasher().addGloballyPermissionedContracts(slashingContracts);
-    }
-
-    function _setUpSignersAndSignatures() internal {
-        //loads hardcoded signer set
-        _setSigners();
-
-        //loads signatures
-        setSignatures();
     }
 }

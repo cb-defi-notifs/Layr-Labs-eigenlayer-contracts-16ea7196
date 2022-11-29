@@ -19,7 +19,7 @@ contract WithdrawalTests is DelegationTests {
     MiddlewareRegistryMock public generalReg2;
     ServiceManagerMock public generalServiceManager2;
 
-    function initializeMiddlewares() public {
+    function initializeGeneralMiddlewares() public {
         generalServiceManager1 = new ServiceManagerMock(investmentManager);
 
         generalReg1 = new MiddlewareRegistryMock(
@@ -56,7 +56,7 @@ contract WithdrawalTests is DelegationTests {
             cheats.assume(ethAmount > 0); 
             cheats.assume(eigenAmount > 0); 
 
-            initializeMiddlewares();
+            initializeGeneralMiddlewares();
 
             if(RANDAO){
                 _testWithdrawalAndDeregistration(operator, depositor, withdrawer, ethAmount, eigenAmount, withdrawAsTokens);

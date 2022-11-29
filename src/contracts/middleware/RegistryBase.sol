@@ -6,7 +6,6 @@ import "../interfaces/IServiceManager.sol";
 import "../interfaces/IQuorumRegistry.sol";
 import "../libraries/BytesLib.sol";
 import "./VoteWeigherBase.sol";
-import "../libraries/BLS.sol";
 
 import "forge-std/Test.sol";
 

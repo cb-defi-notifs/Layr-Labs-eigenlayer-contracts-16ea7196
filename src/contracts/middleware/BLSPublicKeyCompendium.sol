@@ -2,6 +2,7 @@
 pragma solidity ^0.8.9;
 
 import "../interfaces/IBLSPublicKeyCompendium.sol";
+import "../libraries/BN254.sol";
 import "../libraries/BLS.sol";
 import "forge-std/Test.sol";
 
@@ -10,8 +11,8 @@ import "forge-std/Test.sol";
  * @author Layr Labs, Inc.
  */
 contract BLSPublicKeyCompendium is IBLSPublicKeyCompendium, DSTest {
-    //Hash of the zero public key
-    bytes32 internal constant ZERO_PK_HASH = hex"012893657d8eb2efad4de0a91bcd0e39ad9837745dec3ea923737ea803fc8e3d";
+    //Hash of the zero public key: BLS.hashG1Point(G1Point(0,0))
+    bytes32 internal constant ZERO_PK_HASH = hex"ad3228b676f7d3cd4284a5443f17f1962b36e491b30a40b2405849e597ba5fb5";
 
     /// @notice mapping from operator address to pubkey hash
     mapping(address => bytes32) public operatorToPubkeyHash;
@@ -20,26 +21,46 @@ contract BLSPublicKeyCompendium is IBLSPublicKeyCompendium, DSTest {
 
     // EVENTS
     /// @notice Emitted when `operator` registers with the public key `pk`.
-    event NewPubkeyRegistration(address operator, uint256[4] pk);
+    event NewPubkeyRegistration(address operator, BN254.G1Point pubkeyG1, BN254.G2Point pubkeyG2);
 
     /**
-     * @notice Called by an operator to register themselves as the owner of a BLS public key.
-     * @param data is the calldata that contains the coordinates for pubkey on G2 and signature on G1.
-     * @dev the `data` param is used as an inpute to `BLS.verifyBLSSigOfPubKeyHash(data, msg.sender)`
+     * @notice Called by an operator to register themselves as the owner of a BLS public key and reveal their G1 and G2 public key.
+     * @param s is the field element of the operator's Schnorr signature
+     * @param rPoint is the group element of the operator's Schnorr signature
+     * @param pubkeyG1 is the the G1 pubkey of the operator
+     * @param pubkeyG2 is the G2 with the same private key as the pubkeyG1
      */
-    function registerBLSPublicKey(bytes calldata data) external {
-        uint256[4] memory pk;
+    function registerBLSPublicKey(uint256 s, BN254.G1Point memory rPoint, BN254.G1Point memory pubkeyG1, BN254.G2Point memory pubkeyG2) external {
+        // calculate -g1
+        BN254.G1Point memory negGeneratorG1 = BN254.negate(BN254.G1Point({X: 1, Y: 2}));
+        // verify a Schnorr signature (s, R) of pubkeyG1
+        // calculate s*-g1 + (R + H(msg.sender, P, R)*P) = 0
+        // which is the Schnorr signature verification equation
+        BN254.G1Point memory shouldBeZero = 
+            BN254.plus(
+                BN254.scalar_mul(negGeneratorG1, s),
+                BN254.plus(
+                    rPoint,
+                    BN254.scalar_mul(
+                        pubkeyG1,
+                        uint256(keccak256(abi.encodePacked(msg.sender, pubkeyG1.X, pubkeyG1.Y, rPoint.X, rPoint.Y))) % BLS.FR_MODULUS
+                    )
+                )
+            );
 
-        // verify sig of public key and get pubkeyHash back, slice out compressed apk
-        (pk[0], pk[1], pk[2], pk[3]) = BLS.verifyBLSSigOfPubKeyHash(data, msg.sender);
+        require(shouldBeZero.X == 0 && shouldBeZero.Y == 0, "BLSPublicKeyCompendium.registerBLSPublicKey: incorrect schnorr singature");
+
+        // verify that the G2 pubkey has the same discrete log as the G1 pubkey
+        // e(P, [1]_2) = e([-1]_1, P')
+        require(BN254.pairing(
+            pubkeyG1,
+            BN254.G2Point({X: [BLS.G2x1, BLS.G2x0], Y: [BLS.G2y1, BLS.G2y0]}),
+            negGeneratorG1,
+            pubkeyG2
+        ), "BLSPublicKeyCompendium.registerBLSPublicKey: G1 and G2 private key do not match");
 
         // getting pubkey hash
-        bytes32 pubkeyHash = BLS.hashPubkey(pk);
-
-        require(
-            pubkeyHash != ZERO_PK_HASH,
-            "BLSPublicKeyCompendium.registerBLSPublicKey: Cannot register with 0x0 public key"
-        );
+        bytes32 pubkeyHash = BLS.hashG1Point(pubkeyG1);
 
         require(
             operatorToPubkeyHash[msg.sender] == bytes32(0),
@@ -54,6 +75,6 @@ contract BLSPublicKeyCompendium is IBLSPublicKeyCompendium, DSTest {
         operatorToPubkeyHash[msg.sender] = pubkeyHash;
         pubkeyHashToOperator[pubkeyHash] = msg.sender;
 
-        emit NewPubkeyRegistration(msg.sender, pk);
+        emit NewPubkeyRegistration(msg.sender, pubkeyG1, pubkeyG2);
     }
 }

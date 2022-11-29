@@ -13,4 +13,3 @@ contract BeaconChainETHReceiver is IBeaconChainETHReceiver {
     }
 
 }
-

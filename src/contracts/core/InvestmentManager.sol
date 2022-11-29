@@ -361,6 +361,7 @@ contract InvestmentManager is
             // actually withdraw the funds
             for (uint256 i = 0; i < strategiesLength;) {
                 if (queuedWithdrawal.strategies[i] == beaconChainETHStrategy) {
+
                     // if the strategy is the beaconchaineth strat, then withdraw through the EigenPod flow
                     eigenPodManager.withdrawBeaconChainETH(queuedWithdrawal.depositor, msg.sender, queuedWithdrawal.shares[i]);
                 } else {

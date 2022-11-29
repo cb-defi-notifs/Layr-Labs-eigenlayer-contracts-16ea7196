@@ -27,6 +27,10 @@ contract DelegationTests is EigenLayrTestHelper {
     function setUp() public virtual override {
         EigenLayrDeployer.setUp();
 
+        initializeMiddlewares();
+    }
+
+    function initializeMiddlewares() public {
         serviceManager = new ServiceManagerMock(investmentManager);
 
         voteWeigher = MiddlewareVoteWeigherMock(
@@ -61,7 +65,7 @@ contract DelegationTests is EigenLayrTestHelper {
 
     /// @notice testing if an operator can register to themselves.
     function testSelfOperatorRegister() public {
-        _testRegisterAdditionalOperator(signers[0], serveUntil);
+        _testRegisterAdditionalOperator(0, serveUntil);
     }
 
     /// @notice testing if an operator can delegate to themselves.
@@ -73,8 +77,8 @@ contract DelegationTests is EigenLayrTestHelper {
     }
 
     function testTwoSelfOperatorsRegister() public {
-        _testRegisterAdditionalOperator(signers[0], serveUntil);
-        _testRegisterAdditionalOperator(signers[1], serveUntil);
+        _testRegisterAdditionalOperator(0, serveUntil);
+        _testRegisterAdditionalOperator(1, serveUntil);
     }
 
     /// @notice registers a fixed address as a delegate, delegates to it from a second address,
@@ -226,17 +230,19 @@ contract DelegationTests is EigenLayrTestHelper {
     /// @notice This function tests to ensure that a staker cannot delegate to an unregistered operator
     /// @param delegate is the unregistered operator
     function testDelegationToUnregisteredDelegate(address delegate) public fuzzedAddress(delegate) {
-        //deposit into 1 strategy for signers[1], who is delegating to the unregistered operator
-        _testDepositStrategies(signers[1], 1e18, 1);
-        _testDepositEigen(signers[1], 1e18);
+        //deposit into 1 strategy for getOperatorAddress(1), who is delegating to the unregistered operator
+        _testDepositStrategies(getOperatorAddress(1), 1e18, 1);
+        _testDepositEigen(getOperatorAddress(1), 1e18);
 
         cheats.expectRevert(bytes("EigenLayrDelegation._delegate: operator has not yet registered as a delegate"));
-        cheats.startPrank(signers[1]);
+        cheats.startPrank(getOperatorAddress(1));
         delegation.delegateTo(delegate);
         cheats.stopPrank();
     }
 
-    function _testRegisterAdditionalOperator(address sender, uint32 _serveUntil) internal {
+    function _testRegisterAdditionalOperator(uint256 index, uint32 _serveUntil) internal {
+        address sender = getOperatorAddress(index);
+
         //register as both ETH and EIGEN operator
         uint256 wethToDeposit = 1e18;
         uint256 eigenToDeposit = 1e10;
