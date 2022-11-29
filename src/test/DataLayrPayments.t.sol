@@ -167,7 +167,6 @@ contract DataLayrPaymentsTests is DataLayrTestHelper {
             uint32 numberOfNonSigners = 0;
 
             blockNumber = uint32(block.number);
-            uint32 dataStoreId = dlsm.taskNumber() - 1;
 
             bytes memory data = abi.encodePacked(
             keccak256(
