@@ -231,7 +231,7 @@ contract DataLayrTestHelper is DataLayrDeployer, EigenLayrTestHelper {
         return _testConfirmDataStoreWithoutRegister(initTime, index, numSigners);
     }
 
-    function _testConfirmDataStoreWithoutRegister(uint256 initTime, uint256 index, uint8 numSigners)
+    function _testConfirmDataStoreWithoutRegister(uint256 initTime, uint256 index, uint8 /* numSigners */)
         internal
         returns (bytes memory, IDataLayrServiceManager.DataStoreSearchData memory)
     {
@@ -496,16 +496,6 @@ contract DataLayrTestHelper is DataLayrDeployer, EigenLayrTestHelper {
             totalOperatorsIndex,
             header
         );
-    }
-
-    function getG2PublicKeyHash(bytes calldata data, address signer) public view returns(bytes32 pkHash){
-        uint256[4] memory pk;
-        // verify sig of public key and get pubkeyHash back, slice out compressed apk
-        (pk[0], pk[1], pk[2], pk[3]) = BLS.verifyBLSSigOfPubKeyHash(data, signer);
-
-        pkHash = keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3]));
-
-        return pkHash;
     }
 
     function getG2PKOfRegistrationData(uint8 operatorIndex) internal view returns(uint256[4] memory){

@@ -31,20 +31,6 @@ contract DelegationTests is EigenLayrTestHelper {
     }
 
     function initializeMiddlewares() public {
-        generalServiceManager1 = new ServiceManagerMock(investmentManager);
-
-        generalReg1 = new MiddlewareRegistryMock(
-             generalServiceManager1,
-             investmentManager
-        );
-        
-        generalServiceManager2 = new ServiceManagerMock(investmentManager);
-
-        generalReg2 = new MiddlewareRegistryMock(
-             generalServiceManager2,
-             investmentManager
-        );
-
         serviceManager = new ServiceManagerMock(investmentManager);
 
         voteWeigher = MiddlewareVoteWeigherMock(
@@ -79,7 +65,7 @@ contract DelegationTests is EigenLayrTestHelper {
 
     /// @notice testing if an operator can register to themselves.
     function testSelfOperatorRegister() public {
-        _testRegisterAdditionalOperator(signers[0], serveUntil);
+        _testRegisterAdditionalOperator(0, serveUntil);
     }
 
     /// @notice testing if an operator can delegate to themselves.
@@ -91,8 +77,8 @@ contract DelegationTests is EigenLayrTestHelper {
     }
 
     function testTwoSelfOperatorsRegister() public {
-        _testRegisterAdditionalOperator(signers[0], serveUntil);
-        _testRegisterAdditionalOperator(signers[1], serveUntil);
+        _testRegisterAdditionalOperator(0, serveUntil);
+        _testRegisterAdditionalOperator(1, serveUntil);
     }
 
     /// @notice registers a fixed address as a delegate, delegates to it from a second address,
@@ -254,7 +240,9 @@ contract DelegationTests is EigenLayrTestHelper {
         cheats.stopPrank();
     }
 
-    function _testRegisterAdditionalOperator(address sender, uint32 _serveUntil) internal {
+    function _testRegisterAdditionalOperator(uint256 index, uint32 _serveUntil) internal {
+        address sender = getOperatorAddress(index);
+
         //register as both ETH and EIGEN operator
         uint256 wethToDeposit = 1e18;
         uint256 eigenToDeposit = 1e10;

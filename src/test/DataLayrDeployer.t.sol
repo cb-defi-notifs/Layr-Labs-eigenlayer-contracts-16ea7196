@@ -44,28 +44,7 @@ contract DataLayrDeployer is EigenLayrDeployer {
     uint256[] sample_pk;
     uint256[] sample_sig;
 
-
-
-
-
-    address sample_registrant = cheats.addr(436364636);
-
-    address[] public slashingContracts;
-
-    uint256 wethInitialSupply = 10e50;
-    uint256 undelegationFraudproofInterval = 7 days;
-    uint256 public constant eigenTokenId = 0;
-    uint256 public constant eigenTotalSupply = 1000e18;
-    uint256 nonce = 69;
-    uint256 public gasLimit = 750000;
-
     address podManagerAddress = 0x1d1499e622D69689cdf9004d05Ec547d650Ff211;              
-
-
-
-
-
-
 
     address storer = address(420);
 
@@ -113,7 +92,6 @@ contract DataLayrDeployer is EigenLayrDeployer {
     function setUp() public virtual override {
         // do the EigenLayer deployment
         _deployEigenLayrContracts();
-        _setUpSignersAndSignatures();
         // deploy all the DataLayr contracts
         _deployDataLayrContracts();
         _setUpTestingParameters();
@@ -418,7 +396,7 @@ contract DataLayrDeployer is EigenLayrDeployer {
             );
         }
 
-    function testVKPairing() internal {
+    function testVKPairing() public view {
         uint256[12] memory input;
 
         uint256 pkg1X = 11746114415387181186350609321861313487282937637157292915572974055983718048797;
