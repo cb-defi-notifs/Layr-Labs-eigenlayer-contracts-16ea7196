@@ -34,7 +34,7 @@ import "../src/contracts/libraries/BLS.sol";
 import "../src/contracts/libraries/BytesLib.sol";
 import "../src/contracts/libraries/DataStoreUtils.sol";
 
-import "../src/test/utils/SignatureUtils.sol";
+import "../src/test/utils/Signatures.sol";
 
 import "../src/test/mocks/EmptyContract.sol";
 import "../src/test/mocks/BeaconChainOracleMock.sol";

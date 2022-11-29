@@ -36,7 +36,7 @@ import "../contracts/libraries/BytesLib.sol";
 import "../contracts/libraries/DataStoreUtils.sol";
 
 import "./utils/Operators.sol";
-import "./utils/SignatureUtils.sol";
+import "./utils/Signatures.sol";
 
 import "./mocks/LiquidStakingToken.sol";
 import "./mocks/EmptyContract.sol";
