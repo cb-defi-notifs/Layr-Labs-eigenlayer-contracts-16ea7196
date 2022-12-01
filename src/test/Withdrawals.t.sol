@@ -3,8 +3,6 @@ pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/utils/math/Math.sol";
 
-import "../test/DataLayrTestHelper.t.sol";
-
 import "../contracts/libraries/BytesLib.sol";
 
 import "./mocks/MiddlewareRegistryMock.sol";

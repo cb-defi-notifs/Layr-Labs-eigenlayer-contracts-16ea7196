@@ -4,7 +4,7 @@ pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "../interfaces/IBLSRegistry.sol";
 import "../libraries/BytesLib.sol";
-import "../libraries/DataStoreUtils.sol";
+import "../libraries/MiddlewareUtils.sol";
 import "../libraries/BLS.sol";
 
 import "forge-std/Test.sol";
@@ -479,7 +479,7 @@ abstract contract BLSSignatureChecker is Test {
         );
 
         // set compressedSignatoryRecord variable used for fraudproofs
-        compressedSignatoryRecord = DataStoreUtils.computeSignatoryRecordHash(
+        compressedSignatoryRecord = MiddlewareUtils.computeSignatoryRecordHash(
             taskNumberToConfirm,
             pubkeyHashes,
             signedTotals.signedStakeFirstQuorum,
