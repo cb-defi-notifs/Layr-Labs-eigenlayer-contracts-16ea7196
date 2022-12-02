@@ -109,6 +109,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
      * @dev Typically, this function must be called prior to registering for a middleware.
      */
     function optIntoSlashing(address contractAddress) external onlyWhenNotPaused(PAUSED_OPT_INTO_SLASHING) {
+        require(delegation.isOperator(msg.sender), "Slasher.optIntoSlashing: msg.sender is not a registered operator");
         _optIntoSlashing(msg.sender, contractAddress);
     }
 
