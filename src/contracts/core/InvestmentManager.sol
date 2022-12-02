@@ -36,12 +36,6 @@ contract InvestmentManager is
     uint8 internal constant PAUSED_WITHDRAWALS = 1;
 
     /**
-     * @notice Value to which `initTimestamp` and `unlockTimestamp` to is set to indicate a withdrawal is queued/initialized,
-     * but has not yet had its waiting period triggered
-     */
-    uint32 internal constant QUEUED_WITHDRAWAL_INITIALIZED_VALUE = type(uint32).max;
-
-    /**
      * @notice Emitted when a new withdrawal is queued by `depositor`.
      * @param depositor Is the staker who is withdrawing funds from EigenLayer.
      * @param withdrawer Is the party specified by `staker` who will be able to complete the queued withdrawal and receive the withdrawn funds.
