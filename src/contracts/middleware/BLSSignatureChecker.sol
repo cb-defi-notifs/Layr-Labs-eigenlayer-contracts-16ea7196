@@ -7,13 +7,12 @@ import "../libraries/BytesLib.sol";
 import "../libraries/MiddlewareUtils.sol";
 import "../libraries/BLS.sol";
 
-import "forge-std/Test.sol";
 /**
  * @title Used for checking BLS aggregate signatures from the operators of a `BLSRegistry`.
  * @author Layr Labs, Inc.
  * @notice This is the contract for checking the validity of aggregate operator signatures.
  */
-abstract contract BLSSignatureChecker is Test {
+abstract contract BLSSignatureChecker {
     using BytesLib for bytes;
     // DATA STRUCTURES
     /**

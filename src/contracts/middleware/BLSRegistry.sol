@@ -6,7 +6,6 @@ import "../interfaces/IBLSPublicKeyCompendium.sol";
 import "../interfaces/IBLSRegistry.sol";
 import "../libraries/BN254.sol";
 import "../libraries/BLS.sol";
-import "forge-std/Test.sol";
 
 /**
  * @title A Registry-type contract using aggregate BLS signatures.
@@ -16,7 +15,7 @@ import "forge-std/Test.sol";
  * - committing to and finalizing de-registration as an operator
  * - updating the stakes of the operator
  */
-contract BLSRegistry is RegistryBase, IBLSRegistry, Test {
+contract BLSRegistry is RegistryBase, IBLSRegistry {
     using BytesLib for bytes;
 
     // Hash of the zero public key
