@@ -44,8 +44,6 @@ contract DataLayrDeployer is EigenLayrDeployer {
     uint256[] sample_pk;
     uint256[] sample_sig;
 
-    address podManagerAddress = 0x1d1499e622D69689cdf9004d05Ec547d650Ff211;              
-
     address storer = address(420);
 
     address public dataLayrReputedMultisig = address(this);
@@ -95,10 +93,6 @@ contract DataLayrDeployer is EigenLayrDeployer {
         // deploy all the DataLayr contracts
         _deployDataLayrContracts();
         _setUpTestingParameters();
-
-        //ensuring that the address of eigenpodmanager doesn't change
-        bytes memory code = address(eigenPodManager).code;
-        vm.etch(podManagerAddress, code);
     }
 
     // deploy all the DataLayr contracts. Relies on many EL contracts having already been deployed.
