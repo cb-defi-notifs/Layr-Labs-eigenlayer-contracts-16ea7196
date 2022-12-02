@@ -243,7 +243,7 @@ contract EigenLayrTestHelper is EigenLayrDeployer {
             "_testDelegateToOperator: delegated address not set appropriately"
         );
         assertTrue(
-            delegation.delegationStatus(sender) == IEigenLayrDelegation.DelegationStatus.DELEGATED,
+            delegation.isDelegated(sender),
             "_testDelegateToOperator: delegated status not set appropriately"
         );
 
