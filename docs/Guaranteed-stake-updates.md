@@ -76,7 +76,7 @@ Now that a withdrawal has been queued, the operator must wait till their obligat
     function _recordUpdateAndAddToMiddlewareTimes(address operator, uint32 updateBlock, uint32 serveUntil) internal {
 ```
 
-This function is called each time a middleware posts a stake update, through a call to `recordFirstStakeUpdate`, `recordStakeUpdate`, or `recordLastStakeUpdate`. It records that the middleware has had a stake update and pushes a new entry to the operator's list of 'MiddlewareTimes', i.e. `operatorToMiddlewareTimes[operator]`, if *either* the `operator`'s stalestUpdateBlock' has decreased, *or* their latestServeUntil' has increased. An entry is also pushed in the special case of this being the first update of the first middleware that the operator has opted-in to serving.
+This function is called each time a middleware posts a stake update, through a call to `recordFirstStakeUpdate`, `recordStakeUpdate`, or `recordLastStakeUpdateAndRevokeSlashingAbility`. It records that the middleware has had a stake update and pushes a new entry to the operator's list of 'MiddlewareTimes', i.e. `operatorToMiddlewareTimes[operator]`, if *either* the `operator`'s stalestUpdateBlock' has decreased, *or* their latestServeUntil' has increased. An entry is also pushed in the special case of this being the first update of the first middleware that the operator has opted-in to serving.
 
 ### External Functions
 
@@ -96,9 +96,9 @@ recordStakeUpdate(address operator, uint32 updateBlock, uint32 serveUntil, uint2
 
 This function is called by a whitelisted slashing contract, passing in the time until which the operator's stake is bonded -- `serveUntil`, the block for which the stake update to the middleware is being recorded (which may be the current block or a past block) -- `updateBlock`, and an index specifying the element of the `operator`'s linked list that the currently updating middleware should be inserted after -- `insertAfter`. It makes a call to the internal function `_updateMiddlewareList` to actually update the linked list.
 
-#### `recordLastStakeUpdate`
+#### `recordLastStakeUpdateAndRevokeSlashingAbility`
 ```solidity
-function recordLastStakeUpdate(address operator, uint32 serveUntil) external onlyCanSlash(operator) {
+function recordLastStakeUpdateAndRevokeSlashingAbility(address operator, uint32 serveUntil) external onlyCanSlash(operator) {
 ```
 
 This function is called by a whitelisted slashing contract on deregistration of an operator, passing in the time until which the operator's stake is bonded -- `serveUntil`. It assumes that the update is posted for the *current* block, rather than a past block, in contrast to `recordStakeUpdate`.
