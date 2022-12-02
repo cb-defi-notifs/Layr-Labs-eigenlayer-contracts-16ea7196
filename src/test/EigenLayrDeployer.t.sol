@@ -13,6 +13,8 @@ import "../contracts/core/EigenLayrDelegation.sol";
 
 import "../contracts/interfaces/IETHPOSDeposit.sol";
 import "../contracts/interfaces/IBeaconChainOracle.sol";
+import "../contracts/interfaces/IVoteWeigher.sol";
+
 
 import "../contracts/core/InvestmentManager.sol";
 import "../contracts/strategies/InvestmentStrategyBase.sol";
@@ -22,18 +24,10 @@ import "../contracts/pods/EigenPod.sol";
 import "../contracts/pods/EigenPodManager.sol";
 
 import "../contracts/permissions/PauserRegistry.sol";
-
-import "../contracts/DataLayr/DataLayrServiceManager.sol";
-import "../contracts/DataLayr/BLSRegistryWithBomb.sol";
 import "../contracts/middleware/BLSPublicKeyCompendium.sol";
-import "../contracts/DataLayr/DataLayrPaymentManager.sol";
-import "../contracts/DataLayr/EphemeralKeyRegistry.sol";
-import "../contracts/DataLayr/DataLayrChallengeUtils.sol";
-import "../contracts/DataLayr/DataLayrLowDegreeChallenge.sol";
 
 import "../contracts/libraries/BLS.sol";
 import "../contracts/libraries/BytesLib.sol";
-import "../contracts/libraries/DataStoreUtils.sol";
 
 import "./utils/Operators.sol";
 import "./utils/Signatures.sol";

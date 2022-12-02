@@ -8,19 +8,10 @@ import "../src/contracts/core/InvestmentManager.sol";
 import "../src/contracts/strategies/InvestmentStrategyBase.sol";
 import "../src/contracts/core/Slasher.sol";
 
-import "../src/contracts/DataLayr/DataLayrServiceManager.sol";
-import "../src/contracts/DataLayr/BLSRegistryWithBomb.sol";
-import "../src/contracts/DataLayr/DataLayrPaymentManager.sol";
-import "../src/contracts/DataLayr/EphemeralKeyRegistry.sol";
-import "../src/contracts/DataLayr/DataLayrChallengeUtils.sol";
-import "../src/contracts/DataLayr/DataLayrLowDegreeChallenge.sol";
-
 import "forge-std/Script.sol";
 import "forge-std/StdJson.sol";
 
 contract EigenLayerParser is Script, DSTest {
-    using BytesLib for bytes;
-
     Vm cheats = Vm(HEVM_ADDRESS);
 
     uint256 numDis;
