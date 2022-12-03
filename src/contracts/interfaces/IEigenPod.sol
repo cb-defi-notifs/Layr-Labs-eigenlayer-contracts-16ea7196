@@ -67,6 +67,7 @@ interface IEigenPod {
         bytes32[] calldata validatorFields
     ) external;
 
-    //if you've been slashed on the Beacon chain, you can add balance to your pod to avoid getting slashed
-    function topUpPodBalance() external payable;
+    function numValidators() external view returns(uint32);
+
+    function excessFullWithdrawn() external view returns(uint256);
 }

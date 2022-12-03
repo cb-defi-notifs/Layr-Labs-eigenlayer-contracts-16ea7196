@@ -31,6 +31,8 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager,
 {
     //TODO: change this to constant in prod
     IETHPOSDeposit immutable ethPOS;
+
+    uint64 private immutable RESTAKED_BALANCE_PER_VALIDATOR;
     
     /// @notice Beacon proxy to which the EigenPods point
     IBeacon public immutable eigenPodBeacon;
@@ -40,8 +42,6 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager,
 
     /// @notice Oracle contract that provides updates to the beacon chain's state
     IBeaconChainOracle public beaconChainOracle;
-
-    mapping(address => EigenPodInfo) public pods;
 
     event BeaconOracleUpdated(address newOracleAddress);
 
@@ -118,20 +118,6 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager,
     }
 
     /**
-     * @notice Stakes beacon chain ETH into EigenLayer by adding BeaconChainETH shares to InvestmentManager.
-     * @param podOwner The owner of the pod whose balance must be restaked.
-     * @param amount The amount of beacon chain ETH to restake.
-     * @dev Callable only by the `podOwner`'s EigenPod.
-     */
-    function depositBeaconChainETH(address podOwner, uint64 amount) external onlyEigenPod(podOwner) {
-        //make sure that the podOwner hasn't over committed their stake, and deposit on their behalf
-        require(pods[podOwner].depositedBalance + amount <= pods[podOwner].balance + address(getPod(podOwner)).balance, "EigenPodManager.depositBalanceIntoEigenLayer: cannot deposit more than balance");
-        pods[podOwner].depositedBalance += amount;
-        //deposit into InvestmentManager
-        investmentManager.depositBeaconChainETH(podOwner, uint256(amount));
-    }
-
-    /**
      * @notice Withdraws ETH that has been withdrawn from the beacon chain from the EigenPod.
      * @param podOwner The owner of the pod whose balance must be withdrawn.
      * @param recipient The recipient of withdrawn ETH.
@@ -139,9 +125,6 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager,
      * @dev Callable only by the InvestmentManager contract.
      */
     function withdrawBeaconChainETH(address podOwner, address recipient, uint256 amount) external onlyInvestmentManager {
-        //subtract withdrawn amount from stake and balance
-        pods[podOwner].depositedBalance = pods[podOwner].depositedBalance - uint128(amount);
-        pods[podOwner].balance = pods[podOwner].balance - uint128(amount);
         getPod(podOwner).withdrawBeaconChainETH(recipient, amount);
     }
 
@@ -191,19 +174,8 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager,
         return address(getPod(podOwner)).code.length > 0;
     }
 
-    /// @notice returns the current EigenPodInfo for the `podOwner`'s EigenPod.
-    function getPodInfo(address podOwner) external view returns (EigenPodInfo memory) {
-        EigenPodInfo memory podInfo = pods[podOwner];
-        return podInfo;
-    }
-
-    /// @notice Returns the latest beacon chain state root posted to the beaconChainOracle.
-    function getBalance(address podOwner) external view returns (uint128) {
-        return pods[podOwner].balance;
-    }
-
-    function getDepositedBalance(address podOwner) external view returns (uint128) {
-        return pods[podOwner].depositedBalance;
+    function getNumberOfValidators(address podOwner) external view returns (uint64) {
+        return getPod(podOwner).numValidators();
     }
 
     function getBeaconChainStateRoot() external view returns(bytes32){

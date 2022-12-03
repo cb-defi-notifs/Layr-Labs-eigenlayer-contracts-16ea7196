@@ -11,12 +11,6 @@ import "./IBeaconChainOracle.sol";
  */
 
 interface IEigenPodManager {
-    //This struct helps manage the info about a certain pod owner's pod
-    struct EigenPodInfo {
-        uint128 balance; //total balance of all validators in the pod
-        uint128 depositedBalance; //amount of balance deposited into EigenLayer
-    }
-
     /**
      * @notice Creates an EigenPod for the sender.
      * @dev Function will revert if the `msg.sender` already has an EigenPod.
@@ -67,9 +61,6 @@ interface IEigenPodManager {
 
     /// @notice Returns the address of the `podOwner`'s EigenPod (whether it is deployed yet or not).
     function getPod(address podOwner) external view returns(IEigenPod);
-
-    /// @notice returns the current EigenPodInfo for the `podOwner`'s EigenPod.
-    function getPodInfo(address podOwner) external view returns(EigenPodInfo memory);
 
     /// @notice Oracle contract that provides updates to the beacon chain's state
     function beaconChainOracle() external view returns(IBeaconChainOracle);    

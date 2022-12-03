@@ -32,8 +32,16 @@ contract EigenPod is IEigenPod, Initializable, DSTest
 {
     using BytesLib for bytes;
 
+    uint256 constant GWEI_TO_WEI = 10e9;
+
     //TODO: change this to constant in prod
     IETHPOSDeposit immutable ethPOS;
+
+    /// @notice The amount of eth, in gwei that is restaked per validator
+    uint64 immutable RESTAKED_BALANCE_PER_VALIDATOR;
+    
+    /// @notice The single InvestmentManager for EigenLayer
+    IInvestmentManager immutable investmentManager;
 
     /// @notice The single EigenPodManager for EigenLayer
     IEigenPodManager public eigenPodManager;
@@ -41,16 +49,27 @@ contract EigenPod is IEigenPod, Initializable, DSTest
     /// @notice The owner of this EigenPod
     address public podOwner;
 
+    /// @notice The number of restaked validators for this pod
+    uint32 public numValidators;
+
     /// @notice this is a mapping of validator keys to a Validator struct which holds info about the validator and their balances
     mapping(bytes32 => Validator) public validators;
+
+    /// @notice the excess balance from full withdrawals over RESTAKED_BALANCE_PER_VALIDATOR
+    uint256 public excessFullWithdrawn;
+
+    /// @notice the total amount of eth withdrawn from EigenLayer on behalf of this pod
+    uint256 public eigenLayerBeaconChainEthWithdrawn;
 
     modifier onlyEigenPodManager {
         require(msg.sender == address(eigenPodManager), "EigenPod.InvestmentManager: not eigenPodManager");
         _;
     }
 
-    constructor(IETHPOSDeposit _ethPOS) {
+    constructor(IETHPOSDeposit _ethPOS, uint64 _RESTAKED_BALANCE_PER_VALIDATOR, IInvestmentManager _investmentManager) {
         ethPOS = _ethPOS;
+        RESTAKED_BALANCE_PER_VALIDATOR = _RESTAKED_BALANCE_PER_VALIDATOR;
+        investmentManager = _investmentManager;
         _disableInitializers();
     }
 
@@ -63,6 +82,7 @@ contract EigenPod is IEigenPod, Initializable, DSTest
     /// @notice Called by EigenPodManager when the owner wants to create another validator.
     function stake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable onlyEigenPodManager {
         // stake on ethpos
+        require(msg.value == 32 ether, "EigenPod.stake: must initially stake for any validator with 32 ether");
         ethPOS.deposit{value : msg.value}(pubkey, podWithdrawalCredentials(), signature, depositDataRoot);
     }
 
@@ -101,11 +121,15 @@ contract EigenPod is IEigenPod, Initializable, DSTest
         uint64 validatorBalance = Endian.fromLittleEndianUint64(validatorFields[2]);
         // update validator balance
         validators[merklizedPubkey].balance = validatorBalance;
+        // make sure the balance is greater than the amount restaked per validator
+        // @dev validatorBalance is the balance in GWEI so need to convert
+        require(validatorBalance * GWEI_TO_WEI >= RESTAKED_BALANCE_PER_VALIDATOR, "EigenPod.verifyCorrectWithdrawalCredentials: validator's balance must be greater than the restaked balance per operator");
+        // set the status to active
         validators[merklizedPubkey].status = VALIDATOR_STATUS.ACTIVE;
-        // update manager total balance for this pod
-        // need to subtract zero and add the proven balance
-        eigenPodManager.updateBeaconChainBalance(podOwner, 0, validatorBalance);
-        eigenPodManager.depositBeaconChainETH(podOwner, validatorBalance);
+        // increment the number of validators
+        numValidators++;
+        // deposit RESTAKED_BALANCE_PER_VALIDATOR for new validator
+        investmentManager.depositBeaconChainETH(podOwner, RESTAKED_BALANCE_PER_VALIDATOR);
     }
 
     /**
@@ -143,8 +167,7 @@ contract EigenPod is IEigenPod, Initializable, DSTest
         eigenPodManager.updateBeaconChainBalance(podOwner, prevValidatorBalance, validatorBalance);
         if (prevValidatorBalance < validatorBalance) {
             eigenPodManager.depositBeaconChainETH(podOwner, validatorBalance - prevValidatorBalance);
-        }
-        
+        }        
     }
 
     /**
@@ -159,7 +182,8 @@ contract EigenPod is IEigenPod, Initializable, DSTest
         external
         onlyEigenPodManager
     {
-
+        // increment the amount of eth withdrawn from EigenLayer
+        eigenLayerBeaconChainEthWithdrawn += amount;
         // transfer ETH directly from pod to `recipient`
         if (Address.isContract(recipient)) {
             // if the recipient is a contract, then call its `receiveBeaconChainETH` function
@@ -169,8 +193,6 @@ contract EigenPod is IEigenPod, Initializable, DSTest
             payable(recipient).transfer(amount);
         }
     }
-    // if you've been slashed on the Beacon chain, you can add balance to your pod to avoid getting slashed
-    function topUpPodBalance() external payable {}
 
     // INTERNAL FUNCTIONS
     function podWithdrawalCredentials() internal view returns(bytes memory) {

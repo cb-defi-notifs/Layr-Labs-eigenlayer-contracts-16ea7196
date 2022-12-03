@@ -116,7 +116,7 @@ contract InvestmentManager is
      */
     function depositBeaconChainETH(address staker, uint256 amount)
         external
-        onlyEigenPodManager
+        onlyEigenPod(staker, msg.sender)
         onlyWhenNotPaused(PAUSED_DEPOSITS)
         onlyNotFrozen(staker)
         nonReentrant
