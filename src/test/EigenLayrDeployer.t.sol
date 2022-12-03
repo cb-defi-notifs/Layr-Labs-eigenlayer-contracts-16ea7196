@@ -100,7 +100,6 @@ contract EigenLayrDeployer is Operators, SignatureUtils {
     uint256 REQUIRED_BALANCE_WEI = 31.4 ether;
     uint64 MAX_PARTIAL_WTIHDRAWAL_AMOUNT_GWEI = 1 ether / 1e9;
 
-    address podManagerAddress = 0x1d1499e622D69689cdf9004d05Ec547d650Ff211;              
     address pauser = address(69);
     address unpauser = address(489);
     address operator = address(0x4206904396bF2f8b173350ADdEc5007A52664293); //sk: e88d9d864d5d731226020c5d2f02b62a4ce2a4534a39c225d32d3db795f83319
@@ -246,10 +245,5 @@ contract EigenLayrDeployer is Operators, SignatureUtils {
 
         slashingContracts.push(address(eigenPodManager));
         investmentManager.slasher().addGloballyPermissionedContracts(slashingContracts);
-
-        //ensuring that the address of eigenpodmanager doesn't change
-        bytes memory code = address(eigenPodManager).code;
-        vm.etch(podManagerAddress, code);
-        eigenPodManager = IEigenPodManager(podManagerAddress);
     }
 }
