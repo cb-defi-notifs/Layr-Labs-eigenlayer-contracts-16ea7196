@@ -12,7 +12,7 @@ import "./IBeaconChainOracle.sol";
 interface IEigenPod {
     struct Validator {
         VALIDATOR_STATUS status;
-        uint64 balance; //ethpos stake in gwei
+        uint64 effectiveBalance; //ethpos stake in gwei
     }
 
     enum VALIDATOR_STATUS {
@@ -55,19 +55,22 @@ interface IEigenPod {
     ) external;
     
     /**
-     * @notice This function updates the balance of a certain validator associated with this pod
+     * @notice This function records an overcommitment of stake to EigenLayer on behalf of a certain validator.
+     *         If successful, the overcommitted are slashed (available for withdrawal whenever the pod's balance allows).
+     *         They are also removed from the InvestmentManager and undelegated.
      * @param pubkey is the BLS public key for the validator.
      * @param proofs is the bytes that prove the validator's metadata against a beacon state root
      * @param validatorFields are the fields of the "Validator Container", refer to consensus specs 
+     * @param beaconChainETHStrategyIndex is the index of the beaconChainETHStrategy for the pod owner for the callback to 
+     *                                    the InvestmentManger in case it must be removed
      * for details: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
      */
     function verifyBalanceUpdate(
         bytes calldata pubkey, 
         bytes calldata proofs, 
-        bytes32[] calldata validatorFields
+        bytes32[] calldata validatorFields,
+        uint256 beaconChainETHStrategyIndex
     ) external;
-
-    function numValidators() external view returns(uint32);
 
     function excessFullWithdrawn() external view returns(uint256);
 }

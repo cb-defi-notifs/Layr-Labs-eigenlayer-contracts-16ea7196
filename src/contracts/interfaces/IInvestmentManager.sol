@@ -57,6 +57,17 @@ interface IInvestmentManager {
     function depositBeaconChainETH(address staker, uint256 amount) external returns (uint256);
 
     /**
+     * @notice Records an overcommitment event on behalf of a staker. This allows EigenLayer to slash the overcommitted balance.
+     *         It decreases the delegated shares, but does not freeze the `slashedAddress` completely.
+     * @param slashedAddress is the pod owner to be slashed
+     * @param beaconChainETHStrategyIndex is the index of the beaconChainETHStrategy in case it must be removed,
+     * @param amount is the amount of token overcommitted to EigenLayer
+     * @dev Only called by EigenPod for the staker.
+     */
+    function recordOvercommittedBeaconChainETH(address slashedAddress, uint256 beaconChainETHStrategyIndex, uint256 amount)
+        external;
+
+    /**
      * @notice Used for investing an asset into the specified strategy with the resultant shared created to `staker`,
      * who must sign off on the action
      * @param strategy is the specified strategy where investment is to be made,

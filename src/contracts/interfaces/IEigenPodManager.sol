@@ -25,24 +25,7 @@ interface IEigenPodManager {
      * @param depositDataRoot The root/hash of the deposit data for the validator's deposit.
      */
     function stake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable;
-
-    /**
-     * @notice Updates the beacon chain balance of the EigenPod, freezing the owner if they have overcommitted beacon chain ETH to EigenLayer.
-     * @param podOwner The owner of the pod to udpate the balance of.
-     * @param balanceToRemove The balance to remove before increasing, used when updating a validators balance.
-     * @param balanceToAdd The balance to add after decreasing, used when updating a validators balance.
-     * @dev Callable only by the `podOwner`'s EigenPod.
-     */
-    function updateBeaconChainBalance(address podOwner, uint64 balanceToRemove, uint64 balanceToAdd) external;
-
-    /**
-     * @notice Stakes beacon chain ETH into EigenLayer by adding BeaconChainETH shares to InvestmentManager.
-     * @param podOwner The owner of the pod whose balance must be restaked.
-     * @param amount The amount of beacon chain ETH to restake.
-     * @dev Callable only by the `podOwner`'s EigenPod.
-     */
-    function depositBeaconChainETH(address podOwner, uint64 amount) external;
-
+    
     /**
      * @notice Withdraws ETH that has been withdrawn from the beacon chain from the EigenPod.
      * @param podOwner The owner of the pod whose balance must be withdrawn.
@@ -70,10 +53,6 @@ interface IEigenPodManager {
 
     /// @notice EigenLayer's InvestmentManager contract
     function investmentManager() external view returns(IInvestmentManager);
-
-    function getBalance(address podOwner) external view returns (uint128);
-
-    function getDepositedBalance(address podOwner) external view returns (uint128);
 
     function hasPod(address podOwner) external view returns (bool);
 }

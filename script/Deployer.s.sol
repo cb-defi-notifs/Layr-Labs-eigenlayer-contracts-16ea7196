@@ -84,6 +84,7 @@ contract EigenLayrDeployer is Script, DSTest {
     EmptyContract public emptyContract;
 
     uint256 nonce = 69;
+    uint64 REQUIRED_BALANCE = 31.4 ether / 1e9;
 
     bytes[] registrationData;
 
@@ -156,7 +157,7 @@ contract EigenLayrDeployer is Script, DSTest {
         beaconChainOracle.setBeaconChainStateRoot(0xb08d5a1454de19ac44d523962096d73b85542f81822c5e25b8634e4e86235413);
 
         ethPOSDeposit = new ETHPOSDepositMock();
-        pod = new EigenPod(ethPOSDeposit);
+        pod = new EigenPod(ethPOSDeposit, REQUIRED_BALANCE, investmentManager);
 
         eigenPodBeacon = new UpgradeableBeacon(address(pod));
 

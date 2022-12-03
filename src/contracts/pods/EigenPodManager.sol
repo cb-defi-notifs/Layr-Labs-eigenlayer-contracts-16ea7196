@@ -16,8 +16,6 @@ import "../interfaces/IETHPOSDeposit.sol";
 import "../interfaces/IEigenPod.sol";
 import "../interfaces/IBeaconChainOracle.sol";
 
- import "forge-std/Test.sol";
-
 /**
  * @title The contract used for creating and managing EigenPods
  * @author Layr Labs, Inc.
@@ -27,12 +25,9 @@ import "../interfaces/IBeaconChainOracle.sol";
  * - keeping track of the balances of all validators of EigenPods, and their stake in EigenLayer
  * - withdrawing eth when withdrawals are initiated
  */
-contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager, DSTest
-{
+contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager {
     //TODO: change this to constant in prod
     IETHPOSDeposit immutable ethPOS;
-
-    uint64 private immutable RESTAKED_BALANCE_PER_VALIDATOR;
     
     /// @notice Beacon proxy to which the EigenPods point
     IBeacon public immutable eigenPodBeacon;
@@ -90,31 +85,17 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager,
         if(!hasPod(msg.sender)) {
             //deploy a pod if the sender doesn't have one already
             pod = _deployPod();
-            emit log_named_address("new pod deplohed", address(pod));
         }
         pod.stake{value: msg.value}(pubkey, signature, depositDataRoot);
     }
 
     /**
-     * @notice Updates the beacon chain balance of the EigenPod, freezing the owner if they have overcommitted beacon chain ETH to EigenLayer.
-     * @param podOwner The owner of the pod to udpate the balance of.
-     * @param balanceToRemove The balance to remove before increasing, used when updating a validators balance.
-     * @param balanceToAdd The balance to add after decreasing, used when updating a validators balance.
+     * @notice Freezes `podOwner`.
+     * @param podOwner The restaker to freeze.
      * @dev Callable only by the `podOwner`'s EigenPod.
      */
-    function updateBeaconChainBalance(address podOwner, uint64 balanceToRemove, uint64 balanceToAdd) external onlyEigenPod(podOwner) {
-        uint128 newBalance = pods[podOwner].balance - balanceToRemove + balanceToAdd;
-        pods[podOwner].balance = newBalance;
-        /**
-        * if the balance updates shows that the pod owner has more deposits into EigenLayer than beacon chain balance, freeze them
-        * we also add the balance of the eigenPod in case withdrawals have occured so validator balances have been set to 0 
-        * on the beacon chain the overall law is the amount InvestmentManager thinks is restaked <= balance of the withdrawal 
-        * address + balance given from beacon chain state root if the investment manager ever thinks there is more 
-        * restaked than there is, a freezing event is triggered
-        */
-        if (pods[podOwner].depositedBalance > newBalance + msg.sender.balance) {
-            investmentManager.slasher().freezeOperator(podOwner);
-        }
+    function freezeOperator(address podOwner) external onlyEigenPod(podOwner) {
+        investmentManager.slasher().freezeOperator(podOwner);
     }
 
     /**
@@ -172,10 +153,6 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager,
     /// @notice Returns 'true' if the `podOwner` has created an EigenPod, and 'false' otherwise.
     function hasPod(address podOwner) public view returns (bool) {
         return address(getPod(podOwner)).code.length > 0;
-    }
-
-    function getNumberOfValidators(address podOwner) external view returns (uint64) {
-        return getPod(podOwner).numValidators();
     }
 
     function getBeaconChainStateRoot() external view returns(bytes32){

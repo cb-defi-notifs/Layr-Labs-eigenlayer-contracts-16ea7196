@@ -96,6 +96,7 @@ contract EigenLayrDeployer is Operators, SignatureUtils {
     uint256 public constant eigenTotalSupply = 1000e18;
     uint256 nonce = 69;
     uint256 public gasLimit = 750000;
+    uint64 REQUIRED_BALANCE = 31.4 ether / 1e9;
 
     address podManagerAddress = 0x1d1499e622D69689cdf9004d05Ec547d650Ff211;              
     address pauser = address(69);
@@ -155,7 +156,7 @@ contract EigenLayrDeployer is Operators, SignatureUtils {
         beaconChainOracle.setBeaconChainStateRoot(0xb08d5a1454de19ac44d523962096d73b85542f81822c5e25b8634e4e86235413);
 
         ethPOSDeposit = new ETHPOSDepositMock();
-        pod = new EigenPod(ethPOSDeposit);
+        pod = new EigenPod(ethPOSDeposit, REQUIRED_BALANCE, investmentManager);
 
         eigenPodBeacon = new UpgradeableBeacon(address(pod));
 

@@ -122,9 +122,33 @@ contract InvestmentManager is
         nonReentrant
         returns (uint256)
     {
-        //add shares for the enshrined beacon chain ETH strategy
+        // add shares for the enshrined beacon chain ETH strategy
         _addShares(staker, beaconChainETHStrategy, amount);
         return amount;
+    }
+
+    /**
+     * @notice Records an overcommitment event on behalf of a staker. This allows EigenLayer to slash the overcommitted balance.
+     *         It decreases the delegated shares, but does not freeze the `slashedAddress` completely.
+     * @param slashedAddress is the pod owner to be slashed
+     * @param beaconChainETHStrategyIndex is the index of the beaconChainETHStrategy in case it must be removed,
+     * @param amount is the amount of token overcommitted to EigenLayer
+     * @dev Only called by EigenPod for the staker.
+     */
+    function recordOvercommittedBeaconChainETH(address slashedAddress, uint256 beaconChainETHStrategyIndex, uint256 amount)
+        external
+        onlyEigenPod(slashedAddress, msg.sender)
+        nonReentrant
+    {
+        // removes shares for the enshrined beacon chain ETH strategy
+        _removeShares(slashedAddress, beaconChainETHStrategyIndex, beaconChainETHStrategy, amount);
+        // create array wrappers for call to EigenLayerDelegation
+        IInvestmentStrategy[] memory strategies = new IInvestmentStrategy[](1);
+        strategies[0] = beaconChainETHStrategy;
+        uint256[] memory shareAmounts = new uint256[](1);
+        shareAmounts[0] = amount;
+        // modify delegated shares accordingly, if applicable
+        delegation.decreaseDelegatedShares(slashedAddress, strategies, shareAmounts);
     }
 
     /**
