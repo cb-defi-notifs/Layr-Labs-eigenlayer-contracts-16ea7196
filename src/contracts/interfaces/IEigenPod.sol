@@ -17,7 +17,14 @@ interface IEigenPod {
 
     enum VALIDATOR_STATUS {
         INACTIVE, //doesnt exist
-        ACTIVE //staked on ethpos and withdrawal credentials are pointed
+        ACTIVE, //staked on ethpos and withdrawal credentials are pointed
+        OVERCOMMITTED //proven to be overcommitted to EigenLayer
+    }
+
+    // this struct keeps track of the total proven full withdrawals on behalf of an EigenPod up to and including a certain blockNumber
+    struct CumulativeFullWithdrawal {
+        uint32 blockNumber;
+        uint64 amount;
     }
 
     /// @notice Used to initialize the pointers to contracts crucial to the pod's functionality, in beacon proxy construction from EigenPodManager
@@ -71,6 +78,4 @@ interface IEigenPod {
         bytes32[] calldata validatorFields,
         uint256 beaconChainETHStrategyIndex
     ) external;
-
-    function excessFullWithdrawn() external view returns(uint256);
 }

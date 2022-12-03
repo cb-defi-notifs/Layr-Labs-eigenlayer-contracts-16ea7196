@@ -37,6 +37,9 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager 
 
     /// @notice Oracle contract that provides updates to the beacon chain's state
     IBeaconChainOracle public beaconChainOracle;
+    
+    /// @notice Pod owner to slashed funds credited
+    mapping(address => uint256) public podOwnerToSlashedBalance;
 
     event BeaconOracleUpdated(address newOracleAddress);
 
@@ -107,6 +110,15 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager 
      */
     function withdrawBeaconChainETH(address podOwner, address recipient, uint256 amount) external onlyInvestmentManager {
         getPod(podOwner).withdrawBeaconChainETH(recipient, amount);
+    }
+
+    /**
+     * @notice Sends ETH from the EigenPod to the EigenPodManager in order to fullfill its obligations to EigenLayer
+     * @param podOwner The owner of the pod whose balance is being sent.
+     * @dev Callable only by the podOwner's pod.
+     */
+    function addSlashedBalance(address podOwner) external payable onlyEigenPod(podOwner) {
+        podOwnerToSlashedBalance[podOwner] += msg.value;
     }
 
     /**

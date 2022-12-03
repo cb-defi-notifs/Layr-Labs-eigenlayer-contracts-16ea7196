@@ -36,6 +36,13 @@ interface IEigenPodManager {
     function withdrawBeaconChainETH(address podOwner, address recipient, uint256 amount) external;
 
     /**
+     * @notice Sends ETH from the EigenPod to the EigenPodManager in order to fullfill its obligations to EigenLayer
+     * @param podOwner The owner of the pod whose balance is being sent.
+     * @dev Callable only by the podOwner's pod.
+     */
+    function addSlashedBalance(address podOwner) external payable;
+
+    /**
      * @notice Updates the oracle contract that provides the beacon chain state root
      * @param newBeaconChainOracle is the new oracle contract being pointed to
      * @dev Callable only by the owner of the InvestmentManager (i.e. governance).
