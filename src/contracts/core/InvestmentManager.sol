@@ -32,6 +32,8 @@ contract InvestmentManager is
 {
     using SafeERC20 for IERC20;
 
+    uint256 constant GWEI_TO_WEI = 1e9;
+
     uint8 internal constant PAUSED_DEPOSITS = 0;
     uint8 internal constant PAUSED_WITHDRAWALS = 1;
 
@@ -273,9 +275,11 @@ contract InvestmentManager is
             for (uint256 i = 0; i < strategies.length;) {
                 if (strategies[i] == beaconChainETHStrategy) {
                     require(withdrawerAndNonce.withdrawer == msg.sender,
-                        "InvestmentManager.queueWithdrawal: cannot queue a withdrawal including Beacon Chain ETH to a different address");
+                        "InvestmentManager.queueWithdrawal: cannot queue a withdrawal of Beacon Chain ETH to a different address");
                     require(strategies.length == 1,
                         "InvestmentManager.queueWithdrawal: cannot queue a withdrawal including Beacon Chain ETH and other tokens");
+                    require(shares[i] % GWEI_TO_WEI == 0,
+                        "InvestmentManager.queueWithdrawal: cannot queue a withdrawal of Beacon Chain ETH for an non-whole amount of gwei");
                 }
 
                 //increment the loop
@@ -387,7 +391,7 @@ contract InvestmentManager is
                 if (queuedWithdrawal.strategies[i] == beaconChainETHStrategy) {
 
                     // if the strategy is the beaconchaineth strat, then withdraw through the EigenPod flow
-                    eigenPodManager.withdrawBeaconChainETH(queuedWithdrawal.depositor, msg.sender, queuedWithdrawal.shares[i]);
+                    eigenPodManager.withdrawRestakedBeaconChainETH(queuedWithdrawal.depositor, msg.sender, queuedWithdrawal.shares[i]);
                 } else {
                     // tell the strategy to send the appropriate amount of funds to the depositor
                     queuedWithdrawal.strategies[i].withdraw(
@@ -448,7 +452,7 @@ contract InvestmentManager is
 
             if (strategies[i] == beaconChainETHStrategy){
                  //withdraw the beaconChainETH to the recipient
-                eigenPodManager.withdrawBeaconChainETH(slashedAddress, recipient, shareAmounts[i]);
+                eigenPodManager.withdrawRestakedBeaconChainETH(slashedAddress, recipient, shareAmounts[i]);
             }
             else{
                 // withdraw the shares and send funds to the recipient
@@ -492,7 +496,7 @@ contract InvestmentManager is
 
             if (queuedWithdrawal.strategies[i] == beaconChainETHStrategy){
                  //withdraw the beaconChainETH to the recipient
-                eigenPodManager.withdrawBeaconChainETH(queuedWithdrawal.depositor, recipient, queuedWithdrawal.shares[i]);
+                eigenPodManager.withdrawRestakedBeaconChainETH(queuedWithdrawal.depositor, recipient, queuedWithdrawal.shares[i]);
             } else {
                 // tell the strategy to send the appropriate amount of funds to the recipient
                 queuedWithdrawal.strategies[i].withdraw(recipient, queuedWithdrawal.tokens[i], queuedWithdrawal.shares[i]);

@@ -4,7 +4,6 @@ pragma solidity ^0.8.9;
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
-import "../libraries/StructuredLinkedList.sol";
 import "../libraries/BeaconChainProofs.sol";
 import "../libraries/BytesLib.sol";
 import "../libraries/Endian.sol";
@@ -27,10 +26,12 @@ import "../interfaces/IBeaconChainETHReceiver.sol";
 contract EigenPod is IEigenPod, Initializable {
     using BytesLib for bytes;
 
-    uint256 private constant HEAD = 0;
+    uint64 constant GWEI_TO_WEI = 1e9;
 
     //TODO: change this to constant in prod
     IETHPOSDeposit immutable ethPOS;
+
+    uint32 immutable PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD;
 
     /// @notice The amount of eth, in gwei that is restaked per validator
     uint64 immutable REQUIRED_BALANCE_GWEI;
@@ -53,29 +54,32 @@ contract EigenPod is IEigenPod, Initializable {
     /// @notice this is a mapping of validator keys to a Validator struct containing pertinent info about the validator
     mapping(bytes32 => Validator) public validators;
 
-    /// @notice the cumulative amount of proven full withdrawals until or at a certain block number on order of block number
-    StructuredLinkedList.List public cumulativeFullWithdrawals;
+    /// @notice the claims on the amount of deserved partial withdrawals for the validators of an EigenPod
+    PartialWithdrawalClaim[] public partialWithdrawalClaims;
 
     /// @notice the amount of execution layer ETH in this contract that is staked in EigenLayer (i.e. withdrawn from beaconchain but not EigenLayer), 
     /// it could have also been decremented from EigenLayer due to overcommitting balance
-    uint256 public restakedExecutionLayerETH;
+    uint64 public restakedExecutionLayerGwei;
 
-    /// @notice the excess balance from full withdrawals over RESTAKED_BALANCE_PER_VALIDATOR
-    uint256 public withdrawableDueToExcess;
+    /// @notice the excess balance from full withdrawals over RESTAKED_BALANCE_PER_VALIDATOR or partial withdrawals
+    uint64 public instantlyWithdrawableGwei;
 
-    /// @notice the total amount of eth withdrawn from EigenLayer on behalf of this pod
-    uint256 public eigenLayerBeaconChainEthWithdrawn;
-
-    /// @notice the total amount of eth slashable due to over committing to EigenLayer on behalf of this pod
-    uint256 public slashableBalanceDueToOvercommitting;
+    /// @notice the total amount of gwei penalties due to over committing to EigenLayer on behalf of this pod
+    uint64 public penaltiesDueToOvercommittingGwei;
 
     modifier onlyEigenPodManager {
         require(msg.sender == address(eigenPodManager), "EigenPod.onlyEigenPodManager: not eigenPodManager");
         _;
     }
 
-    constructor(IETHPOSDeposit _ethPOS, uint256 _REQUIRED_BALANCE_WEI, uint64 _MAX_PARTIAL_WTIHDRAWAL_AMOUNT_GWEI, IInvestmentManager _investmentManager) {
+    modifier onlyEigenPodOwner {
+        require(msg.sender == podOwner, "EigenPod.onlyEigenPodManager: not podOwner");
+        _;
+    }
+
+    constructor(IETHPOSDeposit _ethPOS, uint32 _PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD, uint256 _REQUIRED_BALANCE_WEI, uint64 _MAX_PARTIAL_WTIHDRAWAL_AMOUNT_GWEI, IInvestmentManager _investmentManager) {
         ethPOS = _ethPOS;
+        PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD = _PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD;
         REQUIRED_BALANCE_WEI = _REQUIRED_BALANCE_WEI;
         REQUIRED_BALANCE_GWEI = uint64(_REQUIRED_BALANCE_WEI / 1e9);
         MAX_PARTIAL_WTIHDRAWAL_AMOUNT_GWEI = _MAX_PARTIAL_WTIHDRAWAL_AMOUNT_GWEI;
@@ -128,9 +132,9 @@ contract EigenPod is IEigenPod, Initializable {
 
         require(validatorFields[1] == podWithdrawalCredentials().toBytes32(0), "EigenPod.verifyCorrectWithdrawalCredentials: Proof is not for this EigenPod");
         // convert the balance field from 8 bytes of little endian to uint64 big endian 💪
-        uint64 validatorBalance = Endian.fromLittleEndianUint64(validatorFields[2]);
+        uint64 validatorBalanceGwei = Endian.fromLittleEndianUint64(validatorFields[2]);
         // make sure the balance is greater than the amount restaked per validator
-        require(validatorBalance >= REQUIRED_BALANCE_GWEI, "EigenPod.verifyCorrectWithdrawalCredentials: validator's balance must be greater than or equal to restaked balance per operator");
+        require(validatorBalanceGwei >= REQUIRED_BALANCE_GWEI, "EigenPod.verifyCorrectWithdrawalCredentials: validator's balance must be greater than or equal to restaked balance per operator");
         // set the status to active
         validators[merklizedPubkey].status = VALIDATOR_STATUS.ACTIVE;
         // set the effective balance to REQUIRED_BALANCE
@@ -142,7 +146,7 @@ contract EigenPod is IEigenPod, Initializable {
 
     /**
      * @notice This function records an overcommitment of stake to EigenLayer on behalf of a certain validator.
-     *         If successful, the overcommitted are slashed (available for withdrawal whenever the pod's balance allows).
+     *         If successful, the overcommitted are penalized (available for withdrawal whenever the pod's balance allows).
      *         They are also removed from the InvestmentManager and undelegated.
      * @param pubkey is the BLS public key for the validator.
      * @param proofs is the bytes that prove the validator's metadata against a beacon state root
@@ -177,17 +181,18 @@ contract EigenPod is IEigenPod, Initializable {
         // set the effective balance of the validator to 0 and mark them as overcommitted
         validators[merklizedPubkey].effectiveBalance = 0;
         validators[merklizedPubkey].status = VALIDATOR_STATUS.OVERCOMMITTED;
-        // allow EigenLayer to slash the overcommitted balance, which is REQUIRED_BALANCE_WEI
-        // @dev if the validator's balance ever falls below REQUIRED_BALANCE_WEI
-        slashableBalanceDueToOvercommitting += REQUIRED_BALANCE_WEI;
+        // allow EigenLayer to penalize the overcommitted balance, which is REQUIRED_BALANCE_GWEI
+        // @dev if the validator's balance ever falls below REQUIRED_BALANCE_GWEI
+        penaltiesDueToOvercommittingGwei += REQUIRED_BALANCE_GWEI;
         // remove and undelegate shares in EigenLayer
-        investmentManager.recordOvercommittedBeaconChainETH(podOwner, beaconChainETHStrategyIndex, REQUIRED_BALANCE_WEI);
+        investmentManager.recordOvercommittedBeaconChainETH(podOwner, beaconChainETHStrategyIndex, REQUIRED_BALANCE_GWEI);
     }
 
     /**
      * @notice This function records a full withdrawal on behalf of one of the Ethereum validators for this EigenPod
      * @param pubkey is the BLS public key for the validator.
-     * for details: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
+     * @param beaconChainETHStrategyIndex is the index of the beaconChainETHStrategy for the pod owner for the callback to 
+     *                                    the InvestmentManger in case it must be removed
      */
     function verifyBeaconChainFullWithdrawal(
         bytes calldata pubkey, 
@@ -201,36 +206,123 @@ contract EigenPod is IEigenPod, Initializable {
         require(validators[merklizedPubkey].status != VALIDATOR_STATUS.INACTIVE, "EigenPod.verifyBeaconChainFullWithdrawal: Validator is inactive");
         // TODO: verify withdrawal proof 
         uint32 withdrawalBlockNumber = 0;
-        uint256 withdrawalAmount = 0; // in WEI!
+        uint64 withdrawalAmountGwei = 0; // in WEI!
+        uint256 withdrawalAmountWei = 0; // in WEI!
 
-        require(MAX_PARTIAL_WTIHDRAWAL_AMOUNT_GWEI < withdrawalAmount, "EigenPod.verifyBeaconChainFullWithdrawal: cannot prove a partial withdrawal");
+        require(MAX_PARTIAL_WTIHDRAWAL_AMOUNT_GWEI < withdrawalAmountGwei, "EigenPod.verifyBeaconChainFullWithdrawal: cannot prove a partial withdrawal");
 
         // set the effective balance of the validator to 0 and mark them as inactive
         validators[merklizedPubkey].effectiveBalance = 0;
 
         // if the withdrawal amount is greater than the REQUIRED_BALANCE (i.e. the amount restaked on EigenLayer)
-        if(withdrawalAmount >= REQUIRED_BALANCE_WEI) {
+        if(withdrawalAmountGwei >= REQUIRED_BALANCE_GWEI) {
             // then the excess is immidiately withdrawable
-            withdrawableDueToExcess += withdrawalAmount - REQUIRED_BALANCE_WEI;
+            instantlyWithdrawableGwei += withdrawalAmountGwei - REQUIRED_BALANCE_GWEI;
             // and the extra execution layer ETH in the contract is REQUIRED_BALACE that must be wtihdrawn from EigenLayer
-            restakedExecutionLayerETH += REQUIRED_BALANCE_WEI;
+            restakedExecutionLayerGwei += REQUIRED_BALANCE_GWEI;
         } else {
-            // if the validator was overcommitted but the contract did not take note, record the slashing event
+            // if the validator was overcommitted but the contract did not take note, record the penalty
             if(validators[merklizedPubkey].status == VALIDATOR_STATUS.ACTIVE) {
-                // allow EigenLayer to slash the remaining obligations after this slashing
-                slashableBalanceDueToOvercommitting += REQUIRED_BALANCE_WEI - withdrawalAmount;
+                // allow EigenLayer to penalize the overcommitted balance
+                penaltiesDueToOvercommittingGwei += REQUIRED_BALANCE_GWEI - withdrawalAmountGwei;
                 // remove and undelegate shares in EigenLayer
                 investmentManager.recordOvercommittedBeaconChainETH(podOwner, beaconChainETHStrategyIndex, REQUIRED_BALANCE_WEI);
             }
             // otherwise increment the ETH in execution layer by the withdrawalAmount
-            restakedExecutionLayerETH += withdrawalAmount;
+            restakedExecutionLayerGwei += withdrawalAmountGwei;
         }
 
         // set the validator status to inactive
         validators[merklizedPubkey].status = VALIDATOR_STATUS.INACTIVE;
 
-        // pay off any new or existing slashing obligations
-        payOffSlashingObligations();
+        // check withdrawal against current claim
+        uint256 claimsLength = partialWithdrawalClaims.length - 1;
+        if(claimsLength != 0) {
+            PartialWithdrawalClaim memory currentClaim = partialWithdrawalClaims[partialWithdrawalClaims.length - 1];
+            // if a full withdrawal is proven before the current partial withdrawal claim and it is pending, then it is fraudulent
+            if(withdrawalBlockNumber <= currentClaim.blockNumber && currentClaim.status == PARTIAL_WITHDRAWAL_CLAIM_STATUS.PENDING) {
+                // mark the withdrawal as failed
+                partialWithdrawalClaims[claimsLength - 1].status = PARTIAL_WITHDRAWAL_CLAIM_STATUS.FAILED;
+                // TODO: reward the updater
+            }
+        }
+
+        // pay off any new or existing penalties
+        payOffPenalties();
+    }
+
+    /**
+     * @notice This function records a balance snapshot for the EigenPod. Its main functionality is to begin an optimistic
+     *         claim process on the partial withdrawable balance for the EigenPod owner. The owner is claiming that they have 
+     *         proven all full withdrawals until block.number, allowing their partial withdrawal balance to be easily calculated 
+     *         via  
+     *              address(this).balance / GWEI_TO_WEI = 
+     *                  restakedExecutionLayerGwei + 
+     *                  withdrawableDueToExcessGwei + 
+     *                  partialWithdrawalsGwei
+     *         if any other full withdrawals are proven to have happened before block.number, the partial withdrawal is marked as failed
+     * @param expireBlockNumber this is the block number before a balance update must be mined to avoid race conditions with pending withdrawals
+     *                          it will be set to the blockNumber at which the next full withdrawal for a validator on this pod is going to occur
+     *                          or type(uint32).max otherwise
+     */
+    function recordPartialWithdrawalClaim(uint32 expireBlockNumber) external onlyEigenPodOwner {
+        uint32 currBlockNumber = uint32(block.number);
+        require(currBlockNumber < expireBlockNumber, "EigenPod.recordBalanceSnapshot: snapshot mined too late");
+        // address(this).balance / GWEI_TO_WEI = restakedExecutionLayerGwei + 
+        //                                       instantlyWithdrawableGwei + 
+        //                                       partialWithdrawalsGwei
+        uint256 claimsLength = partialWithdrawalClaims.length;
+        // we do not allow parallel withdrawal claims to avoid complexity
+        require(
+            claimsLength == 0 || // either no claims have been made yet
+            partialWithdrawalClaims[claimsLength - 1].status != PARTIAL_WITHDRAWAL_CLAIM_STATUS.PENDING, // or the last claim is not pending
+            "EigenPod.recordBalanceSnapshot: cannot make a new claim until previous claim is not pending"
+        );
+        // push claim to the end of the list
+        partialWithdrawalClaims.push(
+            PartialWithdrawalClaim({ 
+                status: PARTIAL_WITHDRAWAL_CLAIM_STATUS.PENDING, 
+                blockNumber: currBlockNumber,
+                partialWithdrawalAmountGwei: uint64(address(this).balance / GWEI_TO_WEI) - restakedExecutionLayerGwei - instantlyWithdrawableGwei
+            })
+        );
+    }
+
+    /// @notice This function allows pod owners to redeem their partial withdrawals after the dispute period has passed
+    function redeemPartialWithdrawals(address recipient) external onlyEigenPodOwner {
+        // load claim into memory, note this function should and will fail if there are no claims yet
+        PartialWithdrawalClaim memory claim = partialWithdrawalClaims[partialWithdrawalClaims.length - 1];
+        require(
+            claim.status == PARTIAL_WITHDRAWAL_CLAIM_STATUS.PENDING,
+            "EigenPod.redeemPartialWithdrawals: can only redeem parital withdrawals after fraud proof period"
+        );
+        require(
+            uint32(block.number) - claim.blockNumber > PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD,
+            "EigenPod.redeemPartialWithdrawals: can only redeem parital withdrawals after fraud proof period"
+        );
+        // pay penalties if possible
+        if (penaltiesDueToOvercommittingGwei > 0) {
+            if(penaltiesDueToOvercommittingGwei > claim.partialWithdrawalAmountGwei) {
+                // if all of the parital withdrawal is not enough, send it all
+                eigenPodManager.payPenalties{value: claim.partialWithdrawalAmountGwei * GWEI_TO_WEI}(podOwner);
+                penaltiesDueToOvercommittingGwei -= claim.partialWithdrawalAmountGwei;
+                claim.partialWithdrawalAmountGwei = 0;
+            } else {
+                // if parital withdrawal is enough, penalize all that is necessary
+                eigenPodManager.payPenalties{value: penaltiesDueToOvercommittingGwei * GWEI_TO_WEI}(podOwner);
+                penaltiesDueToOvercommittingGwei = 0;
+                claim.partialWithdrawalAmountGwei -= penaltiesDueToOvercommittingGwei;
+                return;
+            }
+        }
+        // finally, transfer ETH directly from pod to `recipient`
+        if (Address.isContract(recipient)) {
+            // if the recipient is a contract, then call its `receiveBeaconChainETH` function
+            IBeaconChainETHReceiver(recipient).receiveBeaconChainETH{value: claim.partialWithdrawalAmountGwei}();
+        } else {
+            // if the recipient is an EOA, then do a simple transfer
+            payable(recipient).transfer(claim.partialWithdrawalAmountGwei);
+        }
     }
 
     /**
@@ -238,15 +330,15 @@ contract EigenPod is IEigenPod, Initializable {
      * @notice Called by EigenPodManager to withdrawBeaconChainETH that has been added to its balance due to a withdrawal from the beacon chain.
      * @dev Called during withdrawal or slashing.
      */
-    function withdrawBeaconChainETH(
+    function withdrawRestakedBeaconChainETH(
         address recipient,
         uint256 amount
     )
         external
         onlyEigenPodManager
     {
-        // increment the amount of eth withdrawn from EigenLayer
-        eigenLayerBeaconChainEthWithdrawn += amount;
+        // reduce the restakedExecutionLayerGwei
+        restakedExecutionLayerGwei -= uint64(amount / GWEI_TO_WEI);
         // transfer ETH directly from pod to `recipient`
         if (Address.isContract(recipient)) {
             // if the recipient is a contract, then call its `receiveBeaconChainETH` function
@@ -258,68 +350,45 @@ contract EigenPod is IEigenPod, Initializable {
     }
 
     // INTERNAL FUNCTIONS
-    
     /**
-     * @notice Pays off the slashable balance due to overcommitting with funds coming
+     * @notice Pays off the penalties due to overcommitting with funds coming
      *         1) first, from the execution layer ETH that is restaked in EigenLayer because 
      *            it is the ETH that is actually supposed the be restaked
      *         2) second, from the withdrawableDueToExcess to avoid allowing instant withdrawals
      *            from withdrawableDueToExcess in case the balance of the balance of the contract 
-     *            is not enough to cover the entire slashing obligation
+     *            is not enough to cover the entire penalty
      */
-    function payOffSlashingObligations() internal {
-        uint256 amountToSlash = 0;
-        if (slashableBalanceDueToOvercommitting > 0) {
-            if(slashableBalanceDueToOvercommitting > restakedExecutionLayerETH) {
-                // if all of the restakedExecutionLayerETH is not enough, add restakedExecutionLayerETH to the amountToSlash
-                amountToSlash += restakedExecutionLayerETH;
-                restakedExecutionLayerETH = 0;
+    function payOffPenalties() internal {
+        uint256 amountToPenalize = 0;
+        if (penaltiesDueToOvercommittingGwei > 0) {
+            if(penaltiesDueToOvercommittingGwei > restakedExecutionLayerGwei) {
+                // if all of the restakedExecutionLayerGwei is not enough, add restakedExecutionLayerGwei to the amountToPenalize
+                amountToPenalize += restakedExecutionLayerGwei;
+                restakedExecutionLayerGwei = 0;
             } else {
-                // if restakedExecutionLayerETH is enough, slash all that is necessary
-                eigenPodManager.addSlashedBalance{value: slashableBalanceDueToOvercommitting}(podOwner);
-                slashableBalanceDueToOvercommitting = 0;
-                restakedExecutionLayerETH -= slashableBalanceDueToOvercommitting;
+                // if restakedExecutionLayerETH is enough, penalize all that is necessary
+                eigenPodManager.payPenalties{value: penaltiesDueToOvercommittingGwei * GWEI_TO_WEI}(podOwner);
+                penaltiesDueToOvercommittingGwei = 0;
+                restakedExecutionLayerGwei -= penaltiesDueToOvercommittingGwei;
                 return;
             }
 
-            if(slashableBalanceDueToOvercommitting > amountToSlash + withdrawableDueToExcess) {
+            if(penaltiesDueToOvercommittingGwei > amountToPenalize + instantlyWithdrawableGwei) {
                 // if all of the restakedExecutionLayerETH+withdrawableDueToExcess is not enough, send it all
-                eigenPodManager.addSlashedBalance{value: amountToSlash + withdrawableDueToExcess}(podOwner);
-                slashableBalanceDueToOvercommitting -= amountToSlash + withdrawableDueToExcess;
-                withdrawableDueToExcess = 0;
+                eigenPodManager.payPenalties{value: (amountToPenalize + instantlyWithdrawableGwei) * GWEI_TO_WEI}(podOwner);
+                penaltiesDueToOvercommittingGwei -= uint64(amountToPenalize) + instantlyWithdrawableGwei;
+                instantlyWithdrawableGwei = 0;
             } else {
-                // if restakedExecutionLayerETH+withdrawableDueToExcess is enough, slash all that is necessary
-                eigenPodManager.addSlashedBalance{value: slashableBalanceDueToOvercommitting}(podOwner);
-                slashableBalanceDueToOvercommitting = 0;
-                withdrawableDueToExcess -= amountToSlash + withdrawableDueToExcess - slashableBalanceDueToOvercommitting;
+                // if restakedExecutionLayerETH+withdrawableDueToExcess is enough, penalize all that is necessary
+                eigenPodManager.payPenalties{value: penaltiesDueToOvercommittingGwei * GWEI_TO_WEI}(podOwner);
+                penaltiesDueToOvercommittingGwei = 0;
+                instantlyWithdrawableGwei -= uint64(amountToPenalize) + instantlyWithdrawableGwei - penaltiesDueToOvercommittingGwei;
                 return;
             }
-
-            // uint256 balance = address(this).balance;
-            // if(slashableBalanceDueToOvercommitting > balance) {
-            //     // if the entire balance is not enough, send it all
-            //     eigenPodManager.addSlashedBalance{value: balance}(podOwner);
-            //     slashableBalanceDueToOvercommitting -= balance;
-            // } else {
-            //     // if the entire balance is enough, slash all that is necessary
-            //     eigenPodManager.addSlashedBalance{value: slashableBalanceDueToOvercommitting}(podOwner);
-            //     slashableBalanceDueToOvercommitting = 0;
-            //     return;
-            // }
         }
     }
 
     function podWithdrawalCredentials() internal view returns(bytes memory) {
         return abi.encodePacked(bytes1(uint8(1)), bytes11(0), address(this));
-    }
-
-    function uint256ToCumulativeFullWithdrawal(uint256 value) internal pure returns(uint32, uint64) {
-        // uint256 = uint160(0), uint32(blockNumber) uint64(amount)
-        return (uint32(value >> 64), uint64(value));
-    }
-
-    function cumulativeFullWithdrawalToUint256(uint32 blockNumber, uint64 amount) internal pure returns(uint256) {
-        // uint256 = uint160(0), uint32(blockNumber) uint64(amount)
-        return (uint256(blockNumber) << 64) | uint256(amount);    
     }
 }

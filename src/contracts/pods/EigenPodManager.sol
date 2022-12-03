@@ -15,6 +15,7 @@ import "../interfaces/IEigenPodManager.sol";
 import "../interfaces/IETHPOSDeposit.sol";
 import "../interfaces/IEigenPod.sol";
 import "../interfaces/IBeaconChainOracle.sol";
+import "../interfaces/IBeaconChainETHReceiver.sol";
 
 /**
  * @title The contract used for creating and managing EigenPods
@@ -35,11 +36,14 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager 
     /// @notice EigenLayer's InvestmentManager contract
     IInvestmentManager public immutable investmentManager;
 
+    /// @notice EigenLayer's Slasher contract
+    ISlasher immutable slasher;
+
     /// @notice Oracle contract that provides updates to the beacon chain's state
     IBeaconChainOracle public beaconChainOracle;
     
-    /// @notice Pod owner to slashed funds credited
-    mapping(address => uint256) public podOwnerToSlashedBalance;
+    /// @notice Pod owner to penties funds credited
+    mapping(address => uint256) public podOwnerToPenalties;
 
     event BeaconOracleUpdated(address newOracleAddress);
 
@@ -49,14 +53,20 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager 
     }
 
     modifier onlyInvestmentManager {
-        require(msg.sender == address(investmentManager), "EigenPodManager.onlyEigenPod: not investmentManager");
+        require(msg.sender == address(investmentManager), "EigenPodManager.onlyInvestmentManager: not investmentManager");
         _;
     }
 
-    constructor(IETHPOSDeposit _ethPOS, IBeacon _eigenPodBeacon, IInvestmentManager _investmentManager) {
+    modifier onlySlasher {
+        require(msg.sender == address(slasher), "EigenPodManager.onlySlasher: not slasher");
+        _;
+    }
+
+    constructor(IETHPOSDeposit _ethPOS, IBeacon _eigenPodBeacon, IInvestmentManager _investmentManager, ISlasher _slasher) {
         ethPOS = _ethPOS;
         eigenPodBeacon = _eigenPodBeacon;
         investmentManager = _investmentManager;
+        slasher = _slasher;
         _disableInitializers();
     }
 
@@ -93,32 +103,41 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager 
     }
 
     /**
-     * @notice Freezes `podOwner`.
-     * @param podOwner The restaker to freeze.
-     * @dev Callable only by the `podOwner`'s EigenPod.
-     */
-    function freezeOperator(address podOwner) external onlyEigenPod(podOwner) {
-        investmentManager.slasher().freezeOperator(podOwner);
-    }
-
-    /**
      * @notice Withdraws ETH that has been withdrawn from the beacon chain from the EigenPod.
      * @param podOwner The owner of the pod whose balance must be withdrawn.
      * @param recipient The recipient of withdrawn ETH.
      * @param amount The amount of ETH to withdraw.
      * @dev Callable only by the InvestmentManager contract.
      */
-    function withdrawBeaconChainETH(address podOwner, address recipient, uint256 amount) external onlyInvestmentManager {
-        getPod(podOwner).withdrawBeaconChainETH(recipient, amount);
+    function withdrawRestakedBeaconChainETH(address podOwner, address recipient, uint256 amount) external onlyInvestmentManager {
+        getPod(podOwner).withdrawRestakedBeaconChainETH(recipient, amount);
     }
 
     /**
-     * @notice Sends ETH from the EigenPod to the EigenPodManager in order to fullfill its obligations to EigenLayer
+     * @notice Sends ETH from the EigenPod to the EigenPodManager in order to fullfill its penalties to EigenLayer
      * @param podOwner The owner of the pod whose balance is being sent.
      * @dev Callable only by the podOwner's pod.
      */
-    function addSlashedBalance(address podOwner) external payable onlyEigenPod(podOwner) {
-        podOwnerToSlashedBalance[podOwner] += msg.value;
+    function payPenalties(address podOwner) external payable onlyEigenPod(podOwner) {
+        podOwnerToPenalties[podOwner] += msg.value;
+    }
+
+    /**
+     * @notice Withdraws penalties of a certain pod
+     * @param recipient The recipient of withdrawn ETH.
+     * @param amount The amount of ETH to withdraw.
+     * @dev Callable only by the slasher.
+     */
+    function withdrawalPenalties(address podOwner, address recipient, uint256 amount) external onlySlasher {
+        podOwnerToPenalties[podOwner] -= amount;
+        // transfer penalties from pod to `recipient`
+        if (Address.isContract(recipient)) {
+            // if the recipient is a contract, then call its `receiveBeaconChainETH` function
+            IBeaconChainETHReceiver(recipient).receiveBeaconChainETH{value: amount}();
+        } else {
+            // if the recipient is an EOA, then do a simple transfer
+            payable(recipient).transfer(amount);
+        }
     }
 
     /**

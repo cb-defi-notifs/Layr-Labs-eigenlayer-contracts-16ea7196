@@ -21,10 +21,24 @@ interface IEigenPod {
         OVERCOMMITTED //proven to be overcommitted to EigenLayer
     }
 
-    // this struct keeps track of the total proven full withdrawals on behalf of an EigenPod up to and including a certain blockNumber
-    struct CumulativeFullWithdrawal {
+    // this struct keeps track of PartialWithdrawalClaims
+    struct PartialWithdrawalClaim {
+        PARTIAL_WITHDRAWAL_CLAIM_STATUS status;
         uint32 blockNumber;
-        uint64 amount;
+        uint64 partialWithdrawalAmountGwei;
+    }
+
+    enum PARTIAL_WITHDRAWAL_CLAIM_STATUS {
+        REDEEMED,
+        PENDING,
+        FAILED
+    }
+
+    // this struct keeps track of the total proven full withdrawals on behalf of an EigenPod within a certain snapshot
+    struct BalanceSnapShot {
+        uint32 blockNumber;
+        uint32 toBlockNumber;
+        uint64 amountGwei;
     }
 
     /// @notice Used to initialize the pointers to contracts crucial to the pod's functionality, in beacon proxy construction from EigenPodManager
@@ -38,7 +52,7 @@ interface IEigenPod {
      * @notice Called by EigenPodManager to withdrawBeaconChainETH that has been added to its balance due to a withdrawal from the beacon chain.
      * @dev Called during withdrawal or slashing.
      */
-    function withdrawBeaconChainETH(address recipient, uint256 amount) external;
+    function withdrawRestakedBeaconChainETH(address recipient, uint256 amount) external;
 
     /// @notice The single EigenPodManager for EigenLayer
     function eigenPodManager() external view returns (IEigenPodManager);
@@ -63,7 +77,7 @@ interface IEigenPod {
     
     /**
      * @notice This function records an overcommitment of stake to EigenLayer on behalf of a certain validator.
-     *         If successful, the overcommitted are slashed (available for withdrawal whenever the pod's balance allows).
+     *         If successful, the overcommitted are penalized (available for withdrawal whenever the pod's balance allows).
      *         They are also removed from the InvestmentManager and undelegated.
      * @param pubkey is the BLS public key for the validator.
      * @param proofs is the bytes that prove the validator's metadata against a beacon state root
@@ -78,4 +92,35 @@ interface IEigenPod {
         bytes32[] calldata validatorFields,
         uint256 beaconChainETHStrategyIndex
     ) external;
+
+    /**
+     * @notice This function records a full withdrawal on behalf of one of the Ethereum validators for this EigenPod
+     * @param pubkey is the BLS public key for the validator.
+     * @param beaconChainETHStrategyIndex is the index of the beaconChainETHStrategy for the pod owner for the callback to 
+     *                                    the InvestmentManger in case it must be removed
+     */
+    function verifyBeaconChainFullWithdrawal(
+        bytes calldata pubkey, 
+        bytes calldata,
+        uint256 beaconChainETHStrategyIndex
+    ) external;
+
+    /**
+     * @notice This function records a balance snapshot for the EigenPod. Its main functionality is to begin an optimistic
+     *         claim process on the partial withdrawable balance for the EigenPod owner. The owner is claiming that they have 
+     *         proven all full withdrawals until block.number, allowing their partial withdrawal balance to be easily calculated 
+     *         via  
+     *              address(this).balance / GWEI_TO_WEI = 
+     *                  restakedExecutionLayerGwei + 
+     *                  withdrawableDueToExcessGwei + 
+     *                  partialWithdrawalsGwei
+     *         if any other full withdrawals are proven to have happened before block.number, the partial withdrawal is marked as failed
+     * @param expireBlockNumber this is the block number before a balance update must be mined to avoid race conditions with pending withdrawals
+     *                          it will be set to the blockNumber at which the next full withdrawal for a validator on this pod is going to occur
+     *                          or type(uint32).max otherwise
+     */
+    function recordPartialWithdrawalClaim(uint32 expireBlockNumber) external;
+
+    /// @notice This function allows pod owners to redeem their partial withdrawals after the dispute period has passed
+    function redeemPartialWithdrawals(address recipient) external;
 }
