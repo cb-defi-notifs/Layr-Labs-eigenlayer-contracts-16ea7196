@@ -181,6 +181,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
 
     }
 
+    //test deploying a new eigen pod with a public key that does not match that of the beacon chain proof provided.
     function testDeployNewEigenPodWithWrongPubkey(bytes memory wrongPubkey, bytes memory signature, bytes32 depositDataRoot) public {
         (beaconStateRoot, beaconStateMerkleProof, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) = getInitialDepositProof();
         beaconChainOracle.setBeaconChainStateRoot(beaconStateRoot);
@@ -198,6 +199,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         newPod.verifyCorrectWithdrawalCredentials(wrongPubkey, proofs, validatorContainerFields);
     }
 
+    //test deploying an eigen pod with mismatched withdrawal credentials between the proof and the actual pod's address
     function testDeployNewEigenPodWithWrongWithdrawalCreds(address wrongWithdrawalAddress, bytes memory signature, bytes32 depositDataRoot) public {
         IEigenPod newPod;
         newPod = eigenPodManager.getPod(podOwner);
@@ -220,6 +222,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         newPod.verifyCorrectWithdrawalCredentials(pubkey, proofs, validatorContainerFields);
     }
 
+    //test that when withdrawal credentials are verified more than once, it reverts
     function testDeployNewEigenPodWithActiveValidator(bytes memory signature, bytes32 depositDataRoot) public {
         (beaconStateRoot, beaconStateMerkleProof, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) = getInitialDepositProof();
         beaconChainOracle.setBeaconChainStateRoot(beaconStateRoot);        
