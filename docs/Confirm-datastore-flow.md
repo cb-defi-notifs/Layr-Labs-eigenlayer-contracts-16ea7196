@@ -56,8 +56,8 @@ where $g_2$ is the generator in G2.  This requires the public key to be in G2.  
 $$ e(\sigma + \gamma(pk_1), -g_2) = e(\gamma(g_1) + H(m), pk_2) $$
 
 Doing some quick math, this checks out:
-$$ e(\sigma + \gamma(pk_1), -g_2) = e([sk](H(m) + \gamma(g_1)), -g_2) = $$
-$$ e(\gamma(g_1) + H(m), [sk]g_2) =  e(\gamma(g_1) + H(m), pk_2)$$
+$$e(\sigma + \gamma(pk_1), -g_2) = e([sk](H(m) + \gamma(g_1)), -g_2) =$$
+$$e(\gamma(g_1) + H(m), [sk]g_2) =  e(\gamma(g_1) + H(m), pk_2)$$
 
 
 Looking closer, this pairing is verifying two separate pairings at once:
