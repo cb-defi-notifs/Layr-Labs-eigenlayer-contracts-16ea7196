@@ -42,6 +42,15 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     address unpauser = address(489);
     address podManagerAddress = 0x212224D2F2d262cd093eE13240ca4873fcCBbA3C;
 
+    modifier fuzzedAddress(address addr) virtual {
+        cheats.assume(addr != address(0));
+        cheats.assume(addr != address(eigenLayrProxyAdmin));
+        cheats.assume(addr != address(investmentManager));
+        cheats.assume(addr != address(beaconChainETHReceiver));
+        cheats.assume(addr != podOwner);
+        _;
+    }
+
 
     //performs basic deployment before each test
     function setUp() public {
@@ -243,11 +252,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     }
 
     // Withdraw eigenpods balance to a contract
-    function testEigenPodsQueuedWithdrawalContract(address operator, bytes memory signature, bytes32 depositDataRoot) public {
-        cheats.assume(operator != address(0));
-        cheats.assume(operator != address(eigenLayrProxyAdmin));
-        cheats.assume(operator != address(beaconChainETHReceiver));
-
+    function testEigenPodsQueuedWithdrawalContract(address operator, bytes memory signature, bytes32 depositDataRoot) public fuzzedAddress(operator){
         //make initial deposit
         podOwner = address(beaconChainETHReceiver);
         _testDeployAndVerifyNewEigenPod(podOwner, signature, depositDataRoot, true);
@@ -334,10 +339,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     } 
 
     // Withdraw eigenpods balance to an EOA
-    function testEigenPodsQueuedWithdrawalEOA(address operator, bytes memory signature, bytes32 depositDataRoot) public {
-        cheats.assume(operator != address(0));
-        cheats.assume(operator != address(eigenLayrProxyAdmin));
-        cheats.assume(operator != podOwner);
+    function testEigenPodsQueuedWithdrawalEOA(address operator, bytes memory signature, bytes32 depositDataRoot) public fuzzedAddress(operator){
         //make initial deposit
         testDeployAndVerifyNewEigenPod(signature, depositDataRoot);
 
@@ -510,7 +512,6 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         IEigenPod newPod;
 
         newPod = eigenPodManager.getPod(_podOwner);
-        emit log_named_address("getPod", address(newPod));
 
         bytes32 validatorIndex = bytes32(uint256(0));
         bytes memory proofs = abi.encodePacked(validatorTreeRoot, beaconStateMerkleProof, validatorRoot, validatorIndex, validatorMerkleProof);
