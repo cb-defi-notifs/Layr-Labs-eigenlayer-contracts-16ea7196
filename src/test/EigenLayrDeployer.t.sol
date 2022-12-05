@@ -26,7 +26,6 @@ import "../contracts/pods/EigenPodManager.sol";
 import "../contracts/permissions/PauserRegistry.sol";
 import "../contracts/middleware/BLSPublicKeyCompendium.sol";
 
-import "../contracts/libraries/BLS.sol";
 import "../contracts/libraries/BytesLib.sol";
 
 import "./utils/Operators.sol";

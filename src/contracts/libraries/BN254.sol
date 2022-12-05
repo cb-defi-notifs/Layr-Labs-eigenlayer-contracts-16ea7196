@@ -1,4 +1,5 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: UNLICENSED AND MIT
+// some functions here are taken from MIT licensed code:
 // Copyright 2017 Christian Reitwiessner
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -15,47 +16,92 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
+// The rest of the code is written by LayrLabs Inc. and UNLICENSED
 
 // 2019 OKIMS
 
-// ADAPTED BY LayrLabs Inc.
 pragma solidity ^0.8.12;
 
+/**
+ * @title Library for operations on the BN254 elliptic curve.
+ * @author Layr Labs, Inc.
+ * @notice Contains BN254 parameters, common operations (addition, scalar mul, pairing), and BLS signature functionality.
+ */
 library BN254 {
-    uint256 internal constant PRIME_Q =
+    // modulus for the underlying field F_p of the elliptic curve
+    uint256 internal constant FP_MODULUS =
         21888242871839275222246405745257275088696311157297823662689037894645226208583;
+    // modulus for the underlying field F_r of the elliptic curve
+    uint256 internal constant FR_MODULUS =
+        21888242871839275222246405745257275088548364400416034343698204186575808495617;
 
     struct G1Point {
         uint256 X;
         uint256 Y;
     }
 
-    // Encoding of field elements is: X[0] * z + X[1]
+    // Encoding of field elements is: X[1] * i + X[0]
     struct G2Point {
         uint256[2] X;
         uint256[2] Y;
     }
 
-    /*
-     * @return The negation of p, i.e. p.plus(p.negate()) should be zero.
+    // generator of group G2
+    /// @dev Generator point in F_q2 is of the form: (x0 + ix1, y0 + iy1).
+    uint256 internal constant G2x1 =
+        11559732032986387107991004021392285783925812861821192530917403151452391805634;
+    uint256 internal constant G2x0 =
+        10857046999023057135944570762232829481370756359578518086990519993285655852781;
+    uint256 internal constant G2y1 =
+        4082367875863433681332203403145435568316851327593401208105741076214120093531;
+    uint256 internal constant G2y0 =
+        8495653923123431417604973247489272438418190587263600148770280649306958101930;
+    /// @notice returns the G2 generator
+    /// @dev mind the ordering of the 1s and 0s!
+    ///      this is because of the (unknown to us) convention used in the bn254 pairing precompile contract
+    ///      "Elements a * i + b of F_p^2 are encoded as two elements of F_p, (a, b)."
+    ///      https://github.com/ethereum/EIPs/blob/master/EIPS/eip-197.md#encoding
+    function generatorG2() internal pure returns (G2Point memory) {
+        return G2Point(
+            [G2x1, G2x0], [G2y1, G2y0]
+        );
+    }
+
+    // negation of the generator of group G2
+    /// @dev Generator point in F_q2 is of the form: (x0 + ix1, y0 + iy1).
+    uint256 internal constant nG2x1 =
+        11559732032986387107991004021392285783925812861821192530917403151452391805634;
+    uint256 internal constant nG2x0 =
+        10857046999023057135944570762232829481370756359578518086990519993285655852781;
+    uint256 internal constant nG2y1 =
+        17805874995975841540914202342111839520379459829704422454583296818431106115052;
+    uint256 internal constant nG2y0 =
+        13392588948715843804641432497768002650278120570034223513918757245338268106653;
+
+    bytes32 internal constant powersOfTauMerkleRoot =
+        0x22c998e49752bbb1918ba87d6d59dd0e83620a311ba91dd4b2cc84990b31b56f;
+
+
+    /**
+     * @param p Some point in G1.
+     * @return The negation of `p`, i.e. p.plus(p.negate()) should be zero.
      */
     function negate(G1Point memory p) internal pure returns (G1Point memory) {
         // The prime q in the base field F_q for G1
         if (p.X == 0 && p.Y == 0) {
             return G1Point(0, 0);
         } else {
-            return G1Point(p.X, PRIME_Q - (p.Y % PRIME_Q));
+            return G1Point(p.X, FP_MODULUS - (p.Y % FP_MODULUS));
         }
     }
 
-    /*
+    /**
      * @return r the sum of two points of G1
      */
-    function plus(G1Point memory p1, G1Point memory p2)
-        internal
-        view
-        returns (G1Point memory r)
-    {
+    function plus(
+        G1Point memory p1,
+        G1Point memory p2
+    ) internal view returns (G1Point memory r) {
         uint256[4] memory input;
         input[0] = p1.X;
         input[1] = p1.Y;
@@ -76,16 +122,15 @@ library BN254 {
         require(success, "ec-add-failed");
     }
 
-    /*
+    /**
      * @return r the product of a point on G1 and a scalar, i.e.
      *         p == p.scalar_mul(1) and p.plus(p) == p.scalar_mul(2) for all
      *         points p.
      */
-    function scalar_mul(G1Point memory p, uint256 s)
-        internal
-        view
-        returns (G1Point memory r)
-    {
+    function scalar_mul(
+        G1Point memory p,
+        uint256 s
+    ) internal view returns (G1Point memory r) {
         uint256[3] memory input;
         input[0] = p.X;
         input[1] = p.Y;
@@ -103,7 +148,8 @@ library BN254 {
         require(success, "ec-mul-failed");
     }
 
-    /* @return The result of computing the pairing check
+    /**
+     *  @return The result of computing the pairing check
      *         e(p1[0], p2[0]) *  .... * e(p1[n], p2[n]) == 1
      *         For example,
      *         pairing([P1(), P1().negate()], [P2(), P2()]) should return true.
@@ -154,9 +200,9 @@ library BN254 {
         return out[0] != 0;
     }
 
-    /*
-     * This function is functionally the same as pairing(), however it specifies a gas limit
-     * the user can set, as a precompile may use the entire gas budget if it reverts.
+    /**
+     * @notice This function is functionally the same as pairing(), however it specifies a gas limit
+     *         the user can set, as a precompile may use the entire gas budget if it reverts.
      */
     function safePairing(
         G1Point memory a1,
@@ -199,5 +245,81 @@ library BN254 {
         //Success is true if the precompile actually goes through (aka all inputs are valid)
 
         return (success, out[0] != 0);
+    }
+
+    /// @return the keccak256 hash of the G1 Point
+    /// @dev used for BLS signatures
+    function hashG1Point(
+        BN254.G1Point memory pk
+    ) internal pure returns (bytes32) {
+        return keccak256(abi.encodePacked(pk.X, pk.Y));
+    }
+
+    /**
+     * @notice hash a bytes32 word to a point in G1
+     * @dev Implementation of the try-and-increment method (see https://www.normalesup.org/~tibouchi/papers/bnhash-scis.pdf)
+     *      This method is not O(1), see https://datatracker.ietf.org/doc/id/draft-irtf-cfrg-hash-to-curve-06.html for more optimal algos
+     * @dev used for BLS signatures
+     */
+    function hashToG1(bytes32 _x) internal view returns (uint256 x, uint256 y) {
+        x = uint256(_x) % FP_MODULUS;
+        bool exists = false;
+        while (true) {
+            // y = x**3 + 3 (bn254 EC formula)
+            y = mulmod(x, x, FP_MODULUS);
+            y = mulmod(y, x, FP_MODULUS);
+            y = addmod(y, 3, FP_MODULUS);
+            // we check if BN254 contains a point for this value of x
+            (y, exists) = sqrtmod(y);
+            if (exists) {
+                return (x, y);
+            }
+            // increment x by 1 and try again (try-and-increment method)
+            x = addmod(x, 1, FP_MODULUS);
+        }
+    }
+
+    /**
+     * @notice Square root computation over Fp
+     * @dev Implementation of the Tonelli-Shanks algorithm
+     *      See https://eips.ethereum.org/assets/eip-3068/2012-685_Square_Root_Even_Ext.pdf for details
+     *      Since Fp % 4 == 3, the sqrt xx^(1/2) can be computed as xx^((Fp+1)/4)
+     * @param xx x^2, value that we want to take the square root of
+     * @return x square root of xx modulo Fp (Fp is hardcoded to the BN254 modulus)
+     * @return hasRoot is true if xx does have a root modulo Fp
+     */
+    function sqrtmod(uint256 xx) internal view returns (uint256 x, bool hasRoot) {
+        bool expmodRet;
+        assembly {
+            let freeMemPtr := mload(0x40)
+            // args to expmod precompile are
+            // <length_of_BASE> <length_of_EXPONENT> <length_of_MODULUS> <BASE> <EXPONENT> <MODULUS>
+            // [32, 32, 32, xx, (FP_MODULUS+1)/4, FP_MODULUS]
+            mstore(freeMemPtr, 0x20)
+            mstore(add(freeMemPtr, 0x20), 0x20)
+            mstore(add(freeMemPtr, 0x40), 0x20)
+            mstore(add(freeMemPtr, 0x60), xx)
+            mstore(
+                add(freeMemPtr, 0x80),
+                0xc19139cb84c680a6e14116da060561765e05aa45a1c72a34f082305b61f3f52
+            )
+            mstore(
+                add(freeMemPtr, 0xA0),
+                0x30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47
+            )
+            // modular exponentiation precompiled contract call
+            // https://github.com/ethereum/EIPs/blob/master/EIPS/eip-198.md
+            expmodRet := staticcall(
+                sub(gas(), 2000),
+                5,
+                freeMemPtr,
+                0xC0,
+                freeMemPtr,
+                0x20
+            )
+            x := mload(freeMemPtr)
+            hasRoot := eq(xx, mulmod(x, x, FP_MODULUS))
+        }
+        require(expmodRet, "BN254:sqrt expmod precompiles contract call failed");
     }
 }
