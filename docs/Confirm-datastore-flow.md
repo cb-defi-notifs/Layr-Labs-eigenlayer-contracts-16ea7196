@@ -18,7 +18,7 @@ function initDataStore(
 ```
 
 
-## Confirming a Datastore
+## Step 2: Confirming a Datastore
 
 ```solidity
 function confirmDataStore(
@@ -48,8 +48,29 @@ The actual verification of the aggregate BLS signature on the datastore involves
 
 - The first step is to calculate the aggregate nonsigner public key, `aggNonSignerPubkeyG1` by adding all the nonsigner public keys in G1.  
 - We then compute the aggregate signer public key, by computing `apkG1 - aggNonSignerPubkeyG1`.
-- Now we can proceed to compute the pairing. The standard BLS pairing is as follows
-$$x = 2$$
+- Now we can proceed to compute the pairing. The standard BLS pairing is as follows:
+$$e(\sigma, g_2) = e(H(m), pk_2)$$
+
+where $g_2$ is the generator in G2.  This requires the public key to be in G2.  However computing ecAdd for the aggregate public key in G2 is extremely expensive.  So instead, we compute the public key aggregation in G1 with the following pairing:
+
+$$ e(\sigma + \gamma(pk_1), -g_2) = e(\gamma(g_1) + H(m), pk_2) $$
+
+Looking closer, we can split this pairing into two separate pairings:
+
+$$e(\sigma, g_2) = e(H(m), pk_2)$$
+$$e(pk_1, g_2) = e(g_1, pk_2)$$
+
+As you can see, the first pairing is the BLS verification pairing while the seconf pairing simply verifies that the public key in $g_1$ is equivalent to the public key in $g_2$:
+
+$$e(pk_1, g_2) = e(g_1, [sk]g_2) = e(g_1, pk_2)$$
+
+Thus we are able to compute the aggregate public key in G1 and verify it against the public key in G2 (which is provided as an input to the function).  In parallel, we also compute the total signing stake for the datastore in question (by subtracting away nonsigner stake from total possible quorum stake). Upon verifying the signatures, we then check whether the quorum stake requirements are met for both quorums:
+
+$$ \frac{signedStakeQuorum }{totalStakeQuorum} >= quorumThreshold$$
+
+
+
+
 
 
 
