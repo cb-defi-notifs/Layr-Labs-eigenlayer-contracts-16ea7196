@@ -55,7 +55,12 @@ where $g_2$ is the generator in G2.  This requires the public key to be in G2.  
 
 $$ e(\sigma + \gamma(pk_1), -g_2) = e(\gamma(g_1) + H(m), pk_2) $$
 
-Looking closer, we can split this pairing into two separate pairings:
+Doing some quick math, this checks out:
+$$ e(\sigma + \gamma(pk_1), -g_2) = e([sk](H(m) + \gamma(g_1)), -g_2) = $$
+$$ e(\gamma(g_1) + H(m), [sk]g_2) =  e(\gamma(g_1) + H(m), pk_2)$$
+
+
+Looking closer, this pairing is verifying two separate pairings at once:
 
 $$e(\sigma, g_2) = e(H(m), pk_2)$$
 $$e(pk_1, g_2) = e(g_1, pk_2)$$
@@ -67,6 +72,7 @@ $$e(pk_1, g_2) = e(g_1, [sk]g_2) = e(g_1, pk_2)$$
 Thus we are able to compute the aggregate public key in G1 and verify it against the public key in G2 (which is provided as an input to the function).  In parallel, we also compute the total signing stake for the datastore in question (by subtracting away nonsigner stake from total possible quorum stake). Upon verifying the signatures, we then check whether the quorum stake requirements are met for both quorums:
 
 $$ \frac{signedStakeQuorum }{totalStakeQuorum} >= quorumThreshold$$
+
 
 
 
