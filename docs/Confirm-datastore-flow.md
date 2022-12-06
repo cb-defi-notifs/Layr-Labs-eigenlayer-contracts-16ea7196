@@ -63,6 +63,7 @@ $$e(\gamma(g_1) + H(m), [sk]g_2) =  e(\gamma(g_1) + H(m), pk_2)$$
 Looking closer, this pairing is verifying two separate pairings at once:
 
 $$e(\sigma, g_2) = e(H(m), pk_2)$$
+
 $$e(pk_1, g_2) = e(g_1, pk_2)$$
 
 As you can see, the first pairing is the BLS verification pairing while the seconf pairing simply verifies that the public key in $g_1$ is equivalent to the public key in $g_2$:
