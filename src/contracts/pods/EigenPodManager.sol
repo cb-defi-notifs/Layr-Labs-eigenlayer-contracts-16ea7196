@@ -42,8 +42,8 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager 
     /// @notice Oracle contract that provides updates to the beacon chain's state
     IBeaconChainOracle public beaconChainOracle;
     
-    /// @notice Pod owner to penties funds credited
-    mapping(address => uint256) public podOwnerToPenalties;
+    /// @notice Pod owner to the amount of penalties they have paid that are still in this contract
+    mapping(address => uint256) public podOwnerToPaidPenalties;
 
     event BeaconOracleUpdated(address newOracleAddress);
 
@@ -140,7 +140,7 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager 
      * @dev Callable only by the podOwner's pod.
      */
     function payPenalties(address podOwner) external payable onlyEigenPod(podOwner) {
-        podOwnerToPenalties[podOwner] += msg.value;
+        podOwnerToPaidPenalties[podOwner] += msg.value;
     }
 
     /**
@@ -150,7 +150,7 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager 
      * @dev Callable only by the slasher.
      */
     function withdrawPenalties(address podOwner, address recipient, uint256 amount) external onlySlasher {
-        podOwnerToPenalties[podOwner] -= amount;
+        podOwnerToPaidPenalties[podOwner] -= amount;
         // transfer penalties from pod to `recipient`
         if (Address.isContract(recipient)) {
             // if the recipient is a contract, then call its `receiveBeaconChainETH` function
