@@ -38,14 +38,14 @@ contract EigenPod is IEigenPod, Initializable {
     /// @notice The length, in blocks, if the fraud proof period following a claim on the amount of partial withdrawals in an EigenPod
     uint32 immutable public PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS;
 
-    /// @notice The amount of eth, in gwei that is restaked per validator
+    /// @notice The amount of eth, in gwei, that is restaked per validator
     uint64 immutable REQUIRED_BALANCE_GWEI;
 
-    /// @notice The amount of eth, in wei that is restaked per validator
+    /// @notice The amount of eth, in wei, that is restaked per validator
     uint256 immutable REQUIRED_BALANCE_WEI;
 
-    /// @notice The amount of eth, in gwei that can be part of a partial withdrawal maximum
-    uint64 immutable MAX_PARTIAL_WTIHDRAWAL_AMOUNT_GWEI;
+    /// @notice The amount of eth, in gwei, that can be part of a full withdrawal at the minimum
+    uint64 immutable MIN_FULL_WITHDRAWAL_AMOUNT_GWEI;
 
     /// @notice The single EigenPodManager for EigenLayer
     IEigenPodManager public eigenPodManager;
@@ -79,13 +79,13 @@ contract EigenPod is IEigenPod, Initializable {
         _;
     }
 
-    constructor(IETHPOSDeposit _ethPOS, uint32 _PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS, uint256 _REQUIRED_BALANCE_WEI, uint64 _MAX_PARTIAL_WTIHDRAWAL_AMOUNT_GWEI) {
+    constructor(IETHPOSDeposit _ethPOS, uint32 _PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS, uint256 _REQUIRED_BALANCE_WEI, uint64 _MIN_FULL_WITHDRAWAL_AMOUNT_GWEI) {
         ethPOS = _ethPOS;
         PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS = _PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS;
         REQUIRED_BALANCE_WEI = _REQUIRED_BALANCE_WEI;
         REQUIRED_BALANCE_GWEI = uint64(_REQUIRED_BALANCE_WEI / GWEI_TO_WEI);
         require(_REQUIRED_BALANCE_WEI % GWEI_TO_WEI == 0, "EigenPod.contructor: _REQUIRED_BALANCE_WEI is not a whole number of gwei");
-        MAX_PARTIAL_WTIHDRAWAL_AMOUNT_GWEI = _MAX_PARTIAL_WTIHDRAWAL_AMOUNT_GWEI;
+        MIN_FULL_WITHDRAWAL_AMOUNT_GWEI = _MIN_FULL_WITHDRAWAL_AMOUNT_GWEI;
         _disableInitializers();
     }
 
@@ -206,10 +206,8 @@ contract EigenPod is IEigenPod, Initializable {
         require(validatorStatus[merklizedPubkey] != VALIDATOR_STATUS.INACTIVE, "EigenPod.verifyBeaconChainFullWithdrawal: ETH validator is inactive on EigenLayer");
         // TODO: verify withdrawal proof 
         uint32 withdrawalBlockNumber = 0;
-        uint64 withdrawalAmountGwei = 0; // in WEI!
-        uint256 withdrawalAmountWei = 0; // in WEI!
-
-        require(MAX_PARTIAL_WTIHDRAWAL_AMOUNT_GWEI < withdrawalAmountGwei, "EigenPod.verifyBeaconChainFullWithdrawal: cannot prove a partial withdrawal");
+        uint64 withdrawalAmountGwei = 0;
+        require(MIN_FULL_WITHDRAWAL_AMOUNT_GWEI < withdrawalAmountGwei, "EigenPod.verifyBeaconChainFullWithdrawal: withdrawal is too small to be a full withdrawal");
 
         // if the withdrawal amount is greater than the REQUIRED_BALANCE (i.e. the amount restaked on EigenLayer)
         if(withdrawalAmountGwei >= REQUIRED_BALANCE_GWEI) {
@@ -236,9 +234,10 @@ contract EigenPod is IEigenPod, Initializable {
         uint256 claimsLength = partialWithdrawalClaims.length - 1;
         if(claimsLength != 0) {
             PartialWithdrawalClaim memory currentClaim = partialWithdrawalClaims[partialWithdrawalClaims.length - 1];
-            // if a full withdrawal is proven before the current partial withdrawal claim and it is pending, then it is fraudulent
+            // if a full withdrawal is proven before the current partial withdrawal claim and the partial withdrawal claim 
+            // is pending (still in its fraud proof period), then the claim is incorrect and fraudulent
             if(withdrawalBlockNumber <= currentClaim.blockNumber && currentClaim.status == PARTIAL_WITHDRAWAL_CLAIM_STATUS.PENDING) {
-                // mark the withdrawal as failed
+                // mark the partial withdrawal claim as failed
                 partialWithdrawalClaims[claimsLength - 1].status = PARTIAL_WITHDRAWAL_CLAIM_STATUS.FAILED;
                 // TODO: reward the updater
             }
@@ -273,7 +272,7 @@ contract EigenPod is IEigenPod, Initializable {
         require(
             claimsLength == 0 || // either no claims have been made yet
             partialWithdrawalClaims[claimsLength - 1].status != PARTIAL_WITHDRAWAL_CLAIM_STATUS.PENDING, // or the last claim is not pending
-            "EigenPod.recordBalanceSnapshot: cannot make a new claim until previous claim is not pending"
+            "EigenPod.recordPartialWithdrawalClaim: cannot make a new claim until previous claim is not pending"
         );
         // push claim to the end of the list
         partialWithdrawalClaims.push(
