@@ -140,13 +140,13 @@ contract EigenPod is IEigenPod, Initializable {
 
     /**
      * @notice This function records an overcommitment of stake to EigenLayer on behalf of a certain validator.
-     *         If successful, the overcommitted are penalized (available for withdrawal whenever the pod's balance allows).
+     *         If successful, the overcommitted balance is penalized (available for withdrawal whenever the pod's balance allows).
      *         They are also removed from the InvestmentManager and undelegated.
      * @param pubkey is the BLS public key for the validator.
      * @param proofs is the bytes that prove the validator's metadata against a beacon state root
      * @param validatorFields are the fields of the "Validator Container", refer to consensus specs 
      * @param beaconChainETHStrategyIndex is the index of the beaconChainETHStrategy for the pod owner for the callback to 
-     *                                    the EigenPodManager to the InvestmentManager in case it must be removed
+     *                                    the InvestmentManger in case it must be removed from the list of the podOwners strategies
      * for details: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
      */
     function verifyBalanceUpdate(
@@ -185,7 +185,8 @@ contract EigenPod is IEigenPod, Initializable {
      * @notice This function records a full withdrawal on behalf of one of the Ethereum validators for this EigenPod
      * @param pubkey is the BLS public key for the validator.
      * @param beaconChainETHStrategyIndex is the index of the beaconChainETHStrategy for the pod owner for the callback to 
-     *                                    the EigenPodManager to the InvestmentManager in case it must be removed
+     *                                    the EigenPodManager to the InvestmentManager in case it must be removed from the 
+     *                                    podOwner's list of strategies
      */
     function verifyBeaconChainFullWithdrawal(
         bytes calldata pubkey, 
