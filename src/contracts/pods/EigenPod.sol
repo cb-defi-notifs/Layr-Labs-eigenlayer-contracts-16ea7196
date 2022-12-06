@@ -39,6 +39,8 @@ contract EigenPod is IEigenPod, Initializable {
     uint32 immutable public PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS;
 
     /// @notice The amount of eth, in gwei, that is restaked per validator
+    ///         REQUIRED_BALANCE_GWEI is also added to the penalty balance of the pod in case a validator's beacon chain balance ever falls
+    ///         below REQUIRED_BALANCE_GWEI
     uint64 internal immutable REQUIRED_BALANCE_GWEI;
 
     /// @notice The amount of eth, in wei, that is restaked per validator
