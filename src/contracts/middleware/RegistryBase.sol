@@ -351,11 +351,8 @@ abstract contract RegistryBase is VoteWeigherBase, IQuorumRegistry {
         registry[operator].status = IQuorumRegistry.Status.INACTIVE;
         registry[operator].deregisterTime = uint32(block.timestamp);
 
-        //revoke the slashing ability of the service manager
-        serviceManager.revokeSlashingAbility(operator, latestTime);
-
-        // record a stake update not bonding the operator at all (unbonded at 0), because they haven't served anything yet
-        serviceManager.recordLastStakeUpdate(operator, latestTime);
+        // record a stake update unbonding the operator after `latestTime`
+        serviceManager.recordLastStakeUpdateAndRevokeSlashingAbility(operator, latestTime);
 
         // Emit `Deregistration` event
         emit Deregistration(operator, swappedOperator);
