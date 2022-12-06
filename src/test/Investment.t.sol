@@ -3,7 +3,6 @@ pragma solidity ^0.8.9;
 
 import "./EigenLayrTestHelper.t.sol";
 import "../contracts/core/InvestmentManagerStorage.sol";
-import "./utils/DataStoreUtilsWrapper.sol";
 
 contract InvestmentTests is EigenLayrTestHelper {
     /**

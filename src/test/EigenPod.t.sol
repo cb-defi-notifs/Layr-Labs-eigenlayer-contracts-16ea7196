@@ -40,6 +40,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     address[] public slashingContracts;
     address pauser = address(69);
     address unpauser = address(489);
+    address podManagerAddress = 0x212224D2F2d262cd093eE13240ca4873fcCBbA3C;
 
 
     //performs basic deployment before each test
@@ -85,6 +86,10 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         Slasher slasherImplementation = new Slasher(investmentManager, delegation);
         EigenPodManager eigenPodManagerImplementation = new EigenPodManager(ethPOSDeposit, eigenPodBeacon, investmentManager);
 
+        //ensuring that the address of eigenpodmanager doesn't change
+        bytes memory code = address(eigenPodManager).code;
+        cheats.etch(podManagerAddress, code);
+        eigenPodManager = IEigenPodManager(podManagerAddress);
 
         address initialOwner = address(this);
         // Third, upgrade the proxy contracts to use the correct implementation contracts and initialize them.
@@ -119,7 +124,6 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
 
         slashingContracts.push(address(eigenPodManager));
         investmentManager.slasher().addGloballyPermissionedContracts(slashingContracts);
-        emit log_named_address("og pod owner", podOwner);
         
     }
 
@@ -284,7 +288,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         cheats.roll(uint32(block.timestamp) + 1 days);
 
         cheats.startPrank(podOwner);
-        investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawerAndNonce, undelegateIfPossible);
+        investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, address(beaconChainETHReceiver), undelegateIfPossible);
         cheats.stopPrank();
         uint32 queuedWithdrawalStartBlock = uint32(block.number);
 
@@ -373,7 +377,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         cheats.roll(uint32(block.timestamp) + 1 days);
 
         cheats.startPrank(podOwner);
-        investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawerAndNonce, undelegateIfPossible);
+        investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, podOwner, undelegateIfPossible);
         cheats.stopPrank();
         uint32 queuedWithdrawalStartBlock = uint32(block.number);
 
@@ -455,7 +459,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
             "_testDelegateToOperator: delegated address not set appropriately"
         );
         assertTrue(
-            delegation.delegationStatus(sender) == IEigenLayrDelegation.DelegationStatus.DELEGATED,
+            delegation.isDelegated(sender),
             "_testDelegateToOperator: delegated status not set appropriately"
         );
 

@@ -36,12 +36,6 @@ contract InvestmentManager is
     uint8 internal constant PAUSED_WITHDRAWALS = 1;
 
     /**
-     * @notice Value to which `initTimestamp` and `unlockTimestamp` to is set to indicate a withdrawal is queued/initialized,
-     * but has not yet had its waiting period triggered
-     */
-    uint32 internal constant QUEUED_WITHDRAWAL_INITIALIZED_VALUE = type(uint32).max;
-
-    /**
      * @notice Emitted when a new withdrawal is queued by `depositor`.
      * @param depositor Is the staker who is withdrawing funds from EigenLayer.
      * @param withdrawer Is the party specified by `staker` who will be able to complete the queued withdrawal and receive the withdrawn funds.
@@ -211,7 +205,7 @@ contract InvestmentManager is
      * is to order the strategies *for which `msg.sender` is withdrawing 100% of their shares* from highest index in
      * `investorStrats` to lowest index
      * @dev Note that if the withdrawal includes shares in the enshrined 'beaconChainETH' strategy, then it must *only* include shares in this strategy, and
-     * `withdrawerAndNonce.withdrawer` must match the caller's address. The first condition is because slashing of queued withdrawals cannot be guaranteed 
+     * `withdrawer` must match the caller's address. The first condition is because slashing of queued withdrawals cannot be guaranteed 
      * for Beacon Chain ETH (since we cannot trigger a withdrawal from the beacon chain through a smart contract) and the second condition is because shares in
      * the enshrined 'beaconChainETH' strategy technically represent non-fungible positions (deposits to the Beacon Chain, each pointed at a specific EigenPod).
      */
@@ -220,7 +214,7 @@ contract InvestmentManager is
         IInvestmentStrategy[] calldata strategies,
         IERC20[] calldata tokens,
         uint256[] calldata shares,
-        WithdrawerAndNonce calldata withdrawerAndNonce,
+        address withdrawer,
         bool undelegateIfPossible
     )
         external
@@ -231,14 +225,6 @@ contract InvestmentManager is
         returns (bytes32)
     {
         require(!paused(PAUSED_WITHDRAWALS), "Pausable: index is paused");
-        require(
-            withdrawerAndNonce.nonce == numWithdrawalsQueued[msg.sender],
-            "InvestmentManager.queueWithdrawal: provided nonce incorrect"
-        );
-        // increment the numWithdrawalsQueued of the sender
-        unchecked {
-            ++numWithdrawalsQueued[msg.sender];
-        }
 
         {
             /**
@@ -248,7 +234,7 @@ contract InvestmentManager is
              */
             for (uint256 i = 0; i < strategies.length;) {
                 if (strategies[i] == beaconChainETHStrategy) {
-                    require(withdrawerAndNonce.withdrawer == msg.sender,
+                    require(withdrawer == msg.sender,
                         "InvestmentManager.queueWithdrawal: cannot queue a withdrawal including Beacon Chain ETH to a different address");
                     require(strategies.length == 1,
                         "InvestmentManager.queueWithdrawal: cannot queue a withdrawal including Beacon Chain ETH and other tokens");
@@ -284,16 +270,29 @@ contract InvestmentManager is
         // fetch the address that the `msg.sender` is delegated to
         address delegatedAddress = delegation.delegatedTo(msg.sender);
 
-        // copy arguments into struct and pull delegation info
-        QueuedWithdrawal memory queuedWithdrawal = QueuedWithdrawal({
-            strategies: strategies,
-            tokens: tokens,
-            shares: shares,
-            depositor: msg.sender,
-            withdrawerAndNonce: withdrawerAndNonce,
-            withdrawalStartBlock: uint32(block.number),
-            delegatedAddress: delegatedAddress
-        });
+        QueuedWithdrawal memory queuedWithdrawal;
+
+        {
+            WithdrawerAndNonce memory withdrawerAndNonce = WithdrawerAndNonce({
+                withdrawer: withdrawer,
+                nonce: uint96(numWithdrawalsQueued[msg.sender])
+            });
+            // increment the numWithdrawalsQueued of the sender
+            unchecked {
+                ++numWithdrawalsQueued[msg.sender];
+            }
+
+            // copy arguments into struct and pull delegation info
+            queuedWithdrawal = QueuedWithdrawal({
+                strategies: strategies,
+                tokens: tokens,
+                shares: shares,
+                depositor: msg.sender,
+                withdrawerAndNonce: withdrawerAndNonce,
+                withdrawalStartBlock: uint32(block.number),
+                delegatedAddress: delegatedAddress
+            });
+        }
 
         // calculate the withdrawal root
         bytes32 withdrawalRoot = calculateWithdrawalRoot(queuedWithdrawal);
@@ -310,7 +309,7 @@ contract InvestmentManager is
             _undelegate(msg.sender);
         }
 
-        emit WithdrawalQueued(msg.sender, withdrawerAndNonce.withdrawer, delegatedAddress, withdrawalRoot);
+        emit WithdrawalQueued(msg.sender, withdrawer, delegatedAddress, withdrawalRoot);
 
         return withdrawalRoot;
     }

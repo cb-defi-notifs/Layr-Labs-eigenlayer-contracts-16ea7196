@@ -90,7 +90,6 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager,
         if(!hasPod(msg.sender)) {
             //deploy a pod if the sender doesn't have one already
             pod = _deployPod();
-            emit log_named_address("new pod deplohed", address(pod));
         }
         pod.stake{value: msg.value}(pubkey, signature, depositDataRoot);
     }

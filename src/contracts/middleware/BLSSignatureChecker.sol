@@ -4,16 +4,15 @@ pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "../interfaces/IBLSRegistry.sol";
 import "../libraries/BytesLib.sol";
-import "../libraries/DataStoreUtils.sol";
+import "../libraries/MiddlewareUtils.sol";
 import "../libraries/BLS.sol";
 
-import "forge-std/Test.sol";
 /**
  * @title Used for checking BLS aggregate signatures from the operators of a `BLSRegistry`.
  * @author Layr Labs, Inc.
  * @notice This is the contract for checking the validity of aggregate operator signatures.
  */
-abstract contract BLSSignatureChecker is Test {
+abstract contract BLSSignatureChecker {
     using BytesLib for bytes;
     // DATA STRUCTURES
     /**
@@ -479,7 +478,7 @@ abstract contract BLSSignatureChecker is Test {
         );
 
         // set compressedSignatoryRecord variable used for fraudproofs
-        compressedSignatoryRecord = DataStoreUtils.computeSignatoryRecordHash(
+        compressedSignatoryRecord = MiddlewareUtils.computeSignatoryRecordHash(
             taskNumberToConfirm,
             pubkeyHashes,
             signedTotals.signedStakeFirstQuorum,
