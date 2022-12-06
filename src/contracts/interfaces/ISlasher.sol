@@ -29,9 +29,6 @@ interface ISlasher {
      */
     function optIntoSlashing(address contractAddress) external;
 
-    /// @notice Called by a contract to revoke its ability to slash `operator`, once `bondedUntil` is reached.
-    function revokeSlashingAbility(address operator, uint32 bondedUntil) external;
-
     /**
      * @notice Used for 'slashing' a certain operator.
      * @param toBeFrozen The operator to be frozen.
@@ -84,9 +81,10 @@ interface ISlasher {
      *         is slashable until serveUntil
      * @param operator the operator whose stake update is being recorded
      * @param serveUntil the timestamp until which the operator's stake at the current block is slashable
-     * @dev removes the middleware's slashing contract to the operator's linked list
+     * @dev removes the middleware's slashing contract to the operator's linked list and revokes the middleware's (i.e. caller's) ability to
+     * slash `operator` once `serveUntil` is reached
      */
-    function recordLastStakeUpdate(address operator, uint32 serveUntil) external;
+    function recordLastStakeUpdateAndRevokeSlashingAbility(address operator, uint32 serveUntil) external;
 
     /**
      * @notice Used to determine whether `staker` is actively 'frozen'. If a staker is frozen, then they are potentially subject to

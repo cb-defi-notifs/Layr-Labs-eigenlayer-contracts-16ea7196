@@ -101,7 +101,6 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
      * @dev Should only ever be called in the event that the `staker` has no active deposits in EigenLayer.
      */
     function undelegate(address staker) external onlyInvestmentManager {
-        delegationStatus[staker] = DelegationStatus.UNDELEGATED;
         delegatedTo[staker] = address(0);
     }
 
@@ -305,9 +304,6 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
         // record delegation relation between the staker and operator
         delegatedTo[staker] = operator;
 
-        // record that the staker is delegated
-        delegationStatus[staker] = DelegationStatus.DELEGATED;
-
         // retrieve list of strategies and their shares from investment manager
         (IInvestmentStrategy[] memory strategies, uint256[] memory shares) = investmentManager.getDeposits(staker);
 
@@ -329,12 +325,12 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
 
     /// @notice Returns 'true' if `staker` *is* actively delegated, and 'false' otherwise.
     function isDelegated(address staker) public view returns (bool) {
-        return (delegationStatus[staker] == DelegationStatus.DELEGATED);
+        return (delegatedTo[staker] != address(0));
     }
 
     /// @notice Returns 'true' if `staker` is *not* actively delegated, and 'false' otherwise.
     function isNotDelegated(address staker) public view returns (bool) {
-        return (delegationStatus[staker] == DelegationStatus.UNDELEGATED);
+        return (delegatedTo[staker] == address(0));
     }
 
     /// @notice Returns if an operator can be delegated to, i.e. it has called `registerAsOperator`.

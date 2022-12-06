@@ -288,7 +288,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         cheats.roll(uint32(block.timestamp) + 1 days);
 
         cheats.startPrank(podOwner);
-        investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawerAndNonce, undelegateIfPossible);
+        investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, address(beaconChainETHReceiver), undelegateIfPossible);
         cheats.stopPrank();
         uint32 queuedWithdrawalStartBlock = uint32(block.number);
 
@@ -377,7 +377,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         cheats.roll(uint32(block.timestamp) + 1 days);
 
         cheats.startPrank(podOwner);
-        investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawerAndNonce, undelegateIfPossible);
+        investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, podOwner, undelegateIfPossible);
         cheats.stopPrank();
         uint32 queuedWithdrawalStartBlock = uint32(block.number);
 
@@ -459,7 +459,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
             "_testDelegateToOperator: delegated address not set appropriately"
         );
         assertTrue(
-            delegation.delegationStatus(sender) == IEigenLayrDelegation.DelegationStatus.DELEGATED,
+            delegation.isDelegated(sender),
             "_testDelegateToOperator: delegated status not set appropriately"
         );
 

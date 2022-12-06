@@ -17,13 +17,6 @@ contract EigenLayrTestHelper is EigenLayrDeployer {
     uint256[] priorTotalShares;
     uint256[] strategyTokenBalance;
 
-    // packed info used to help handle stack-too-deep errors
-    struct DataForTestWithdrawal {
-        IInvestmentStrategy[] delegatorStrategies;
-        uint256[] delegatorShares;
-        IInvestmentManager.WithdrawerAndNonce withdrawerAndNonce;
-    }
-
     function _testInitiateDelegation(
         uint8 operatorIndex,
         uint256 amountEigenToDeposit, 
@@ -250,7 +243,7 @@ contract EigenLayrTestHelper is EigenLayrDeployer {
             "_testDelegateToOperator: delegated address not set appropriately"
         );
         assertTrue(
-            delegation.delegationStatus(sender) == IEigenLayrDelegation.DelegationStatus.DELEGATED,
+            delegation.isDelegated(sender),
             "_testDelegateToOperator: delegated status not set appropriately"
         );
 
@@ -308,7 +301,7 @@ contract EigenLayrTestHelper is EigenLayrDeployer {
     /**
      * @notice Creates a queued withdrawal from `staker`. Begins by registering the staker as a delegate (if specified), then deposits `amountToDeposit`
      * into the WETH strategy, and then queues a withdrawal using
-     * `investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawerAndNonce)`
+     * `investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawer)`
      * @notice After initiating a queued withdrawal, this test checks that `investmentManager.canCompleteQueuedWithdrawal` immediately returns the correct
      * response depending on whether `staker` is delegated or not.
      * @param staker The address to initiate the queued withdrawal
@@ -323,7 +316,7 @@ contract EigenLayrTestHelper is EigenLayrDeployer {
         IERC20[] memory tokensArray,
         uint256[] memory shareAmounts,
         uint256[] memory strategyIndexes,
-        IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce
+        address withdrawer
     )
         internal returns(bytes32 withdrawalRoot, IInvestmentManager.QueuedWithdrawal memory queuedWithdrawal)
     {
@@ -337,6 +330,11 @@ contract EigenLayrTestHelper is EigenLayrDeployer {
                 delegation.isDelegated(staker), "_createQueuedWithdrawal: staker isn't delegated when they should be"
             );
         }
+
+        IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce = IInvestmentManager.WithdrawerAndNonce({
+            withdrawer: withdrawer,
+            nonce: uint96(investmentManager.numWithdrawalsQueued(staker))
+        });
 
         queuedWithdrawal = IInvestmentManager.QueuedWithdrawal({
             strategies: strategyArray,
@@ -360,7 +358,7 @@ contract EigenLayrTestHelper is EigenLayrDeployer {
         //queue the withdrawal
         cheats.startPrank(staker);
         // TODO: check with 'undelegateIfPossible' = false, rather than just true
-        withdrawalRoot = investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawerAndNonce, true);
+        withdrawalRoot = investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawer, true);
         cheats.stopPrank();
         return (withdrawalRoot, queuedWithdrawal);
     }
