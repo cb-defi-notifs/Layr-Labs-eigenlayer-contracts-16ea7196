@@ -60,7 +60,6 @@ contract EigenPod is IEigenPod, Initializable {
     PartialWithdrawalClaim[] public partialWithdrawalClaims;
 
     /// @notice the amount of execution layer ETH in this contract that is staked in EigenLayer (i.e. withdrawn from beaconchain but not EigenLayer), 
-    /// it could have also been decremented from EigenLayer due to overcommitting balance
     uint64 public restakedExecutionLayerGwei;
 
     /// @notice the excess balance from full withdrawals over RESTAKED_BALANCE_PER_VALIDATOR or partial withdrawals
@@ -155,7 +154,7 @@ contract EigenPod is IEigenPod, Initializable {
      *                                    the InvestmentManger in case it must be removed from the list of the podOwners strategies
      * for details: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
      */
-    function verifyBalanceUpdate(
+    function verifyOvercommitedStake(
         bytes calldata pubkey, 
         bytes calldata proofs, 
         bytes32[] calldata validatorFields,

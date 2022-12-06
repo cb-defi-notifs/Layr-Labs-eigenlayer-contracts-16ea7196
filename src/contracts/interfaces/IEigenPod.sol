@@ -84,7 +84,7 @@ interface IEigenPod {
      *                                    the InvestmentManger in case it must be removed from the list of the podOwners strategies
      * for details: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
      */
-    function verifyBalanceUpdate(
+    function verifyOvercommitedStake(
         bytes calldata pubkey, 
         bytes calldata proofs, 
         bytes32[] calldata validatorFields,
