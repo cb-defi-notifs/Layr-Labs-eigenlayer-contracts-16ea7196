@@ -114,11 +114,11 @@ contract InvestmentManager is
      * @param staker is the entity that is restaking in eigenlayer,
      * @param amount is the amount of beaconchain ETH being restaked,
      * @param amount is the amount of token to be invested in the strategy by the depositor
-     * @dev Only called by EigenPod for the staker.
+     * @dev Only called by EigenPodManager.
      */
     function depositBeaconChainETH(address staker, uint256 amount)
         external
-        onlyEigenPod(staker, msg.sender)
+        onlyEigenPodManager
         onlyWhenNotPaused(PAUSED_DEPOSITS)
         onlyNotFrozen(staker)
         nonReentrant
@@ -135,11 +135,11 @@ contract InvestmentManager is
      * @param slashedAddress is the pod owner to be slashed
      * @param beaconChainETHStrategyIndex is the index of the beaconChainETHStrategy in case it must be removed,
      * @param amount is the amount of token overcommitted to EigenLayer
-     * @dev Only called by EigenPod for the staker.
+     * @dev Only called by EigenPodManager.
      */
     function recordOvercommittedBeaconChainETH(address slashedAddress, uint256 beaconChainETHStrategyIndex, uint256 amount)
         external
-        onlyEigenPod(slashedAddress, msg.sender)
+        onlyEigenPodManager
         nonReentrant
     {
         // removes shares for the enshrined beacon chain ETH strategy

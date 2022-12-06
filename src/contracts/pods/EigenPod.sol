@@ -41,9 +41,6 @@ contract EigenPod is IEigenPod, Initializable {
 
     /// @notice The amount of eth, in gwei that can be part of a partial withdrawal maximum
     uint64 immutable MAX_PARTIAL_WTIHDRAWAL_AMOUNT_GWEI;
-    
-    /// @notice The single InvestmentManager for EigenLayer
-    IInvestmentManager immutable investmentManager;
 
     /// @notice The single EigenPodManager for EigenLayer
     IEigenPodManager public eigenPodManager;
@@ -77,13 +74,12 @@ contract EigenPod is IEigenPod, Initializable {
         _;
     }
 
-    constructor(IETHPOSDeposit _ethPOS, uint32 _PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD, uint256 _REQUIRED_BALANCE_WEI, uint64 _MAX_PARTIAL_WTIHDRAWAL_AMOUNT_GWEI, IInvestmentManager _investmentManager) {
+    constructor(IETHPOSDeposit _ethPOS, uint32 _PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD, uint256 _REQUIRED_BALANCE_WEI, uint64 _MAX_PARTIAL_WTIHDRAWAL_AMOUNT_GWEI) {
         ethPOS = _ethPOS;
         PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD = _PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD;
         REQUIRED_BALANCE_WEI = _REQUIRED_BALANCE_WEI;
         REQUIRED_BALANCE_GWEI = uint64(_REQUIRED_BALANCE_WEI / 1e9);
         MAX_PARTIAL_WTIHDRAWAL_AMOUNT_GWEI = _MAX_PARTIAL_WTIHDRAWAL_AMOUNT_GWEI;
-        investmentManager = _investmentManager;
         _disableInitializers();
     }
 
@@ -141,7 +137,7 @@ contract EigenPod is IEigenPod, Initializable {
         validators[merklizedPubkey].effectiveBalance = REQUIRED_BALANCE_GWEI;
         // deposit RESTAKED_BALANCE_PER_VALIDATOR for new validator
         // @dev balances are in GWEI so need to convert
-        investmentManager.depositBeaconChainETH(podOwner, REQUIRED_BALANCE_WEI);
+        eigenPodManager.restakeBeaconChainETH(podOwner, REQUIRED_BALANCE_WEI);
     }
 
     /**
@@ -152,7 +148,7 @@ contract EigenPod is IEigenPod, Initializable {
      * @param proofs is the bytes that prove the validator's metadata against a beacon state root
      * @param validatorFields are the fields of the "Validator Container", refer to consensus specs 
      * @param beaconChainETHStrategyIndex is the index of the beaconChainETHStrategy for the pod owner for the callback to 
-     *                                    the InvestmentManger in case it must be removed
+     *                                    the EigenPodManager to the InvestmentManager in case it must be removed
      * for details: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
      */
     function verifyBalanceUpdate(
@@ -185,14 +181,14 @@ contract EigenPod is IEigenPod, Initializable {
         // @dev if the validator's balance ever falls below REQUIRED_BALANCE_GWEI
         penaltiesDueToOvercommittingGwei += REQUIRED_BALANCE_GWEI;
         // remove and undelegate shares in EigenLayer
-        investmentManager.recordOvercommittedBeaconChainETH(podOwner, beaconChainETHStrategyIndex, REQUIRED_BALANCE_GWEI);
+        eigenPodManager.recordOvercommittedBeaconChainETH(podOwner, beaconChainETHStrategyIndex, REQUIRED_BALANCE_GWEI);
     }
 
     /**
      * @notice This function records a full withdrawal on behalf of one of the Ethereum validators for this EigenPod
      * @param pubkey is the BLS public key for the validator.
      * @param beaconChainETHStrategyIndex is the index of the beaconChainETHStrategy for the pod owner for the callback to 
-     *                                    the InvestmentManger in case it must be removed
+     *                                    the EigenPodManager to the InvestmentManager in case it must be removed
      */
     function verifyBeaconChainFullWithdrawal(
         bytes calldata pubkey, 
@@ -226,7 +222,7 @@ contract EigenPod is IEigenPod, Initializable {
                 // allow EigenLayer to penalize the overcommitted balance
                 penaltiesDueToOvercommittingGwei += REQUIRED_BALANCE_GWEI - withdrawalAmountGwei;
                 // remove and undelegate shares in EigenLayer
-                investmentManager.recordOvercommittedBeaconChainETH(podOwner, beaconChainETHStrategyIndex, REQUIRED_BALANCE_WEI);
+                eigenPodManager.recordOvercommittedBeaconChainETH(podOwner, beaconChainETHStrategyIndex, REQUIRED_BALANCE_WEI);
             }
             // otherwise increment the ETH in execution layer by the withdrawalAmount
             restakedExecutionLayerGwei += withdrawalAmountGwei;

@@ -25,6 +25,23 @@ interface IEigenPodManager {
      * @param depositDataRoot The root/hash of the deposit data for the validator's deposit.
      */
     function stake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable;
+
+    /**
+     * @notice Deposits/Restakes beacon chain ETH on behalf of the owner of an EigenPod.
+     * @param podOwner The owner of the pod whose balance must be deposited.
+     * @param amount The amount of ETH to deposit.
+     * @dev Callable only by the podOwner's EigenPod contract.
+     */
+    function restakeBeaconChainETH(address podOwner, uint256 amount) external;
+
+    /**
+     * @notice Removes beacon chain ETH from EigenLayer on behalf of the owner of an EigenPod, when the
+     *         balance of a validator is lower than how much stake they have committed to EigenLayer
+     * @param podOwner The owner of the pod whose balance must be removed.
+     * @param amount The amount of ETH to remove.
+     * @dev Callable only by the podOwner's EigenPod contract.
+     */
+    function recordOvercommittedBeaconChainETH(address podOwner, uint256 beaconChainETHStrategyIndex, uint256 amount) external;
     
     /**
      * @notice Withdraws ETH that has been withdrawn from the beacon chain from the EigenPod.
