@@ -10,11 +10,6 @@ import "./IBeaconChainOracle.sol";
  */
 
 interface IEigenPod {
-    struct Validator {
-        VALIDATOR_STATUS status;
-        uint64 effectiveBalance; //ethpos stake in gwei
-    }
-
     enum VALIDATOR_STATUS {
         INACTIVE, //doesnt exist
         ACTIVE, //staked on ethpos and withdrawal credentials are pointed

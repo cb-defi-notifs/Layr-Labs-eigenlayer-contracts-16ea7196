@@ -49,7 +49,7 @@ contract EigenPod is IEigenPod, Initializable {
     address public podOwner;
 
     /// @notice this is a mapping of validator keys to a Validator struct containing pertinent info about the validator
-    mapping(bytes32 => Validator) public validators;
+    mapping(bytes32 => VALIDATOR_STATUS) public validatorStatus;
 
     /// @notice the claims on the amount of deserved partial withdrawals for the validators of an EigenPod
     PartialWithdrawalClaim[] public partialWithdrawalClaims;
@@ -116,7 +116,7 @@ contract EigenPod is IEigenPod, Initializable {
         // get merklizedPubkey: https://github.com/prysmaticlabs/prysm/blob/de8e50d8b6bcca923c38418e80291ca4c329848b/beacon-chain/state/stateutil/sync_committee.root.go#L45
         bytes32 merklizedPubkey = sha256(abi.encodePacked(pubkey, bytes16(0)));
 
-        require(validators[merklizedPubkey].status == VALIDATOR_STATUS.INACTIVE, "EigenPod.verifyCorrectWithdrawalCredentials: Validator not inactive");
+        require(validatorStatus[merklizedPubkey] == VALIDATOR_STATUS.INACTIVE, "EigenPod.verifyCorrectWithdrawalCredentials: Validator not inactive");
         // verify validator proof
         BeaconChainProofs.verifyValidatorFields(
             beaconStateRoot,
@@ -132,9 +132,7 @@ contract EigenPod is IEigenPod, Initializable {
         // make sure the balance is greater than the amount restaked per validator
         require(validatorBalanceGwei >= REQUIRED_BALANCE_GWEI, "EigenPod.verifyCorrectWithdrawalCredentials: validator's balance must be greater than or equal to restaked balance per operator");
         // set the status to active
-        validators[merklizedPubkey].status = VALIDATOR_STATUS.ACTIVE;
-        // set the effective balance to REQUIRED_BALANCE
-        validators[merklizedPubkey].effectiveBalance = REQUIRED_BALANCE_GWEI;
+        validatorStatus[merklizedPubkey] = VALIDATOR_STATUS.ACTIVE;
         // deposit RESTAKED_BALANCE_PER_VALIDATOR for new validator
         // @dev balances are in GWEI so need to convert
         eigenPodManager.restakeBeaconChainETH(podOwner, REQUIRED_BALANCE_WEI);
@@ -161,7 +159,7 @@ contract EigenPod is IEigenPod, Initializable {
         bytes32 beaconStateRoot = eigenPodManager.getBeaconChainStateRoot();
         // get merklizedPubkey
         bytes32 merklizedPubkey = sha256(abi.encodePacked(pubkey, bytes16(0)));
-        require(validators[merklizedPubkey].status == VALIDATOR_STATUS.ACTIVE, "EigenPod.verifyBalanceUpdate: Validator not active");
+        require(validatorStatus[merklizedPubkey] == VALIDATOR_STATUS.ACTIVE, "EigenPod.verifyBalanceUpdate: Validator not active");
         // verify validator proof
         BeaconChainProofs.verifyValidatorFields(
             beaconStateRoot,
@@ -174,9 +172,8 @@ contract EigenPod is IEigenPod, Initializable {
         uint64 validatorBalance = Endian.fromLittleEndianUint64(validatorFields[2]);
         require(validatorBalance != 0, "EigenPod.verifyCorrectWithdrawalCredentials: cannot prove balance update on full withdrawal");
         require(validatorBalance <= REQUIRED_BALANCE_GWEI, "EigenPod.verifyCorrectWithdrawalCredentials: validator's balance must be less than the restaked balance per operator");
-        // set the effective balance of the validator to 0 and mark them as overcommitted
-        validators[merklizedPubkey].effectiveBalance = 0;
-        validators[merklizedPubkey].status = VALIDATOR_STATUS.OVERCOMMITTED;
+        // mark the validator as overcommitted
+        validatorStatus[merklizedPubkey] = VALIDATOR_STATUS.OVERCOMMITTED;
         // allow EigenLayer to penalize the overcommitted balance, which is REQUIRED_BALANCE_GWEI
         // @dev if the validator's balance ever falls below REQUIRED_BALANCE_GWEI
         penaltiesDueToOvercommittingGwei += REQUIRED_BALANCE_GWEI;
@@ -199,16 +196,13 @@ contract EigenPod is IEigenPod, Initializable {
         bytes32 beaconStateRoot = eigenPodManager.getBeaconChainStateRoot();
         // get merklizedPubkey
         bytes32 merklizedPubkey = sha256(abi.encodePacked(pubkey, bytes16(0)));
-        require(validators[merklizedPubkey].status != VALIDATOR_STATUS.INACTIVE, "EigenPod.verifyBeaconChainFullWithdrawal: Validator is inactive");
+        require(validatorStatus[merklizedPubkey] != VALIDATOR_STATUS.INACTIVE, "EigenPod.verifyBeaconChainFullWithdrawal: Validator is inactive");
         // TODO: verify withdrawal proof 
         uint32 withdrawalBlockNumber = 0;
         uint64 withdrawalAmountGwei = 0; // in WEI!
         uint256 withdrawalAmountWei = 0; // in WEI!
 
         require(MAX_PARTIAL_WTIHDRAWAL_AMOUNT_GWEI < withdrawalAmountGwei, "EigenPod.verifyBeaconChainFullWithdrawal: cannot prove a partial withdrawal");
-
-        // set the effective balance of the validator to 0 and mark them as inactive
-        validators[merklizedPubkey].effectiveBalance = 0;
 
         // if the withdrawal amount is greater than the REQUIRED_BALANCE (i.e. the amount restaked on EigenLayer)
         if(withdrawalAmountGwei >= REQUIRED_BALANCE_GWEI) {
@@ -218,7 +212,7 @@ contract EigenPod is IEigenPod, Initializable {
             restakedExecutionLayerGwei += REQUIRED_BALANCE_GWEI;
         } else {
             // if the validator was overcommitted but the contract did not take note, record the penalty
-            if(validators[merklizedPubkey].status == VALIDATOR_STATUS.ACTIVE) {
+            if(validatorStatus[merklizedPubkey] == VALIDATOR_STATUS.ACTIVE) {
                 // allow EigenLayer to penalize the overcommitted balance
                 penaltiesDueToOvercommittingGwei += REQUIRED_BALANCE_GWEI - withdrawalAmountGwei;
                 // remove and undelegate shares in EigenLayer
@@ -229,7 +223,7 @@ contract EigenPod is IEigenPod, Initializable {
         }
 
         // set the validator status to inactive
-        validators[merklizedPubkey].status = VALIDATOR_STATUS.INACTIVE;
+        validatorStatus[merklizedPubkey] = VALIDATOR_STATUS.INACTIVE;
 
         // check withdrawal against current claim
         uint256 claimsLength = partialWithdrawalClaims.length - 1;
