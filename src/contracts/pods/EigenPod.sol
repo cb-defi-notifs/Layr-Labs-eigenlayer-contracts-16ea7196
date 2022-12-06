@@ -16,9 +16,9 @@ import "../interfaces/IBeaconChainETHReceiver.sol";
  * @title The implementation contract used for restaking beacon chain ETH on EigenLayer 
  * @author Layr Labs, Inc.
  * @notice The main functionalities are:
- * - creating new validators with their withdrawal credentials pointed to this contract
+ * - creating new ETH validators with their withdrawal credentials pointed to this contract
  * - proving from beacon chain state roots that withdrawal credentials are pointed to this contract
- * - proving from beacon chain state roots the balances of validators with their withdrawal credentials
+ * - proving from beacon chain state roots the balances of ETH validators with their withdrawal credentials
  *   pointed to this contract
  * - updating aggregate balances in the EigenPodManager
  * - withdrawing eth when withdrawals are initiated
@@ -41,7 +41,7 @@ contract EigenPod is IEigenPod, Initializable {
     /// @notice The amount of eth, in gwei that is restaked per validator
     uint64 immutable REQUIRED_BALANCE_GWEI;
 
-        /// @notice The amount of eth, in gwei that is restaked per validator
+    /// @notice The amount of eth, in wei that is restaked per validator
     uint256 immutable REQUIRED_BALANCE_WEI;
 
     /// @notice The amount of eth, in gwei that can be part of a partial withdrawal maximum
@@ -83,7 +83,8 @@ contract EigenPod is IEigenPod, Initializable {
         ethPOS = _ethPOS;
         PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS = _PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS;
         REQUIRED_BALANCE_WEI = _REQUIRED_BALANCE_WEI;
-        REQUIRED_BALANCE_GWEI = uint64(_REQUIRED_BALANCE_WEI / 1e9);
+        REQUIRED_BALANCE_GWEI = uint64(_REQUIRED_BALANCE_WEI / GWEI_TO_WEI);
+        require(_REQUIRED_BALANCE_WEI % GWEI_TO_WEI == 0, "EigenPod.contructor: _REQUIRED_BALANCE_WEI is not a whole number of gwei");
         MAX_PARTIAL_WTIHDRAWAL_AMOUNT_GWEI = _MAX_PARTIAL_WTIHDRAWAL_AMOUNT_GWEI;
         _disableInitializers();
     }
@@ -103,10 +104,10 @@ contract EigenPod is IEigenPod, Initializable {
 
     /**
      * @notice This function verifies that the withdrawal credentials of the podOwner are pointed to
-     * this contract.  It verifies the provided proof from the validator against the beacon chain state
+     * this contract.  It verifies the provided proof of the ETH validator against the beacon chain state
      * root.
-     * @param pubkey is the BLS public key for the validator.
-     * @param proofs is the bytes that prove the validator's metadata against a beacon state root
+     * @param pubkey is the BLS public key for the ETH validator.
+     * @param proofs is the bytes that prove the ETH validator's metadata against a beacon state root
      * @param validatorFields are the fields of the "Validator Container", refer to consensus specs 
      * for details: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
      */
@@ -122,7 +123,7 @@ contract EigenPod is IEigenPod, Initializable {
         bytes32 merklizedPubkey = sha256(abi.encodePacked(pubkey, bytes16(0)));
 
         require(validatorStatus[merklizedPubkey] == VALIDATOR_STATUS.INACTIVE, "EigenPod.verifyCorrectWithdrawalCredentials: Validator not inactive");
-        // verify validator proof
+        // verify ETH validator proof
         BeaconChainProofs.verifyValidatorFields(
             beaconStateRoot,
             proofs,
@@ -135,20 +136,20 @@ contract EigenPod is IEigenPod, Initializable {
         // convert the balance field from 8 bytes of little endian to uint64 big endian 💪
         uint64 validatorBalanceGwei = Endian.fromLittleEndianUint64(validatorFields[2]);
         // make sure the balance is greater than the amount restaked per validator
-        require(validatorBalanceGwei >= REQUIRED_BALANCE_GWEI, "EigenPod.verifyCorrectWithdrawalCredentials: validator's balance must be greater than or equal to restaked balance per operator");
+        require(validatorBalanceGwei >= REQUIRED_BALANCE_GWEI, "EigenPod.verifyCorrectWithdrawalCredentials: ETH validator's balance must be greater than or equal to restaked balance per operator");
         // set the status to active
         validatorStatus[merklizedPubkey] = VALIDATOR_STATUS.ACTIVE;
-        // deposit RESTAKED_BALANCE_PER_VALIDATOR for new validator
+        // deposit RESTAKED_BALANCE_PER_VALIDATOR for new ETH validator
         // @dev balances are in GWEI so need to convert
         eigenPodManager.restakeBeaconChainETH(podOwner, REQUIRED_BALANCE_WEI);
     }
 
     /**
-     * @notice This function records an overcommitment of stake to EigenLayer on behalf of a certain validator.
+     * @notice This function records an overcommitment of stake to EigenLayer on behalf of a certain ETH validator.
      *         If successful, the overcommitted balance is penalized (available for withdrawal whenever the pod's balance allows).
      *         They are also removed from the InvestmentManager and undelegated.
-     * @param pubkey is the BLS public key for the validator.
-     * @param proofs is the bytes that prove the validator's metadata against a beacon state root
+     * @param pubkey is the BLS public key for the ETH validator.
+     * @param proofs is the bytes that prove the ETH validator's metadata against a beacon state root
      * @param validatorFields are the fields of the "Validator Container", refer to consensus specs 
      * @param beaconChainETHStrategyIndex is the index of the beaconChainETHStrategy for the pod owner for the callback to 
      *                                    the InvestmentManger in case it must be removed from the list of the podOwners strategies
@@ -177,10 +178,10 @@ contract EigenPod is IEigenPod, Initializable {
         uint64 validatorBalance = Endian.fromLittleEndianUint64(validatorFields[2]);
         require(validatorBalance != 0, "EigenPod.verifyCorrectWithdrawalCredentials: cannot prove balance update on full withdrawal");
         require(validatorBalance <= REQUIRED_BALANCE_GWEI, "EigenPod.verifyCorrectWithdrawalCredentials: validator's balance must be less than the restaked balance per operator");
-        // mark the validator as overcommitted
+        // mark the ETH validator as overcommitted
         validatorStatus[merklizedPubkey] = VALIDATOR_STATUS.OVERCOMMITTED;
         // allow EigenLayer to penalize the overcommitted balance, which is REQUIRED_BALANCE_GWEI
-        // @dev if the validator's balance ever falls below REQUIRED_BALANCE_GWEI
+        // @dev if the ETH validator's balance ever falls below REQUIRED_BALANCE_GWEI
         penaltiesDueToOvercommittingGwei += REQUIRED_BALANCE_GWEI;
         // remove and undelegate shares in EigenLayer
         eigenPodManager.recordOvercommittedBeaconChainETH(podOwner, beaconChainETHStrategyIndex, REQUIRED_BALANCE_GWEI);
@@ -188,7 +189,7 @@ contract EigenPod is IEigenPod, Initializable {
 
     /**
      * @notice This function records a full withdrawal on behalf of one of the Ethereum validators for this EigenPod
-     * @param pubkey is the BLS public key for the validator.
+     * @param pubkey is the BLS public key for the ETH validator.
      * @param beaconChainETHStrategyIndex is the index of the beaconChainETHStrategy for the pod owner for the callback to 
      *                                    the EigenPodManager to the InvestmentManager in case it must be removed from the 
      *                                    podOwner's list of strategies
@@ -202,7 +203,7 @@ contract EigenPod is IEigenPod, Initializable {
         bytes32 beaconStateRoot = eigenPodManager.getBeaconChainStateRoot();
         // get merklizedPubkey
         bytes32 merklizedPubkey = sha256(abi.encodePacked(pubkey, bytes16(0)));
-        require(validatorStatus[merklizedPubkey] != VALIDATOR_STATUS.INACTIVE, "EigenPod.verifyBeaconChainFullWithdrawal: Validator is inactive");
+        require(validatorStatus[merklizedPubkey] != VALIDATOR_STATUS.INACTIVE, "EigenPod.verifyBeaconChainFullWithdrawal: ETH validator is inactive on EigenLayer");
         // TODO: verify withdrawal proof 
         uint32 withdrawalBlockNumber = 0;
         uint64 withdrawalAmountGwei = 0; // in WEI!
@@ -217,7 +218,7 @@ contract EigenPod is IEigenPod, Initializable {
             // and the extra execution layer ETH in the contract is REQUIRED_BALACE that must be wtihdrawn from EigenLayer
             restakedExecutionLayerGwei += REQUIRED_BALANCE_GWEI;
         } else {
-            // if the validator was overcommitted but the contract did not take note, record the penalty
+            // if the ETH validator was overcommitted but the contract did not take note, record the penalty
             if(validatorStatus[merklizedPubkey] == VALIDATOR_STATUS.ACTIVE) {
                 // allow EigenLayer to penalize the overcommitted balance
                 penaltiesDueToOvercommittingGwei += REQUIRED_BALANCE_GWEI - withdrawalAmountGwei;
@@ -228,7 +229,7 @@ contract EigenPod is IEigenPod, Initializable {
             restakedExecutionLayerGwei += withdrawalAmountGwei;
         }
 
-        // set the validator status to inactive
+        // set the ETH validator status to inactive
         validatorStatus[merklizedPubkey] = VALIDATOR_STATUS.INACTIVE;
 
         // check withdrawal against current claim
@@ -258,7 +259,7 @@ contract EigenPod is IEigenPod, Initializable {
      *                  partialWithdrawalsGwei
      *         if any other full withdrawals are proven to have happened before block.number, the partial withdrawal is marked as failed
      * @param expireBlockNumber this is the block number before a balance update must be mined to avoid race conditions with pending withdrawals
-     *                          it will be set to the blockNumber at which the next full withdrawal for a validator on this pod is going to occur
+     *                          it will be set to the blockNumber at which the next full withdrawal for a ETH validator on this pod is going to occur
      *                          or type(uint32).max otherwise
      */
     function recordPartialWithdrawalClaim(uint32 expireBlockNumber) external onlyEigenPodOwner {
