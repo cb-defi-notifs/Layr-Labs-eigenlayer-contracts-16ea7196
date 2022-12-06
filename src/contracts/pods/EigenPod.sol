@@ -22,6 +22,9 @@ import "../interfaces/IBeaconChainETHReceiver.sol";
  *   pointed to this contract
  * - updating aggregate balances in the EigenPodManager
  * - withdrawing eth when withdrawals are initiated
+ * @dev Note that all beacon chain balances are stored as gwei within the beacon chain datastructures. We choose
+ *   to account balances and penalties in terms of gwei in the EigenPod contract and convert to wei when making
+ *   calls to other contracts
  */
 contract EigenPod is IEigenPod, Initializable {
     using BytesLib for bytes;
@@ -29,9 +32,11 @@ contract EigenPod is IEigenPod, Initializable {
     uint64 constant GWEI_TO_WEI = 1e9;
 
     //TODO: change this to constant in prod
+    /// @notice This is the beacon chain deposit contract
     IETHPOSDeposit immutable ethPOS;
 
-    uint32 immutable PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD;
+    /// @notice The length, in blocks, if the fraud proof period following a claim on the amount of partial withdrawals in an EigenPod
+    uint32 immutable public PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS;
 
     /// @notice The amount of eth, in gwei that is restaked per validator
     uint64 immutable REQUIRED_BALANCE_GWEI;
@@ -74,9 +79,9 @@ contract EigenPod is IEigenPod, Initializable {
         _;
     }
 
-    constructor(IETHPOSDeposit _ethPOS, uint32 _PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD, uint256 _REQUIRED_BALANCE_WEI, uint64 _MAX_PARTIAL_WTIHDRAWAL_AMOUNT_GWEI) {
+    constructor(IETHPOSDeposit _ethPOS, uint32 _PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS, uint256 _REQUIRED_BALANCE_WEI, uint64 _MAX_PARTIAL_WTIHDRAWAL_AMOUNT_GWEI) {
         ethPOS = _ethPOS;
-        PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD = _PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD;
+        PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS = _PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS;
         REQUIRED_BALANCE_WEI = _REQUIRED_BALANCE_WEI;
         REQUIRED_BALANCE_GWEI = uint64(_REQUIRED_BALANCE_WEI / 1e9);
         MAX_PARTIAL_WTIHDRAWAL_AMOUNT_GWEI = _MAX_PARTIAL_WTIHDRAWAL_AMOUNT_GWEI;
@@ -288,7 +293,7 @@ contract EigenPod is IEigenPod, Initializable {
             "EigenPod.redeemPartialWithdrawals: can only redeem parital withdrawals after fraud proof period"
         );
         require(
-            uint32(block.number) - claim.blockNumber > PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD,
+            uint32(block.number) - claim.blockNumber > PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS,
             "EigenPod.redeemPartialWithdrawals: can only redeem parital withdrawals after fraud proof period"
         );
         // pay penalties if possible

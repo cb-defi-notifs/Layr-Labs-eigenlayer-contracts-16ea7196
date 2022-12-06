@@ -44,7 +44,7 @@ interface IEigenPodManager {
     function recordOvercommittedBeaconChainETH(address podOwner, uint256 beaconChainETHStrategyIndex, uint256 amount) external;
     
     /**
-     * @notice Withdraws ETH that has been withdrawn from the beacon chain from the EigenPod.
+     * @notice Withdraws ETH from an EigenPod. The ETH must have first been withdrawn from the beacon chain.
      * @param podOwner The owner of the pod whose balance must be withdrawn.
      * @param recipient The recipient of withdrawn ETH.
      * @param amount The amount of ETH to withdraw.

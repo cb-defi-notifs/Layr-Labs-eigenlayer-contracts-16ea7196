@@ -36,6 +36,9 @@ interface IEigenPod {
         uint64 amountGwei;
     }
 
+    /// @notice The length, in blocks, if the fraud proof period following a claim on the amount of partial withdrawals in an EigenPod
+    function PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS() external returns(uint32);
+
     /// @notice Used to initialize the pointers to contracts crucial to the pod's functionality, in beacon proxy construction from EigenPodManager
     function initialize(IEigenPodManager _eigenPodManager, address owner) external;
 
