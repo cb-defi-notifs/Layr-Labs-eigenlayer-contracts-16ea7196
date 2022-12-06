@@ -149,7 +149,7 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager 
      * @param amount The amount of ETH to withdraw.
      * @dev Callable only by the slasher.
      */
-    function withdrawalPenalties(address podOwner, address recipient, uint256 amount) external onlySlasher {
+    function withdrawPenalties(address podOwner, address recipient, uint256 amount) external onlySlasher {
         podOwnerToPenalties[podOwner] -= amount;
         // transfer penalties from pod to `recipient`
         if (Address.isContract(recipient)) {

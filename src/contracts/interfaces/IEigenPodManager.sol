@@ -65,7 +65,7 @@ interface IEigenPodManager {
      * @param amount The amount of ETH to withdraw.
      * @dev Callable only by the slasher.
      */
-    function withdrawalPenalties(address podOwner, address recipient, uint256 amount) external;
+    function withdrawPenalties(address podOwner, address recipient, uint256 amount) external;
 
     /**
      * @notice Updates the oracle contract that provides the beacon chain state root

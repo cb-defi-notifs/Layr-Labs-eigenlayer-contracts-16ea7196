@@ -113,8 +113,8 @@ interface IEigenPod {
      *                  withdrawableDueToExcessGwei + 
      *                  partialWithdrawalsGwei
      *         if any other full withdrawals are proven to have happened before block.number, the partial withdrawal is marked as failed
-     * @param expireBlockNumber this is the block number before a balance update must be mined to avoid race conditions with pending withdrawals
-     *                          it will be set to the blockNumber at which the next full withdrawal for a validator on this pod is going to occur
+     * @param expireBlockNumber this is the block number before which a balance update to this pod must be mined, in order to avoid race conditions with pending withdrawals.
+     *                          The value of this parameter is set by the EigenPodManager. If applicable, it will be set to the blockNumber at which the next full withdrawal for a validator on this pod is going to occur,
      *                          or type(uint32).max otherwise
      */
     function recordPartialWithdrawalClaim(uint32 expireBlockNumber) external;
