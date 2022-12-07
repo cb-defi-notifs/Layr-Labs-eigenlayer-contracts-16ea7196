@@ -256,20 +256,18 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         generalReg1.registerOperator(operator, uint32(block.timestamp) + 3 days);
         //*******************************************************************************************//
 
+        {
+                IEigenPod newPod;
+                newPod = eigenPodManager.getPod(podOwner);
+                //adding balance to pod to simulate a withdrawal
+                cheats.deal(address(newPod), stakeAmount);
 
-
-        IEigenPod newPod;
-        newPod = eigenPodManager.getPod(podOwner);
-        //adding balance to pod to simulate a withdrawal
-        cheats.deal(address(newPod), stakeAmount);
-
-        //getting proof for withdrawal from beacon chain
-        (beaconStateRoot, beaconStateMerkleProof, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) = getCompleteWithdrawalProof();
-        beaconChainOracle.setBeaconChainStateRoot(beaconStateRoot);
-        bytes32 validatorIndex = bytes32(uint256(0));
-        bytes memory proofs = abi.encodePacked(validatorTreeRoot, beaconStateMerkleProof, validatorRoot, validatorIndex, validatorMerkleProof);
-        newPod.verifyBeaconChainFullWithdrawal(pubkey, proofs, validatorContainerFields,  0);
-
+                //getting proof for withdrawal from beacon chain
+                (beaconStateRoot, beaconStateMerkleProof, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) = getCompleteWithdrawalProof();
+                beaconChainOracle.setBeaconChainStateRoot(beaconStateRoot);
+                bytes memory proofs = abi.encodePacked(validatorTreeRoot, beaconStateMerkleProof, validatorRoot, bytes32(uint256(0)), validatorMerkleProof);
+                newPod.verifyBeaconChainFullWithdrawal(pubkey, proofs, validatorContainerFields,  0);
+        }
 
         IInvestmentStrategy[] memory strategyArray = new IInvestmentStrategy[](1);
         IERC20[] memory tokensArray = new IERC20[](1);
@@ -286,7 +284,6 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
 
         uint256 podOwnerSharesBefore = investmentManager.investorStratShares(podOwner, investmentManager.beaconChainETHStrategy());
         
-
         cheats.warp(uint32(block.timestamp) + 1 days);
         cheats.roll(uint32(block.timestamp) + 1 days);
 
@@ -349,19 +346,19 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         generalReg1.registerOperator(operator, uint32(block.timestamp) + 3 days);
         //*********************************************************************************************//
 
+        {
+                IEigenPod newPod;
+                newPod = eigenPodManager.getPod(podOwner);
+                //adding balance to pod to simulate a withdrawal
+                cheats.deal(address(newPod), stakeAmount);
 
-        IEigenPod newPod;
-        newPod = eigenPodManager.getPod(podOwner);
-        //adding balance to pod to simulate a withdrawal
-        cheats.deal(address(newPod), stakeAmount);
-
-        //getting proof for withdrawal from beacon chain
-        (beaconStateRoot, beaconStateMerkleProof, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) = getCompleteWithdrawalProof();
-        beaconChainOracle.setBeaconChainStateRoot(beaconStateRoot);
-        bytes32 validatorIndex = bytes32(uint256(0));
-        bytes memory proofs = abi.encodePacked(validatorTreeRoot, beaconStateMerkleProof, validatorRoot, validatorIndex, validatorMerkleProof);
-        newPod.verifyBeaconChainFullWithdrawal(pubkey, proofs, validatorContainerFields,  0);
-
+                //getting proof for withdrawal from beacon chain
+                (beaconStateRoot, beaconStateMerkleProof, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) = getCompleteWithdrawalProof();
+                beaconChainOracle.setBeaconChainStateRoot(beaconStateRoot);
+                bytes memory proofs = abi.encodePacked(validatorTreeRoot, beaconStateMerkleProof, validatorRoot, bytes32(uint256(0)), validatorMerkleProof);
+                newPod.verifyBeaconChainFullWithdrawal(pubkey, proofs, validatorContainerFields,  0);
+        }
+        
         IInvestmentStrategy[] memory strategyArray = new IInvestmentStrategy[](1);
         IERC20[] memory tokensArray = new IERC20[](1);
         uint256[] memory shareAmounts = new uint256[](1);

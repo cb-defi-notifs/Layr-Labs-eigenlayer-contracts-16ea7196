@@ -243,16 +243,13 @@ contract InvestmentManager is
         IInvestmentStrategy[] calldata strategies,
         IERC20[] calldata tokens,
         uint256[] calldata shares,
-        WithdrawerAndNonce calldata withdrawerAndNonce,
+        address withdrawer,
         bool undelegateIfPossible
     )
         external
         // the `onlyWhenNotPaused` modifier is commented out and instead implemented as the first line of the function, since this solves a stack-too-deep error
         // onlyWhenNotPaused(PAUSED_WITHDRAWALS)
-        onlyNotFrozen(msg.sender)uint64 validatorBalance = Endian.fromLittleEndianUint64(validatorFields[2]);
-
-        require(validatorBalance != 0, "EigenPod.verifyCorrectWithdrawalCredentials: cannot prove balance update on full withdrawal");emit
-
+        onlyNotFrozen(msg.sender)
         nonReentrant
         returns (bytes32)
     {
@@ -267,7 +264,7 @@ contract InvestmentManager is
             for (uint256 i = 0; i < strategies.length;) {
                 if (strategies[i] == beaconChainETHStrategy) {
 
-                    require(withdrawerAndNonce.withdrawer == msg.sender,
+                    require(withdrawer == msg.sender,
                         "InvestmentManager.queueWithdrawal: cannot queue a withdrawal of Beacon Chain ETH to a different address");
                     require(strategies.length == 1,
                         "InvestmentManager.queueWithdrawal: cannot queue a withdrawal including Beacon Chain ETH and other tokens");
