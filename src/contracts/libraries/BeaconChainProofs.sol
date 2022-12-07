@@ -185,6 +185,6 @@ library BeaconChainProofs{
         );
         require(valid, "invalid withdrawal container inclusion proof");
 
-        require(validatorIndex == withdrawalFields[1], "provided validatorIndex does not match withdrawal proof");
+        require(bytes32(uint256(validatorIndex)) == withdrawalFields[1], "provided validatorIndex does not match withdrawal proof");
     }
 }

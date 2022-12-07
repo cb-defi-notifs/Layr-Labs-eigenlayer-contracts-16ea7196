@@ -58,7 +58,7 @@ contract EigenPod is IEigenPod, Initializable, Test {
     address public podOwner;
 
     /// @notice this is a mapping of validator keys to a Validator struct containing pertinent info about the validator
-    mapping(bytes32 => VALIDATOR_STATUS) public validatorStatus;
+    mapping(uint64 => VALIDATOR_STATUS) public validatorStatus;
 
     /// @notice the claims on the amount of deserved partial withdrawals for the validators of an EigenPod
     PartialWithdrawalClaim[] public partialWithdrawalClaims;
@@ -109,32 +109,28 @@ contract EigenPod is IEigenPod, Initializable, Test {
      * @notice This function verifies that the withdrawal credentials of the podOwner are pointed to
      * this contract.  It verifies the provided proof of the ETH validator against the beacon chain state
      * root.
-     * @param pubkey is the BLS public key for the ETH validator.
+     * @param validatorIndex is the index of the ETH validator in the Validator Registry of the Beacon State.
      * @param proofs is the bytes that prove the ETH validator's metadata against a beacon state root
      * @param validatorFields are the fields of the "Validator Container", refer to consensus specs 
      * for details: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
      */
     function verifyCorrectWithdrawalCredentials(
-        bytes calldata pubkey, 
+        uint64 validatorIndex, 
         bytes calldata proofs, 
         bytes32[] calldata validatorFields
     ) external {
         // TODO: tailor this to production oracle
         bytes32 beaconStateRoot = eigenPodManager.getBeaconChainStateRoot();
 
-        // get merklizedPubkey: https://github.com/prysmaticlabs/prysm/blob/de8e50d8b6bcca923c38418e80291ca4c329848b/beacon-chain/state/stateutil/sync_committee.root.go#L45
-        bytes32 merklizedPubkey = sha256(abi.encodePacked(pubkey, bytes16(0)));
 
-        require(validatorStatus[merklizedPubkey] == VALIDATOR_STATUS.INACTIVE, "EigenPod.verifyCorrectWithdrawalCredentials: Validator not inactive");
+        require(validatorStatus[validatorIndex] == VALIDATOR_STATUS.INACTIVE, "EigenPod.verifyCorrectWithdrawalCredentials: Validator not inactive");
         // verify ETH validator proof
         BeaconChainProofs.verifyValidatorFields(
             beaconStateRoot,
             proofs,
             validatorFields
         );
-        // require that the first field is the merkleized pubkey
-        require(validatorFields[0] == merklizedPubkey, "EigenPod.verifyCorrectWithdrawalCredentials: Proof is not for provided pubkey");
-
+        
         require(validatorFields[1] == podWithdrawalCredentials().toBytes32(0), "EigenPod.verifyCorrectWithdrawalCredentials: Proof is not for this EigenPod");
         // convert the balance field from 8 bytes of little endian to uint64 big endian 💪
         uint64 validatorBalanceGwei = Endian.fromLittleEndianUint64(validatorFields[2]);
@@ -142,7 +138,7 @@ contract EigenPod is IEigenPod, Initializable, Test {
         // make sure the balance is greater than the amount restaked per validator
         require(validatorBalanceGwei >= REQUIRED_BALANCE_GWEI, "EigenPod.verifyCorrectWithdrawalCredentials: ETH validator's balance must be greater than or equal to restaked balance per operator");
         // set the status to active
-        validatorStatus[merklizedPubkey] = VALIDATOR_STATUS.ACTIVE;
+        validatorStatus[validatorIndex] = VALIDATOR_STATUS.ACTIVE;
         // deposit RESTAKED_BALANCE_PER_VALIDATOR for new ETH validator
         // @dev balances are in GWEI so need to convert
         eigenPodManager.restakeBeaconChainETH(podOwner, REQUIRED_BALANCE_WEI);
@@ -152,7 +148,7 @@ contract EigenPod is IEigenPod, Initializable, Test {
      * @notice This function records an overcommitment of stake to EigenLayer on behalf of a certain ETH validator.
      *         If successful, the overcommitted balance is penalized (available for withdrawal whenever the pod's balance allows).
      *         They are also removed from the InvestmentManager and undelegated.
-     * @param pubkey is the BLS public key for the ETH validator.
+     * @param validatorIndex is the validator registry index for the ETH validator.
      * @param proofs is the bytes that prove the ETH validator's metadata against a beacon state root
      * @param validatorFields are the fields of the "Validator Container", refer to consensus specs 
      * @param beaconChainETHStrategyIndex is the index of the beaconChainETHStrategy for the pod owner for the callback to 
@@ -160,7 +156,7 @@ contract EigenPod is IEigenPod, Initializable, Test {
      * for details: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
      */
     function verifyOvercommitedStake(
-        bytes calldata pubkey, 
+        uint64 validatorIndex, 
         bytes calldata proofs, 
         bytes32[] calldata validatorFields,
         uint256 beaconChainETHStrategyIndex
@@ -168,23 +164,21 @@ contract EigenPod is IEigenPod, Initializable, Test {
         //TODO: tailor this to production oracle
         bytes32 beaconStateRoot = eigenPodManager.getBeaconChainStateRoot();
         // get merklizedPubkey
-        bytes32 merklizedPubkey = sha256(abi.encodePacked(pubkey, bytes16(0)));
-        require(validatorStatus[merklizedPubkey] == VALIDATOR_STATUS.ACTIVE, "EigenPod.verifyBalanceUpdate: Validator not active");
+        require(validatorStatus[validatorIndex] == VALIDATOR_STATUS.ACTIVE, "EigenPod.verifyBalanceUpdate: Validator not active");
         // verify validator proof
         BeaconChainProofs.verifyValidatorFields(
             beaconStateRoot,
             proofs,
             validatorFields
         );
-        // require that the first field is the merkleized pubkey
-        require(validatorFields[0] == merklizedPubkey, "EigenPod.verifyBalanceUpdate: Proof is not for provided pubkey");
+
         // convert the balance field from 8 bytes of little endian to uint64 big endian 💪
         uint64 validatorBalance = Endian.fromLittleEndianUint64(validatorFields[2]);
 
         require(validatorBalance != 0, "EigenPod.verifyCorrectWithdrawalCredentials: cannot prove balance update on full withdrawal");
         require(validatorBalance <= REQUIRED_BALANCE_GWEI, "EigenPod.verifyCorrectWithdrawalCredentials: validator's balance must be less than the restaked balance per operator");
         // mark the ETH validator as overcommitted
-        validatorStatus[merklizedPubkey] = VALIDATOR_STATUS.OVERCOMMITTED;
+        validatorStatus[validatorIndex] = VALIDATOR_STATUS.OVERCOMMITTED;
         // allow EigenLayer to penalize the overcommitted balance, which is REQUIRED_BALANCE_GWEI
         // @dev if the ETH validator's balance ever falls below REQUIRED_BALANCE_GWEI
         penaltiesDueToOvercommittingGwei += REQUIRED_BALANCE_GWEI;
@@ -194,30 +188,28 @@ contract EigenPod is IEigenPod, Initializable, Test {
 
     /**
      * @notice This function records a full withdrawal on behalf of one of the Ethereum validators for this EigenPod
-     * @param pubkey is the BLS public key for the ETH validator.
+     * @param validatorIndex is the validator index for the ETH validator.
      * @param beaconChainETHStrategyIndex is the index of the beaconChainETHStrategy for the pod owner for the callback to 
      *                                    the EigenPodManager to the InvestmentManager in case it must be removed from the 
      *                                    podOwner's list of strategies
      */
     function verifyBeaconChainFullWithdrawal(
-        bytes calldata pubkey, 
+        uint64 validatorIndex, 
         bytes calldata proofs, 
-        uint256 validatorIndex,
         bytes32[] calldata withdrawalFields,
         uint256 beaconChainETHStrategyIndex
     ) external {
         //TODO: tailor this to production oracle
         bytes32 beaconStateRoot = eigenPodManager.getBeaconChainStateRoot();
-        // get merklizedPubkey
-        bytes32 merklizedPubkey = sha256(abi.encodePacked(pubkey, bytes16(0)));
-        require(validatorStatus[merklizedPubkey] != VALIDATOR_STATUS.INACTIVE, "EigenPod.verifyBeaconChainFullWithdrawal: ETH validator is inactive on EigenLayer");
 
-        BeaconChainProofs.verifyWithdrawalProofs(
-            beaconStateRoot,
-            proofs,
-            validatorIndex,
-            withdrawalFields
-        );
+        require(validatorStatus[validatorIndex] != VALIDATOR_STATUS.INACTIVE, "EigenPod.verifyBeaconChainFullWithdrawal: ETH validator is inactive on EigenLayer");
+
+        // BeaconChainProofs.verifyWithdrawalProofs(
+        //     beaconStateRoot,
+        //     proofs,
+        //     validatorIndex,
+        //     withdrawalFields
+        // );
 
         uint32 withdrawalBlockNumber = uint32(block.number);
         uint256 withdrawalAmountWei = address(this).balance;
@@ -233,7 +225,7 @@ contract EigenPod is IEigenPod, Initializable, Test {
             restakedExecutionLayerGwei += REQUIRED_BALANCE_GWEI;
         } else {
             // if the ETH validator was overcommitted but the contract did not take note, record the penalty
-            if(validatorStatus[merklizedPubkey] == VALIDATOR_STATUS.ACTIVE) {
+            if(validatorStatus[validatorIndex] == VALIDATOR_STATUS.ACTIVE) {
                 // allow EigenLayer to penalize the overcommitted balance
                 penaltiesDueToOvercommittingGwei += REQUIRED_BALANCE_GWEI - withdrawalAmountGwei;
                 // remove and undelegate shares in EigenLayer
@@ -244,7 +236,7 @@ contract EigenPod is IEigenPod, Initializable, Test {
         }
 
         // set the ETH validator status to inactive
-        validatorStatus[merklizedPubkey] = VALIDATOR_STATUS.INACTIVE;
+        validatorStatus[validatorIndex] = VALIDATOR_STATUS.INACTIVE;
 
         // check withdrawal against current claim
         uint256 claimsLength = partialWithdrawalClaims.length;
