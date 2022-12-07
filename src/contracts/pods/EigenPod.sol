@@ -204,6 +204,7 @@ contract EigenPod is IEigenPod, Initializable, Test {
 
         require(validatorStatus[validatorIndex] != VALIDATOR_STATUS.INACTIVE, "EigenPod.verifyBeaconChainFullWithdrawal: ETH validator is inactive on EigenLayer");
 
+        //TODO: UNCOMMENT
         // BeaconChainProofs.verifyWithdrawalProofs(
         //     beaconStateRoot,
         //     proofs,
@@ -212,8 +213,7 @@ contract EigenPod is IEigenPod, Initializable, Test {
         // );
 
         uint32 withdrawalBlockNumber = uint32(block.number);
-        uint256 withdrawalAmountWei = address(this).balance;
-        uint64 withdrawalAmountGwei = uint64(withdrawalAmountWei / GWEI_TO_WEI);
+        uint64 withdrawalAmountGwei = Endian.fromLittleEndianUint64(withdrawalFields[3]);
 
         require(MIN_FULL_WITHDRAWAL_AMOUNT_GWEI < withdrawalAmountGwei, "EigenPod.verifyBeaconChainFullWithdrawal: withdrawal is too small to be a full withdrawal");
 
