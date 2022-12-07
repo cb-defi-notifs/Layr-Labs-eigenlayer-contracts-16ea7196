@@ -210,7 +210,7 @@ contract EigenPod is IEigenPod, Initializable, Test {
         // get merklizedPubkey
         bytes32 merklizedPubkey = sha256(abi.encodePacked(pubkey, bytes16(0)));
         require(validatorStatus[merklizedPubkey] != VALIDATOR_STATUS.INACTIVE, "EigenPod.verifyBeaconChainFullWithdrawal: ETH validator is inactive on EigenLayer");
-        
+
         // TODO: verify withdrawal proof 
         BeaconChainProofs.verifyValidatorFields(
             beaconStateRoot,
@@ -218,7 +218,11 @@ contract EigenPod is IEigenPod, Initializable, Test {
             validatorFields
         );
         uint32 withdrawalBlockNumber = uint32(block.number);
-        uint64 withdrawalAmountGwei = uint64(address(this).balance);
+        uint256 withdrawalAmountWei = address(this).balance;
+        uint64 withdrawalAmountGwei = uint64(withdrawalAmountWei / GWEI_TO_WEI);
+
+        emit log_uint(withdrawalAmountGwei);
+
         require(MIN_FULL_WITHDRAWAL_AMOUNT_GWEI < withdrawalAmountGwei, "EigenPod.verifyBeaconChainFullWithdrawal: withdrawal is too small to be a full withdrawal");
 
         // if the withdrawal amount is greater than the REQUIRED_BALANCE (i.e. the amount restaked on EigenLayer)
@@ -243,9 +247,9 @@ contract EigenPod is IEigenPod, Initializable, Test {
         validatorStatus[merklizedPubkey] = VALIDATOR_STATUS.INACTIVE;
 
         // check withdrawal against current claim
-        uint256 claimsLength = partialWithdrawalClaims.length - 1;
+        uint256 claimsLength = partialWithdrawalClaims.length;
         if(claimsLength != 0) {
-            PartialWithdrawalClaim memory currentClaim = partialWithdrawalClaims[partialWithdrawalClaims.length - 1];
+            PartialWithdrawalClaim memory currentClaim = partialWithdrawalClaims[claimsLength - 1];
             // if a full withdrawal is proven before the current partial withdrawal claim and the partial withdrawal claim 
             // is pending (still in its fraud proof period), then the claim is incorrect and fraudulent
             if(withdrawalBlockNumber <= currentClaim.blockNumber && currentClaim.status == PARTIAL_WITHDRAWAL_CLAIM_STATUS.PENDING) {
@@ -350,6 +354,7 @@ contract EigenPod is IEigenPod, Initializable, Test {
         onlyEigenPodManager
     {
         emit log_uint(restakedExecutionLayerGwei);
+        emit log_uint(uint64(amount / GWEI_TO_WEI));
         // reduce the restakedExecutionLayerGwei
         restakedExecutionLayerGwei -= uint64(amount / GWEI_TO_WEI);
         emit log_named_uint("ssssamount", address(this).balance);
