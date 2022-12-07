@@ -15,7 +15,7 @@ import "../libraries/Endian.sol";
 //BeaconState Spec: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#beaconstate
 library BeaconChainProofs{
     using BytesLib for bytes;
-    //constants are the number of fields and the heights of the different merkle trees used in merkleizing beacon chain containers
+    // constants are the number of fields and the heights of the different merkle trees used in merkleizing beacon chain containers
     uint256 public constant NUM_BEACON_BLOCK_HEADER_FIELDS = 5;
     uint256 public constant BEACON_BLOCK_HEADER_FIELD_TREE_HEIGHT = 3;
 
@@ -31,28 +31,32 @@ library BeaconChainProofs{
     uint256 public constant NUM_EXECUTION_PAYLOAD_HEADER_FIELDS = 15;
     uint256 public constant EXECUTION_PAYLOAD_HEADER_FIELD_TREE_HEIGHT = 4;
 
-    //SLOTS_PER_HISTORICAL_ROOT = 2**13, so tree height is 13
+    // SLOTS_PER_HISTORICAL_ROOT = 2**13, so tree height is 13
     uint256 public constant STATE_ROOTS_TREE_HEIGHT = 13;
 
 
     uint256 public constant NUM_WITHDRAWAL_FIELDS = 4;
-    //tree height for hash tree of an individual withdrawal container
+    // tree height for hash tree of an individual withdrawal container
     uint256 public constant WITHDRAWAL_FIELD_TREE_HEIGHT = 2;
 
     uint256 public constant VALIDATOR_TREE_HEIGHT = 40;
 
-    //the max withdrawals per payload is 2**4, making tree height = 4
+    // the max withdrawals per payload is 2**4, making tree height = 4
     uint256 public constant WITHDRAWALS_TREE_HEIGHT = 4;
 
-    //in beacon block header
+    // in beacon block header
     uint256 public constant STATE_ROOT_INDEX = 3;
     uint256 public constant PROPOSER_INDEX_INDEX = 1;
-    //in beacon state
+    // in beacon state
     uint256 public constant STATE_ROOTS_INDEX = 6;
     uint256 public constant ETH_1_ROOT_INDEX = 8;
     uint256 public constant VALIDATOR_TREE_ROOT_INDEX = 11;
     uint256 public constant WITHDRAWALS_ROOT_INDEX = 14;
     uint256 public constant EXECUTION_PAYLOAD_HEADER_INDEX = 24;
+    // in validator
+    uint256 public constant VALIDATOR_WITHDRAWAL_CREDENTIALS_INDEX = 1;
+    uint256 public constant VALIDATOR_BALANCE_INDEX = 2;
+
 
     //TODO: Merklization can be optimized by supplying zero hashes. later on tho
     function computePhase0BeaconBlockHeaderRoot(bytes32[NUM_BEACON_BLOCK_HEADER_FIELDS] calldata blockHeaderFields) internal pure returns(bytes32) {
@@ -100,12 +104,13 @@ library BeaconChainProofs{
      * @param beaconStateRoot is the beacon chain state root.
      * @param proofs is the data used in proving the validator's fields
      * @param validatorFields the claimed fields of the validator
+     * @return validatorIndex the index of the proven validator
      */
     function verifyValidatorFields(
         bytes32 beaconStateRoot, 
         bytes calldata proofs, 
         bytes32[] calldata validatorFields
-    ) internal view {
+    ) internal view returns(uint64) {
         require(validatorFields.length == 2**VALIDATOR_FIELD_TREE_HEIGHT, "EigenPod.verifyValidatorFields: Validator fields has incorrect length");
         uint256 pointer;
         bool valid;
@@ -130,6 +135,7 @@ library BeaconChainProofs{
         require(validatorRoot == Merkle.merkleizeSha256(validatorFields), "EigenPod.verifyValidatorFields: Invalid validator fields");
         //offset another 32 bytes for the length of the validatorRoot
         pointer += 32;
+        uint64 validatorIndex = uint64(proofs.toUint256(pointer));
         //verify that the validatorRoot is within the validator tree
         valid = Merkle.verifyInclusionSha256(
             /**
@@ -139,9 +145,10 @@ library BeaconChainProofs{
             proofs.slice(pointer + 32, 32 * (BeaconChainProofs.VALIDATOR_TREE_HEIGHT + 1)),
             validatorTreeRoot,
             validatorRoot,
-            proofs.toUint256(pointer) //validatorIndex
+            uint256(validatorIndex)
         );
         require(valid, "EigenPod.verifyValidatorFields: Invalid validator root from validator tree root proof");
+        return validatorIndex;
     }
 
     function verifyWithdrawalProofs(
