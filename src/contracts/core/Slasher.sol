@@ -109,12 +109,8 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
      * @dev Typically, this function must be called prior to registering for a middleware.
      */
     function optIntoSlashing(address contractAddress) external onlyWhenNotPaused(PAUSED_OPT_INTO_SLASHING) {
+        require(delegation.isOperator(msg.sender), "Slasher.optIntoSlashing: msg.sender is not a registered operator");
         _optIntoSlashing(msg.sender, contractAddress);
-    }
-
-    /// @notice Called by a contract to revoke its ability to slash `operator`, once `_bondedUntil` is reached.
-    function revokeSlashingAbility(address operator, uint32 _bondedUntil) external {
-        _revokeSlashingAbility(operator, msg.sender, _bondedUntil);
     }
 
     /**
@@ -230,14 +226,17 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
      *         is slashable until serveUntil
      * @param operator the operator whose stake update is being recorded
      * @param serveUntil the timestamp until which the operator's stake at the current block is slashable
-     * @dev removes the middleware's slashing contract to the operator's linked list
+     * @dev removes the middleware's slashing contract to the operator's linked list and revokes the middleware's (i.e. caller's) ability to
+     * slash `operator` once `serveUntil` is reached
      */
-    function recordLastStakeUpdate(address operator, uint32 serveUntil) external onlyCanSlash(operator) {
+    function recordLastStakeUpdateAndRevokeSlashingAbility(address operator, uint32 serveUntil) external onlyCanSlash(operator) {
         // update the 'stalest' stakes update time + latest 'serveUntil' time of the `operator`
         _recordUpdateAndAddToMiddlewareTimes(operator, uint32(block.number), serveUntil);
-        //remove the middleware from the list
+        // remove the middleware from the list
         require(operatorToWhitelistedContractsByUpdate[operator].remove(addressToUint(msg.sender)) != 0,
-             "Slasher.recordLastStakeUpdate: Removing middleware unsuccessful");
+             "Slasher.recordLastStakeUpdateAndRevokeSlashingAbility: Removing middleware unsuccessful");
+        // revoke the middleware's ability to slash `operator` after `serverUntil`
+        _revokeSlashingAbility(operator, msg.sender, serveUntil);
     }
 
     // VIEW FUNCTIONS
@@ -375,11 +374,11 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
         emit OptedIntoSlashing(operator, contractAddress);
     }
 
-    function _revokeSlashingAbility(address operator, address contractAddress, uint32 _bondedUntil) internal {
+    function _revokeSlashingAbility(address operator, address contractAddress, uint32 serveUntil) internal {
         if (_whitelistedContractDetails[operator][contractAddress].bondedUntil == MAX_BONDED_UNTIL) {
-            // contractAddress can now only slash operator before `_bondedUntil`
-            _whitelistedContractDetails[operator][contractAddress].bondedUntil = _bondedUntil;
-            emit SlashingAbilityRevoked(operator, contractAddress, _bondedUntil);
+            // contractAddress can now only slash operator before `serveUntil`
+            _whitelistedContractDetails[operator][contractAddress].bondedUntil = serveUntil;
+            emit SlashingAbilityRevoked(operator, contractAddress, serveUntil);
         }
     }
 

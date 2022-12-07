@@ -13,10 +13,6 @@ import "./IDelegationTerms.sol";
  * - enabling a staker to undelegate its assets from an operator (performed as part of the withdrawal process, initiated through the InvestmentManager)
  */
 interface IEigenLayrDelegation {
-    enum DelegationStatus {
-        UNDELEGATED,
-        DELEGATED
-    }
 
     /**
      * @notice This will be called by an operator to register itself as an operator that stakers can choose to delegate to.

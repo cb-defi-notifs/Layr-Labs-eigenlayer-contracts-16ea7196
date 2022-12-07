@@ -14,7 +14,7 @@ contract SignatureUtils is Test {
     string internal signatureJson;
 
     constructor() {
-        signatureJson = vm.readFile("./src/test/data/signatures.json");
+        signatureJson = vm.readFile("./src/test/test-data/signatures.json");
     }
 
     function signaturePrefix(uint256 numSigners) public returns(string memory) {

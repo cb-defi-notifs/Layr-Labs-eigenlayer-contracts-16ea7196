@@ -32,7 +32,7 @@ contract MiddlewareRegistryMock is IRegistry, DSTest{
 
     function deregisterOperator(address operator) public {
         uint32 latestTime = serviceManager.latestTime();
-        serviceManager.recordLastStakeUpdate(operator, latestTime);
+        serviceManager.recordLastStakeUpdateAndRevokeSlashingAbility(operator, latestTime);
     }
 
     function propagateStakeUpdate(address operator, uint32 blockNumber, uint256 prevElement) external {

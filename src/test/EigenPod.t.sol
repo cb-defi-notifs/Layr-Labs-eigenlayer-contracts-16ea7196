@@ -43,6 +43,15 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     address podManagerAddress = 0x212224D2F2d262cd093eE13240ca4873fcCBbA3C;
     uint256 stakeAmount = 32e18;
 
+    modifier fuzzedAddress(address addr) virtual {
+        cheats.assume(addr != address(0));
+        cheats.assume(addr != address(eigenLayrProxyAdmin));
+        cheats.assume(addr != address(investmentManager));
+        cheats.assume(addr != address(beaconChainETHReceiver));
+        cheats.assume(addr != podOwner);
+        _;
+    }
+
 
     uint32 PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD = 7 days / 12 seconds;
     uint256 REQUIRED_BALANCE_WEI = 31.4 ether;
@@ -168,6 +177,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         require(beaconChainETHShares == 0, "investmentManager shares not updated correctly");
     }
 
+    //test deploying a new eigen pod with a public key that does not match that of the beacon chain proof provided.
     function testDeployNewEigenPodWithWrongPubkey(bytes memory wrongPubkey, bytes memory signature, bytes32 depositDataRoot) public {
         (beaconStateRoot, beaconStateMerkleProof, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) = getInitialDepositProof();
         beaconChainOracle.setBeaconChainStateRoot(beaconStateRoot);
@@ -185,6 +195,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         newPod.verifyCorrectWithdrawalCredentials(wrongPubkey, proofs, validatorContainerFields);
     }
 
+    //test deploying an eigen pod with mismatched withdrawal credentials between the proof and the actual pod's address
     function testDeployNewEigenPodWithWrongWithdrawalCreds(address wrongWithdrawalAddress, bytes memory signature, bytes32 depositDataRoot) public {
         IEigenPod newPod;
         newPod = eigenPodManager.getPod(podOwner);
@@ -207,6 +218,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         newPod.verifyCorrectWithdrawalCredentials(pubkey, proofs, validatorContainerFields);
     }
 
+    //test that when withdrawal credentials are verified more than once, it reverts
     function testDeployNewEigenPodWithActiveValidator(bytes memory signature, bytes32 depositDataRoot) public {
         (beaconStateRoot, beaconStateMerkleProof, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) = getInitialDepositProof();
         beaconChainOracle.setBeaconChainStateRoot(beaconStateRoot);        
@@ -226,11 +238,8 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         newPod.verifyCorrectWithdrawalCredentials(pubkey, proofs, validatorContainerFields);
     }
 
-//     // Withdraw eigenpods balance to a contract
-    function testEigenPodsQueuedWithdrawalContract(address operator, bytes memory signature, bytes32 depositDataRoot) public {
-        cheats.assume(operator != address(0));
-        cheats.assume(operator != address(eigenLayrProxyAdmin));
-        cheats.assume(operator != address(beaconChainETHReceiver));
+    // Withdraw eigenpods balance to a contract
+    function testEigenPodsQueuedWithdrawalContract(address operator, bytes memory signature, bytes32 depositDataRoot) public fuzzedAddress(operator){
 
         //make initial deposit
         podOwner = address(beaconChainETHReceiver);
@@ -282,7 +291,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         cheats.roll(uint32(block.timestamp) + 1 days);
 
         cheats.startPrank(podOwner);
-        investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawerAndNonce, undelegateIfPossible);
+        investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, address(beaconChainETHReceiver), undelegateIfPossible);
         cheats.stopPrank();
         uint32 queuedWithdrawalStartBlock = uint32(block.number);
 
@@ -325,10 +334,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     } 
 
     // Withdraw eigenpods balance to an EOA
-    function testEigenPodsQueuedWithdrawalEOA(address operator, bytes memory signature, bytes32 depositDataRoot) public {
-        cheats.assume(operator != address(0));
-        cheats.assume(operator != address(eigenLayrProxyAdmin));
-        cheats.assume(operator != podOwner);
+    function testEigenPodsQueuedWithdrawalEOA(address operator, bytes memory signature, bytes32 depositDataRoot) public fuzzedAddress(operator){
         //make initial deposit
         testDeployAndVerifyNewEigenPod(signature, depositDataRoot);
 
@@ -377,7 +383,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         cheats.roll(uint32(block.timestamp) + 1 days);
 
         cheats.startPrank(podOwner);
-        investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawerAndNonce, undelegateIfPossible);
+        investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, podOwner, undelegateIfPossible);
         cheats.stopPrank();
         uint32 queuedWithdrawalStartBlock = uint32(block.number);
 
@@ -459,7 +465,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
             "_testDelegateToOperator: delegated address not set appropriately"
         );
         assertTrue(
-            delegation.delegationStatus(sender) == IEigenLayrDelegation.DelegationStatus.DELEGATED,
+            delegation.isDelegated(sender),
             "_testDelegateToOperator: delegated status not set appropriately"
         );
 

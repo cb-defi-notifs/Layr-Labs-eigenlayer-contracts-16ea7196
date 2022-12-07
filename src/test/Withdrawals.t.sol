@@ -11,6 +11,13 @@ import "./Delegation.t.sol";
 
 contract WithdrawalTests is DelegationTests {
 
+    // packed info used to help handle stack-too-deep errors
+    struct DataForTestWithdrawal {
+        IInvestmentStrategy[] delegatorStrategies;
+        uint256[] delegatorShares;
+        IInvestmentManager.WithdrawerAndNonce withdrawerAndNonce;
+    }
+
     MiddlewareRegistryMock public generalReg1;
     ServiceManagerMock public generalServiceManager1;
 
@@ -129,7 +136,7 @@ contract WithdrawalTests is DelegationTests {
             tokensArray,
             dataForTestWithdrawal.delegatorShares,
             strategyIndexes,
-            dataForTestWithdrawal.withdrawerAndNonce
+            withdrawer
         );
         uint32 queuedWithdrawalBlock = uint32(block.number);
         
@@ -244,7 +251,7 @@ contract WithdrawalTests is DelegationTests {
             tokensArray,
             dataForTestWithdrawal.delegatorShares,
             strategyIndexes,
-            dataForTestWithdrawal.withdrawerAndNonce
+            dataForTestWithdrawal.withdrawerAndNonce.withdrawer
         );
         uint32 queuedWithdrawalBlock = uint32(block.number);
         
@@ -330,21 +337,20 @@ contract WithdrawalTests is DelegationTests {
         cheats.assume(staker != operator);
         testDelegation(operator, staker, ethAmount, eigenAmount);
 
-        address slashingContract = slasher.owner();
+        {
+            address slashingContract = slasher.owner(); 
 
-        address[] memory slashingContracts = new address[](1);
-        slashingContracts[0] = slashingContract;
+            address[] memory slashingContracts = new address[](1);
+            slashingContracts[0] = slashingContract;    
 
-        cheats.startPrank(slashingContract);
-        slasher.addGloballyPermissionedContracts(slashingContracts);
-        slasher.freezeOperator(operator);
-        cheats.stopPrank();
+            cheats.startPrank(slashingContract);
+            slasher.addGloballyPermissionedContracts(slashingContracts);
+            slasher.freezeOperator(operator);
+            cheats.stopPrank();
+        }
 
         (IInvestmentStrategy[] memory updatedStrategies, uint256[] memory updatedShares) =
             investmentManager.getDeposits(staker);
-
-        IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce =
-            IInvestmentManager.WithdrawerAndNonce({withdrawer: staker, nonce: 0});
 
         uint256[] memory strategyIndexes = new uint256[](2);
         strategyIndexes[0] = 0;
@@ -358,7 +364,7 @@ contract WithdrawalTests is DelegationTests {
         cheats.expectRevert(
             bytes("InvestmentManager.onlyNotFrozen: staker has been frozen and may be subject to slashing")
         );
-        _testQueueWithdrawal(staker, updatedStrategies, tokensArray, updatedShares, strategyIndexes, withdrawerAndNonce);
+        _testQueueWithdrawal(staker, updatedStrategies, tokensArray, updatedShares, strategyIndexes, staker);
     }
     //*******INTERNAL FUNCTIONS*********//
     function _testQueueWithdrawal(
@@ -367,7 +373,7 @@ contract WithdrawalTests is DelegationTests {
         IERC20[] memory tokensArray,
         uint256[] memory shareAmounts,
         uint256[] memory strategyIndexes,
-        IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce
+        address withdrawer
     )
         internal
         returns (bytes32)
@@ -379,7 +385,7 @@ contract WithdrawalTests is DelegationTests {
             strategyArray,
             tokensArray,
             shareAmounts,
-            withdrawerAndNonce,
+            withdrawer,
             // TODO: make this an input
             true
         );

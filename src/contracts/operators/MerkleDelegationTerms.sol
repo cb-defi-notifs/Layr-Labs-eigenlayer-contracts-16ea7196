@@ -96,11 +96,11 @@ contract MerkleDelegationTerms is Ownable, IDelegationTerms {
 
         // check inclusion of the leafHash in the tree corresponding to `merkleRoots[rootIndex]`
         require(
-            Merkle.checkMembership(
-                leafHash,
-                nodeIndex,
+            Merkle.verifyInclusionKeccak(
+                proof,
                 merkleRoots[rootIndex].root,
-                proof
+                leafHash,
+                nodeIndex
             ),
             "MerkleDelegationTerms.proveEarningsAndWithdraw: proof of inclusion failed"
         );
