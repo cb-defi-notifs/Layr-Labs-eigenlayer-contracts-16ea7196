@@ -210,9 +210,15 @@ contract EigenPod is IEigenPod, Initializable, Test {
         // get merklizedPubkey
         bytes32 merklizedPubkey = sha256(abi.encodePacked(pubkey, bytes16(0)));
         require(validatorStatus[merklizedPubkey] != VALIDATOR_STATUS.INACTIVE, "EigenPod.verifyBeaconChainFullWithdrawal: ETH validator is inactive on EigenLayer");
+        
         // TODO: verify withdrawal proof 
-        uint32 withdrawalBlockNumber = 0;
-        uint64 withdrawalAmountGwei = 0;
+        BeaconChainProofs.verifyValidatorFields(
+            beaconStateRoot,
+            proofs,
+            validatorFields
+        );
+        uint32 withdrawalBlockNumber = uint32(block.number);
+        uint64 withdrawalAmountGwei = uint64(address(this).balance);
         require(MIN_FULL_WITHDRAWAL_AMOUNT_GWEI < withdrawalAmountGwei, "EigenPod.verifyBeaconChainFullWithdrawal: withdrawal is too small to be a full withdrawal");
 
         // if the withdrawal amount is greater than the REQUIRED_BALANCE (i.e. the amount restaked on EigenLayer)
