@@ -122,7 +122,6 @@ contract InvestmentManager is
         returns (uint256)
     {
         // add shares for the enshrined beacon chain ETH strategy
-        emit log_named_uint("amount", amount);
         _addShares(staker, beaconChainETHStrategy, amount);
         return amount;
     }
@@ -250,7 +249,10 @@ contract InvestmentManager is
         external
         // the `onlyWhenNotPaused` modifier is commented out and instead implemented as the first line of the function, since this solves a stack-too-deep error
         // onlyWhenNotPaused(PAUSED_WITHDRAWALS)
-        onlyNotFrozen(msg.sender)
+        onlyNotFrozen(msg.sender)uint64 validatorBalance = Endian.fromLittleEndianUint64(validatorFields[2]);
+
+        require(validatorBalance != 0, "EigenPod.verifyCorrectWithdrawalCredentials: cannot prove balance update on full withdrawal");emit
+
         nonReentrant
         returns (bytes32)
     {
@@ -393,7 +395,6 @@ contract InvestmentManager is
             // actually withdraw the funds
             for (uint256 i = 0; i < strategiesLength;) {
                 if (queuedWithdrawal.strategies[i] == beaconChainETHStrategy) {
-                    emit log("voer here bud");
 
                     // if the strategy is the beaconchaineth strat, then withdraw through the EigenPod flow
                     eigenPodManager.withdrawRestakedBeaconChainETH(queuedWithdrawal.depositor, msg.sender, queuedWithdrawal.shares[i]);
