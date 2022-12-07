@@ -248,7 +248,6 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
                 (beaconStateRoot, beaconStateMerkleProof, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) = getCompleteWithdrawalProof();
                 beaconChainOracle.setBeaconChainStateRoot(beaconStateRoot);
                 bytes memory proofs = abi.encodePacked(validatorTreeRoot, beaconStateMerkleProof, validatorRoot, bytes32(uint256(0)), validatorMerkleProof);
-                //TODO: UNCOMMENT
                 newPod.verifyBeaconChainFullWithdrawal(validatorIndex, proofs, validatorContainerFields,  0);
         }
 

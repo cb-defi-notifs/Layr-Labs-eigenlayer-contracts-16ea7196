@@ -4,6 +4,8 @@ pragma solidity ^0.8.9;
 
 import "./Merkle.sol";
 import "./BytesLib.sol";
+import "../libraries/Endian.sol";
+
 
 //TODO: Validate this entire library
 
@@ -29,6 +31,9 @@ library BeaconChainProofs{
     uint256 public constant NUM_EXECUTION_PAYLOAD_HEADER_FIELDS = 15;
     uint256 public constant EXECUTION_PAYLOAD_HEADER_FIELD_TREE_HEIGHT = 4;
 
+    //SLOTS_PER_HISTORICAL_ROOT = 2**13, so tree height is 13
+    uint256 public constant STATE_ROOTS_TREE_HEIGHT = 13;
+
 
     uint256 public constant NUM_WITHDRAWAL_FIELDS = 4;
     //tree height for hash tree of an individual withdrawal container
@@ -43,10 +48,11 @@ library BeaconChainProofs{
     uint256 public constant STATE_ROOT_INDEX = 3;
     uint256 public constant PROPOSER_INDEX_INDEX = 1;
     //in beacon state
+    uint256 public constant STATE_ROOTS_INDEX = 6;
     uint256 public constant ETH_1_ROOT_INDEX = 8;
     uint256 public constant VALIDATOR_TREE_ROOT_INDEX = 11;
-    uint256 public constant EXECUTION_PAYLOAD_HEADER_INDEX = 24;
     uint256 public constant WITHDRAWALS_ROOT_INDEX = 14;
+    uint256 public constant EXECUTION_PAYLOAD_HEADER_INDEX = 24;
 
     //TODO: Merklization can be optimized by supplying zero hashes. later on tho
     function computePhase0BeaconBlockHeaderRoot(bytes32[NUM_BEACON_BLOCK_HEADER_FIELDS] calldata blockHeaderFields) internal pure returns(bytes32) {
@@ -141,16 +147,38 @@ library BeaconChainProofs{
     function verifyWithdrawalProofs(
         bytes32 beaconStateRoot, 
         bytes calldata proofs, 
-        uint256 validatorIndex,
+        uint64 validatorIndex,
+        uint64 stateRootIndex,
         bytes32[] calldata withdrawalFields
     ) internal view {
         require(withdrawalFields.length == BeaconChainProofs.NUM_WITHDRAWAL_FIELDS, "incorrect executionPayloadHeaderFields length");
-        
         uint256 pointer = 0;
+
+        bytes32 staterootsRoot = proofs.toBytes32(0);
+        //check inclusion of state roots array root
+        bool valid = Merkle.verifyInclusionSha256(
+            proofs.slice(pointer, 32 * BeaconChainProofs.BEACON_STATE_FIELD_TREE_HEIGHT), 
+            beaconStateRoot, 
+            staterootsRoot, 
+            BeaconChainProofs.STATE_ROOTS_INDEX
+        );
+        require(valid, "stateroots Root proof invalid");
+        pointer += 32 * BeaconChainProofs.BEACON_STATE_FIELD_TREE_HEIGHT;
+
+        //now we check that the beaconStateRoot is included in the statesRootArray
+        valid = Merkle.verifyInclusionSha256(
+            proofs.slice(pointer, 32 * BeaconChainProofs.STATE_ROOTS_TREE_HEIGHT), 
+            staterootsRoot, 
+            beaconStateRoot, 
+            stateRootIndex
+        );
+        require(valid, "beaconChain inclusion in state_roots proof failed");
+
+        pointer += 32 * BeaconChainProofs.STATE_ROOTS_TREE_HEIGHT;
         bytes32 executionPayloadHeaderRoot = proofs.toBytes32(0);
         pointer+=32;
         //verify that execution payload header root is correct against beacon state root
-        bool valid = Merkle.verifyInclusionSha256(
+        valid = Merkle.verifyInclusionSha256(
             proofs.slice(pointer, 32 * BeaconChainProofs.BEACON_STATE_FIELD_TREE_HEIGHT), 
             beaconStateRoot, 
             executionPayloadHeaderRoot, 
@@ -185,6 +213,6 @@ library BeaconChainProofs{
         );
         require(valid, "invalid withdrawal container inclusion proof");
 
-        require(bytes32(uint256(validatorIndex)) == withdrawalFields[1], "provided validatorIndex does not match withdrawal proof");
+        require(validatorIndex == Endian.fromLittleEndianUint64(withdrawalFields[1]), "provided validatorIndex does not match withdrawal proof");
     }
 }
