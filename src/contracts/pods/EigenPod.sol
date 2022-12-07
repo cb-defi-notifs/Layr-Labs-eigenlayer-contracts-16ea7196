@@ -357,12 +357,10 @@ contract EigenPod is IEigenPod, Initializable, Test {
 
         // reduce the restakedExecutionLayerGwei
         restakedExecutionLayerGwei -= uint64(amount / GWEI_TO_WEI);
-        emit log_named_uint("ssssamount", address(this).balance);
         
         // transfer ETH directly from pod to `recipient`
         if (Address.isContract(recipient)) {
             // if the recipient is a contract, then call its `receiveBeaconChainETH` function
-            emit log_named_uint("amsssount", address(this).balance);
             IBeaconChainETHReceiver(recipient).receiveBeaconChainETH{value: amount}();
         } else {
             // if the recipient is an EOA, then do a simple transfer
