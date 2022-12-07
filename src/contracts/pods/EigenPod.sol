@@ -201,7 +201,8 @@ contract EigenPod is IEigenPod, Initializable, Test {
      */
     function verifyBeaconChainFullWithdrawal(
         bytes calldata pubkey, 
-         bytes calldata proofs, 
+        bytes calldata proofs, 
+        uint256 validatorIndex,
         bytes32[] calldata withdrawalFields,
         uint256 beaconChainETHStrategyIndex
     ) external {
@@ -211,10 +212,10 @@ contract EigenPod is IEigenPod, Initializable, Test {
         bytes32 merklizedPubkey = sha256(abi.encodePacked(pubkey, bytes16(0)));
         require(validatorStatus[merklizedPubkey] != VALIDATOR_STATUS.INACTIVE, "EigenPod.verifyBeaconChainFullWithdrawal: ETH validator is inactive on EigenLayer");
 
-        // TODO: verify withdrawal proof 
         BeaconChainProofs.verifyWithdrawalProofs(
             beaconStateRoot,
             proofs,
+            validatorIndex,
             withdrawalFields
         );
 

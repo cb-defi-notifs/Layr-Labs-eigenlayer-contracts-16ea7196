@@ -141,13 +141,13 @@ library BeaconChainProofs{
     function verifyWithdrawalProofs(
         bytes32 beaconStateRoot, 
         bytes calldata proofs, 
+        uint256 validatorIndex,
         bytes32[] calldata withdrawalFields
     ) internal view {
         require(withdrawalFields.length == BeaconChainProofs.NUM_WITHDRAWAL_FIELDS, "incorrect executionPayloadHeaderFields length");
+        
         uint256 pointer = 0;
-
         bytes32 executionPayloadHeaderRoot = proofs.toBytes32(0);
-
         pointer+=32;
         //verify that execution payload header root is correct against beacon state root
         bool valid = Merkle.verifyInclusionSha256(
@@ -156,13 +156,10 @@ library BeaconChainProofs{
             executionPayloadHeaderRoot, 
             BeaconChainProofs.EXECUTION_PAYLOAD_HEADER_INDEX
         );
-
         require(valid, "Invalid execution payload header proof");
 
         pointer += 32 * BeaconChainProofs.BEACON_STATE_FIELD_TREE_HEIGHT;
-
         bytes32 withdrawalsRoot = proofs.toBytes32(pointer);
-
         pointer +=32;
 
         //verify that the withdrawals root is correct against the execution payload header root
@@ -172,13 +169,10 @@ library BeaconChainProofs{
             withdrawalsRoot, 
             WITHDRAWALS_ROOT_INDEX
         );
-
         require(valid, "Invalid withdrawals root proof");
 
         pointer += 32 * BeaconChainProofs.EXECUTION_PAYLOAD_HEADER_FIELD_TREE_HEIGHT;
-
         bytes32 individualWithdrawalContainerRoot = proofs.toBytes32(pointer);
-
         pointer += 32;
 
         require(individualWithdrawalContainerRoot == Merkle.merkleizeSha256(withdrawalFields), "provided withdrawalFields do not match withdrawalContainerRoot");
@@ -190,5 +184,7 @@ library BeaconChainProofs{
             proofs.toUint256(pointer)
         );
         require(valid, "invalid withdrawal container inclusion proof");
+
+        require(validatorIndex == withdrawalFields[1], "provided validatorIndex does not match withdrawal proof");
     }
 }
