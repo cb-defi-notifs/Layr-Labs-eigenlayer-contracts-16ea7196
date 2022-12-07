@@ -38,6 +38,9 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager,
     /// @notice EigenLayer's InvestmentManager contract
     IInvestmentManager public immutable investmentManager;
 
+    /// @notice EigenLayer's Slasher contract
+    ISlasher public immutable slasher;
+
     /// @notice Oracle contract that provides updates to the beacon chain's state
     IBeaconChainOracle public beaconChainOracle;
 
@@ -55,10 +58,11 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager,
         _;
     }
 
-    constructor(IETHPOSDeposit _ethPOS, IBeacon _eigenPodBeacon, IInvestmentManager _investmentManager) {
+    constructor(IETHPOSDeposit _ethPOS, IBeacon _eigenPodBeacon, IInvestmentManager _investmentManager, ISlasher _slasher) {
         ethPOS = _ethPOS;
         eigenPodBeacon = _eigenPodBeacon;
         investmentManager = _investmentManager;
+        slasher = _slasher;
         _disableInitializers();
     }
 
@@ -112,7 +116,7 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager,
         * restaked than there is, a freezing event is triggered
         */
         if (pods[podOwner].depositedBalance > newBalance + msg.sender.balance) {
-            investmentManager.slasher().freezeOperator(podOwner);
+            slasher.freezeOperator(podOwner);
         }
     }
 
