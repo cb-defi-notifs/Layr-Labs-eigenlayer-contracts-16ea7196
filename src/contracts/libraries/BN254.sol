@@ -77,6 +77,11 @@ library BN254 {
         17805874995975841540914202342111839520379459829704422454583296818431106115052;
     uint256 internal constant nG2y0 =
         13392588948715843804641432497768002650278120570034223513918757245338268106653;
+    function negGeneratorG2() internal pure returns (G2Point memory) {
+        return G2Point(
+            [nG2x1, nG2x0], [nG2y1, nG2y0]
+        );
+    }
 
     bytes32 internal constant powersOfTauMerkleRoot =
         0x22c998e49752bbb1918ba87d6d59dd0e83620a311ba91dd4b2cc84990b31b56f;
