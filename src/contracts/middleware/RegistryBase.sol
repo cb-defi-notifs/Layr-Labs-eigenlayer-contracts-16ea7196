@@ -189,6 +189,28 @@ abstract contract RegistryBase is VoteWeigherBase, IQuorumRegistry {
     }
 
     /**
+     * @notice Checks that the `operator` was active at the `blockNumber`, using the specified `stakeHistoryIndex` as proof.
+     * @param operator is the operator of interest
+     * @param blockNumber is the block number of interest
+     * @param stakeHistoryIndex specifies an index in `pubkeyHashToStakeHistory[pubkeyHash]`, where `pubkeyHash` is looked up
+     * in `registry[operator].pubkeyHash`
+     * @dev In order for this function to not revert, the inputs must satisfy:
+     * 1) `pubkeyHashToStakeHistory[pubkeyHash][index].updateBlockNumber <= blockNumber`
+     * 2) `pubkeyHashToStakeHistory[pubkeyHash][index].nextUpdateBlockNumber` must be either `0` (signifying no next update) or
+     * is must be strictly greater than `blockNumber`
+     */
+    function checkOperatorActiveAtBlockNumber(address operator, uint256 blockNumber, uint256 stakeHistoryIndex) public view {
+        bytes32 pubkeyHash = registry[operator].pubkeyHash;
+        OperatorStake memory operatorStake = pubkeyHashToStakeHistory[pubkeyHash][stakeHistoryIndex];
+        // check that the update specified by `stakeHistoryIndex` occurred at or prior to `blockNumber`
+        require(operatorStake.updateBlockNumber <= blockNumber,
+            "RegistryBase.checkOperatorActiveAtBlockNumber: specified stakeHistoryIndex is for later block number");
+        // if there is a next update, then check that the next update occurred strictly after `blockNumber`
+        require(operatorStake.nextUpdateBlockNumber == 0 || operatorStake.nextUpdateBlockNumber > blockNumber,
+            "RegistryBase.checkOperatorActiveAtBlockNumber: specified stakeHistoryIndex is too early");
+    }
+
+    /**
      * @notice Returns the most recent stake weight for the `operator`
      * @dev Function returns an OperatorStake struct with **every entry equal to 0** in the event that the operator has no stake history
      */

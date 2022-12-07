@@ -81,6 +81,19 @@ interface IQuorumRegistry is IRegistry {
         returns (OperatorStake memory);
 
     /**
+     * @notice Checks that the `operator` was active at the `blockNumber`, using the specified `stakeHistoryIndex` as proof.
+     * @param operator is the operator of interest
+     * @param blockNumber is the block number of interest
+     * @param stakeHistoryIndex specifies an index in `pubkeyHashToStakeHistory[pubkeyHash]`, where `pubkeyHash` is looked up
+     * in `registry[operator].pubkeyHash`
+     * @dev In order for this function to not revert, the inputs must satisfy:
+     * 1) `pubkeyHashToStakeHistory[pubkeyHash][index].updateBlockNumber <= blockNumber`
+     * 2) `pubkeyHashToStakeHistory[pubkeyHash][index].nextUpdateBlockNumber` must be either `0` (signifying no next update) or
+     * is must be strictly greater than `blockNumber`
+     */
+    function checkOperatorActiveAtBlockNumber(address operator, uint256 blockNumber, uint256 stakeHistoryIndex) external view;
+
+    /**
      * @notice Looks up the `operator`'s index in the dynamic array `operatorList` at the specified `blockNumber`.
      * @param index Used to specify the entry within the dynamic array `pubkeyHashToIndexHistory[pubkeyHash]` to 
      * read data from, where `pubkeyHash` is looked up from `operator`'s registration info
