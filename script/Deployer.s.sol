@@ -230,7 +230,7 @@ contract EigenLayrDeployer is Script, DSTest {
         
         vm.writeFile("data/investmentManager.addr", vm.toString(address(investmentManager)));
         vm.writeFile("data/delegation.addr", vm.toString(address(delegation)));
-        vm.writeFile("data/slasher.addr", vm.toString(address(slasher))):
+        vm.writeFile("data/slasher.addr", vm.toString(address(slasher)));
         vm.writeFile("data/weth.addr", vm.toString(address(weth)));
         vm.writeFile("data/wethStrat.addr", vm.toString(address(wethStrat)));
         vm.writeFile("data/eigen.addr", vm.toString(address(eigenToken)));
