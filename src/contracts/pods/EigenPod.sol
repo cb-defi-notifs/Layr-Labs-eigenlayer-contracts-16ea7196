@@ -12,6 +12,8 @@ import "../interfaces/IEigenPodManager.sol";
 import "../interfaces/IEigenPod.sol";
 import "../interfaces/IBeaconChainETHReceiver.sol";
 
+import "forge-std/Test.sol";
+
 /**
  * @title The implementation contract used for restaking beacon chain ETH on EigenLayer 
  * @author Layr Labs, Inc.
@@ -26,7 +28,7 @@ import "../interfaces/IBeaconChainETHReceiver.sol";
  *   to account balances and penalties in terms of gwei in the EigenPod contract and convert to wei when making
  *   calls to other contracts
  */
-contract EigenPod is IEigenPod, Initializable {
+contract EigenPod is IEigenPod, Initializable, Test {
     using BytesLib for bytes;
 
     uint64 internal constant GWEI_TO_WEI = 1e9;
@@ -134,6 +136,7 @@ contract EigenPod is IEigenPod, Initializable {
         require(validatorFields[1] == podWithdrawalCredentials().toBytes32(0), "EigenPod.verifyCorrectWithdrawalCredentials: Proof is not for this EigenPod");
         // convert the balance field from 8 bytes of little endian to uint64 big endian 💪
         uint64 validatorBalanceGwei = Endian.fromLittleEndianUint64(validatorFields[2]);
+
         // make sure the balance is greater than the amount restaked per validator
         require(validatorBalanceGwei >= REQUIRED_BALANCE_GWEI, "EigenPod.verifyCorrectWithdrawalCredentials: ETH validator's balance must be greater than or equal to restaked balance per operator");
         // set the status to active
@@ -175,6 +178,7 @@ contract EigenPod is IEigenPod, Initializable {
         require(validatorFields[0] == merklizedPubkey, "EigenPod.verifyBalanceUpdate: Proof is not for provided pubkey");
         // convert the balance field from 8 bytes of little endian to uint64 big endian 💪
         uint64 validatorBalance = Endian.fromLittleEndianUint64(validatorFields[2]);
+
         require(validatorBalance != 0, "EigenPod.verifyCorrectWithdrawalCredentials: cannot prove balance update on full withdrawal");
         require(validatorBalance <= REQUIRED_BALANCE_GWEI, "EigenPod.verifyCorrectWithdrawalCredentials: validator's balance must be less than the restaked balance per operator");
         // mark the ETH validator as overcommitted
@@ -334,11 +338,15 @@ contract EigenPod is IEigenPod, Initializable {
         external
         onlyEigenPodManager
     {
+        emit log_uint(restakedExecutionLayerGwei);
         // reduce the restakedExecutionLayerGwei
         restakedExecutionLayerGwei -= uint64(amount / GWEI_TO_WEI);
+        emit log_named_uint("ssssamount", address(this).balance);
+        
         // transfer ETH directly from pod to `recipient`
         if (Address.isContract(recipient)) {
             // if the recipient is a contract, then call its `receiveBeaconChainETH` function
+            emit log_named_uint("amsssount", address(this).balance);
             IBeaconChainETHReceiver(recipient).receiveBeaconChainETH{value: amount}();
         } else {
             // if the recipient is an EOA, then do a simple transfer

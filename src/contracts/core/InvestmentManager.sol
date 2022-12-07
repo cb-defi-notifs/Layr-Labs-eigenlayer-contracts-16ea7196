@@ -11,6 +11,8 @@ import "./InvestmentManagerStorage.sol";
 import "../interfaces/IServiceManager.sol";
 import "../interfaces/IEigenPodManager.sol";
 
+import "forge-std/Test.sol";
+
 /**
  * @title The primary entry- and exit-point for funds into and out of EigenLayr.
  * @author Layr Labs, Inc.
@@ -28,7 +30,8 @@ contract InvestmentManager is
     OwnableUpgradeable,
     ReentrancyGuardUpgradeable,
     InvestmentManagerStorage,
-    Pausable
+    Pausable,
+    Test
 {
     using SafeERC20 for IERC20;
 
@@ -125,6 +128,7 @@ contract InvestmentManager is
         returns (uint256)
     {
         // add shares for the enshrined beacon chain ETH strategy
+        emit log_named_uint("amount", amount);
         _addShares(staker, beaconChainETHStrategy, amount);
         return amount;
     }
@@ -389,6 +393,7 @@ contract InvestmentManager is
             // actually withdraw the funds
             for (uint256 i = 0; i < strategiesLength;) {
                 if (queuedWithdrawal.strategies[i] == beaconChainETHStrategy) {
+                    emit log("voer here bud");
 
                     // if the strategy is the beaconchaineth strat, then withdraw through the EigenPod flow
                     eigenPodManager.withdrawRestakedBeaconChainETH(queuedWithdrawal.depositor, msg.sender, queuedWithdrawal.shares[i]);

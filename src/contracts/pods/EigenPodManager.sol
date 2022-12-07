@@ -17,6 +17,8 @@ import "../interfaces/IEigenPod.sol";
 import "../interfaces/IBeaconChainOracle.sol";
 import "../interfaces/IBeaconChainETHReceiver.sol";
 
+import "forge-std/Test.sol";
+
 /**
  * @title The contract used for creating and managing EigenPods
  * @author Layr Labs, Inc.
@@ -26,7 +28,7 @@ import "../interfaces/IBeaconChainETHReceiver.sol";
  * - keeping track of the balances of all validators of EigenPods, and their stake in EigenLayer
  * - withdrawing eth when withdrawals are initiated
  */
-contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager {
+contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager, Test {
     //TODO: change this to constant in prod
     IETHPOSDeposit internal immutable ethPOS;
     

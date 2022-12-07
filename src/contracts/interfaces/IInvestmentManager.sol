@@ -190,4 +190,7 @@ interface IInvestmentManager {
 
     /// @notice Returns the single, central Slasher contract of EigenLayer
     function slasher() external view returns (ISlasher);
+
+    /// @notice returns the enshrined beaconChainETH Strategy
+    function beaconChainETHStrategy() external view returns (IInvestmentStrategy);
 }
