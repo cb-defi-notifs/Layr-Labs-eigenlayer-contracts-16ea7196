@@ -10,7 +10,7 @@ contract Operators is Test {
     string internal operatorConfigJson;
 
     constructor() {
-        operatorConfigJson = vm.readFile("./src/test/data/operators.json");
+        operatorConfigJson = vm.readFile("./src/test/test-data/operators.json");
     }
 
     function operatorPrefix(uint256 index) public returns(string memory) {

@@ -86,7 +86,7 @@ library BeaconChainProofs{
         bytes32 beaconStateRoot, 
         bytes calldata proofs, 
         bytes32[] calldata validatorFields
-    ) internal pure {
+    ) internal view {
         require(validatorFields.length == 2**VALIDATOR_FIELD_TREE_HEIGHT, "EigenPod.verifyValidatorFields: Validator fields has incorrect length");
         uint256 pointer;
         bool valid;
@@ -95,11 +95,11 @@ library BeaconChainProofs{
 
         //offset 32 bytes for validatorTreeRoot
         pointer += 32;
-        valid = Merkle.checkMembershipSha256(
-            validatorTreeRoot,
-            BeaconChainProofs.VALIDATOR_TREE_ROOT_INDEX,
+        valid = Merkle.verifyInclusionSha256(
+            proofs.slice(pointer, 32 * BeaconChainProofs.BEACON_STATE_FIELD_TREE_HEIGHT),
             beaconStateRoot,
-            proofs.slice(pointer, 32 * BeaconChainProofs.BEACON_STATE_FIELD_TREE_HEIGHT)
+            validatorTreeRoot,
+            BeaconChainProofs.VALIDATOR_TREE_ROOT_INDEX
         );
         require(valid, "EigenPod.verifyValidatorFields: Invalid validator tree root from beacon state proof");
         //offset the length of the beacon state proof
@@ -112,15 +112,15 @@ library BeaconChainProofs{
         //offset another 32 bytes for the length of the validatorRoot
         pointer += 32;
         //verify that the validatorRoot is within the validator tree
-        valid = Merkle.checkMembershipSha256(
-            validatorRoot,
-            proofs.toUint256(pointer), //validatorIndex
-            validatorTreeRoot,
+        valid = Merkle.verifyInclusionSha256(
             /**
             * plus 1 here is because the actual validator merkle tree involves hashing 
             * the final root with the lenght of the list, adding a level to the tree
             */
-            proofs.slice(pointer + 32, 32 * (BeaconChainProofs.VALIDATOR_TREE_HEIGHT + 1)) 
+            proofs.slice(pointer + 32, 32 * (BeaconChainProofs.VALIDATOR_TREE_HEIGHT + 1)),
+            validatorTreeRoot,
+            validatorRoot,
+            proofs.toUint256(pointer) //validatorIndex
         );
         require(valid, "EigenPod.verifyValidatorFields: Invalid validator root from validator tree root proof");
     }
