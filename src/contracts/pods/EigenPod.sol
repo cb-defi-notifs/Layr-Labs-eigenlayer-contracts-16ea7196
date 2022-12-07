@@ -199,7 +199,8 @@ contract EigenPod is IEigenPod, Initializable, Test {
      */
     function verifyBeaconChainFullWithdrawal(
         bytes calldata pubkey, 
-        bytes calldata,
+         bytes calldata proofs, 
+        bytes32[] calldata validatorFields,
         uint256 beaconChainETHStrategyIndex
     ) external {
         //TODO: tailor this to production oracle
