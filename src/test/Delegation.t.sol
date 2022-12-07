@@ -24,6 +24,12 @@ contract DelegationTests is EigenLayrTestHelper {
     MiddlewareVoteWeigherMock public voteWeigher;
     MiddlewareVoteWeigherMock public voteWeigherImplementation;
 
+    modifier fuzzedAmounts(uint256 ethAmount, uint256 eigenAmount){
+        cheats.assume(ethAmount >= 0 && ethAmount <= 1e18);
+        cheats.assume(eigenAmount >= 0 && eigenAmount <= 1e18);
+        _;
+    }
+
     function setUp() public virtual override {
         EigenLayrDeployer.setUp();
 
@@ -89,10 +95,9 @@ contract DelegationTests is EigenLayrTestHelper {
         public
         fuzzedAddress(operator)
         fuzzedAddress(staker)
+        fuzzedAmounts(ethAmount, eigenAmount)
     {
         cheats.assume(staker != operator);
-        cheats.assume(ethAmount >= 0 && ethAmount <= 1e18);
-        cheats.assume(eigenAmount >= 0 && eigenAmount <= 1e18);
         
         _testDelegation(operator, staker, ethAmount, eigenAmount, voteWeigher);
     }
@@ -105,8 +110,6 @@ contract DelegationTests is EigenLayrTestHelper {
     {
         cheats.assume(ethAmount >= 0 && ethAmount <= 1e18);
         cheats.assume(eigenAmount >= 0 && eigenAmount <= 1e18);
-    
-
         if (!delegation.isOperator(operator)) {
             _testRegisterAsOperator(operator, IDelegationTerms(operator));
         }
@@ -117,6 +120,7 @@ contract DelegationTests is EigenLayrTestHelper {
         assertTrue(delegation.isNotDelegated(staker) == true, "testDelegation: staker is not delegate");
         _testWethDeposit(staker, ethAmount);
         _testDepositEigen(staker, eigenAmount);
+        
 
         uint256 nonceBefore = delegation.nonces(staker);
 
@@ -146,11 +150,8 @@ contract DelegationTests is EigenLayrTestHelper {
     )
         public
         fuzzedAddress(operator)
+        fuzzedAmounts(ethAmount, eigenAmount)
     {
-        cheats.assume(ethAmount >= 0 && ethAmount <= 1e18);
-        cheats.assume(eigenAmount >= 0 && eigenAmount <= 1e18);
-    
-
         if (!delegation.isOperator(operator)) {
             _testRegisterAsOperator(operator, IDelegationTerms(operator));
         }
