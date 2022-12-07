@@ -42,6 +42,15 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     address unpauser = address(489);
     address podManagerAddress = 0x212224D2F2d262cd093eE13240ca4873fcCBbA3C;
 
+    modifier fuzzedAddress(address addr) virtual {
+        cheats.assume(addr != address(0));
+        cheats.assume(addr != address(eigenLayrProxyAdmin));
+        cheats.assume(addr != address(investmentManager));
+        cheats.assume(addr != address(beaconChainETHReceiver));
+        cheats.assume(addr != podOwner);
+        _;
+    }
+
 
     //performs basic deployment before each test
     function setUp() public {
@@ -181,6 +190,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
 
     }
 
+    //test deploying a new eigen pod with a public key that does not match that of the beacon chain proof provided.
     function testDeployNewEigenPodWithWrongPubkey(bytes memory wrongPubkey, bytes memory signature, bytes32 depositDataRoot) public {
         (beaconStateRoot, beaconStateMerkleProof, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) = getInitialDepositProof();
         beaconChainOracle.setBeaconChainStateRoot(beaconStateRoot);
@@ -198,6 +208,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         newPod.verifyCorrectWithdrawalCredentials(wrongPubkey, proofs, validatorContainerFields);
     }
 
+    //test deploying an eigen pod with mismatched withdrawal credentials between the proof and the actual pod's address
     function testDeployNewEigenPodWithWrongWithdrawalCreds(address wrongWithdrawalAddress, bytes memory signature, bytes32 depositDataRoot) public {
         IEigenPod newPod;
         newPod = eigenPodManager.getPod(podOwner);
@@ -220,6 +231,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         newPod.verifyCorrectWithdrawalCredentials(pubkey, proofs, validatorContainerFields);
     }
 
+    //test that when withdrawal credentials are verified more than once, it reverts
     function testDeployNewEigenPodWithActiveValidator(bytes memory signature, bytes32 depositDataRoot) public {
         (beaconStateRoot, beaconStateMerkleProof, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) = getInitialDepositProof();
         beaconChainOracle.setBeaconChainStateRoot(beaconStateRoot);        
@@ -240,11 +252,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     }
 
     // Withdraw eigenpods balance to a contract
-    function testEigenPodsQueuedWithdrawalContract(address operator, bytes memory signature, bytes32 depositDataRoot) public {
-        cheats.assume(operator != address(0));
-        cheats.assume(operator != address(eigenLayrProxyAdmin));
-        cheats.assume(operator != address(beaconChainETHReceiver));
-
+    function testEigenPodsQueuedWithdrawalContract(address operator, bytes memory signature, bytes32 depositDataRoot) public fuzzedAddress(operator){
         //make initial deposit
         podOwner = address(beaconChainETHReceiver);
         _testDeployAndVerifyNewEigenPod(podOwner, signature, depositDataRoot, true);
@@ -331,10 +339,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     } 
 
     // Withdraw eigenpods balance to an EOA
-    function testEigenPodsQueuedWithdrawalEOA(address operator, bytes memory signature, bytes32 depositDataRoot) public {
-        cheats.assume(operator != address(0));
-        cheats.assume(operator != address(eigenLayrProxyAdmin));
-        cheats.assume(operator != podOwner);
+    function testEigenPodsQueuedWithdrawalEOA(address operator, bytes memory signature, bytes32 depositDataRoot) public fuzzedAddress(operator){
         //make initial deposit
         testDeployAndVerifyNewEigenPod(signature, depositDataRoot);
 
@@ -507,7 +512,6 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         IEigenPod newPod;
 
         newPod = eigenPodManager.getPod(_podOwner);
-        emit log_named_address("getPod", address(newPod));
 
         bytes32 validatorIndex = bytes32(uint256(0));
         bytes memory proofs = abi.encodePacked(validatorTreeRoot, beaconStateMerkleProof, validatorRoot, validatorIndex, validatorMerkleProof);
