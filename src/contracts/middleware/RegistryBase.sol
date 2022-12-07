@@ -163,11 +163,6 @@ abstract contract RegistryBase is VoteWeigherBase, IQuorumRegistry {
         return operatorIndex.index;
     }
 
-    /// @notice Returns the unique ID of the specified `operator`.
-    function getOperatorId(address operator) external view returns (uint32) {
-        return registry[operator].id;
-    }
-
     /// @notice Returns whether or not the `operator` is currently an active operator, i.e. is "registered".
     function isActiveOperator(address operator) external view virtual returns (bool) {
         return (registry[operator].status == IQuorumRegistry.Status.ACTIVE);
@@ -268,27 +263,9 @@ abstract contract RegistryBase is VoteWeigherBase, IQuorumRegistry {
         return registry[operator].fromTaskNumber;
     }
 
-    /// @notice Returns block number from when `operator` has been registered.
-    function getFromBlockNumberForOperator(address operator) external view returns (uint32) {
-        return registry[operator].fromBlockNumber;
-    }
-
-    /**
-     * @notice Returns the time at which the `operator` deregistered.
-     * @dev Function will return **0** in the event that the operator is actively registered.
-     */
-    function getOperatorDeregisterTime(address operator) external view returns (uint256) {
-        return registry[operator].deregisterTime;
-    }
-
     /// @notice Returns the current number of operators of this service.
     function numOperators() public view returns (uint32) {
         return uint32(operatorList.length);
-    }
-
-    /// @notice Returns when the operator is unbonded from the middleware, if they deregister now.
-    function bondedUntilAtLeast(address operator) public view virtual returns (uint32) {
-        return uint32(Math.max(block.timestamp + UNBONDING_PERIOD, registry[operator].serveUntil));
     }
 
     // MUTATING FUNCTIONS
@@ -346,10 +323,8 @@ abstract contract RegistryBase is VoteWeigherBase, IQuorumRegistry {
 
         // @notice Registrant must continue to serve until the latest time at which an active task expires. this info is used in challenges
         uint32 latestTime = serviceManager.latestTime();
-        registry[operator].serveUntil = latestTime;
         // committing to not signing off on any more middleware tasks
         registry[operator].status = IQuorumRegistry.Status.INACTIVE;
-        registry[operator].deregisterTime = uint32(block.timestamp);
 
         // record a stake update unbonding the operator after `latestTime`
         serviceManager.recordLastStakeUpdateAndRevokeSlashingAbility(operator, latestTime);
@@ -467,13 +442,8 @@ abstract contract RegistryBase is VoteWeigherBase, IQuorumRegistry {
         // store the Operator's info in mapping
         registry[operator] = Operator({
             pubkeyHash: pubkeyHash,
-            id: nextOperatorId,
-            index: numOperators(),
             status: IQuorumRegistry.Status.ACTIVE,
-            fromTaskNumber: serviceManager.taskNumber(),
-            fromBlockNumber: uint32(block.number),
-            serveUntil: 0,
-            deregisterTime: 0
+            fromTaskNumber: serviceManager.taskNumber()
         });
 
         // record the operator being registered and update the counter for operator ID
