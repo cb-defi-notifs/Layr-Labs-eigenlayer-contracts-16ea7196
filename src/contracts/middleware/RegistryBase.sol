@@ -194,20 +194,29 @@ abstract contract RegistryBase is VoteWeigherBase, IQuorumRegistry {
      * @param blockNumber is the block number of interest
      * @param stakeHistoryIndex specifies an index in `pubkeyHashToStakeHistory[pubkeyHash]`, where `pubkeyHash` is looked up
      * in `registry[operator].pubkeyHash`
-     * @dev In order for this function to not revert, the inputs must satisfy:
+     * @dev In order for this function to return 'true', the inputs must satisfy:
      * 1) `pubkeyHashToStakeHistory[pubkeyHash][index].updateBlockNumber <= blockNumber`
      * 2) `pubkeyHashToStakeHistory[pubkeyHash][index].nextUpdateBlockNumber` must be either `0` (signifying no next update) or
      * is must be strictly greater than `blockNumber`
      */
-    function checkOperatorActiveAtBlockNumber(address operator, uint256 blockNumber, uint256 stakeHistoryIndex) public view {
+    function checkOperatorActiveAtBlockNumber(
+        address operator,
+        uint256 blockNumber,
+        uint256 stakeHistoryIndex
+        ) external view returns (bool)
+    {
         bytes32 pubkeyHash = registry[operator].pubkeyHash;
         OperatorStake memory operatorStake = pubkeyHashToStakeHistory[pubkeyHash][stakeHistoryIndex];
         // check that the update specified by `stakeHistoryIndex` occurred at or prior to `blockNumber`
-        require(operatorStake.updateBlockNumber <= blockNumber,
-            "RegistryBase.checkOperatorActiveAtBlockNumber: specified stakeHistoryIndex is for later block number");
+        if (operatorStake.updateBlockNumber > blockNumber) {
+            return false;
+        }
         // if there is a next update, then check that the next update occurred strictly after `blockNumber`
-        require(operatorStake.nextUpdateBlockNumber == 0 || operatorStake.nextUpdateBlockNumber > blockNumber,
-            "RegistryBase.checkOperatorActiveAtBlockNumber: specified stakeHistoryIndex is too early");
+        if (operatorStake.nextUpdateBlockNumber != 0 && operatorStake.nextUpdateBlockNumber <= blockNumber) {
+            return false;
+        }
+        // if the above all passes, then the `operator` was indeed active at the specified `blockNumber`
+        return true;
     }
 
     /**
