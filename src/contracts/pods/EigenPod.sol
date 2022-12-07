@@ -221,8 +221,6 @@ contract EigenPod is IEigenPod, Initializable, Test {
         uint256 withdrawalAmountWei = address(this).balance;
         uint64 withdrawalAmountGwei = uint64(withdrawalAmountWei / GWEI_TO_WEI);
 
-        emit log_uint(withdrawalAmountGwei);
-
         require(MIN_FULL_WITHDRAWAL_AMOUNT_GWEI < withdrawalAmountGwei, "EigenPod.verifyBeaconChainFullWithdrawal: withdrawal is too small to be a full withdrawal");
 
         // if the withdrawal amount is greater than the REQUIRED_BALANCE (i.e. the amount restaked on EigenLayer)
