@@ -217,6 +217,9 @@ contract EigenPod is IEigenPod, Initializable, Test {
             proofs,
             validatorFields
         );
+        uint64 validatorBalance = Endian.fromLittleEndianUint64(validatorFields[2]);
+
+        require(validatorBalance == 0, "EigenPod.verifyCorrectWithdrawalCredentials: balance does not reflect withdrawal");
         uint32 withdrawalBlockNumber = uint32(block.number);
         uint256 withdrawalAmountWei = address(this).balance;
         uint64 withdrawalAmountGwei = uint64(withdrawalAmountWei / GWEI_TO_WEI);
@@ -351,8 +354,7 @@ contract EigenPod is IEigenPod, Initializable, Test {
         external
         onlyEigenPodManager
     {
-        emit log_uint(restakedExecutionLayerGwei);
-        emit log_uint(uint64(amount / GWEI_TO_WEI));
+
         // reduce the restakedExecutionLayerGwei
         restakedExecutionLayerGwei -= uint64(amount / GWEI_TO_WEI);
         emit log_named_uint("ssssamount", address(this).balance);
