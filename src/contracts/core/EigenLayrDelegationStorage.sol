@@ -4,6 +4,7 @@ pragma solidity ^0.8.9;
 import "../interfaces/IInvestmentManager.sol";
 import "../interfaces/IDelegationTerms.sol";
 import "../interfaces/IEigenLayrDelegation.sol";
+import "../interfaces/ISlasher.sol";
 
 /**
  * @title Storage variables for the `EigenLayrDelegation` contract.
@@ -28,6 +29,9 @@ abstract contract EigenLayrDelegationStorage is IEigenLayrDelegation {
     /// @notice The InvestmentManager contract for EigenLayr
     IInvestmentManager public immutable investmentManager;
 
+    /// @notice The Slasher contract for EigenLayr
+    ISlasher public immutable slasher;
+
     // operator => investment strategy => total number of shares delegated to them
     mapping(address => mapping(IInvestmentStrategy => uint256)) public operatorShares;
 
@@ -40,7 +44,8 @@ abstract contract EigenLayrDelegationStorage is IEigenLayrDelegation {
     // delegator => number of signed delegation nonce (used in delegateToBySignature)
     mapping(address => uint256) public nonces;
 
-    constructor(IInvestmentManager _investmentManager) {
+    constructor(IInvestmentManager _investmentManager, ISlasher _slasher) {
         investmentManager = _investmentManager;
+        slasher = _slasher;
     }
 }

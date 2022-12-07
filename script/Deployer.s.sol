@@ -46,8 +46,6 @@ import "../src/contracts/libraries/BytesLib.sol";
 
 // # To deploy and verify our contract
 // forge script script/Deployer.s.sol:EigenLayrDeployer --rpc-url $RPC_URL  --private-key $PRIVATE_KEY --broadcast -vvvv
-
-//TODO: encode data properly so that we initialize TransparentUpgradeableProxy contracts in their constructor rather than a separate call (if possible)
 contract EigenLayrDeployer is Script, DSTest {
     //,
     // Signers,
@@ -161,10 +159,10 @@ contract EigenLayrDeployer is Script, DSTest {
         eigenPodBeacon = new UpgradeableBeacon(address(pod));
 
         // Second, deploy the *implementation* contracts, using the *proxy contracts* as inputs
-        EigenLayrDelegation delegationImplementation = new EigenLayrDelegation(investmentManager);
+        EigenLayrDelegation delegationImplementation = new EigenLayrDelegation(investmentManager, slasher);
         InvestmentManager investmentManagerImplementation = new InvestmentManager(delegation, eigenPodManager, slasher);
         Slasher slasherImplementation = new Slasher(investmentManager, delegation);
-        EigenPodManager eigenPodManagerImplementation = new EigenPodManager(ethPOSDeposit, eigenPodBeacon, investmentManager);
+        EigenPodManager eigenPodManagerImplementation = new EigenPodManager(ethPOSDeposit, eigenPodBeacon, investmentManager, slasher);
 
         // Third, upgrade the proxy contracts to use the correct implementation contracts and initialize them.
         eigenLayrProxyAdmin.upgradeAndCall(
@@ -228,10 +226,11 @@ contract EigenLayrDeployer is Script, DSTest {
         );
 
         slashingContracts.push(address(eigenPodManager));
-        investmentManager.slasher().addGloballyPermissionedContracts(slashingContracts);
+        slasher.addGloballyPermissionedContracts(slashingContracts);
         
         vm.writeFile("data/investmentManager.addr", vm.toString(address(investmentManager)));
         vm.writeFile("data/delegation.addr", vm.toString(address(delegation)));
+        vm.writeFile("data/slasher.addr", vm.toString(address(slasher)));
         vm.writeFile("data/weth.addr", vm.toString(address(weth)));
         vm.writeFile("data/wethStrat.addr", vm.toString(address(wethStrat)));
         vm.writeFile("data/eigen.addr", vm.toString(address(eigenToken)));
