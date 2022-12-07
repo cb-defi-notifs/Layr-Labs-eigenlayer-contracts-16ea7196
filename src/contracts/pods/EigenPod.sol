@@ -41,6 +41,8 @@ contract EigenPod is IEigenPod, Initializable, Test {
     uint32 immutable public PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS;
 
     /// @notice The amount of eth, in gwei, that is restaked per validator
+    ///         REQUIRED_BALANCE_GWEI is also added to the penalty balance of the pod in case a validator's beacon chain balance ever falls
+    ///         below REQUIRED_BALANCE_GWEI
     uint64 internal immutable REQUIRED_BALANCE_GWEI;
 
     /// @notice The amount of eth, in wei, that is restaked per validator
@@ -261,9 +263,10 @@ contract EigenPod is IEigenPod, Initializable, Test {
      *                  instantlyWithdrawableBalanceGwei + 
      *                  partialWithdrawalsGwei
      *         if any other full withdrawals are proven to have happened before block.number, the partial withdrawal is marked as failed
-     * @param expireBlockNumber this is the block number before which a balance update to this pod must be mined, in order to avoid race conditions with pending withdrawals.
-     *                          The value of this parameter is set by the EigenPodManager. If applicable, it will be set to the blockNumber at which the next full withdrawal for a validator on this pod is going to occur,
+     * @param expireBlockNumber this is the block number before a balance update must be mined to avoid race conditions with pending withdrawals
+     *                          it will be set to the blockNumber at which the next full withdrawal for a validator on this pod is going to occur
      *                          or type(uint32).max otherwise
+     * @dev the sender should be able to safely set the value to type(uint32).max if there are no pending full withdrawals
      */
     function recordPartialWithdrawalClaim(uint32 expireBlockNumber) external onlyEigenPodOwner {
         uint32 currBlockNumber = uint32(block.number);
@@ -291,13 +294,14 @@ contract EigenPod is IEigenPod, Initializable, Test {
     /// @notice This function allows pod owners to redeem their partial withdrawals after the dispute period has passed
     function redeemPartialWithdrawals(address recipient) external onlyEigenPodOwner {
         // load claim into memory, note this function should and will fail if there are no claims yet
-        PartialWithdrawalClaim memory claim = partialWithdrawalClaims[partialWithdrawalClaims.length - 1];
+        uint256 lastClaimIndex = partialWithdrawalClaims.length - 1;
+        PartialWithdrawalClaim memory claim = partialWithdrawalClaims[lastClaimIndex];
         require(
             claim.status == PARTIAL_WITHDRAWAL_CLAIM_STATUS.PENDING,
             "EigenPod.redeemPartialWithdrawals: can only redeem parital withdrawals after fraud proof period"
         );
         // mark the claim's status as redeemed
-        claim.status = PARTIAL_WITHDRAWAL_CLAIM_STATUS.REDEEMED;
+        partialWithdrawalClaims[lastClaimIndex].status = PARTIAL_WITHDRAWAL_CLAIM_STATUS.REDEEMED;
         require(
             uint32(block.number) - claim.blockNumber > PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS,
             "EigenPod.redeemPartialWithdrawals: can only redeem parital withdrawals after fraud proof period"
@@ -365,11 +369,11 @@ contract EigenPod is IEigenPod, Initializable, Test {
      *            to cover the entire penalty
      */
     function _payOffPenalties() internal {
-        uint64 amountToPenalize = 0;
+        uint64 amountToPenalizeGwei = 0;
         if (penaltiesDueToOvercommittingGwei > 0) {
             if(penaltiesDueToOvercommittingGwei > restakedExecutionLayerGwei) {
-                // if all of the restakedExecutionLayerGwei is not enough, add restakedExecutionLayerGwei to the amountToPenalize
-                amountToPenalize += restakedExecutionLayerGwei;
+                // if all of the restakedExecutionLayerGwei is not enough, add restakedExecutionLayerGwei to the amountToPenalizeGwei
+                amountToPenalizeGwei += restakedExecutionLayerGwei;
                 restakedExecutionLayerGwei = 0;
             } else {
                 // if restakedExecutionLayerETH is enough, penalize all that is necessary
@@ -379,19 +383,19 @@ contract EigenPod is IEigenPod, Initializable, Test {
                 return;
             }
 
-            // Set `amountToPenalize` to the max that can be penalized using instantly withdrawable funds
-            amountToPenalize += instantlyWithdrawableBalanceGwei;
+            // Set `amountToPenalizeGwei` to the max that can be penalized using instantly withdrawable funds
+            amountToPenalizeGwei += instantlyWithdrawableBalanceGwei;
 
-            if(penaltiesDueToOvercommittingGwei > amountToPenalize) {
+            if(penaltiesDueToOvercommittingGwei > amountToPenalizeGwei) {
                 // if all of the restakedExecutionLayerETH+instantlyWithdrawableBalanceGwei is not enough, send it all
-                eigenPodManager.payPenalties{value: amountToPenalize * GWEI_TO_WEI}(podOwner);
-                penaltiesDueToOvercommittingGwei -= amountToPenalize;
+                eigenPodManager.payPenalties{value: amountToPenalizeGwei * GWEI_TO_WEI}(podOwner);
+                penaltiesDueToOvercommittingGwei -= amountToPenalizeGwei;
                 instantlyWithdrawableBalanceGwei = 0;
             } else {
                 // if restakedExecutionLayerETH+instantlyWithdrawableBalanceGwei is enough, penalize all that is necessary
                 eigenPodManager.payPenalties{value: penaltiesDueToOvercommittingGwei * GWEI_TO_WEI}(podOwner);
                 penaltiesDueToOvercommittingGwei = 0;
-                instantlyWithdrawableBalanceGwei -= amountToPenalize - penaltiesDueToOvercommittingGwei;
+                instantlyWithdrawableBalanceGwei = amountToPenalizeGwei - penaltiesDueToOvercommittingGwei;
                 return;
             }
         }
