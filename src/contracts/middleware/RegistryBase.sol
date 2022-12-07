@@ -21,7 +21,6 @@ import "forge-std/Test.sol";
 abstract contract RegistryBase is VoteWeigherBase, IQuorumRegistry {
     using BytesLib for bytes;
 
-    uint32 public immutable UNBONDING_PERIOD;
     uint128 public minimumStakeFirstQuorum = 1 wei;
     uint128 public minimumStakeSecondQuorum = 1 wei;
 
@@ -66,17 +65,14 @@ abstract contract RegistryBase is VoteWeigherBase, IQuorumRegistry {
     event Deregistration(address operator, address swapped);
 
     /**
-     * @notice Irrevocably sets the (immutable) `delegation` & `investmentManager` addresses, and `NUMBER_OF_QUORUMS` & UNBONDING_PERIOD variables.
+     * @notice Irrevocably sets the (immutable) `delegation` & `investmentManager` addresses, and `NUMBER_OF_QUORUMS` variable.
      */
     constructor(
         IEigenLayrDelegation _delegation,
         IInvestmentManager _investmentManager,
         IServiceManager _serviceManager,
-        uint8 _NUMBER_OF_QUORUMS,
-        uint32 _UNBONDING_PERIOD
+        uint8 _NUMBER_OF_QUORUMS
     ) VoteWeigherBase(_delegation, _investmentManager, _serviceManager, _NUMBER_OF_QUORUMS) {
-        //set unbonding period
-        UNBONDING_PERIOD = _UNBONDING_PERIOD;
     }
 
     /**
