@@ -43,10 +43,10 @@ contract EigenPod is IEigenPod, Initializable, Test {
     /// @notice The amount of eth, in gwei, that is restaked per validator
     uint64 internal immutable REQUIRED_BALANCE_GWEI;
 
-    /// @notice The amount of eth, in gwei, that is added to the penalty balance of the pod in case a validator's beacon chain balance ever falls
+    /// @notice The amount of eth, in wei, that is added to the penalty balance of the pod in case a validator's beacon chain balance ever falls
     ///         below REQUIRED_BALANCE_GWEI
-    /// @dev currently this is set to REQUIRED_BALANCE_GWEI
-    uint64 internal immutable OVERCOMMITMENT_PENALTY_AMOUNT_GWEI;
+    /// @dev currently this is set to REQUIRED_BALANCE_WEI
+    uint64 internal immutable OVERCOMMITMENT_PENALTY_AMOUNT_WEI;
 
     /// @notice The amount of eth, in wei, that is restaked per validator
     uint256 internal immutable REQUIRED_BALANCE_WEI;
@@ -90,7 +90,7 @@ contract EigenPod is IEigenPod, Initializable, Test {
         PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS = _PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS;
         REQUIRED_BALANCE_WEI = _REQUIRED_BALANCE_WEI;
         REQUIRED_BALANCE_GWEI = uint64(_REQUIRED_BALANCE_WEI / GWEI_TO_WEI);
-        OVERCOMMITMENT_PENALTY_AMOUNT_GWEI = REQUIRED_BALANCE_GWEI;
+        OVERCOMMITMENT_PENALTY_AMOUNT_WEI = REQUIRED_BALANCE_WEI;
         require(_REQUIRED_BALANCE_WEI % GWEI_TO_WEI == 0, "EigenPod.contructor: _REQUIRED_BALANCE_WEI is not a whole number of gwei");
         MIN_FULL_WITHDRAWAL_AMOUNT_GWEI = _MIN_FULL_WITHDRAWAL_AMOUNT_GWEI;
         _disableInitializers();
@@ -173,12 +173,12 @@ contract EigenPod is IEigenPod, Initializable, Test {
         uint64 validatorBalance = Endian.fromLittleEndianUint64(validatorFields[BeaconChainProofs.VALIDATOR_BALANCE_INDEX]);
 
         require(validatorBalance != 0, "EigenPod.verifyCorrectWithdrawalCredentials: cannot prove balance update on full withdrawal");
-        require(validatorBalance <= REQUIRED_BALANCE_GWEI, "EigenPod.verifyCorrectWithdrawalCredentials: validator's balance must be less than the restaked balance per operator");
+        require(validatorBalance < REQUIRED_BALANCE_GWEI, "EigenPod.verifyCorrectWithdrawalCredentials: validator's balance must be less than the restaked balance per operator");
         // mark the ETH validator as overcommitted
         validatorStatus[validatorIndex] = VALIDATOR_STATUS.OVERCOMMITTED;
-        // allow EigenLayer to penalize the overcommitted balance, which is REQUIRED_BALANCE_GWEI
+        // allow EigenLayer to penalize the overcommitted balance, which is OVERCOMMITMENT_PENALTY_AMOUNT_WEI
         // @dev if the ETH validator's balance ever falls below REQUIRED_BALANCE_GWEI
-        penaltiesDueToOvercommittingGwei += REQUIRED_BALANCE_GWEI;
+        penaltiesDueToOvercommittingGwei += OVERCOMMITMENT_PENALTY_AMOUNT_WEI;
         // remove and undelegate shares in EigenLayer
         eigenPodManager.recordOvercommittedBeaconChainETH(podOwner, beaconChainETHStrategyIndex, REQUIRED_BALANCE_WEI);
     }
@@ -224,7 +224,7 @@ contract EigenPod is IEigenPod, Initializable, Test {
             // if the ETH validator was overcommitted but the contract did not take note, record the penalty
             if(validatorStatus[validatorIndex] == VALIDATOR_STATUS.ACTIVE) {
                 // allow EigenLayer to penalize the overcommitted balance
-                penaltiesDueToOvercommittingGwei += REQUIRED_BALANCE_GWEI - withdrawalAmountGwei;
+                penaltiesDueToOvercommittingGwei += OVERCOMMITMENT_PENALTY_AMOUNT_WEI - withdrawalAmountGwei;
                 // remove and undelegate shares in EigenLayer
                 eigenPodManager.recordOvercommittedBeaconChainETH(podOwner, beaconChainETHStrategyIndex, REQUIRED_BALANCE_WEI);
             }
