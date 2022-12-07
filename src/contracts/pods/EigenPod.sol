@@ -41,9 +41,12 @@ contract EigenPod is IEigenPod, Initializable, Test {
     uint32 immutable public PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS;
 
     /// @notice The amount of eth, in gwei, that is restaked per validator
-    ///         REQUIRED_BALANCE_GWEI is also added to the penalty balance of the pod in case a validator's beacon chain balance ever falls
-    ///         below REQUIRED_BALANCE_GWEI
     uint64 internal immutable REQUIRED_BALANCE_GWEI;
+
+    /// @notice The amount of eth, in gwei, that is added to the penalty balance of the pod in case a validator's beacon chain balance ever falls
+    ///         below REQUIRED_BALANCE_GWEI
+    /// @dev currently this is set to REQUIRED_BALANCE_GWEI
+    uint64 internal immutable OVERCOMMITMENT_PENALTY_AMOUNT_GWEI;
 
     /// @notice The amount of eth, in wei, that is restaked per validator
     uint256 internal immutable REQUIRED_BALANCE_WEI;
@@ -87,6 +90,7 @@ contract EigenPod is IEigenPod, Initializable, Test {
         PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS = _PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS;
         REQUIRED_BALANCE_WEI = _REQUIRED_BALANCE_WEI;
         REQUIRED_BALANCE_GWEI = uint64(_REQUIRED_BALANCE_WEI / GWEI_TO_WEI);
+        OVERCOMMITMENT_PENALTY_AMOUNT_GWEI = REQUIRED_BALANCE_GWEI;
         require(_REQUIRED_BALANCE_WEI % GWEI_TO_WEI == 0, "EigenPod.contructor: _REQUIRED_BALANCE_WEI is not a whole number of gwei");
         MIN_FULL_WITHDRAWAL_AMOUNT_GWEI = _MIN_FULL_WITHDRAWAL_AMOUNT_GWEI;
         _disableInitializers();
