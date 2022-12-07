@@ -198,6 +198,7 @@ abstract contract RegistryBase is VoteWeigherBase, IQuorumRegistry {
      * 1) `pubkeyHashToStakeHistory[pubkeyHash][index].updateBlockNumber <= blockNumber`
      * 2) `pubkeyHashToStakeHistory[pubkeyHash][index].nextUpdateBlockNumber` must be either `0` (signifying no next update) or
      * is must be strictly greater than `blockNumber`
+     * 3) 
      */
     function checkOperatorActiveAtBlockNumber(
         address operator,
@@ -215,7 +216,12 @@ abstract contract RegistryBase is VoteWeigherBase, IQuorumRegistry {
         if (operatorStake.nextUpdateBlockNumber != 0 && operatorStake.nextUpdateBlockNumber <= blockNumber) {
             return false;
         }
-        // if the above all passes, then the `operator` was indeed active at the specified `blockNumber`
+        /// verify that the stake was non-zero at the time (note: here was use the assumption that the operator was 'inactive'
+        /// once their stake fell to zero)
+        if (operatorStake.firstQuorumStake == 0 && operatorStake.secondQuorumStake == 0) {
+            return false;
+        }
+        // if of the above all passes, then the `operator` was indeed active at the specified `blockNumber`
         return true;
     }
 

@@ -91,7 +91,11 @@ interface IQuorumRegistry is IRegistry {
      * 2) `pubkeyHashToStakeHistory[pubkeyHash][index].nextUpdateBlockNumber` must be either `0` (signifying no next update) or
      * is must be strictly greater than `blockNumber`
      */
-    function checkOperatorActiveAtBlockNumber(address operator, uint256 blockNumber, uint256 stakeHistoryIndex) external view returns (bool);
+    function checkOperatorActiveAtBlockNumber(
+        address operator,
+        uint256 blockNumber,
+        uint256 stakeHistoryIndex
+        ) external view returns (bool);
 
     /**
      * @notice Looks up the `operator`'s index in the dynamic array `operatorList` at the specified `blockNumber`.
