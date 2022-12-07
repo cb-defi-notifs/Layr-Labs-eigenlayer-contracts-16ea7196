@@ -202,7 +202,7 @@ contract EigenPod is IEigenPod, Initializable, Test {
     function verifyBeaconChainFullWithdrawal(
         bytes calldata pubkey, 
          bytes calldata proofs, 
-        bytes32[] calldata validatorFields,
+        bytes32[] calldata withdrawalFields,
         uint256 beaconChainETHStrategyIndex
     ) external {
         //TODO: tailor this to production oracle
@@ -212,14 +212,12 @@ contract EigenPod is IEigenPod, Initializable, Test {
         require(validatorStatus[merklizedPubkey] != VALIDATOR_STATUS.INACTIVE, "EigenPod.verifyBeaconChainFullWithdrawal: ETH validator is inactive on EigenLayer");
 
         // TODO: verify withdrawal proof 
-        BeaconChainProofs.verifyValidatorFields(
+        BeaconChainProofs.verifyWithdrawalProofs(
             beaconStateRoot,
             proofs,
-            validatorFields
+            withdrawalFields
         );
-        uint64 validatorBalance = Endian.fromLittleEndianUint64(validatorFields[2]);
 
-        require(validatorBalance == 0, "EigenPod.verifyCorrectWithdrawalCredentials: balance does not reflect withdrawal");
         uint32 withdrawalBlockNumber = uint32(block.number);
         uint256 withdrawalAmountWei = address(this).balance;
         uint64 withdrawalAmountGwei = uint64(withdrawalAmountWei / GWEI_TO_WEI);
