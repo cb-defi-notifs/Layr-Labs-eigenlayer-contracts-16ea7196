@@ -386,7 +386,7 @@ contract EigenPod is IEigenPod, Initializable {
                 // if restakedExecutionLayerETH+instantlyWithdrawableBalanceGwei is enough, penalize all that is necessary
                 eigenPodManager.payPenalties{value: penaltiesDueToOvercommittingGwei * GWEI_TO_WEI}(podOwner);
                 penaltiesDueToOvercommittingGwei = 0;
-                instantlyWithdrawableBalanceGwei -= amountToPenalizeGwei - penaltiesDueToOvercommittingGwei;
+                instantlyWithdrawableBalanceGwei = amountToPenalizeGwei - penaltiesDueToOvercommittingGwei;
                 return;
             }
         }
