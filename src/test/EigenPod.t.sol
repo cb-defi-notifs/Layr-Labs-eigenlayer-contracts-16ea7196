@@ -170,7 +170,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         
         bytes32 validatorIndexBytes = bytes32(uint256(validatorIndex));
         bytes memory proofs = abi.encodePacked(validatorTreeRoot, beaconStateMerkleProof, validatorRoot, validatorIndexBytes, validatorMerkleProof);
-        eigenPod.verifyOvercommitedStake(validatorIndex, proofs, validatorContainerFields, 0);
+        eigenPod.verifyOvercommitedStake(proofs, validatorContainerFields, 0);
         
         uint256 beaconChainETHShares = investmentManager.investorStratShares(podOwner, investmentManager.beaconChainETHStrategy());
 
@@ -197,7 +197,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         bytes32 validatorIndexBytes = bytes32(uint256(validatorIndex));
         bytes memory proofs = abi.encodePacked(validatorTreeRoot, beaconStateMerkleProof, validatorRoot, validatorIndexBytes, validatorMerkleProof);
         cheats.expectRevert(bytes("EigenPod.verifyValidatorFields: Invalid validator fields"));
-        newPod.verifyCorrectWithdrawalCredentials(validatorIndex, proofs, validatorContainerFields);
+        newPod.verifyCorrectWithdrawalCredentials(proofs, validatorContainerFields);
     }
 
     //test that when withdrawal credentials are verified more than once, it reverts
@@ -214,10 +214,10 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
 
         bytes32 validatorIndexBytes = bytes32(uint256(validatorIndex));
         bytes memory proofs = abi.encodePacked(validatorTreeRoot, beaconStateMerkleProof, validatorRoot, validatorIndexBytes, validatorMerkleProof);
-        newPod.verifyCorrectWithdrawalCredentials(validatorIndex, proofs, validatorContainerFields);
+        newPod.verifyCorrectWithdrawalCredentials(proofs, validatorContainerFields);
 
         cheats.expectRevert(bytes("EigenPod.verifyCorrectWithdrawalCredentials: Validator not inactive"));
-        newPod.verifyCorrectWithdrawalCredentials(validatorIndex, proofs, validatorContainerFields);
+        newPod.verifyCorrectWithdrawalCredentials(proofs, validatorContainerFields);
     }
 
     // Withdraw eigenpods balance to a contract
@@ -495,7 +495,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
 
         bytes32 validatorIndexBytes = bytes32(uint256(validatorIndex));
         bytes memory proofs = abi.encodePacked(validatorTreeRoot, beaconStateMerkleProof, validatorRoot, validatorIndexBytes, validatorMerkleProof);
-        newPod.verifyCorrectWithdrawalCredentials(validatorIndex, proofs, validatorContainerFields);
+        newPod.verifyCorrectWithdrawalCredentials(proofs, validatorContainerFields);
 
         IInvestmentStrategy beaconChainETHStrategy = investmentManager.beaconChainETHStrategy();
 
