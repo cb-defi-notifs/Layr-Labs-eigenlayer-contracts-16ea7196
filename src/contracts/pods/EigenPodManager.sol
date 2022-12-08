@@ -40,6 +40,7 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager,
     /// @notice EigenLayer's Slasher contract
     ISlasher internal immutable slasher;
 
+
     /// @notice Oracle contract that provides updates to the beacon chain's state
     IBeaconChainOracle public beaconChainOracle;
     
