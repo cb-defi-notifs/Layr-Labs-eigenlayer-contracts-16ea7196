@@ -21,6 +21,9 @@ import "forge-std/Test.sol";
 abstract contract RegistryBase is VoteWeigherBase, IQuorumRegistry {
     using BytesLib for bytes;
 
+    // TODO: set these on initialization
+    /// @notice In order to register, an operator must have at least `minimumStakeFirstQuorum` or `minimumStakeSecondQuorum`, as
+    /// evaluated by this contract's 'VoteWeigher' logic.
     uint128 public minimumStakeFirstQuorum = 1 wei;
     uint128 public minimumStakeSecondQuorum = 1 wei;
 
