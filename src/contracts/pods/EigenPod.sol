@@ -10,7 +10,6 @@ import "../libraries/Endian.sol";
 import "../interfaces/IETHPOSDeposit.sol";
 import "../interfaces/IEigenPodManager.sol";
 import "../interfaces/IEigenPod.sol";
-import "../interfaces/IBeaconChainETHReceiver.sol";
 
 import "forge-std/Test.sol";
 

@@ -15,7 +15,6 @@ import "../interfaces/IEigenPodManager.sol";
 import "../interfaces/IETHPOSDeposit.sol";
 import "../interfaces/IEigenPod.sol";
 import "../interfaces/IBeaconChainOracle.sol";
-import "../interfaces/IBeaconChainETHReceiver.sol";
 
 import "forge-std/Test.sol";
 
@@ -154,13 +153,6 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager,
     function withdrawPenalties(address podOwner, address recipient, uint256 amount) external onlySlasher {
         podOwnerToPaidPenalties[podOwner] -= amount;
         // transfer penalties from pod to `recipient`
-        if (Address.isContract(recipient)) {
-            // if the recipient is a contract, then call its `receiveBeaconChainETH` function
-            IBeaconChainETHReceiver(recipient).receiveBeaconChainETH{value: amount}();
-        } else {
-            // if the recipient is an EOA, then do a simple transfer
-            payable(recipient).transfer(amount);
-        }
         Address.sendValue(payable(recipient), amount);
     }
 

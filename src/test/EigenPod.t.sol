@@ -6,7 +6,6 @@ pragma solidity ^0.8.9;
 import "./EigenLayrDeployer.t.sol";
  import "./mocks/MiddlewareRegistryMock.sol";
 import "./mocks/ServiceManagerMock.sol";
-import "./mocks/BeaconChainETHReceiver.sol";
 
 contract EigenPodTests is BeaconChainProofUtils, DSTest {
     using BytesLib for bytes;
