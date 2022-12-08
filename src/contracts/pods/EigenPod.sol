@@ -321,14 +321,8 @@ contract EigenPod is IEigenPod, Initializable, Test {
                 return;
             }
         }
-        // finally, transfer ETH directly from pod to `recipient`
-        if (Address.isContract(recipient)) {
-            // if the recipient is a contract, then call its `receiveBeaconChainETH` function
-            IBeaconChainETHReceiver(recipient).receiveBeaconChainETH{value: claim.partialWithdrawalAmountGwei * GWEI_TO_WEI}();
-        } else {
-            // if the recipient is an EOA, then do a simple transfer
-            payable(recipient).transfer(claim.partialWithdrawalAmountGwei * GWEI_TO_WEI);
-        }
+        
+        Address.sendValue(payable(recipient), claim.partialWithdrawalAmountGwei * GWEI_TO_WEI);
     }
 
     /**
@@ -348,13 +342,7 @@ contract EigenPod is IEigenPod, Initializable, Test {
         restakedExecutionLayerGwei -= uint64(amount / GWEI_TO_WEI);
         
         // transfer ETH directly from pod to `recipient`
-        if (Address.isContract(recipient)) {
-            // if the recipient is a contract, then call its `receiveBeaconChainETH` function
-            IBeaconChainETHReceiver(recipient).receiveBeaconChainETH{value: amount}();
-        } else {
-            // if the recipient is an EOA, then do a simple transfer
-            payable(recipient).transfer(amount);
-        }
+        Address.sendValue(payable(recipient), amount);
     }
 
     // INTERNAL FUNCTIONS

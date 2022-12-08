@@ -161,6 +161,7 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager,
             // if the recipient is an EOA, then do a simple transfer
             payable(recipient).transfer(amount);
         }
+        Address.sendValue(payable(recipient), amount);
     }
 
     /**

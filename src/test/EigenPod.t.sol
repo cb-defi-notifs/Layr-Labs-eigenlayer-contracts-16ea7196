@@ -36,7 +36,6 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     IBeaconChainOracle public beaconChainOracle;
     MiddlewareRegistryMock public generalReg1;
     ServiceManagerMock public generalServiceManager1;
-    IBeaconChainETHReceiver public beaconChainETHReceiver;
     address[] public slashingContracts;
     address pauser = address(69);
     address unpauser = address(489);
@@ -47,7 +46,6 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         cheats.assume(addr != address(0));
         cheats.assume(addr != address(eigenLayrProxyAdmin));
         cheats.assume(addr != address(investmentManager));
-        cheats.assume(addr != address(beaconChainETHReceiver));
         cheats.assume(addr != podOwner);
         _;
     }
@@ -139,11 +137,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
              investmentManager
         );
 
-        beaconChainETHReceiver = new BeaconChainETHReceiver();
-
-        cheats.deal(address(podOwner), stakeAmount);
-        cheats.deal(address(beaconChainETHReceiver), stakeAmount);
-        
+        cheats.deal(address(podOwner), stakeAmount);        
     }
 
     function testDeployAndVerifyNewEigenPod(bytes memory signature, bytes32 depositDataRoot) public {
