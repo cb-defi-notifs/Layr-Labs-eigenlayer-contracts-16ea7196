@@ -86,12 +86,39 @@ interface IQuorumRegistry is IRegistry {
      * @param blockNumber is the block number of interest
      * @param stakeHistoryIndex specifies an index in `pubkeyHashToStakeHistory[pubkeyHash]`, where `pubkeyHash` is looked up
      * in `registry[operator].pubkeyHash`
-     * @dev In order for this function to not revert, the inputs must satisfy:
+     * @return 'true' if it is succesfully proven that  the `operator` was active at the `blockNumber`, and 'false' otherwise
+     * @dev In order for this function to return 'true', the inputs must satisfy all of the following list:
      * 1) `pubkeyHashToStakeHistory[pubkeyHash][index].updateBlockNumber <= blockNumber`
      * 2) `pubkeyHashToStakeHistory[pubkeyHash][index].nextUpdateBlockNumber` must be either `0` (signifying no next update) or
      * is must be strictly greater than `blockNumber`
+     * 3) `pubkeyHashToStakeHistory[pubkeyHash][index].firstQuorumStake > 0`
+     * or `pubkeyHashToStakeHistory[pubkeyHash][index].secondQuorumStake > 0`, i.e. the operator had nonzero stake
+     * @dev Note that a return value of 'false' does not guarantee that the `operator` was inactive at `blockNumber`, since a
+     * bad `stakeHistoryIndex` can be supplied in order to obtain a response of 'false'.
      */
     function checkOperatorActiveAtBlockNumber(
+        address operator,
+        uint256 blockNumber,
+        uint256 stakeHistoryIndex
+        ) external view returns (bool);
+
+    /**
+     * @notice Checks that the `operator` was inactive at the `blockNumber`, using the specified `stakeHistoryIndex` as proof.
+     * @param operator is the operator of interest
+     * @param blockNumber is the block number of interest
+     * @param stakeHistoryIndex specifies an index in `pubkeyHashToStakeHistory[pubkeyHash]`, where `pubkeyHash` is looked up
+     * in `registry[operator].pubkeyHash`
+     * @return 'true' if it is succesfully proven that  the `operator` was inactive at the `blockNumber`, and 'false' otherwise
+     * @dev In order for this function to return 'true', the inputs must satisfy all of the following list:
+     * 1) `pubkeyHashToStakeHistory[pubkeyHash][index].updateBlockNumber <= blockNumber`
+     * 2) `pubkeyHashToStakeHistory[pubkeyHash][index].nextUpdateBlockNumber` must be either `0` (signifying no next update) or
+     * is must be strictly greater than `blockNumber`
+     * 3) `pubkeyHashToStakeHistory[pubkeyHash][index].firstQuorumStake > 0`
+     * or `pubkeyHashToStakeHistory[pubkeyHash][index].secondQuorumStake > 0`, i.e. the operator had nonzero stake
+     * @dev Note that a return value of 'false' does not guarantee that the `operator` was active at `blockNumber`, since a
+     * bad `stakeHistoryIndex` can be supplied in order to obtain a response of 'false'.
+     */
+    function checkOperatorInactiveAtBlockNumber(
         address operator,
         uint256 blockNumber,
         uint256 stakeHistoryIndex

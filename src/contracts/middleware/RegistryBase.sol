@@ -190,11 +190,15 @@ abstract contract RegistryBase is VoteWeigherBase, IQuorumRegistry {
      * @param blockNumber is the block number of interest
      * @param stakeHistoryIndex specifies an index in `pubkeyHashToStakeHistory[pubkeyHash]`, where `pubkeyHash` is looked up
      * in `registry[operator].pubkeyHash`
-     * @dev In order for this function to return 'true', the inputs must satisfy:
+     * @return 'true' if it is succesfully proven that  the `operator` was active at the `blockNumber`, and 'false' otherwise
+     * @dev In order for this function to return 'true', the inputs must satisfy all of the following list:
      * 1) `pubkeyHashToStakeHistory[pubkeyHash][index].updateBlockNumber <= blockNumber`
      * 2) `pubkeyHashToStakeHistory[pubkeyHash][index].nextUpdateBlockNumber` must be either `0` (signifying no next update) or
      * is must be strictly greater than `blockNumber`
-     * 3) 
+     * 3) `pubkeyHashToStakeHistory[pubkeyHash][index].firstQuorumStake > 0`
+     * or `pubkeyHashToStakeHistory[pubkeyHash][index].secondQuorumStake > 0`, i.e. the operator had nonzero stake
+     * @dev Note that a return value of 'false' does not guarantee that the `operator` was inactive at `blockNumber`, since a
+     * bad `stakeHistoryIndex` can be supplied in order to obtain a response of 'false'.
      */
     function checkOperatorActiveAtBlockNumber(
         address operator,
@@ -202,23 +206,64 @@ abstract contract RegistryBase is VoteWeigherBase, IQuorumRegistry {
         uint256 stakeHistoryIndex
         ) external view returns (bool)
     {
+        // fetch the `operator`'s pubkey hash
         bytes32 pubkeyHash = registry[operator].pubkeyHash;
+        // pull the stake history entry specified by `stakeHistoryIndex`
         OperatorStake memory operatorStake = pubkeyHashToStakeHistory[pubkeyHash][stakeHistoryIndex];
-        // check that the update specified by `stakeHistoryIndex` occurred at or prior to `blockNumber`
-        if (operatorStake.updateBlockNumber > blockNumber) {
-            return false;
+        return (
+            // check that the update specified by `stakeHistoryIndex` occurred at or prior to `blockNumber`
+            (operatorStake.updateBlockNumber <= blockNumber)
+            &&
+            // if there is a next update, then check that the next update occurred strictly after `blockNumber`
+            (operatorStake.nextUpdateBlockNumber == 0 || operatorStake.nextUpdateBlockNumber > blockNumber)
+            &&
+            /// verify that the stake was non-zero at the time (note: here was use the assumption that the operator was 'inactive'
+            /// once their stake fell to zero)
+            (operatorStake.firstQuorumStake != 0 || operatorStake.secondQuorumStake != 0) 
+        );
+    }
+
+    /**
+     * @notice Checks that the `operator` was inactive at the `blockNumber`, using the specified `stakeHistoryIndex` as proof.
+     * @param operator is the operator of interest
+     * @param blockNumber is the block number of interest
+     * @param stakeHistoryIndex specifies an index in `pubkeyHashToStakeHistory[pubkeyHash]`, where `pubkeyHash` is looked up
+     * in `registry[operator].pubkeyHash`
+     * @return 'true' if it is succesfully proven that  the `operator` was inactive at the `blockNumber`, and 'false' otherwise
+     * @dev In order for this function to return 'true', the inputs must satisfy all of the following list:
+     * 1) `pubkeyHashToStakeHistory[pubkeyHash][index].updateBlockNumber <= blockNumber`
+     * 2) `pubkeyHashToStakeHistory[pubkeyHash][index].nextUpdateBlockNumber` must be either `0` (signifying no next update) or
+     * is must be strictly greater than `blockNumber`
+     * 3) `pubkeyHashToStakeHistory[pubkeyHash][index].firstQuorumStake > 0`
+     * or `pubkeyHashToStakeHistory[pubkeyHash][index].secondQuorumStake > 0`, i.e. the operator had nonzero stake
+     * @dev Note that a return value of 'false' does not guarantee that the `operator` was active at `blockNumber`, since a
+     * bad `stakeHistoryIndex` can be supplied in order to obtain a response of 'false'.
+     */
+    function checkOperatorInactiveAtBlockNumber(
+        address operator,
+        uint256 blockNumber,
+        uint256 stakeHistoryIndex
+        ) external view returns (bool)
+    {
+        // fetch the `operator`'s pubkey hash
+        bytes32 pubkeyHash = registry[operator].pubkeyHash;
+        // special case for `pubkeyHashToStakeHistory[pubkeyHash]` having lenght zero -- in which case we know the operator was never registered
+        if (pubkeyHashToStakeHistory[pubkeyHash].length == 0) {
+            return true;
         }
-        // if there is a next update, then check that the next update occurred strictly after `blockNumber`
-        if (operatorStake.nextUpdateBlockNumber != 0 && operatorStake.nextUpdateBlockNumber <= blockNumber) {
-            return false;
-        }
-        /// verify that the stake was non-zero at the time (note: here was use the assumption that the operator was 'inactive'
-        /// once their stake fell to zero)
-        if (operatorStake.firstQuorumStake == 0 && operatorStake.secondQuorumStake == 0) {
-            return false;
-        }
-        // if of the above all passes, then the `operator` was indeed active at the specified `blockNumber`
-        return true;
+        // pull the stake history entry specified by `stakeHistoryIndex`
+        OperatorStake memory operatorStake = pubkeyHashToStakeHistory[pubkeyHash][stakeHistoryIndex];
+        return (
+            // check that the update specified by `stakeHistoryIndex` occurred at or prior to `blockNumber`
+            (operatorStake.updateBlockNumber <= blockNumber)
+            &&
+            // if there is a next update, then check that the next update occurred strictly after `blockNumber`
+            (operatorStake.nextUpdateBlockNumber == 0 || operatorStake.nextUpdateBlockNumber > blockNumber)
+            &&
+            /// verify that the stake was zero at the time (note: here was use the assumption that the operator was 'inactive'
+            /// once their stake fell to zero)
+            (operatorStake.firstQuorumStake == 0 && operatorStake.secondQuorumStake == 0) 
+        );
     }
 
     /**
