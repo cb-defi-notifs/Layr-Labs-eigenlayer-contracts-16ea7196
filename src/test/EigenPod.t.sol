@@ -97,7 +97,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         );
 
         // Second, deploy the *implementation* contracts, using the *proxy contracts* as inputs
-        EigenLayrDelegation delegationImplementation = new EigenLayrDelegation(investmentManager);
+        EigenLayrDelegation delegationImplementation = new EigenLayrDelegation(investmentManager, slasher);
         InvestmentManager investmentManagerImplementation = new InvestmentManager(delegation, eigenPodManager, slasher);
         Slasher slasherImplementation = new Slasher(investmentManager, delegation);
         EigenPodManager eigenPodManagerImplementation = new EigenPodManager(ethPOSDeposit, eigenPodBeacon, investmentManager, slasher);
@@ -222,6 +222,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     //     cheats.startPrank(operator);
     //     investmentManager.slasher().optIntoSlashing(address(generalServiceManager1));
     //     cheats.stopPrank();
+
 
     //     generalReg1.registerOperator(operator, uint32(block.timestamp) + 3 days);
     //     //*********************************************************************************************//

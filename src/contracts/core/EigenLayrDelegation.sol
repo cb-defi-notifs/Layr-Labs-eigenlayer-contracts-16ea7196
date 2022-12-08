@@ -29,8 +29,8 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
     }
 
     // INITIALIZING FUNCTIONS
-    constructor(IInvestmentManager _investmentManager) 
-        EigenLayrDelegationStorage(_investmentManager)
+    constructor(IInvestmentManager _investmentManager, ISlasher _slasher) 
+        EigenLayrDelegationStorage(_investmentManager, _slasher)
     {
         _disableInitializers();
     }
@@ -298,7 +298,6 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
 
         require(isNotDelegated(staker), "EigenLayrDelegation._delegate: staker has existing delegation");
         // checks that operator has not been frozen
-        ISlasher slasher = investmentManager.slasher();
         require(!slasher.isFrozen(operator), "EigenLayrDelegation._delegate: cannot delegate to a frozen operator");
 
         // record delegation relation between the staker and operator
