@@ -46,7 +46,14 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager,
     /// @notice Pod owner to the amount of penalties they have paid that are still in this contract
     mapping(address => uint256) public podOwnerToPaidPenalties;
 
+    /// @notice Emitted to notify the update of the beaconChainOracle address
     event BeaconOracleUpdated(address newOracleAddress);
+
+    /// @notice Emitted to notify the deployment of an EigenPod
+    event PodDeployed(address eigenPod, address podOwner);
+
+    /// @notice Emitted to notify a deposit of beacon chain ETH recorded in the investment manager
+    event BeaconChainETHDeposited(address podOwner, uint256 amount);
 
     modifier onlyEigenPod(address podOwner) {
         require(address(getPod(podOwner)) == msg.sender, "EigenPodManager.onlyEigenPod: not a pod");
@@ -84,7 +91,9 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager,
     function createPod() external {
         require(!hasPod(msg.sender), "EigenPodManager.createPod: Sender already has a pod");
         //deploy a pod if the sender doesn't have one already
-        _deployPod();
+        IEigenPod pod = _deployPod();
+
+        emit PodDeployed(address(pod), msg.sender);
     }
 
     /**
@@ -111,6 +120,8 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager,
      */
     function restakeBeaconChainETH(address podOwner, uint256 amount) external onlyEigenPod(podOwner) {
         investmentManager.depositBeaconChainETH(podOwner, amount);
+
+        emit BeaconChainETHDeposited(podOwner, amount);
     }
 
     /**
