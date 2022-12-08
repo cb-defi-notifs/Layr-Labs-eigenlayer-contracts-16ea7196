@@ -484,6 +484,12 @@ abstract contract RegistryBase is VoteWeigherBase, IQuorumRegistry {
 
         // add the `updateBlockNumber` info
         _operatorStake.updateBlockNumber = uint32(block.number);
+        // check special case that operator is re-registering (and thus already has some history)
+        if (pubkeyHashToStakeHistory[pubkeyHash].length != 0) {
+            // correctly set the 'nextUpdateBlockNumber' field for the re-registering operator's oldest history entry
+            pubkeyHashToStakeHistory[pubkeyHash][pubkeyHashToStakeHistory[pubkeyHash].length - 1].nextUpdateBlockNumber
+                = uint32(block.number);
+        }
         // push the new stake for the operator to storage
         pubkeyHashToStakeHistory[pubkeyHash].push(_operatorStake);
 
