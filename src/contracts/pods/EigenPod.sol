@@ -74,6 +74,20 @@ contract EigenPod is IEigenPod, Initializable, Test {
     /// @notice the total amount of gwei penalties due to over committing to EigenLayer on behalf of this pod
     uint64 public penaltiesDueToOvercommittingGwei;
 
+    /// @notice Emitted when a validator stakes via an eigenPod
+    event EigenPodStaked(bytes pubkey);
+
+    /// @notice Emmitted when a partial withdrawal claim is made on an EigenPod
+    event PartialWithdrawalClaimRecorded(uint32 currBlockNumber, uint64 partialWithdrawalAmountGwei);
+
+    /// @notice Emitted when a partial withdrawal claim is successfully redeemed
+    event PartialWithdrawalRedeemed(address recipient, uint64 partialWithdrawalAmountGwei);
+
+    /// @notice Emitted when restaked beacon chain ETH is withdrawn from the eigenPod.
+    event RestakedBeaconChainETHWithdrawn(address recipient, address amount);
+
+
+
     modifier onlyEigenPodManager {
         require(msg.sender == address(eigenPodManager), "EigenPod.onlyEigenPodManager: not eigenPodManager");
         _;
@@ -106,6 +120,7 @@ contract EigenPod is IEigenPod, Initializable, Test {
         // stake on ethpos
         require(msg.value == 32 ether, "EigenPod.stake: must initially stake for any validator with 32 ether");
         ethPOS.deposit{value : msg.value}(pubkey, podWithdrawalCredentials(), signature, depositDataRoot);
+        emit EigenPodStaked(pubkey);
     }
 
     /**
@@ -280,14 +295,18 @@ contract EigenPod is IEigenPod, Initializable, Test {
             partialWithdrawalClaims[claimsLength - 1].status != PARTIAL_WITHDRAWAL_CLAIM_STATUS.PENDING, // or the last claim is not pending
             "EigenPod.recordPartialWithdrawalClaim: cannot make a new claim until previous claim is not pending"
         );
+
+        uint64 partialWithdrawalAmountGwei = uint64(address(this).balance / GWEI_TO_WEI) - restakedExecutionLayerGwei - instantlyWithdrawableBalanceGwei;
         // push claim to the end of the list
         partialWithdrawalClaims.push(
             PartialWithdrawalClaim({ 
                 status: PARTIAL_WITHDRAWAL_CLAIM_STATUS.PENDING, 
                 blockNumber: currBlockNumber,
-                partialWithdrawalAmountGwei: uint64(address(this).balance / GWEI_TO_WEI) - restakedExecutionLayerGwei - instantlyWithdrawableBalanceGwei
+                partialWithdrawalAmountGwei: partialWithdrawalAmountGwei
             })
         );
+
+        emit PartialWithdrawalClaimRecorded(currBlockNumber, partialWithdrawalAmountGwei);
     }
 
     /// @notice This function allows pod owners to redeem their partial withdrawals after the dispute period has passed
@@ -322,6 +341,8 @@ contract EigenPod is IEigenPod, Initializable, Test {
         }
         
         Address.sendValue(payable(recipient), claim.partialWithdrawalAmountGwei * GWEI_TO_WEI);
+
+        emit PartialWithdrawalRedeemed(recipient, claim.partialWithdrawalAmountGwei);
     }
 
     /**
@@ -342,6 +363,8 @@ contract EigenPod is IEigenPod, Initializable, Test {
         
         // transfer ETH directly from pod to `recipient`
         Address.sendValue(payable(recipient), amount);
+
+        emit RestakedBeaconChainETHWithdrawn(recipient, amount);
     }
 
     // INTERNAL FUNCTIONS
