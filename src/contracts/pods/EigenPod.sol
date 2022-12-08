@@ -204,13 +204,14 @@ contract EigenPod is IEigenPod, Initializable, Test {
 
         require(validatorStatus[validatorIndex] != VALIDATOR_STATUS.INACTIVE, "EigenPod.verifyBeaconChainFullWithdrawal: ETH validator is inactive on EigenLayer");
 
-        //TODO: UNCOMMENT
-        // BeaconChainProofs.verifyWithdrawalProofs(
-        //     beaconStateRoot,
-        //     proofs,
-        //     validatorIndex,
-        //     withdrawalFields
-        // );
+        BeaconChainProofs.verifyWithdrawalProofs(
+            beaconStateRoot,
+            proofs,
+            withdrawalFields
+        );
+
+        require(validatorIndex == Endian.fromLittleEndianUint64(withdrawalFields[1]), "provided validatorIndex does not match withdrawal proof");
+
 
         uint32 withdrawalBlockNumber = uint32(block.number);
         uint64 withdrawalAmountGwei = Endian.fromLittleEndianUint64(withdrawalFields[3]);

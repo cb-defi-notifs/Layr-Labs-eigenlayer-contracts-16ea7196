@@ -99,8 +99,8 @@ interface IEigenPod {
      */
     function verifyBeaconChainFullWithdrawal(
         uint64 validatorIndex, 
-         bytes calldata proofs, 
-        bytes32[] calldata validatorFields,
+        bytes calldata proofs, 
+        bytes32[] calldata withdrawalFields,
         uint256 beaconChainETHStrategyIndex
     ) external;
 
