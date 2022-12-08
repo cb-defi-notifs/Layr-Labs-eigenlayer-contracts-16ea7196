@@ -84,7 +84,7 @@ contract EigenPod is IEigenPod, Initializable, Test {
     event PartialWithdrawalRedeemed(address recipient, uint64 partialWithdrawalAmountGwei);
 
     /// @notice Emitted when restaked beacon chain ETH is withdrawn from the eigenPod.
-    event RestakedBeaconChainETHWithdrawn(address recipient, address amount);
+    event RestakedBeaconChainETHWithdrawn(address recipient, uint256 amount);
 
 
 
