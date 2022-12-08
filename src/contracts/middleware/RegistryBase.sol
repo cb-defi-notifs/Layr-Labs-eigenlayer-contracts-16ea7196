@@ -24,9 +24,6 @@ abstract contract RegistryBase is VoteWeigherBase, IQuorumRegistry {
     uint128 public minimumStakeFirstQuorum = 1 wei;
     uint128 public minimumStakeSecondQuorum = 1 wei;
 
-    /// @notice a sequential counter that is incremented whenver new operator registers
-    uint32 public nextOperatorId;
-
     /// @notice used for storing Operator info on each operator while registration
     mapping(address => Operator) public registry;
 
@@ -479,11 +476,8 @@ abstract contract RegistryBase is VoteWeigherBase, IQuorumRegistry {
             fromTaskNumber: serviceManager.taskNumber()
         });
 
-        // record the operator being registered and update the counter for operator ID
+        // add the operator to the list of operators
         operatorList.push(operator);
-        unchecked {
-            ++nextOperatorId;
-        }
 
         // add the `updateBlockNumber` info
         _operatorStake.updateBlockNumber = uint32(block.number);
