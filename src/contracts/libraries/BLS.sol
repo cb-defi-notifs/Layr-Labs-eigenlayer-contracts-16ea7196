@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED AND MIT
-// several functions are from https://github.com/ChihChengLiang/bls_solidity_python/blob/master/contracts/BLS.sol (MIT license)
+// several functions are adapted from https://github.com/HarryR/solcrypto/blob/master/contracts/altbn128.sol (MIT license)
 // remainder is UNLICENSED
 pragma solidity ^0.8.9;
 
@@ -53,37 +53,64 @@ library BLS {
     /**
      * @notice same as hashToPoint function in https://github.com/ChihChengLiang/bls_solidity_python/blob/master/contracts/BLS.sol
      */
-    function hashToG1(bytes32 _x) internal view returns (uint256 x, uint256 y) {
-        x = uint256(_x) % FP_MODULUS;
-        bool found = false;
-        while (true) {
-            y = mulmod(x, x, FP_MODULUS);
-            y = mulmod(y, x, FP_MODULUS);
-            y = addmod(y, 3, FP_MODULUS);
-            (y, found) = sqrt(y);
-            if (found) {
+    function hashToG1(bytes32 _x) internal view returns (uint256, uint256) {
+        uint256 beta = 0;
+        uint256 y = 0;
+
+        // XXX: Gen Order (n) or Field Order (p) ?
+        uint256 x = uint256(_x) % FP_MODULUS;
+
+        while( true ) {
+            (beta, y) = FindYforX(x);
+
+            // y^2 == beta
+            if( beta == mulmod(y, y, FP_MODULUS) ) {
                 return (x, y);
             }
+
             x = addmod(x, 1, FP_MODULUS);
         }
+        return (0, 0);
     }
 
-    function sqrt(uint256 xx) internal view returns (uint256 x, bool hasRoot) {
-        bool callSuccess;
-        assembly {
-            let freemem := mload(0x40)
-            mstore(freemem, 0x20)
-            mstore(add(freemem, 0x20), 0x20)
-            mstore(add(freemem, 0x40), 0x20)
-            mstore(add(freemem, 0x60), xx)
-            // (N + 1) / 4 = 0xc19139cb84c680a6e14116da060561765e05aa45a1c72a34f082305b61f3f52
-            mstore(add(freemem, 0x80), 0xc19139cb84c680a6e14116da060561765e05aa45a1c72a34f082305b61f3f52)
-            // N = 0x30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47
-            mstore(add(freemem, 0xA0), 0x30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47)
-            callSuccess := staticcall(sub(gas(), 2000), 5, freemem, 0xC0, freemem, 0x20)
-            x := mload(freemem)
-            hasRoot := eq(xx, mulmod(x, x, FP_MODULUS))
-        }
-        require(callSuccess, "BLS: sqrt modexp call failed");
+
+    /**
+    * Given X, find Y
+    *
+    *   where y = sqrt(x^3 + b)
+    *
+    * Returns: (x^3 + b), y
+    */
+    function FindYforX(uint256 x)
+        internal view returns(uint256, uint256)
+    {
+        // beta = (x^3 + b) % p
+        uint256 beta = addmod(mulmod(mulmod(x, x, FP_MODULUS), x, FP_MODULUS), 3, FP_MODULUS);
+
+        // y^2 = x^3 + b
+        // this acts like: y = sqrt(beta) = beta^((p+1) / 4)
+        uint256 y = expMod(beta, 0xc19139cb84c680a6e14116da060561765e05aa45a1c72a34f082305b61f3f52, FP_MODULUS);
+
+        return (beta, y);
     }
+
+    function expMod(uint256 _base, uint256 _exponent, uint256 _modulus) internal view returns (uint256 retval) {
+        bool success;
+        uint256[1] memory output;
+        uint[6] memory input;
+        input[0] = 0x20;        // baseLen = new(big.Int).SetBytes(getData(input, 0, 32))
+        input[1] = 0x20;        // expLen  = new(big.Int).SetBytes(getData(input, 32, 32))
+        input[2] = 0x20;        // modLen  = new(big.Int).SetBytes(getData(input, 64, 32))
+        input[3] = _base;
+        input[4] = _exponent;
+        input[5] = _modulus;
+        assembly {
+            success := staticcall(sub(gas(), 2000), 5, input, 0xc0, output, 0x20)
+            // Use "invalid" to make gas estimation work
+            switch success case 0 { invalid() }
+        }
+        require(success);
+        return output[0];
+    }
+
 }
