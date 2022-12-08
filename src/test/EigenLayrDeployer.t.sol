@@ -240,8 +240,5 @@ contract EigenLayrDeployer is Operators, SignatureUtils {
                 )
             )
         );
-
-        slashingContracts.push(address(eigenPodManager));
-        investmentManager.slasher().addGloballyPermissionedContracts(slashingContracts);
     }
 }

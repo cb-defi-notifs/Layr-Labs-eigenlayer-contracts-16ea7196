@@ -141,9 +141,6 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
 
         beaconChainETHReceiver = new BeaconChainETHReceiver();
 
-        slashingContracts.push(address(eigenPodManager));
-        investmentManager.slasher().addGloballyPermissionedContracts(slashingContracts);
-
         cheats.deal(address(podOwner), stakeAmount);
         cheats.deal(address(beaconChainETHReceiver), stakeAmount);
         
