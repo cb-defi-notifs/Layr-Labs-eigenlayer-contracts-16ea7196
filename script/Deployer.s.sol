@@ -114,8 +114,6 @@ contract EigenLayrDeployer is Script, DSTest {
 
     uint256 public gasLimit = 750000;
 
-    address[] public slashingContracts;
-
     function run() external {
         vm.startBroadcast();
 
@@ -225,9 +223,6 @@ contract EigenLayrDeployer is Script, DSTest {
                 )
             )
         );
-
-        slashingContracts.push(address(eigenPodManager));
-        slasher.addGloballyPermissionedContracts(slashingContracts);
         
         vm.writeFile("data/investmentManager.addr", vm.toString(address(investmentManager)));
         vm.writeFile("data/delegation.addr", vm.toString(address(delegation)));
