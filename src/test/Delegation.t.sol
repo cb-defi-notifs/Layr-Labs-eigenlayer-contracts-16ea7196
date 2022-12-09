@@ -174,7 +174,7 @@ contract DelegationTests is EigenLayrTestHelper {
     /// and checks that the delegate's voteWeights increase properly
     /// @param operator is the operator being delegated to.
     /// @param staker is the staker delegating stake to the operator.
-    function testDelegationMultipleStrategies(uint16 numStratsToAdd, address operator, address staker)
+    function testDelegationMultipleStrategies(uint8 numStratsToAdd, address operator, address staker)
         public
         fuzzedAddress(operator)
         fuzzedAddress(staker)

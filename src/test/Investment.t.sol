@@ -63,7 +63,7 @@ contract InvestmentTests is EigenLayrTestHelper {
 
     /// @notice deploys 'numStratsToAdd' strategies using '_testAddStrategy' and then deposits '1e18' to each of them from 'getOperatorAddress(0)'
     /// @param numStratsToAdd is the number of strategies being added and deposited into
-    function testDepositStrategies(uint16 numStratsToAdd) public {
+    function testDepositStrategies(uint8 numStratsToAdd) public {
         _testDepositStrategies(getOperatorAddress(0), 1e18, numStratsToAdd);
     }
 

@@ -239,7 +239,7 @@ contract EigenLayrTestHelper is EigenLayrDeployer {
 
     /// deploys 'numStratsToAdd' strategies contracts and initializes them to treat `underlyingToken` as their underlying token
     /// and then deposits 'amountToDeposit' to each of them from 'sender'
-    function _testDepositStrategies(address sender, uint256 amountToDeposit, uint16 numStratsToAdd) internal {
+    function _testDepositStrategies(address sender, uint256 amountToDeposit, uint8 numStratsToAdd) internal {
         // hard-coded input
         IERC20 underlyingToken = weth;
 
@@ -247,7 +247,7 @@ contract EigenLayrTestHelper is EigenLayrDeployer {
         IInvestmentStrategy[] memory stratsToDepositTo = new IInvestmentStrategy[](
                 numStratsToAdd
             );
-        for (uint16 i = 0; i < numStratsToAdd; ++i) {
+        for (uint8 i = 0; i < numStratsToAdd; ++i) {
             stratsToDepositTo[i] = InvestmentStrategyBase(
                 address(
                     new TransparentUpgradeableProxy(
@@ -259,7 +259,7 @@ contract EigenLayrTestHelper is EigenLayrDeployer {
             );
             _testDepositToStrategy(sender, amountToDeposit, weth, InvestmentStrategyBase(address(stratsToDepositTo[i])));
         }
-        for (uint16 i = 0; i < numStratsToAdd; ++i) {
+        for (uint8 i = 0; i < numStratsToAdd; ++i) {
             // check that strategy is appropriately added to dynamic array of all of sender's strategies
             assertTrue(
                 investmentManager.investorStrats(sender, i) == stratsToDepositTo[i],
@@ -356,8 +356,8 @@ contract EigenLayrTestHelper is EigenLayrDeployer {
         return vs;
     }
 
-    /// @notice registers a fixed address as a delegate, delegates to it from a second address,
-    ///         and checks that the delegate's voteWeights increase properly
+    /// @notice registers a fixed address as an operator, delegates to it from a second address,
+    ///         and checks that the operator's voteWeights increase properly
     /// @param operator is the operator being delegated to.
     /// @param staker is the staker delegating stake to the operator.
     /// @param voteWeigher is the VoteWeigher-type contract to consult for stake weight changes
@@ -479,8 +479,7 @@ contract EigenLayrTestHelper is EigenLayrDeployer {
             priorTotalShares.push(strategyArray[i].totalShares());
             strategyTokenBalance.push(strategyArray[i].underlyingToken().balanceOf(address(strategyArray[i])));
         }
-
-        
+    
         IInvestmentManager.QueuedWithdrawal memory queuedWithdrawal = IInvestmentManager.QueuedWithdrawal({
             strategies: strategyArray,
             tokens: tokensArray,
