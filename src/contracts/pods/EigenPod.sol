@@ -3,6 +3,7 @@ pragma solidity ^0.8.9;
 
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "../libraries/BeaconChainProofs.sol";
 import "../libraries/BytesLib.sol";
@@ -27,7 +28,7 @@ import "forge-std/Test.sol";
  *   to account balances and penalties in terms of gwei in the EigenPod contract and convert to wei when making
  *   calls to other contracts
  */
-contract EigenPod is IEigenPod, Initializable, Test {
+contract EigenPod is IEigenPod, Initializable, ReentrancyGuard, Test {
     using BytesLib for bytes;
 
     uint64 internal constant GWEI_TO_WEI = 1e9;
@@ -320,7 +321,7 @@ contract EigenPod is IEigenPod, Initializable, Test {
     }
 
     /// @notice This function allows pod owners to redeem their partial withdrawals after the dispute period has passed
-    function redeemLatestPartialWithdrawal(address recipient) external onlyEigenPodOwner {
+    function redeemLatestPartialWithdrawal(address recipient) external onlyEigenPodOwner nonReentrant {
         // load claim into memory, note this function should and will fail if there are no claims yet
         uint256 lastClaimIndex = partialWithdrawalClaims.length - 1;
         PartialWithdrawalClaim memory claim = partialWithdrawalClaims[lastClaimIndex];
@@ -362,14 +363,11 @@ contract EigenPod is IEigenPod, Initializable, Test {
     }
 
     /**
-     * @notice Withdraws `amount` gwei to the podOwner from their instantlyWithdrawableBalanceGwei
-     * @param amountGwei is the amount, in gwei, to withdraw
+     * @notice Withdraws instantlyWithdrawableBalanceGwei to the podOwner
      */
-    function withdrawInstantlyWithdrawableBalanceGwei(uint64 amountGwei) external {
-        require(instantlyWithdrawableBalanceGwei >= amountGwei, "EigenPod.withdrawInstantlyWithdrawableBalanceGwei: not enough instantlyWithdrawableBalanceGwei to withdraw");
-        instantlyWithdrawableBalanceGwei -= amountGwei;
-        // send amountGwei to podOwner
-        Address.sendValue(payable(podOwner), amountGwei * GWEI_TO_WEI);
+    function withdrawInstantlyWithdrawableBalanceGwei(address recipient) external nonReentrant {
+        Address.sendValue(payable(recipient), instantlyWithdrawableBalanceGwei * GWEI_TO_WEI);
+        instantlyWithdrawableBalanceGwei = 0;
     }
 
     /**
@@ -399,6 +397,7 @@ contract EigenPod is IEigenPod, Initializable, Test {
     )
         external
         onlyEigenPodManager
+        nonReentrant
     {
 
         // reduce the restakedExecutionLayerGwei

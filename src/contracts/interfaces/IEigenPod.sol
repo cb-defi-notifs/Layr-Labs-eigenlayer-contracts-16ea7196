@@ -119,10 +119,9 @@ interface IEigenPod {
     function redeemLatestPartialWithdrawal(address recipient) external;
 
     /**
-     * @notice Withdraws `amount` gwei to the podOwner from their instantlyWithdrawableBalanceGwei
-     * @param amountGwei is the amount, in gwei, to withdraw
+     * @notice Withdraws instantlyWithdrawableBalanceGwei to the podOwner
      */
-    function withdrawInstantlyWithdrawableBalanceGwei(uint64 amountGwei) external;
+    function withdrawInstantlyWithdrawableBalanceGwei(address recipient) external;
 
     /**
      * @notice Rebalances restakedExecutionLayerGwei in case penalties were previously paid from instantlyWithdrawableBalanceGwei or partial 
