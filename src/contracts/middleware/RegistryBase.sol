@@ -72,8 +72,9 @@ abstract contract RegistryBase is VoteWeigherBase, IQuorumRegistry {
         IInvestmentManager _investmentManager,
         IServiceManager _serviceManager,
         uint8 _NUMBER_OF_QUORUMS
-    ) VoteWeigherBase(_delegation, _investmentManager, _serviceManager, _NUMBER_OF_QUORUMS) {
-    }
+    ) VoteWeigherBase(_delegation, _investmentManager, _serviceManager, _NUMBER_OF_QUORUMS)
+    // solhint-disable-next-line no-empty-blocks
+    {}
 
     /**
      * @notice Adds empty first entries to the dynamic arrays `totalStakeHistory` and `totalOperatorsHistory`,

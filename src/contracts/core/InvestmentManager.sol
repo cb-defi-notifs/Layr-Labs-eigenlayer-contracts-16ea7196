@@ -114,11 +114,9 @@ contract InvestmentManager is
         onlyWhenNotPaused(PAUSED_DEPOSITS)
         onlyNotFrozen(staker)
         nonReentrant
-        returns (uint256)
     {
         //add shares for the enshrined beacon chain ETH strategy
         _addShares(staker, beaconChainETHStrategy, amount);
-        return amount;
     }
 
     /**
@@ -601,10 +599,6 @@ contract InvestmentManager is
     function _undelegate(address depositor) internal {
         require(investorStrats[depositor].length == 0, "InvestmentManager._undelegate: depositor has active deposits");
         delegation.undelegate(depositor);
-    }
-
-    function max(uint32 x, uint32 y) internal pure returns (uint32) {
-        return x > y ? x : y;
     }
 
     // VIEW FUNCTIONS
