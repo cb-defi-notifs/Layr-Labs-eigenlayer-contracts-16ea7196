@@ -83,9 +83,6 @@ contract EigenLayrDeployer is Script, DSTest {
 
     bytes[] registrationData;
 
-    // strategy index => IInvestmentStrategy
-    mapping(uint256 => IInvestmentStrategy) public strategies;
-
     //strategy indexes for undelegation (see commitUndelegation function)
     uint256[] public strategyIndexes;
 

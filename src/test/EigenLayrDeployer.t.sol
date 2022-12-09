@@ -72,7 +72,7 @@ contract EigenLayrDeployer is Operators, SignatureUtils {
 
     //strategy indexes for undelegation (see commitUndelegation function)
     uint256[] public strategyIndexes;
-    address[2] public delegates;
+    address[2] public stakers;
     address sample_registrant = cheats.addr(436364636);
 
     address[] public slashingContracts;
@@ -209,7 +209,7 @@ contract EigenLayrDeployer is Operators, SignatureUtils {
             )
         );
 
-        delegates = [acct_0, acct_1];
+        stakers = [acct_0, acct_1];
 
         slashingContracts.push(address(eigenPodManager));
         slasher.addGloballyPermissionedContracts(slashingContracts);

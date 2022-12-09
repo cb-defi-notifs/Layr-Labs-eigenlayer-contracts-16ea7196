@@ -10,7 +10,7 @@ contract InvestmentTests is EigenLayrTestHelper {
      * @param amountToDeposit Fuzzed input for amount of WETH to deposit
      */
     function testWethDeposit(uint256 amountToDeposit) public returns (uint256 amountDeposited) {
-        return _testWethDeposit(getOperatorAddress(0), amountToDeposit);
+        return _testDepositWeth(getOperatorAddress(0), amountToDeposit);
     }
 
 // TODO: reimplement with queued withdrawals
