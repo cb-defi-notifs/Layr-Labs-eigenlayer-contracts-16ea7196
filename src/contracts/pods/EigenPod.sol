@@ -346,6 +346,21 @@ contract EigenPod is IEigenPod, Initializable, Test {
     }
 
     /**
+     * @notice Rebalances restakedExecutionLayerGwei in case penalties were previously paid from instantlyWithdrawableBalanceGwei
+     *         so the EigenPod thinks podOwner has more beaconChainETH on EigenLayer than they do 
+     */
+    function rebalanceRestakedExecutionLayerGwei() external {
+        IInvestmentManager investmentManager = eigenPodManager.investmentManager();
+        // fetch their deposited beaconChainETH
+        uint64 depositedBeaconChainGwei = uint64(investmentManager.investorStratShares(podOwner, investmentManager.beaconChainETHStrategy()) / GWEI_TO_WEI);
+        // calculate the excess, this will revert if there is no excess
+        uint64 excessGwei = restakedExecutionLayerGwei - depositedBeaconChainGwei;
+        // remove excess from restaked instantly withdrawable
+        restakedExecutionLayerGwei -= excessGwei;
+        instantlyWithdrawableBalanceGwei += excessGwei;
+    }
+
+    /**
      * @notice Transfers ether balance of this contract to the specified recipient address
      * @notice Called by EigenPodManager to withdrawBeaconChainETH that has been added to its balance due to a withdrawal from the beacon chain.
      * @dev Called during withdrawal or slashing.

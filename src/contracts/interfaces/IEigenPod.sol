@@ -120,4 +120,10 @@ interface IEigenPod {
 
     /// @notice This function allows pod owners to redeem their partial withdrawals after the dispute period has passed
     function redeemPartialWithdrawals(address recipient) external;
+
+    /**
+     * @notice Rebalances restakedExecutionLayerGwei in case penalties were previously paid from instantlyWithdrawableBalanceGwei
+     *         so the EigenPod thinks podOwner has more beaconChainETH on EigenLayer than they do 
+     */
+    function rebalanceRestakedExecutionLayerGwei() external;
 }
