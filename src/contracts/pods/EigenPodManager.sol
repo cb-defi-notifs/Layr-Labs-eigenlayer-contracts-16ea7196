@@ -40,12 +40,11 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager,
     /// @notice EigenLayer's Slasher contract
     ISlasher internal immutable slasher;
 
-
     /// @notice Oracle contract that provides updates to the beacon chain's state
     IBeaconChainOracle public beaconChainOracle;
     
     /// @notice Pod owner to the amount of penalties they have paid that are still in this contract
-    mapping(address => uint256) public podOwnerToPaidPenalties;
+    mapping(address => uint256) public podOwnerToUnwithdrawnPaidPenalties;
 
     /// @notice Emitted to notify the update of the beaconChainOracle address
     event BeaconOracleUpdated(address newOracleAddress);
@@ -153,7 +152,7 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager,
      * @dev Callable only by the podOwner's pod.
      */
     function payPenalties(address podOwner) external payable onlyEigenPod(podOwner) {
-        podOwnerToPaidPenalties[podOwner] += msg.value;
+        podOwnerToUnwithdrawnPaidPenalties[podOwner] += msg.value;
     }
 
     /**
@@ -163,7 +162,7 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager,
      * @dev Callable only by the slasher.
      */
     function withdrawPenalties(address podOwner, address recipient, uint256 amount) external onlySlasher {
-        podOwnerToPaidPenalties[podOwner] -= amount;
+        podOwnerToUnwithdrawnPaidPenalties[podOwner] -= amount;
         // transfer penalties from pod to `recipient`
         Address.sendValue(payable(recipient), amount);
     }

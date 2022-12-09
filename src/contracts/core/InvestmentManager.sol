@@ -111,7 +111,7 @@ contract InvestmentManager is
      * @param staker is the entity that is restaking in eigenlayer,
      * @param amount is the amount of beaconchain ETH being restaked,
      * @param amount is the amount of token to be invested in the strategy by the depositor
-     * @dev Only called by EigenPodManager.
+     * @dev Only callable by EigenPodManager.
      */
     function depositBeaconChainETH(address staker, uint256 amount)
         external

@@ -112,7 +112,7 @@ interface IEigenPod {
     function recordPartialWithdrawalClaim(uint32 expireBlockNumber) external;
 
     /// @notice This function allows pod owners to redeem their partial withdrawals after the dispute period has passed
-    function redeemPartialWithdrawals(address recipient) external;
+    function redeemLatestPartialWithdrawal(address recipient) external;
 
     /**
      * @notice Withdraws `amount` gwei to the podOwner from their instantlyWithdrawableBalanceGwei
