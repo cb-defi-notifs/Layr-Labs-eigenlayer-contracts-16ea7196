@@ -71,7 +71,7 @@ contract EigenPod is IEigenPod, Initializable, Test {
     /// @notice the excess balance from full withdrawals over RESTAKED_BALANCE_PER_VALIDATOR or partial withdrawals
     uint64 public instantlyWithdrawableBalanceGwei;
 
-    /// @notice the amount of penalties that have been paid from instantlyWithdrawableBalanceGwei or partial withdrawals. These can be rolled
+    /// @notice the amount of penalties that have been paid from instantlyWithdrawableBalanceGwei or from partial withdrawals. These can be rolled
     ///         over from restakedExecutionLayerGwei into instantlyWithdrawableBalanceGwei when all existing penalties have been paid
     uint64 public rollableBalanceGwei;
 
@@ -371,11 +371,12 @@ contract EigenPod is IEigenPod, Initializable, Test {
     }
 
     /**
-     * @notice Rebalances restakedExecutionLayerGwei in case penalties were previously paid from instantlyWithdrawableBalanceGwei or partial 
-     *         withdrawal, so the EigenPod thinks podOwner has more restakedExecutionLayerGwei and staked balance than beaconChainETH on EigenLayer
+     * @notice Rebalances restakedExecutionLayerGwei in case penalties were previously paid from instantlyWithdrawableBalanceGwei or from partial 
+     *         withdrawals, so the EigenPod thinks podOwner has more restakedExecutionLayerGwei and staked balance than their true amount of 'beaconChainETH' on EigenLayer
      * @param amountGwei is the amount, in gwei, to roll over
      */
     function rollOverRollableBalance(uint64 amountGwei) external {
+        // this is also checked by built-in underflow checks
         require(restakedExecutionLayerGwei >= amountGwei, "EigenPod.rollOverRollableBalance: not enough restakedExecutionLayerGwei to roll over");
         // remove rollableBalanceGwei from restakedExecutionLayerGwei and add it to instantlyWithdrawableBalanceGwei
         restakedExecutionLayerGwei -= amountGwei;
