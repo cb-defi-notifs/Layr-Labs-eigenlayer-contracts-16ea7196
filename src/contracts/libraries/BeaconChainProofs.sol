@@ -273,4 +273,27 @@ library BeaconChainProofs{
 
         return pointer;
     }
+
+    /**
+     * @notice This function verifies merkle proofs the fields of a certain validator against a beacon chain state root
+     * @param validatorIndex the index of the proven validator
+     * @param beaconStateRoot is the beacon chain state root.
+     * @param proof is the data used in proving the validator's fields
+     * @param validatorFields the claimed fields of the validator
+     */
+    function verifyValidatorFieldsOneShot(
+        uint40 validatorIndex,
+        bytes32 beaconStateRoot,
+        bytes calldata proof, 
+        bytes32[] calldata validatorFields
+    ) internal view {
+        require(validatorFields.length == 2**VALIDATOR_FIELD_TREE_HEIGHT, "EigenPod.verifyValidatorFields: Validator fields has incorrect length");
+        require(proof.length == 32 * (VALIDATOR_TREE_HEIGHT + BEACON_STATE_FIELD_TREE_HEIGHT), "EigenPod.verifyValidatorFields: Proof has incorrect length");
+        // the index against the beacon state root is VALIDATOR_TREE_ROOT_INDEX || validatorIndex
+        uint256 index = (VALIDATOR_TREE_ROOT_INDEX << VALIDATOR_TREE_HEIGHT) | uint256(validatorIndex);
+        // merkleize the validatorFields to get the leaf to prove
+        bytes32 validatorRoot = Merkle.merkleizeSha256(validatorFields);
+        // verify the proof
+        require(Merkle.verifyInclusionSha256(proof, beaconStateRoot, validatorRoot, index), "EigenPod.verifyValidatorFields: Invalid merkle proof");
+    }
 }
