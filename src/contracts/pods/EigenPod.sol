@@ -234,14 +234,14 @@ contract EigenPod is IEigenPod, Initializable, Test {
         require(MIN_FULL_WITHDRAWAL_AMOUNT_GWEI <= withdrawalAmountGwei, "EigenPod.verifyBeaconChainFullWithdrawal: withdrawal is too small to be a full withdrawal");
 
         // if the withdrawal amount is greater than the REQUIRED_BALANCE_GWEI (i.e. the amount restaked on EigenLayer)
-        if(withdrawalAmountGwei >= REQUIRED_BALANCE_GWEI) {
+        if (withdrawalAmountGwei >= REQUIRED_BALANCE_GWEI) {
             // then the excess is immediately withdrawable
             instantlyWithdrawableBalanceGwei += withdrawalAmountGwei - REQUIRED_BALANCE_GWEI;
             // and the extra execution layer ETH in the contract is REQUIRED_BALANCE_GWEI, which must be withdrawn through EigenLayer's normal withdrawal process
             restakedExecutionLayerGwei += REQUIRED_BALANCE_GWEI;
         } else {
             // if the ETH validator was overcommitted but the contract did not take note, record the penalty
-            if(validatorStatus[validatorIndex] == VALIDATOR_STATUS.ACTIVE) {
+            if (validatorStatus[validatorIndex] == VALIDATOR_STATUS.ACTIVE) {
                 // allow EigenLayer to penalize the overcommitted balance
                 penaltiesDueToOvercommittingGwei += OVERCOMMITMENT_PENALTY_AMOUNT_GWEI - withdrawalAmountGwei;
                 // remove and undelegate shares in EigenLayer
@@ -256,11 +256,13 @@ contract EigenPod is IEigenPod, Initializable, Test {
 
         // check withdrawal against current claim
         uint256 claimsLength = partialWithdrawalClaims.length;
-        if(claimsLength != 0) {
+        if (claimsLength != 0) {
             PartialWithdrawalClaim memory currentClaim = partialWithdrawalClaims[claimsLength - 1];
-            // if a full withdrawal is proven before the current partial withdrawal claim and the partial withdrawal claim 
-            // is pending (still in its fraud proof period), then the claim is incorrect and fraudulent
-            if(withdrawalBlockNumber <= currentClaim.blockNumber && currentClaim.status == PARTIAL_WITHDRAWAL_CLAIM_STATUS.PENDING) {
+            /**
+             * if a full withdrawal is proven before the current partial withdrawal claim and the partial withdrawal claim 
+             * is pending (still in its fraud proof period), then the partial withdrawal claim is incorrect and fraudulent
+             */
+            if (withdrawalBlockNumber <= currentClaim.creationBlockNumber && currentClaim.status == PARTIAL_WITHDRAWAL_CLAIM_STATUS.PENDING) {
                 // mark the partial withdrawal claim as failed
                 partialWithdrawalClaims[claimsLength - 1].status = PARTIAL_WITHDRAWAL_CLAIM_STATUS.FAILED;
                 // TODO: reward the updater
@@ -281,22 +283,24 @@ contract EigenPod is IEigenPod, Initializable, Test {
      *                  instantlyWithdrawableBalanceGwei + 
      *                  partialWithdrawalsGwei
      *         if any other full withdrawals are proven to have happened before block.number, the partial withdrawal is marked as failed
-     * @param expireBlockNumber this is the block number before a balance update must be mined to avoid race conditions with pending withdrawals
+     * @param expireBlockNumber this is the block number before which the call to this function must be mined to avoid race conditions with pending withdrawals
      *                          it will be set to the blockNumber at which the next full withdrawal for a validator on this pod is going to occur
      *                          or type(uint32).max otherwise
      * @dev the sender should be able to safely set the value to type(uint32).max if there are no pending full withdrawals
      */
     function recordPartialWithdrawalClaim(uint32 expireBlockNumber) external onlyEigenPodOwner {
         uint32 currBlockNumber = uint32(block.number);
-        require(currBlockNumber < expireBlockNumber, "EigenPod.recordBalanceSnapshot: snapshot mined too late");
+        require(currBlockNumber < expireBlockNumber, "EigenPod.recordBalanceSnapshot: partialWithdrawalClaim mined too late");
         // address(this).balance / GWEI_TO_WEI = restakedExecutionLayerGwei + 
         //                                       instantlyWithdrawableBalanceGwei + 
         //                                       partialWithdrawalsGwei
         uint256 claimsLength = partialWithdrawalClaims.length;
         // we do not allow parallel withdrawal claims to avoid complexity
         require(
-            claimsLength == 0 || // either no claims have been made yet
-            partialWithdrawalClaims[claimsLength - 1].status != PARTIAL_WITHDRAWAL_CLAIM_STATUS.PENDING, // or the last claim is not pending
+            // either no claims have been made yet
+            claimsLength == 0 ||
+            // or the last claim is not pending
+            partialWithdrawalClaims[claimsLength - 1].status != PARTIAL_WITHDRAWAL_CLAIM_STATUS.PENDING,
             "EigenPod.recordPartialWithdrawalClaim: cannot make a new claim until previous claim is not pending"
         );
 
@@ -305,7 +309,8 @@ contract EigenPod is IEigenPod, Initializable, Test {
         partialWithdrawalClaims.push(
             PartialWithdrawalClaim({ 
                 status: PARTIAL_WITHDRAWAL_CLAIM_STATUS.PENDING, 
-                blockNumber: currBlockNumber,
+                creationBlockNumber: currBlockNumber,
+                fraudproofPeriodEndBlockNumber: currBlockNumber + PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS,
                 partialWithdrawalAmountGwei: partialWithdrawalAmountGwei
             })
         );
@@ -325,12 +330,12 @@ contract EigenPod is IEigenPod, Initializable, Test {
         // mark the claim's status as redeemed
         partialWithdrawalClaims[lastClaimIndex].status = PARTIAL_WITHDRAWAL_CLAIM_STATUS.REDEEMED;
         require(
-            uint32(block.number) - claim.blockNumber > PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS,
+            uint32(block.number) > claim.fraudproofPeriodEndBlockNumber,
             "EigenPod.redeemLatestPartialWithdrawal: can only redeem partial withdrawals after fraud proof period"
         );
         // pay penalties if possible
         if (penaltiesDueToOvercommittingGwei > 0) {
-            if(penaltiesDueToOvercommittingGwei > claim.partialWithdrawalAmountGwei) {
+            if (penaltiesDueToOvercommittingGwei > claim.partialWithdrawalAmountGwei) {
                 // if all of the partial withdrawal is not enough, send it all
                 eigenPodManager.payPenalties{value: claim.partialWithdrawalAmountGwei * GWEI_TO_WEI}(podOwner);
                 // allow this amount to be rolled over from restakedExecutionLayerGwei to instantlyWithdrawableBalanceGwei
@@ -417,7 +422,7 @@ contract EigenPod is IEigenPod, Initializable, Test {
         uint64 penaltiesDueToOvercommittingGweiMemory = penaltiesDueToOvercommittingGwei;
         if (penaltiesDueToOvercommittingGweiMemory != 0) {
             uint64 amountToPenalizeGwei = 0;
-            if(penaltiesDueToOvercommittingGweiMemory > restakedExecutionLayerGwei) {
+            if (penaltiesDueToOvercommittingGweiMemory > restakedExecutionLayerGwei) {
                 // if all of the restakedExecutionLayerGwei is not enough, add restakedExecutionLayerGwei to the amountToPenalizeGwei
                 amountToPenalizeGwei += restakedExecutionLayerGwei;
                 restakedExecutionLayerGwei = 0;
@@ -433,7 +438,7 @@ contract EigenPod is IEigenPod, Initializable, Test {
             uint64 instantlyWithdrawableBalanceGweiMemory = instantlyWithdrawableBalanceGwei;
             amountToPenalizeGwei += instantlyWithdrawableBalanceGweiMemory;
 
-            if(penaltiesDueToOvercommittingGweiMemory > amountToPenalizeGwei) {
+            if (penaltiesDueToOvercommittingGweiMemory > amountToPenalizeGwei) {
                 // if all of the restakedExecutionLayerETH+instantlyWithdrawableBalanceGwei is not enough, send it all
                 eigenPodManager.payPenalties{value: amountToPenalizeGwei * GWEI_TO_WEI}(podOwner);
                 // allow this amount to be rolled over from restakedExecutionLayerGwei to instantlyWithdrawableBalanceGwei

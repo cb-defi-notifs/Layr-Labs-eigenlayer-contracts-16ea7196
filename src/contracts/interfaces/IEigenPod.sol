@@ -20,7 +20,11 @@ interface IEigenPod {
     // this struct keeps track of PartialWithdrawalClaims
     struct PartialWithdrawalClaim {
         PARTIAL_WITHDRAWAL_CLAIM_STATUS status;
-        uint32 blockNumber;
+        // block at which the PartialWithdrawalClaim was created
+        uint32 creationBlockNumber;
+        // last block (inclusive) in which the PartialWithdrawalClaim can be fraudproofed
+        uint32 fraudproofPeriodEndBlockNumber;
+        // amount of ETH -- in Gwei -- to be withdrawn until completion of this claim
         uint64 partialWithdrawalAmountGwei;
     }
 
