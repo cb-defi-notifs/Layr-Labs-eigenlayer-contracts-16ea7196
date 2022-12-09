@@ -150,7 +150,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         testDeployAndVerifyNewEigenPod(signature, depositDataRoot);
 
         //get updated proof, set beaconchain state root
-        (beaconStateRoot, beaconStateMerkleProof, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) = getSlashedDepositProof();
+        (beaconStateRoot, beaconStateMerkleProofForValidators, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) = getSlashedDepositProof();
 
         beaconChainOracle.setBeaconChainStateRoot(beaconStateRoot);
         
@@ -159,7 +159,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         eigenPod = eigenPodManager.getPod(podOwner);
         
         bytes32 validatorIndexBytes = bytes32(uint256(validatorIndex));
-        bytes memory proofs = abi.encodePacked(validatorTreeRoot, beaconStateMerkleProof, validatorRoot, validatorIndexBytes, validatorMerkleProof);
+        bytes memory proofs = abi.encodePacked(validatorTreeRoot, beaconStateMerkleProofForValidators, validatorRoot, validatorIndexBytes, validatorMerkleProof);
         eigenPod.verifyOvercommitedStake(proofs, validatorContainerFields, 0);
         
         uint256 beaconChainETHShares = investmentManager.investorStratShares(podOwner, investmentManager.beaconChainETHStrategy());
@@ -174,7 +174,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         // make sure that wrongWithdrawalAddress is not set to actual pod address
         cheats.assume(wrongWithdrawalAddress != address(newPod));
         
-        (beaconStateRoot, beaconStateMerkleProof, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) = getInitialDepositProof();
+        (beaconStateRoot, beaconStateMerkleProofForValidators, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) = getInitialDepositProof();
         beaconChainOracle.setBeaconChainStateRoot(beaconStateRoot);
 
 
@@ -185,14 +185,14 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         validatorContainerFields[1] = abi.encodePacked(bytes1(uint8(1)), bytes11(0), wrongWithdrawalAddress).toBytes32(0);
 
         bytes32 validatorIndexBytes = bytes32(uint256(validatorIndex));
-        bytes memory proofs = abi.encodePacked(validatorTreeRoot, beaconStateMerkleProof, validatorRoot, validatorIndexBytes, validatorMerkleProof);
+        bytes memory proofs = abi.encodePacked(validatorTreeRoot, beaconStateMerkleProofForValidators, validatorRoot, validatorIndexBytes, validatorMerkleProof);
         cheats.expectRevert(bytes("EigenPod.verifyValidatorFields: Invalid validator fields"));
         newPod.verifyCorrectWithdrawalCredentials(proofs, validatorContainerFields);
     }
 
     //test that when withdrawal credentials are verified more than once, it reverts
     function testDeployNewEigenPodWithActiveValidator(bytes memory signature, bytes32 depositDataRoot) public {
-        (beaconStateRoot, beaconStateMerkleProof, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) = getInitialDepositProof();
+        (beaconStateRoot, beaconStateMerkleProofForValidators, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) = getInitialDepositProof();
         beaconChainOracle.setBeaconChainStateRoot(beaconStateRoot);        
 
         cheats.startPrank(podOwner);
@@ -203,11 +203,48 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         newPod = eigenPodManager.getPod(podOwner);
 
         bytes32 validatorIndexBytes = bytes32(uint256(validatorIndex));
-        bytes memory proofs = abi.encodePacked(validatorTreeRoot, beaconStateMerkleProof, validatorRoot, validatorIndexBytes, validatorMerkleProof);
+        bytes memory proofs = abi.encodePacked(validatorTreeRoot, beaconStateMerkleProofForValidators, validatorRoot, validatorIndexBytes, validatorMerkleProof);
         newPod.verifyCorrectWithdrawalCredentials(proofs, validatorContainerFields);
 
         cheats.expectRevert(bytes("EigenPod.verifyCorrectWithdrawalCredentials: Validator not inactive"));
         newPod.verifyCorrectWithdrawalCredentials(proofs, validatorContainerFields);
+    }
+
+    function testVerifyWithdrawalProofs() public {
+                bytes32[] memory withdrawalFields;
+
+                //getting proof for withdrawal from beacon chain
+                (
+                    withdrawalFields, 
+                    beaconStateRoot, 
+                    beaconStateMerkleProofForExecutionPayloadHeader, 
+                    executionPayloadHeaderRoot, 
+                    executionPayloadHeaderProofForWithdrawalProof, 
+                    withdrawalTreeRoot,
+                    withdrawalMerkleProof,
+                    withdrawalRoot
+                ) = getWithdrawalProof();
+
+
+
+                beaconChainOracle.setBeaconChainStateRoot(beaconStateRoot);
+                bytes memory proofs = abi.encodePacked(
+                                        executionPayloadHeaderRoot, 
+                                        beaconStateMerkleProofForExecutionPayloadHeader, 
+                                        withdrawalTreeRoot, 
+                                        executionPayloadHeaderProofForWithdrawalProof,
+                                        withdrawalRoot,
+                                        bytes32(uint256(0)), 
+                                        withdrawalMerkleProof
+                                    );
+
+                Relayer relay = new Relayer();
+                relay.verifyWithdrawalProofsHelp(
+                    beaconStateRoot,
+                    proofs,
+                    withdrawalFields
+                );
+        
     }
 
     // // Withdraw eigenpods balance to an EOA
@@ -234,77 +271,95 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     //             cheats.deal(address(newPod), stakeAmount);
 
     //             //getting proof for withdrawal from beacon chain
-    //             (beaconStateRoot, beaconStateMerkleProof, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) = getCompleteWithdrawalProof();
+    //             (
+    //                 withdrawalContainerFields, 
+    //                 beaconStateRoot, 
+    //                 beaconStateMerkleProofForExecutionPayloadHeader, 
+    //                 executionPayloadHeaderRoot, 
+    //                 executionPayloadHeaderProofForWithdrawalProof, 
+    //                 withdrawalTreeRoot,
+    //                 withdrawalMerkleProof,
+    //                 withdrawalRoot
+    //             ) = getWithdrawalProof();
+
     //             beaconChainOracle.setBeaconChainStateRoot(beaconStateRoot);
-    //             bytes memory proofs = abi.encodePacked(validatorTreeRoot, beaconStateMerkleProof, validatorRoot, bytes32(uint256(0)), validatorMerkleProof);
-    //             newPod.verifyBeaconChainFullWithdrawal(validatorIndex, proofs, validatorContainerFields,  0);
+    //             bytes memory proofs = abi.encodePacked(
+    //                                     executionPayloadHeaderRoot, 
+    //                                     beaconStateMerkleProofForExecutionPayloadHeader, 
+    //                                     withdrawalTreeRoot, 
+    //                                     executionPayloadHeaderProofForWithdrawalProof,
+    //                                     withdrawalRoot,
+    //                                     bytes32(uint256(0)), 
+    //                                     withdrawalRoot
+    //                                 );
+    //             newPod.verifyBeaconChainFullWithdrawal(validatorIndex, proofs, withdrawalContainerFields,  0);
     //     }
         
-    //     IInvestmentStrategy[] memory strategyArray = new IInvestmentStrategy[](1);
-    //     IERC20[] memory tokensArray = new IERC20[](1);
-    //     uint256[] memory shareAmounts = new uint256[](1);
-    //     uint256[] memory strategyIndexes = new uint256[](1);
-    //     IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce =
-    //         IInvestmentManager.WithdrawerAndNonce({withdrawer: podOwner, nonce: 0});
-    //     bool undelegateIfPossible = false;
-    //     {
-    //         strategyArray[0] = investmentManager.beaconChainETHStrategy();
-    //         shareAmounts[0] = REQUIRED_BALANCE_WEI;
-    //         strategyIndexes[0] = 0;
-    //     }
+        // IInvestmentStrategy[] memory strategyArray = new IInvestmentStrategy[](1);
+        // IERC20[] memory tokensArray = new IERC20[](1);
+        // uint256[] memory shareAmounts = new uint256[](1);
+        // uint256[] memory strategyIndexes = new uint256[](1);
+        // IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce =
+        //     IInvestmentManager.WithdrawerAndNonce({withdrawer: podOwner, nonce: 0});
+        // bool undelegateIfPossible = false;
+        // {
+        //     strategyArray[0] = investmentManager.beaconChainETHStrategy();
+        //     shareAmounts[0] = REQUIRED_BALANCE_WEI;
+        //     strategyIndexes[0] = 0;
+        // }
 
 
-    //     uint256 podOwnerSharesBefore = investmentManager.investorStratShares(podOwner, investmentManager.beaconChainETHStrategy());
+        // uint256 podOwnerSharesBefore = investmentManager.investorStratShares(podOwner, investmentManager.beaconChainETHStrategy());
         
 
-    //     cheats.warp(uint32(block.timestamp) + 1 days);
-    //     cheats.roll(uint32(block.timestamp) + 1 days);
+        // cheats.warp(uint32(block.timestamp) + 1 days);
+        // cheats.roll(uint32(block.timestamp) + 1 days);
 
-    //     cheats.startPrank(podOwner);
-    //     investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, podOwner, undelegateIfPossible);
-    //     cheats.stopPrank();
-    //     uint32 queuedWithdrawalStartBlock = uint32(block.number);
+        // cheats.startPrank(podOwner);
+        // investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, podOwner, undelegateIfPossible);
+        // cheats.stopPrank();
+        // uint32 queuedWithdrawalStartBlock = uint32(block.number);
 
-    //     //*************************DELEGATION/Stake Update STUFF******************************//
-    //     //now withdrawal block time is before deregistration
-    //     cheats.warp(uint32(block.timestamp) + 2 days);
-    //     cheats.roll(uint32(block.timestamp) + 2 days);
+        // //*************************DELEGATION/Stake Update STUFF******************************//
+        // //now withdrawal block time is before deregistration
+        // cheats.warp(uint32(block.timestamp) + 2 days);
+        // cheats.roll(uint32(block.timestamp) + 2 days);
         
-    //     generalReg1.deregisterOperator(operator);
+        // generalReg1.deregisterOperator(operator);
 
-    //     //warp past the serve until time, which is 3 days from the beginning.  THis puts us at 4 days past that point
-    //     cheats.warp(uint32(block.timestamp) + 4 days);
-    //     cheats.roll(uint32(block.timestamp) + 4 days);
-    //     //*************************************************************************//
+        // //warp past the serve until time, which is 3 days from the beginning.  THis puts us at 4 days past that point
+        // cheats.warp(uint32(block.timestamp) + 4 days);
+        // cheats.roll(uint32(block.timestamp) + 4 days);
+        // //*************************************************************************//
 
-    //     uint256 podOwnerSharesAfter = investmentManager.investorStratShares(podOwner, investmentManager.beaconChainETHStrategy());
+        // uint256 podOwnerSharesAfter = investmentManager.investorStratShares(podOwner, investmentManager.beaconChainETHStrategy());
 
-    //     require(podOwnerSharesBefore - podOwnerSharesAfter == REQUIRED_BALANCE_WEI, "delegation shares not updated correctly");
+        // require(podOwnerSharesBefore - podOwnerSharesAfter == REQUIRED_BALANCE_WEI, "delegation shares not updated correctly");
 
-    //     address delegatedAddress = delegation.delegatedTo(podOwner);
-    //     IInvestmentManager.QueuedWithdrawal memory queuedWithdrawal = IInvestmentManager.QueuedWithdrawal({
-    //         strategies: strategyArray,
-    //         tokens: tokensArray,
-    //         shares: shareAmounts,
-    //         depositor: podOwner,
-    //         withdrawerAndNonce: withdrawerAndNonce,
-    //         withdrawalStartBlock: queuedWithdrawalStartBlock,
-    //         delegatedAddress: delegatedAddress
-    //     });
+        // address delegatedAddress = delegation.delegatedTo(podOwner);
+        // IInvestmentManager.QueuedWithdrawal memory queuedWithdrawal = IInvestmentManager.QueuedWithdrawal({
+        //     strategies: strategyArray,
+        //     tokens: tokensArray,
+        //     shares: shareAmounts,
+        //     depositor: podOwner,
+        //     withdrawerAndNonce: withdrawerAndNonce,
+        //     withdrawalStartBlock: queuedWithdrawalStartBlock,
+        //     delegatedAddress: delegatedAddress
+        // });
 
-    //     uint256 podOwnerBalanceBefore = podOwner.balance;
-    //     uint256 middlewareTimesIndex = 1;
-    //     bool receiveAsTokens = true;
-    //     cheats.startPrank(podOwner);
+        // uint256 podOwnerBalanceBefore = podOwner.balance;
+        // uint256 middlewareTimesIndex = 1;
+        // bool receiveAsTokens = true;
+        // cheats.startPrank(podOwner);
 
-    //     investmentManager.completeQueuedWithdrawal(queuedWithdrawal, middlewareTimesIndex, receiveAsTokens);
+        // investmentManager.completeQueuedWithdrawal(queuedWithdrawal, middlewareTimesIndex, receiveAsTokens);
 
-    //     cheats.stopPrank();
+        // cheats.stopPrank();
 
-    //     require(podOwner.balance - podOwnerBalanceBefore == shareAmounts[0], "podOwner balance not updated correcty");
+        // require(podOwner.balance - podOwnerBalanceBefore == shareAmounts[0], "podOwner balance not updated correcty");
 
 
-    // } 
+    //} 
 
     // simply tries to register 'sender' as a delegate, setting their 'DelegationTerms' contract in EigenLayrDelegation to 'dt'
     // verifies that the storage of EigenLayrDelegation contract is updated appropriately
@@ -375,11 +430,11 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     }
 
     function _testDeployAndVerifyNewEigenPod(address _podOwner, bytes memory signature, bytes32 depositDataRoot, bool isContract) internal {
-        (beaconStateRoot, beaconStateMerkleProof, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) = getInitialDepositProof();
+        (beaconStateRoot, beaconStateMerkleProofForValidators, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) = getInitialDepositProof();
 
         //if the _podOwner is a contract, we get the beacon state proof for the contract-specific withdrawal credential
         if(isContract) {
-            (beaconStateRoot, beaconStateMerkleProof, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) = getContractAddressWithdrawalCred();
+            (beaconStateRoot, beaconStateMerkleProofForValidators, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) = getContractAddressWithdrawalCred();
         }
 
         cheats.startPrank(_podOwner);
@@ -393,12 +448,80 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         newPod = eigenPodManager.getPod(_podOwner);
 
         bytes32 validatorIndexBytes = bytes32(uint256(validatorIndex));
-        bytes memory proofs = abi.encodePacked(validatorTreeRoot, beaconStateMerkleProof, validatorRoot, validatorIndexBytes, validatorMerkleProof);
+        bytes memory proofs = abi.encodePacked(validatorTreeRoot, beaconStateMerkleProofForValidators, validatorRoot, validatorIndexBytes, validatorMerkleProof);
         newPod.verifyCorrectWithdrawalCredentials(proofs, validatorContainerFields);
 
         IInvestmentStrategy beaconChainETHStrategy = investmentManager.beaconChainETHStrategy();
 
         uint256 beaconChainETHShares = investmentManager.investorStratShares(_podOwner, beaconChainETHStrategy);
         require(beaconChainETHShares == REQUIRED_BALANCE_WEI, "investmentManager shares not updated correctly");
+    }
+
+
+    function verifyWithdrawalProofs(
+        bytes32 beaconStateRoot, 
+        bytes memory proofs, 
+        bytes32[] memory withdrawalFields
+    ) internal {
+        require(withdrawalFields.length == BeaconChainProofs.NUM_WITHDRAWAL_FIELDS, "incorrect executionPayloadHeaderFields length");
+        uint256 pointer = 0;
+        bool valid;
+
+        //check that beacon state root from oracle is present in historical roots
+        //TODO: uncomment
+        //pointer = verifyBeaconChainRootProof(beaconStateRoot, proofs, pointer);
+
+        
+        bytes32 executionPayloadHeaderRoot = proofs.toBytes32(0);
+        pointer += 32;
+        //verify that execution payload header root is correct against beacon state root
+        valid = Merkle.verifyInclusionSha256(
+            proofs.slice(pointer, 32 * BeaconChainProofs.BEACON_STATE_FIELD_TREE_HEIGHT), 
+            beaconStateRoot, 
+            executionPayloadHeaderRoot, 
+            BeaconChainProofs.EXECUTION_PAYLOAD_HEADER_INDEX
+        );
+        require(valid, "Invalid execution payload header proof");
+
+        pointer += 32 * BeaconChainProofs.BEACON_STATE_FIELD_TREE_HEIGHT;
+        bytes32 withdrawalsRoot = proofs.toBytes32(pointer);
+        pointer +=32;
+
+        //verify that the withdrawals root is correct against the execution payload header root
+        valid = Merkle.verifyInclusionSha256(
+            proofs.slice(pointer, 32 * BeaconChainProofs.EXECUTION_PAYLOAD_HEADER_FIELD_TREE_HEIGHT), 
+            executionPayloadHeaderRoot, 
+            withdrawalsRoot, 
+            BeaconChainProofs.WITHDRAWALS_ROOT_INDEX
+        );
+        require(valid, "Invalid withdrawals root proof");
+
+        pointer += 32 * BeaconChainProofs.EXECUTION_PAYLOAD_HEADER_FIELD_TREE_HEIGHT;
+        bytes32 individualWithdrawalContainerRoot = proofs.toBytes32(pointer);
+        pointer += 32;
+
+
+        require(individualWithdrawalContainerRoot == Merkle.merkleizeSha256(withdrawalFields), "provided withdrawalFields do not match withdrawalContainerRoot");
+
+
+        valid = Merkle.verifyInclusionSha256(
+            proofs.slice(pointer + 32, 32 * (BeaconChainProofs.WITHDRAWALS_TREE_HEIGHT + 1)),
+            withdrawalsRoot,
+            individualWithdrawalContainerRoot,
+            proofs.toUint256(pointer)
+        );
+
+        require(valid, "invalid withdrawal container inclusion proof");
+    }
+ }
+
+
+ contract Relayer is Test {
+    function verifyWithdrawalProofsHelp(
+        bytes32 beaconStateRoot, 
+        bytes calldata proofs, 
+        bytes32[] calldata withdrawalFields
+    ) public {
+        BeaconChainProofs.verifyWithdrawalProofs(beaconStateRoot, proofs, withdrawalFields);
     }
  }

@@ -223,6 +223,7 @@ contract EigenPod is IEigenPod, Initializable, Test {
             withdrawalFields
         );
 
+
         require(validatorIndex == Endian.fromLittleEndianUint64(withdrawalFields[1]), "provided validatorIndex does not match withdrawal proof");
 
 
@@ -456,4 +457,5 @@ contract EigenPod is IEigenPod, Initializable, Test {
     function podWithdrawalCredentials() internal view returns(bytes memory) {
         return abi.encodePacked(bytes1(uint8(1)), bytes11(0), address(this));
     }
+
 }

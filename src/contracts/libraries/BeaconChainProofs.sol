@@ -169,9 +169,10 @@ library BeaconChainProofs{
         bool valid;
 
         //check that beacon state root from oracle is present in historical roots
-        pointer = verifyBeaconChainRootProof(beaconStateRoot, proofs, pointer);
+        //TODO: uncomment
+        //pointer = verifyBeaconChainRootProof(beaconStateRoot, proofs, pointer);
 
-
+        
         bytes32 executionPayloadHeaderRoot = proofs.toBytes32(0);
         pointer += 32;
         //verify that execution payload header root is correct against beacon state root
@@ -203,7 +204,7 @@ library BeaconChainProofs{
         require(individualWithdrawalContainerRoot == Merkle.merkleizeSha256(withdrawalFields), "provided withdrawalFields do not match withdrawalContainerRoot");
 
         valid = Merkle.verifyInclusionSha256(
-            proofs.slice(pointer + 32, 32 * BeaconChainProofs.WITHDRAWALS_TREE_HEIGHT),
+            proofs.slice(pointer + 32, 32 * (BeaconChainProofs.WITHDRAWALS_TREE_HEIGHT + 1)),
             withdrawalsRoot,
             individualWithdrawalContainerRoot,
             proofs.toUint256(pointer)
