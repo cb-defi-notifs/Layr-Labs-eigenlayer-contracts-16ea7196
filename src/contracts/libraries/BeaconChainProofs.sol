@@ -143,7 +143,6 @@ library BeaconChainProofs{
         require(validatorRoot == Merkle.merkleizeSha256(validatorFields), "EigenPod.verifyValidatorFields: Invalid validator fields");
         //offset another 32 bytes for the length of the validatorRoot
         pointer += 32;
-        uint64 validatorIndex = uint64(proofs.toUint256(pointer));
         //verify that the validatorRoot is within the validator tree
         valid = Merkle.verifyInclusionSha256(
             /**
@@ -153,10 +152,10 @@ library BeaconChainProofs{
             proofs.slice(pointer + 32, 32 * (BeaconChainProofs.VALIDATOR_TREE_HEIGHT + 1)),
             validatorTreeRoot,
             validatorRoot,
-            uint256(validatorIndex)
+            proofs.toUint256(pointer)
         );
         require(valid, "EigenPod.verifyValidatorFields: Invalid validator root from validator tree root proof");
-        return validatorIndex;
+        return uint64(proofs.toUint256(pointer));
     }
 
     /// @param beaconStateRoot is the latest beaconStateRoot posted by the oracle
@@ -193,7 +192,7 @@ library BeaconChainProofs{
             proofs.slice(pointer, 32 * BeaconChainProofs.EXECUTION_PAYLOAD_HEADER_FIELD_TREE_HEIGHT), 
             executionPayloadHeaderRoot, 
             withdrawalsRoot, 
-            WITHDRAWALS_ROOT_INDEX
+            BeaconChainProofs.WITHDRAWALS_ROOT_INDEX
         );
         require(valid, "Invalid withdrawals root proof");
 
@@ -222,7 +221,7 @@ library BeaconChainProofs{
         pointer += 32;
         //check if the historical_roots array's root is in the beacon state
         bool valid = Merkle.verifyInclusionSha256(
-            proofs.slice(pointer + 32, 32 * BeaconChainProofs.BEACON_STATE_FIELD_TREE_HEIGHT), 
+            proofs.slice(pointer, 32 * BeaconChainProofs.BEACON_STATE_FIELD_TREE_HEIGHT), 
             beaconStateRoot, 
             historicalRootsRoot, 
             BeaconChainProofs.HISTORICAL_ROOTS_INDEX
