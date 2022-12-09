@@ -158,7 +158,7 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager,
      */
     function withdrawPenalties(address podOwner, address recipient, uint256 amount) external {
         require(msg.sender == Ownable(address(investmentManager)).owner(), "EigenPods.withdrawPenalties: only investmentManager owner");
-        podOwnerToPaidPenalties[podOwner] -= amount;
+        podOwnerToUnwithdrawnPaidPenalties[podOwner] -= amount;
         // transfer penalties from pod to `recipient`
         Address.sendValue(payable(recipient), amount);
     }
