@@ -33,11 +33,13 @@ If a Ethereum validator restaked on an EigenPod has a balance that falls below `
 
 Whenever an staker withdraws one of their validators from the beacon chain to provide liquidity, they have a few options. Stakers could keep the ETH in the EigenPod and continue staking on EigenLayer, in which case their ETH, when withdrawn to the EigenPod, will not earn any additional Ethereum staking yield, it will only earn their EigenLayer staking yield. Stakers could also queue withdrawals on EigenLayer for the virtual beacon chain ETH strategy which will be fullfilled once their staking obligations have ended and their EigenPod has enough balance to complete the withdrawal.
 
-In this second case, in order to withdraw their balance from the EigenPod, stakers must provide a valid proof of their full withdrawal (differentiated from partil withdrawals through a simple comparison of the amount to a threshold) against a beacon state root. Once the proof is successfully verified, if the amount withdrawn is less than `REQUIRED_BALANCE_GWEI` the validators balance is deducted from EigenLayer and the penalties are added, similar to [fraud proofs for overcommitted balances](https://github.com/Layr-Labs/eignlayr-contracts/edit/update-eigenpod-withdrawals/docs/EigenPods.md#fraud-proofs-for-overcommitted-balances). 
+In this second case, in order to withdraw their balance from the EigenPod, stakers must provide a valid proof of their full withdrawal (differentiated from partial withdrawals through a simple comparison of the amount to a threshold) against a beacon state root. Once the proof is successfully verified, if the amount withdrawn is less than `REQUIRED_BALANCE_GWEI` the validators balance is deducted from EigenLayer and the penalties are added, similar to [fraud proofs for overcommitted balances](https://github.com/Layr-Labs/eignlayr-contracts/edit/update-eigenpod-withdrawals/docs/EigenPods.md#fraud-proofs-for-overcommitted-balances). 
 
 If the withdrawn amount is greater than `REQUIRED_BALANCE_GWEI`, then the excess is marked as instantly withdrawable after the call returns. This is fine, since the amount is not restaked on EigenLayer.
 
 Finally, before the call returns, the EigenPod attempts to pay off any penalties it owes using the newly withdrawn amount.
+
+Note that there exists a tail-end exploit here. If a validator was already slashed, they could get themselved slashed below `MIN_FULL_WITHDRAWAL_AMOUNT_GWEI` (very hard) and then withdraw this balance as a partial withdrawal because its amount is so little, even though it is actually a full withdrawal. This is not huge concern at the moment since it is extremely improbable and not economically advantageous. It is a known issue though.
 
 ### Partial Withdrawal Claims
 
@@ -49,8 +51,8 @@ In more detail, the EigenPod owner:
 1. Proves all their full withdrawals up to the `currentBlockNumber`
 2. Calculates the block number of the next full withdrawal occuring at or after `currentBlockNumber`. Call this `expireBlockNumber`.
 3. Pings the contract with a transaction claiming that they have proven all full withdrawals until `expireBlockNumber`. The contract will note this in storage along with `partialWithdrawals = address(this).balance - FULL_WITHDRAWALS`.
-4. If a watcher proves a full withdrawal for a validator restaked on the EigenPod that occured before `expireBlockNumber` that has not been proven before, the claim is marked as failed.
-5. If no such proof is provided within a specified delay, the staker is allow withdraw `partialWithdrawals` (first attempting to pay off penalties with the ether to withdraw) and make new partial withdrawal claims
+4. If a watcher proves a full withdrawal for a validator restaked on the EigenPod that occured before `currentBlockNumber` that has not been proven before and this proof occurs within `PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS` (an EigenPod contract variable) of the partial withdrawal claim, the claim is marked as failed. This means that the claim cannot be withdrawn, but the mechanism for rewarding watchers has not been fully worked out yet. It will prbably be the case that watchers will eventually end up being paid through penalty withdrawals.
+5. If no such proof is provided within `PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS`, the staker is allow withdraw `partialWithdrawals` (first attempting to pay off penalties with the ether to withdraw) and make new partial withdrawal claims
 
 So, overall, stakers must wait for this delay period after partial withdrawals occur leading to a slight delay in partial withdrawal redemption when staking on EigenLayer vs not.
 
@@ -60,4 +62,4 @@ During proofs of full withdrawals, EigenPods first attempt to pay off their pena
 
 During partial withdrawal claims, before partial withdrawals are redeemed, they are used to pay off penalties to the extent they can.
 
-Note that the withdrawn restaked balance can be overestimated through this penalty payment scheme. In the case of such estimation, stakers can ping their EigenPods with a request to rebalance the overestimated balance into their instantly withdrawable funds.
+Note that the withdrawn restaked balance can be overestimated through this penalty payment scheme, since they are paid off in such an aggressive manner. Penalties can come out of a staker's instantly withdrawable balance and their partial withdrawals. This means that ETH that was withdrawn to the execution layer through full withdrawals can end up staying in the contract because there aren't enough shares on EigenLayer to withdraw. In the case of such a state, stakers can roll over the overestimated restaked balance of their EigenPods into their instantly withdrawable funds. This essentially retroactively pays the penalties from their restaked balance and brings back their instantly withdrawable rewards that were previously used to pay penalties. Of course, being as pessimistic as possible, the EigenPod will attempt to pay off penalties as best as it can before allowing its owner to instantly withdraw their new instantly withdrawable funds. For more details track mentions of `rollableBalanceGwei` and the `rollOverRollableBalance` function.
