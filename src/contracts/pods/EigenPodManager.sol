@@ -30,7 +30,7 @@ import "../interfaces/IBeaconChainOracle.sol";
 contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager, DSTest
 {
     //TODO: change this to constant in prod
-    IETHPOSDeposit immutable ethPOS;
+    IETHPOSDeposit public immutable ethPOS;
     
     /// @notice Beacon proxy to which the EigenPods point
     IBeacon public immutable eigenPodBeacon;
@@ -128,7 +128,8 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager,
      */
     function depositBeaconChainETH(address podOwner, uint64 amount) external onlyEigenPod(podOwner) {
         //make sure that the podOwner hasn't over committed their stake, and deposit on their behalf
-        require(pods[podOwner].depositedBalance + amount <= pods[podOwner].balance + address(getPod(podOwner)).balance, "EigenPodManager.depositBalanceIntoEigenLayer: cannot deposit more than balance");
+        require(pods[podOwner].depositedBalance + amount <= pods[podOwner].balance + address(getPod(podOwner)).balance,
+            "EigenPodManager.depositBalanceIntoEigenLayer: cannot deposit more than balance");
         pods[podOwner].depositedBalance += amount;
         //deposit into InvestmentManager
         investmentManager.depositBeaconChainETH(podOwner, uint256(amount));
