@@ -215,7 +215,8 @@ contract EigenPod is IEigenPod, Initializable, Test {
         //TODO: tailor this to production oracle
         bytes32 beaconStateRoot = eigenPodManager.getBeaconChainStateRoot();
 
-        require(validatorStatus[validatorIndex] != VALIDATOR_STATUS.INACTIVE, "EigenPod.verifyBeaconChainFullWithdrawal: ETH validator is inactive on EigenLayer");
+        require(validatorStatus[validatorIndex] != VALIDATOR_STATUS.INACTIVE && validatorStatus[validatorIndex] != VALIDATOR_STATUS.WITHDRAWN,
+            "EigenPod.verifyBeaconChainFullWithdrawal: ETH validator is inactive on EigenLayer, or full withdrawal has already been proven");
 
         BeaconChainProofs.verifyWithdrawalProofs(
             beaconStateRoot,

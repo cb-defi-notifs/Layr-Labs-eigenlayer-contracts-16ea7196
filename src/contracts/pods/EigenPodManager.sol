@@ -154,7 +154,7 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager,
      * @notice Withdraws penalties of a certain pod
      * @param recipient The recipient of withdrawn ETH.
      * @param amount The amount of ETH to withdraw.
-     * @dev Callable only by the slasher.
+     * @dev Callable only by the investmentManager.owner().
      */
     function withdrawPenalties(address podOwner, address recipient, uint256 amount) external {
         require(msg.sender == Ownable(address(investmentManager)).owner(), "EigenPods.withdrawPenalties: only investmentManager owner");
