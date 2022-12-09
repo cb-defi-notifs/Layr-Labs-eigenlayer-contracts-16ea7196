@@ -160,7 +160,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         
         bytes32 validatorIndexBytes = bytes32(uint256(validatorIndex));
         bytes memory proofs = abi.encodePacked(validatorTreeRoot, beaconStateMerkleProofForValidators, validatorRoot, validatorIndexBytes, validatorMerkleProof);
-        eigenPod.verifyOvercommitedStake(proofs, validatorContainerFields, 0);
+        eigenPod.verifyOvercommittedStake(proofs, validatorContainerFields, 0);
         
         uint256 beaconChainETHShares = investmentManager.investorStratShares(podOwner, investmentManager.beaconChainETHStrategy());
 
