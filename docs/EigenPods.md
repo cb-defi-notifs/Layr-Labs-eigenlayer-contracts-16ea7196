@@ -33,17 +33,31 @@ If a Ethereum validator restaked on an EigenPod has a balance that falls below `
 
 Whenever an staker withdraws one of their validators from the beacon chain to provide liquidity, they have a few options. Stakers could keep the ETH in the EigenPod and continue staking on EigenLayer, in which case their ETH, when withdrawn to the EigenPod, will not earn any additional Ethereum staking yield, it will only earn their EigenLayer staking yield. Stakers could also queue withdrawals on EigenLayer for the virtual beacon chain ETH strategy which will be fullfilled once their staking obligations have ended and their EigenPod has enough balance to complete the withdrawal.
 
-In this second case, in order to withdraw their balance from the EigenPod, stakers must provide a valid proof of their full withdrawal (differentiated from partil withdrawals through a simple comparison of the amount to a threshold) against a beacon state root. 
+In this second case, in order to withdraw their balance from the EigenPod, stakers must provide a valid proof of their full withdrawal (differentiated from partil withdrawals through a simple comparison of the amount to a threshold) against a beacon state root. Once the proof is successfully verified, if the amount withdrawn is less than `REQUIRED_BALANCE_GWEI` the validators balance is deducted from EigenLayer and the penalties are added, similar to [fraud proofs for overcommitted balances](https://github.com/Layr-Labs/eignlayr-contracts/edit/update-eigenpod-withdrawals/docs/EigenPods.md#fraud-proofs-for-overcommitted-balances). 
+
+If the withdrawn amount is greater than `REQUIRED_BALANCE_GWEI`, then the excess is marked as instantly withdrawable after the call returns. This is fine, since the amount is not restaked on EigenLayer.
+
+Finally, before the call returns, the EigenPod attempts to pay off any penalties it owes using the newly withdrawn amount.
 
 ### Partial Withdrawal Claims
 
+One of the biggest changes that will come along with the Capella hardfork is the addition of partial withdrawals. Partial withdrawals are withdrawals on behalf of validators that aren't exiting from the beacon chain, but rather have a balance (due to yield) of greater than 32 ETH. Since these withdrawals happen every block and are often of small size, they do not make economic sense to prove individually. However, since yield is not immidiately restaked on EigenLayer, the protocol allows stakers to withdraw this yield in an sensible way through an optimistic claims process. 
+
+The balance of an EigenPod at anytime is `FULL_WITHDRAWALS + PARTIAL_WITHDRAWALS` where `FULL_WITHDRAWALS` is the balance due to full withdrawals that have not been withdrawn from the EigenPod yet and `PARTIAL_WITHDRAWALS`  is the balance due to partial withdrawals that have not been withdrawn from the EigenPod yet and includes any miscellaneous balance increases due to `selfdestruct`, etc.). The key idea in the partial withdrawal claim process is that, since full withdrawals happen much less frequently than partial withdrawals, a staker only needs to claim that they have proven all of the full withdrawals up to a certain block and record the EigenPod's balance at that block in order to calculate the ETH value of their partial withdrawals. 
+
+In more detail, the EigenPod owner:
+1. Proves all their full withdrawals up to the `currentBlockNumber`
+2. Calculates the block number of the next full withdrawal occuring at or after `currentBlockNumber`. Call this `expireBlockNumber`.
+3. Pings the contract with a transaction claiming that they have proven all full withdrawals until `expireBlockNumber`. The contract will note this in storage along with `partialWithdrawals = address(this).balance - FULL_WITHDRAWALS`.
+4. If a watcher proves a full withdrawal for a validator restaked on the EigenPod that occured before `expireBlockNumber` that has not been proven before, the claim is marked as failed.
+5. If no such proof is provided within a specified delay, the staker is allow withdraw `partialWithdrawals` (first attempting to pay off penalties with the ether to withdraw) and make new partial withdrawal claims
+
+So, overall, stakers must wait for this delay period after partial withdrawals occur leading to a slight delay in partial withdrawal redemption when staking on EigenLayer vs not.
+
 ### Paying Penalties
 
+During proofs of full withdrawals, EigenPods first attempt to pay off their penalties as much as they can from the withdrawn restaked (not instantly withdrawable balance) balance. IF that is not enough, they then attempt to pay off their penalties as much as they can from the withdrawn excess balance.
 
+During partial withdrawal claims, before partial withdrawals are redeemed, they are used to pay off penalties to the extent they can.
 
-
-
-
-## The Oracle
-
-TBD
+Note that the withdrawn restaked balance can be overestimated through this penalty payment scheme. In the case of such estimation, stakers can ping their EigenPods with a request to rebalance the overestimated balance into their instantly withdrawable funds.
