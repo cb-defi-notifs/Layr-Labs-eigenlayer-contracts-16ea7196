@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED AND MIT
-// some functions here are taken from MIT licensed code:
+// several functions are taken or adapted from https://github.com/HarryR/solcrypto/blob/master/contracts/altbn128.sol (MIT license):
 // Copyright 2017 Christian Reitwiessner
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -16,9 +16,8 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
-// The rest of the code is written by LayrLabs Inc. and UNLICENSED
 
-// 2019 OKIMS
+// The remainder of the code is written by LayrLabs Inc. and UNLICENSED
 
 pragma solidity ^0.8.12;
 
@@ -260,71 +259,66 @@ library BN254 {
         return keccak256(abi.encodePacked(pk.X, pk.Y));
     }
 
+
     /**
-     * @notice hash a bytes32 word to a point in G1
-     * @dev Implementation of the try-and-increment method (see https://www.normalesup.org/~tibouchi/papers/bnhash-scis.pdf)
-     *      This method is not O(1), see https://datatracker.ietf.org/doc/id/draft-irtf-cfrg-hash-to-curve-06.html for more optimal algos
-     * @dev used for BLS signatures
+     * @notice same as hashToPoint function in https://github.com/ChihChengLiang/bls_solidity_python/blob/master/contracts/BLS.sol
      */
-    function hashToG1(bytes32 _x) internal view returns (uint256 x, uint256 y) {
-        x = uint256(_x) % FP_MODULUS;
-        bool exists = false;
-        while (true) {
-            // y = x**3 + 3 (bn254 EC formula)
-            y = mulmod(x, x, FP_MODULUS);
-            y = mulmod(y, x, FP_MODULUS);
-            y = addmod(y, 3, FP_MODULUS);
-            // we check if BN254 contains a point for this value of x
-            (y, exists) = sqrtmod(y);
-            if (exists) {
+    function hashToG1(bytes32 _x) internal view returns (uint256, uint256) {
+        uint256 beta = 0;
+        uint256 y = 0;
+
+        // XXX: Gen Order (n) or Field Order (p) ?
+        uint256 x = uint256(_x) % FP_MODULUS;
+
+        while( true ) {
+            (beta, y) = findYFromX(x);
+
+            // y^2 == beta
+            if( beta == mulmod(y, y, FP_MODULUS) ) {
                 return (x, y);
             }
-            // increment x by 1 and try again (try-and-increment method)
+
             x = addmod(x, 1, FP_MODULUS);
         }
+        return (0, 0);
     }
 
     /**
-     * @notice Square root computation over Fp
-     * @dev Implementation of the Tonelli-Shanks algorithm
-     *      See https://eips.ethereum.org/assets/eip-3068/2012-685_Square_Root_Even_Ext.pdf for details
-     *      Since Fp % 4 == 3, the sqrt xx^(1/2) can be computed as xx^((Fp+1)/4)
-     * @param xx x^2, value that we want to take the square root of
-     * @return x square root of xx modulo Fp (Fp is hardcoded to the BN254 modulus)
-     * @return hasRoot is true if xx does have a root modulo Fp
-     */
-    function sqrtmod(uint256 xx) internal view returns (uint256 x, bool hasRoot) {
-        bool expmodRet;
+    * Given X, find Y
+    *
+    *   where y = sqrt(x^3 + b)
+    *
+    * Returns: (x^3 + b), y
+    */
+    function findYFromX(uint256 x)
+        internal view returns(uint256, uint256)
+    {
+        // beta = (x^3 + b) % p
+        uint256 beta = addmod(mulmod(mulmod(x, x, FP_MODULUS), x, FP_MODULUS), 3, FP_MODULUS);
+
+        // y^2 = x^3 + b
+        // this acts like: y = sqrt(beta) = beta^((p+1) / 4)
+        uint256 y = expMod(beta, 0xc19139cb84c680a6e14116da060561765e05aa45a1c72a34f082305b61f3f52, FP_MODULUS);
+
+        return (beta, y);
+    }
+
+    function expMod(uint256 _base, uint256 _exponent, uint256 _modulus) internal view returns (uint256 retval) {
+        bool success;
+        uint256[1] memory output;
+        uint[6] memory input;
+        input[0] = 0x20;        // baseLen = new(big.Int).SetBytes(getData(input, 0, 32))
+        input[1] = 0x20;        // expLen  = new(big.Int).SetBytes(getData(input, 32, 32))
+        input[2] = 0x20;        // modLen  = new(big.Int).SetBytes(getData(input, 64, 32))
+        input[3] = _base;
+        input[4] = _exponent;
+        input[5] = _modulus;
         assembly {
-            let freeMemPtr := mload(0x40)
-            // args to expmod precompile are
-            // <length_of_BASE> <length_of_EXPONENT> <length_of_MODULUS> <BASE> <EXPONENT> <MODULUS>
-            // [32, 32, 32, xx, (FP_MODULUS+1)/4, FP_MODULUS]
-            mstore(freeMemPtr, 0x20)
-            mstore(add(freeMemPtr, 0x20), 0x20)
-            mstore(add(freeMemPtr, 0x40), 0x20)
-            mstore(add(freeMemPtr, 0x60), xx)
-            mstore(
-                add(freeMemPtr, 0x80),
-                0xc19139cb84c680a6e14116da060561765e05aa45a1c72a34f082305b61f3f52
-            )
-            mstore(
-                add(freeMemPtr, 0xA0),
-                0x30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47
-            )
-            // modular exponentiation precompiled contract call
-            // https://github.com/ethereum/EIPs/blob/master/EIPS/eip-198.md
-            expmodRet := staticcall(
-                sub(gas(), 2000),
-                5,
-                freeMemPtr,
-                0xC0,
-                freeMemPtr,
-                0x20
-            )
-            x := mload(freeMemPtr)
-            hasRoot := eq(xx, mulmod(x, x, FP_MODULUS))
+            success := staticcall(sub(gas(), 2000), 5, input, 0xc0, output, 0x20)
+            // Use "invalid" to make gas estimation work
+            switch success case 0 { invalid() }
         }
-        require(expmodRet, "BN254:sqrt expmod precompiles contract call failed");
+        require(success);
+        return output[0];
     }
 }
