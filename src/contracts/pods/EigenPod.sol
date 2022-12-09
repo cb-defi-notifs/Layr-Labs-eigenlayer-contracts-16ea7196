@@ -395,19 +395,19 @@ contract EigenPod is IEigenPod, Initializable, Test {
      */
     function withdrawRestakedBeaconChainETH(
         address recipient,
-        uint256 amount
+        uint256 amountWei
     )
         external
         onlyEigenPodManager
     {
 
         // reduce the restakedExecutionLayerGwei
-        restakedExecutionLayerGwei -= uint64(amount / GWEI_TO_WEI);
+        restakedExecutionLayerGwei -= uint64(amountWei / GWEI_TO_WEI);
         
         // transfer ETH directly from pod to `recipient`
-        Address.sendValue(payable(recipient), amount);
+        Address.sendValue(payable(recipient), amountWei);
 
-        emit RestakedBeaconChainETHWithdrawn(recipient, amount);
+        emit RestakedBeaconChainETHWithdrawn(recipient, amountWei);
     }
 
     // INTERNAL FUNCTIONS
