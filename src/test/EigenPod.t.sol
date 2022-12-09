@@ -371,8 +371,14 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     // Expected Behaviour: Math is more complicated here, but keep track of rollable balance and make sure it
     //                     always accounts for the parital withdrawal
 
+    // 19. Withdraw penalties
+    // Setup: Run (7).
+    // Test: IM owner attempts to withdraw amount penalties for pod to recipient.
+    // Expected Behaviour: EigenPodManager.balance should decrement by amount
+    //                     recipient.balance should increment by amount 
+
     // These seem like the building blocks. would be good to combine them in funky ways too.
-    
+
     // // Withdraw eigenpods balance to an EOA
     // function testEigenPodsQueuedWithdrawalEOA(address operator, bytes memory signature, bytes32 depositDataRoot) public fuzzedAddress(operator){
     //     //make initial deposit
