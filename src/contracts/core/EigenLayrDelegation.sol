@@ -61,7 +61,7 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
     function registerAsOperator(IDelegationTerms dt) external {
         require(
             address(delegationTerms[msg.sender]) == address(0),
-            "EigenLayrDelegation.registerAsOperator: Delegate has already registered"
+            "EigenLayrDelegation.registerAsOperator: operator has already registered"
         );
         // store the address of the delegation contract that the operator is providing.
         delegationTerms[msg.sender] = dt;
@@ -101,6 +101,7 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
      * @dev Should only ever be called in the event that the `staker` has no active deposits in EigenLayer.
      */
     function undelegate(address staker) external onlyInvestmentManager {
+        require(!isOperator(staker), "EigenLayrDelegation.undelegate: operators cannot undelegate from themselves");
         delegatedTo[staker] = address(0);
     }
 
@@ -333,7 +334,7 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
     }
 
     /// @notice Returns if an operator can be delegated to, i.e. it has called `registerAsOperator`.
-    function isOperator(address operator) external view returns (bool) {
+    function isOperator(address operator) public view returns (bool) {
         return (address(delegationTerms[operator]) != address(0));
     }
 }
