@@ -186,7 +186,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
 
         bytes32 validatorIndexBytes = bytes32(uint256(validatorIndex));
         bytes memory proofs = abi.encodePacked(validatorTreeRoot, beaconStateMerkleProofForValidators, validatorRoot, validatorIndexBytes, validatorMerkleProof);
-        cheats.expectRevert(bytes("EigenPod.verifyValidatorFields: Invalid validator fields"));
+        cheats.expectRevert(bytes("BeaconChainProofs.verifyValidatorFields: Invalid validator fields"));
         newPod.verifyCorrectWithdrawalCredentials(proofs, validatorContainerFields);
     }
 
