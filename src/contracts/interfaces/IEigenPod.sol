@@ -122,8 +122,15 @@ interface IEigenPod {
     function redeemPartialWithdrawals(address recipient) external;
 
     /**
-     * @notice Rebalances restakedExecutionLayerGwei in case penalties were previously paid from instantlyWithdrawableBalanceGwei
-     *         so the EigenPod thinks podOwner has more beaconChainETH on EigenLayer than they do 
+     * @notice Withdraws `amount` gwei to the podOwner from their instantlyWithdrawableBalanceGwei
+     * @param amountGwei is the amount, in gwei, to withdraw
      */
-    function rebalanceRestakedExecutionLayerGwei() external;
+    function withdrawInstantlyWithdrawableBalanceGwei(uint64 amountGwei) external;
+
+    /**
+     * @notice Rebalances restakedExecutionLayerGwei in case penalties were previously paid from instantlyWithdrawableBalanceGwei or partial 
+     *         withdrawal, so the EigenPod thinks podOwner has more restakedExecutionLayerGwei and staked balance than beaconChainETH on EigenLayer
+     * @param amountGwei is the amount, in gwei, to roll over
+     */
+    function rollOverRollableBalance(uint64 amountGwei) external;
 }
