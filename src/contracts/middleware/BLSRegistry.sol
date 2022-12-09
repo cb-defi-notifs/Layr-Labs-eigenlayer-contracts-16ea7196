@@ -5,7 +5,6 @@ import "./RegistryBase.sol";
 import "../interfaces/IBLSPublicKeyCompendium.sol";
 import "../interfaces/IBLSRegistry.sol";
 import "../libraries/BN254.sol";
-import "../libraries/BLS.sol";
 
 /**
  * @title A Registry-type contract using aggregate BLS signatures.
@@ -110,7 +109,7 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
         OperatorStake memory _operatorStake = _registrationStakeEvaluation(operator, operatorType);
 
         // getting pubkey hash
-        bytes32 pubkeyHash = BLS.hashG1Point(pk);
+        bytes32 pubkeyHash = BN254.hashG1Point(pk);
 
         require(pubkeyHash != ZERO_PK_HASH, "BLSRegistry._registerOperator: Cannot register with 0x0 public key");
 
@@ -160,7 +159,7 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
         bytes32 pubkeyHash = registry[operator].pubkeyHash;
         /// @dev Verify that the stored pubkeyHash matches the 'pubkeyToRemoveAff' input
         require(
-            pubkeyHash == BLS.hashG1Point(pkToRemove),
+            pubkeyHash == BN254.hashG1Point(pkToRemove),
             "BLSRegistry._deregisterOperator: pubkey input does not match stored pubkeyHash"
         );
 
@@ -278,7 +277,7 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
         apk = newApk;
 
         // find the hash of aggregate pubkey
-        bytes32 newApkHash = BLS.hashG1Point(newApk);
+        bytes32 newApkHash = BN254.hashG1Point(newApk);
 
         // store the apk hash and the current block number in which the aggregated pubkey is being updated
         _apkUpdates.push(ApkUpdate({

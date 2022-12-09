@@ -24,7 +24,6 @@ import "../src/contracts/pods/EigenPodManager.sol";
 import "../src/contracts/permissions/PauserRegistry.sol";
 import "../src/contracts/middleware/BLSPublicKeyCompendium.sol";
 
-import "../src/contracts/libraries/BLS.sol";
 import "../src/contracts/libraries/BytesLib.sol";
 
 import "../src/test/utils/Signatures.sol";
@@ -38,7 +37,6 @@ import "forge-std/Test.sol";
 import "forge-std/Script.sol";
 import "forge-std/StdJson.sol";
 
-import "../src/contracts/libraries/BLS.sol";
 import "../src/contracts/libraries/BytesLib.sol";
 
 // # To load the variables in the .env file
