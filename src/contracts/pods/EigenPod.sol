@@ -85,10 +85,10 @@ contract EigenPod is IEigenPod, Initializable, Test {
     event PartialWithdrawalClaimRecorded(uint32 currBlockNumber, uint64 partialWithdrawalAmountGwei);
 
     /// @notice Emitted when a partial withdrawal claim is successfully redeemed
-    event PartialWithdrawalRedeemed(address recipient, uint64 partialWithdrawalAmountGwei);
+    event PartialWithdrawalRedeemed(address indexed recipient, uint64 partialWithdrawalAmountGwei);
 
     /// @notice Emitted when restaked beacon chain ETH is withdrawn from the eigenPod.
-    event RestakedBeaconChainETHWithdrawn(address recipient, uint256 amount);
+    event RestakedBeaconChainETHWithdrawn(address indexed recipient, uint256 amount);
 
     modifier onlyEigenPodManager {
         require(msg.sender == address(eigenPodManager), "EigenPod.onlyEigenPodManager: not eigenPodManager");

@@ -47,13 +47,16 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager,
     mapping(address => uint256) public podOwnerToUnwithdrawnPaidPenalties;
 
     /// @notice Emitted to notify the update of the beaconChainOracle address
-    event BeaconOracleUpdated(address newOracleAddress);
+    event BeaconOracleUpdated(address indexed newOracleAddress);
 
     /// @notice Emitted to notify the deployment of an EigenPod
-    event PodDeployed(address eigenPod, address podOwner);
+    event PodDeployed(address indexed eigenPod, address indexed podOwner);
 
     /// @notice Emitted to notify a deposit of beacon chain ETH recorded in the investment manager
-    event BeaconChainETHDeposited(address podOwner, uint256 amount);
+    event BeaconChainETHDeposited(address indexed podOwner, uint256 amount);
+
+    /// @notice Emitted when an EigenPod pays penalties, on behalf of its owner
+    event PenaltiesPaid(address indexed podOwner, uint256 amountPaid);
 
     modifier onlyEigenPod(address podOwner) {
         require(address(getPod(podOwner)) == msg.sender, "EigenPodManager.onlyEigenPod: not a pod");
@@ -147,6 +150,7 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager,
      * @dev Callable only by the podOwner's pod.
      */
     function payPenalties(address podOwner) external payable onlyEigenPod(podOwner) {
+        emit PenaltiesPaid(podOwner, msg.value);
         podOwnerToUnwithdrawnPaidPenalties[podOwner] += msg.value;
     }
 
