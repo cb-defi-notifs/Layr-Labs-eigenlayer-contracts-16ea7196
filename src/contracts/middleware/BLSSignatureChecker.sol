@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "../interfaces/IBLSRegistry.sol";
 import "../libraries/BytesLib.sol";
 import "../libraries/MiddlewareUtils.sol";
-import "../libraries/BLS.sol";
+import "../libraries/BN254.sol";
 
 /**
  * @title Used for checking BLS aggregate signatures from the operators of a `BLSRegistry`.
@@ -353,7 +353,7 @@ abstract contract BLSSignatureChecker {
              * operators that are part of the quorum
              */
             // negate aggNonSignerPubkey
-            input[1] = (BLS.FP_MODULUS - input[1]) % BLS.FP_MODULUS;
+            input[1] = (BN254.FP_MODULUS - input[1]) % BN254.FP_MODULUS;
 
             // call to ecAdd
             // singerPublicKey      = -aggregateNonSignerPublicKey + apk
@@ -372,7 +372,7 @@ abstract contract BLSSignatureChecker {
         // Now, (input[2], input[3]) is the signingPubkey
 
         // compute H(M) in G1
-        (input[6], input[7]) = BLS.hashToG1(msgHash);
+        (input[6], input[7]) = BN254.hashToG1(msgHash);
 
         // emit log_named_uint("msgHash G1", input[6]);
         // emit log_named_uint("msgHash G1", pointer);
@@ -443,10 +443,10 @@ abstract contract BLSSignatureChecker {
         require(success, "BLSSignatureChecker.checkSignatures: generator random shift and G1 hash addition failed");
 
         // insert negated coordinates of the generator for G2
-        input[2] = BLS.nG2x1;
-        input[3] = BLS.nG2x0;
-        input[4] = BLS.nG2y1;
-        input[5] = BLS.nG2y0;
+        input[2] = BN254.nG2x1;
+        input[3] = BN254.nG2x0;
+        input[4] = BN254.nG2y1;
+        input[5] = BN254.nG2y0;
 
         // in summary
         // (input[0], input[1]) =  sigma + gamma * signingPublicKey

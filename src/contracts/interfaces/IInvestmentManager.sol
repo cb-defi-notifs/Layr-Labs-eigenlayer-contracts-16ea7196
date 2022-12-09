@@ -54,7 +54,7 @@ interface IInvestmentManager {
      * @param amount is the amount of token to be invested in the strategy by the depositor
      * @dev Only called by EigenPod for the staker.
      */
-    function depositBeaconChainETH(address staker, uint256 amount) external returns (uint256);
+    function depositBeaconChainETH(address staker, uint256 amount) external;
 
     /**
      * @notice Records an overcommitment event on behalf of a staker. This allows EigenLayer to slash the overcommitted balance.
