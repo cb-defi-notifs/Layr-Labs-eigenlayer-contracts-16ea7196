@@ -242,7 +242,8 @@ contract EigenPod is IEigenPod, Initializable, Test {
         } else {
             // if the ETH validator was overcommitted but the contract did not take note, record the penalty
             if (validatorStatus[validatorIndex] == VALIDATOR_STATUS.ACTIVE) {
-                // allow EigenLayer to penalize the overcommitted balance
+                /// allow EigenLayer to penalize the overcommitted balance. in this case, the penalty is reduced -- since we know that we actually have the
+                /// withdrawal amount backing what is deposited in EigenLayer, we can minimize the negative effect on middlewares by minimizing the penalty
                 penaltiesDueToOvercommittingGwei += OVERCOMMITMENT_PENALTY_AMOUNT_GWEI - withdrawalAmountGwei;
                 // remove and undelegate shares in EigenLayer
                 eigenPodManager.recordOvercommittedBeaconChainETH(podOwner, beaconChainETHStrategyIndex, REQUIRED_BALANCE_WEI);
@@ -341,8 +342,8 @@ contract EigenPod is IEigenPod, Initializable, Test {
                 // allow this amount to be rolled over from restakedExecutionLayerGwei to instantlyWithdrawableBalanceGwei
                 // if penalties are ever fully paid in the future
                 rollableBalanceGwei += claim.partialWithdrawalAmountGwei;
-                claim.partialWithdrawalAmountGwei = 0;
                 penaltiesDueToOvercommittingGwei -= claim.partialWithdrawalAmountGwei;
+                claim.partialWithdrawalAmountGwei = 0;
             } else {
                 // if partial withdrawal is enough, penalize all that is necessary
                 eigenPodManager.payPenalties{value: penaltiesDueToOvercommittingGwei * GWEI_TO_WEI}(podOwner);
