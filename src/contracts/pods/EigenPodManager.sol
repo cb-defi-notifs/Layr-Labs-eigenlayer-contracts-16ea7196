@@ -65,11 +65,6 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager,
         _;
     }
 
-    modifier onlySlasher {
-        require(msg.sender == address(slasher), "EigenPodManager.onlySlasher: not slasher");
-        _;
-    }
-
     constructor(IETHPOSDeposit _ethPOS, IBeacon _eigenPodBeacon, IInvestmentManager _investmentManager, ISlasher _slasher) {
         ethPOS = _ethPOS;
         eigenPodBeacon = _eigenPodBeacon;
@@ -161,8 +156,9 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager,
      * @param amount The amount of ETH to withdraw.
      * @dev Callable only by the slasher.
      */
-    function withdrawPenalties(address podOwner, address recipient, uint256 amount) external onlySlasher {
-        podOwnerToUnwithdrawnPaidPenalties[podOwner] -= amount;
+    function withdrawPenalties(address podOwner, address recipient, uint256 amount) external {
+        require(msg.sender == Ownable(address(investmentManager)).owner(), "EigenPods.withdrawPenalties: only investmentManager owner");
+        podOwnerToPaidPenalties[podOwner] -= amount;
         // transfer penalties from pod to `recipient`
         Address.sendValue(payable(recipient), amount);
     }
