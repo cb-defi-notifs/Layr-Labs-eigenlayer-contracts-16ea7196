@@ -335,20 +335,18 @@ contract EigenPod is IEigenPod, Initializable, Test {
             "EigenPod.redeemLatestPartialWithdrawal: can only redeem partial withdrawals after fraud proof period"
         );
         // pay penalties if possible
-        if (penaltiesDueToOvercommittingGwei > 0) {
+        if (penaltiesDueToOvercommittingGwei != 0) {
             if (penaltiesDueToOvercommittingGwei > claim.partialWithdrawalAmountGwei) {
-                // if all of the partial withdrawal is not enough, send it all
+                // if all of the partial withdrawal is not enough to cover existing penalties, send it all
                 eigenPodManager.payPenalties{value: claim.partialWithdrawalAmountGwei * GWEI_TO_WEI}(podOwner);
-                // allow this amount to be rolled over from restakedExecutionLayerGwei to instantlyWithdrawableBalanceGwei
-                // if penalties are ever fully paid in the future
+                // allow this amount to be rolled over from restakedExecutionLayerGwei to instantlyWithdrawableBalanceGwei if penalties are ever fully paid in the future
                 rollableBalanceGwei += claim.partialWithdrawalAmountGwei;
                 penaltiesDueToOvercommittingGwei -= claim.partialWithdrawalAmountGwei;
                 claim.partialWithdrawalAmountGwei = 0;
             } else {
                 // if partial withdrawal is enough, penalize all that is necessary
                 eigenPodManager.payPenalties{value: penaltiesDueToOvercommittingGwei * GWEI_TO_WEI}(podOwner);
-                // allow this amount to be rolled over from restakedExecutionLayerGwei to instantlyWithdrawableBalanceGwei
-                // if penalties are ever fully paid in the future
+                // allow this amount to be rolled over from restakedExecutionLayerGwei to instantlyWithdrawableBalanceGwei if penalties are ever fully paid in the future
                 rollableBalanceGwei += penaltiesDueToOvercommittingGwei;
                 claim.partialWithdrawalAmountGwei -= penaltiesDueToOvercommittingGwei;
                 penaltiesDueToOvercommittingGwei = 0;
