@@ -224,7 +224,7 @@ contract DelegationTests is EigenLayrTestHelper {
     /// @param operator is the operator being delegated to.
     function testRegisterAsOperatorMultipleTimes(address operator) public fuzzedAddress(operator) {
         _testRegisterAsOperator(operator, IDelegationTerms(operator));
-        cheats.expectRevert(bytes("EigenLayrDelegation.registerAsOperator: Delegate has already registered"));
+        cheats.expectRevert(bytes("EigenLayrDelegation.registerAsOperator: operator has already registered"));
         _testRegisterAsOperator(operator, IDelegationTerms(operator));
     }
 
