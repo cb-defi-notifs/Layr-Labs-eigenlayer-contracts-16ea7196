@@ -47,7 +47,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
      * the operator is serving. Sorted by the block at which they were last updated (content of updates below) in ascending order.
      * This means the 'HEAD' (i.e. start) of the linked list will have the stalest 'updateBlock' value.
      */
-    mapping(address => StructuredLinkedList.List) operatorToWhitelistedContractsByUpdate;
+    mapping(address => StructuredLinkedList.List) public operatorToWhitelistedContractsByUpdate;
     /**
      * operator => 
      *  [

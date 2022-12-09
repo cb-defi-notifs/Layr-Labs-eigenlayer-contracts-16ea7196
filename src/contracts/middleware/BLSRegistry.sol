@@ -58,15 +58,13 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
         IInvestmentManager _investmentManager,
         IServiceManager _serviceManager,
         uint8 _NUMBER_OF_QUORUMS,
-        uint32 _UNBONDING_PERIOD,
         IBLSPublicKeyCompendium _pubkeyCompendium
     )
         RegistryBase(
             _delegation,
             _investmentManager,
             _serviceManager,
-            _NUMBER_OF_QUORUMS,
-            _UNBONDING_PERIOD
+            _NUMBER_OF_QUORUMS
         )
     {
         //set compendium

@@ -90,10 +90,10 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         );
 
         // Second, deploy the *implementation* contracts, using the *proxy contracts* as inputs
-        EigenLayrDelegation delegationImplementation = new EigenLayrDelegation(investmentManager);
+        EigenLayrDelegation delegationImplementation = new EigenLayrDelegation(investmentManager, slasher);
         InvestmentManager investmentManagerImplementation = new InvestmentManager(delegation, eigenPodManager, slasher);
         Slasher slasherImplementation = new Slasher(investmentManager, delegation);
-        EigenPodManager eigenPodManagerImplementation = new EigenPodManager(ethPOSDeposit, eigenPodBeacon, investmentManager);
+        EigenPodManager eigenPodManagerImplementation = new EigenPodManager(ethPOSDeposit, eigenPodBeacon, investmentManager, slasher);
 
         //ensuring that the address of eigenpodmanager doesn't change
         bytes memory code = address(eigenPodManager).code;
@@ -132,7 +132,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         beaconChainETHReceiver = new BeaconChainETHReceiver();
 
         slashingContracts.push(address(eigenPodManager));
-        investmentManager.slasher().addGloballyPermissionedContracts(slashingContracts);
+        slasher.addGloballyPermissionedContracts(slashingContracts);
         
     }
 
@@ -161,7 +161,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         
         uint64 validatorBalance = Endian.fromLittleEndianUint64(validatorContainerFields[2]);
         require(eigenPodManager.getBalance(podOwner) == validatorBalance, "Validator balance not updated correctly");
-        require(investmentManager.slasher().isFrozen(podOwner), "podOwner not frozen successfully");
+        require(slasher.isFrozen(podOwner), "podOwner not frozen successfully");
 
     }
 
@@ -186,7 +186,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         uint64 validatorBalance = Endian.fromLittleEndianUint64(validatorContainerFields[2]); 
         require(eigenPodManager.getBalance(podOwner) == validatorBalance, "Validator balance not updated correctly");
 
-        require(investmentManager.slasher().isFrozen(podOwner) == false, "podOwner frozen mistakenly");
+        require(slasher.isFrozen(podOwner) == false, "podOwner frozen mistakenly");
 
     }
 
@@ -262,7 +262,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         _testDelegation(operator, podOwner);
 
         cheats.startPrank(operator);
-        investmentManager.slasher().optIntoSlashing(address(generalServiceManager1));
+        slasher.optIntoSlashing(address(generalServiceManager1));
         cheats.stopPrank();
 
         generalReg1.registerOperator(operator, uint32(block.timestamp) + 3 days);
@@ -348,7 +348,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
 
 
         cheats.startPrank(operator);
-        investmentManager.slasher().optIntoSlashing(address(generalServiceManager1));
+        slasher.optIntoSlashing(address(generalServiceManager1));
         cheats.stopPrank();
 
         generalReg1.registerOperator(operator, uint32(block.timestamp) + 3 days);

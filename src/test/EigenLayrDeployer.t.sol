@@ -74,8 +74,8 @@ contract EigenLayrDeployer is Operators, SignatureUtils {
     //from testing seed phrase
     bytes32 priv_key_0 = 0x1234567812345678123456781234567812345678123456781234567812345678;
     bytes32 priv_key_1 = 0x1234567812345678123456781234567812345698123456781234567812348976;
-    bytes32 public testEphemeralKey = 0x3290567812345678123456781234577812345698123456781234567812344389;
-    bytes32 public testEphemeralKeyHash = keccak256(abi.encode(testEphemeralKey));
+    bytes32 public _testEphemeralKey = 0x3290567812345678123456781234577812345698123456781234567812344389;
+    bytes32 public _testEphemeralKeyHash = keccak256(abi.encode(_testEphemeralKey));
 
     string testSocket = "255.255.255.255";
 
@@ -156,10 +156,10 @@ contract EigenLayrDeployer is Operators, SignatureUtils {
         eigenPodBeacon = new UpgradeableBeacon(address(pod));
 
         // Second, deploy the *implementation* contracts, using the *proxy contracts* as inputs
-        EigenLayrDelegation delegationImplementation = new EigenLayrDelegation(investmentManager);
+        EigenLayrDelegation delegationImplementation = new EigenLayrDelegation(investmentManager, slasher);
         InvestmentManager investmentManagerImplementation = new InvestmentManager(delegation, eigenPodManager, slasher);
         Slasher slasherImplementation = new Slasher(investmentManager, delegation);
-        EigenPodManager eigenPodManagerImplementation = new EigenPodManager(ethPOSDeposit, eigenPodBeacon, investmentManager);
+        EigenPodManager eigenPodManagerImplementation = new EigenPodManager(ethPOSDeposit, eigenPodBeacon, investmentManager, slasher);
 
 
         // Third, upgrade the proxy contracts to use the correct implementation contracts and initialize them.
@@ -238,6 +238,6 @@ contract EigenLayrDeployer is Operators, SignatureUtils {
         );
 
         slashingContracts.push(address(eigenPodManager));
-        investmentManager.slasher().addGloballyPermissionedContracts(slashingContracts);
+        slasher.addGloballyPermissionedContracts(slashingContracts);
     }
 }

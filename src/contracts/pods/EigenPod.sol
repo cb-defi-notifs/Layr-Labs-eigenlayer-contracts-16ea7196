@@ -33,7 +33,7 @@ contract EigenPod is IEigenPod, Initializable, DSTest
     using BytesLib for bytes;
 
     //TODO: change this to constant in prod
-    IETHPOSDeposit immutable ethPOS;
+    IETHPOSDeposit public immutable ethPOS;
 
     /// @notice The single EigenPodManager for EigenLayer
     IEigenPodManager public eigenPodManager;

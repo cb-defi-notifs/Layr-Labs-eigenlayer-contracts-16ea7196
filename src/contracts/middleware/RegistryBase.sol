@@ -21,12 +21,11 @@ import "forge-std/Test.sol";
 abstract contract RegistryBase is VoteWeigherBase, IQuorumRegistry {
     using BytesLib for bytes;
 
-    uint32 public immutable UNBONDING_PERIOD;
+    // TODO: set these on initialization
+    /// @notice In order to register, an operator must have at least `minimumStakeFirstQuorum` or `minimumStakeSecondQuorum`, as
+    /// evaluated by this contract's 'VoteWeigher' logic.
     uint128 public minimumStakeFirstQuorum = 1 wei;
     uint128 public minimumStakeSecondQuorum = 1 wei;
-
-    /// @notice a sequential counter that is incremented whenver new operator registers
-    uint32 public nextOperatorId;
 
     /// @notice used for storing Operator info on each operator while registration
     mapping(address => Operator) public registry;
@@ -66,18 +65,16 @@ abstract contract RegistryBase is VoteWeigherBase, IQuorumRegistry {
     event Deregistration(address operator, address swapped);
 
     /**
-     * @notice Irrevocably sets the (immutable) `delegation` & `investmentManager` addresses, and `NUMBER_OF_QUORUMS` & UNBONDING_PERIOD variables.
+     * @notice Irrevocably sets the (immutable) `delegation` & `investmentManager` addresses, and `NUMBER_OF_QUORUMS` variable.
      */
     constructor(
         IEigenLayrDelegation _delegation,
         IInvestmentManager _investmentManager,
         IServiceManager _serviceManager,
-        uint8 _NUMBER_OF_QUORUMS,
-        uint32 _UNBONDING_PERIOD
-    ) VoteWeigherBase(_delegation, _investmentManager, _serviceManager, _NUMBER_OF_QUORUMS) {
-        //set unbonding period
-        UNBONDING_PERIOD = _UNBONDING_PERIOD;
-    }
+        uint8 _NUMBER_OF_QUORUMS
+    ) VoteWeigherBase(_delegation, _investmentManager, _serviceManager, _NUMBER_OF_QUORUMS)
+    // solhint-disable-next-line no-empty-blocks
+    {}
 
     /**
      * @notice Adds empty first entries to the dynamic arrays `totalStakeHistory` and `totalOperatorsHistory`,
@@ -163,11 +160,6 @@ abstract contract RegistryBase is VoteWeigherBase, IQuorumRegistry {
         return operatorIndex.index;
     }
 
-    /// @notice Returns the unique ID of the specified `operator`.
-    function getOperatorId(address operator) external view returns (uint32) {
-        return registry[operator].id;
-    }
-
     /// @notice Returns whether or not the `operator` is currently an active operator, i.e. is "registered".
     function isActiveOperator(address operator) external view virtual returns (bool) {
         return (registry[operator].status == IQuorumRegistry.Status.ACTIVE);
@@ -191,6 +183,88 @@ abstract contract RegistryBase is VoteWeigherBase, IQuorumRegistry {
         returns (OperatorStake memory)
     {
         return pubkeyHashToStakeHistory[pubkeyHash][index];
+    }
+
+    /**
+     * @notice Checks that the `operator` was active at the `blockNumber`, using the specified `stakeHistoryIndex` as proof.
+     * @param operator is the operator of interest
+     * @param blockNumber is the block number of interest
+     * @param stakeHistoryIndex specifies an index in `pubkeyHashToStakeHistory[pubkeyHash]`, where `pubkeyHash` is looked up
+     * in `registry[operator].pubkeyHash`
+     * @return 'true' if it is succesfully proven that  the `operator` was active at the `blockNumber`, and 'false' otherwise
+     * @dev In order for this function to return 'true', the inputs must satisfy all of the following list:
+     * 1) `pubkeyHashToStakeHistory[pubkeyHash][index].updateBlockNumber <= blockNumber`
+     * 2) `pubkeyHashToStakeHistory[pubkeyHash][index].nextUpdateBlockNumber` must be either `0` (signifying no next update) or
+     * is must be strictly greater than `blockNumber`
+     * 3) `pubkeyHashToStakeHistory[pubkeyHash][index].firstQuorumStake > 0`
+     * or `pubkeyHashToStakeHistory[pubkeyHash][index].secondQuorumStake > 0`, i.e. the operator had nonzero stake
+     * @dev Note that a return value of 'false' does not guarantee that the `operator` was inactive at `blockNumber`, since a
+     * bad `stakeHistoryIndex` can be supplied in order to obtain a response of 'false'.
+     */
+    function checkOperatorActiveAtBlockNumber(
+        address operator,
+        uint256 blockNumber,
+        uint256 stakeHistoryIndex
+        ) external view returns (bool)
+    {
+        // fetch the `operator`'s pubkey hash
+        bytes32 pubkeyHash = registry[operator].pubkeyHash;
+        // pull the stake history entry specified by `stakeHistoryIndex`
+        OperatorStake memory operatorStake = pubkeyHashToStakeHistory[pubkeyHash][stakeHistoryIndex];
+        return (
+            // check that the update specified by `stakeHistoryIndex` occurred at or prior to `blockNumber`
+            (operatorStake.updateBlockNumber <= blockNumber)
+            &&
+            // if there is a next update, then check that the next update occurred strictly after `blockNumber`
+            (operatorStake.nextUpdateBlockNumber == 0 || operatorStake.nextUpdateBlockNumber > blockNumber)
+            &&
+            /// verify that the stake was non-zero at the time (note: here was use the assumption that the operator was 'inactive'
+            /// once their stake fell to zero)
+            (operatorStake.firstQuorumStake != 0 || operatorStake.secondQuorumStake != 0) 
+        );
+    }
+
+    /**
+     * @notice Checks that the `operator` was inactive at the `blockNumber`, using the specified `stakeHistoryIndex` as proof.
+     * @param operator is the operator of interest
+     * @param blockNumber is the block number of interest
+     * @param stakeHistoryIndex specifies an index in `pubkeyHashToStakeHistory[pubkeyHash]`, where `pubkeyHash` is looked up
+     * in `registry[operator].pubkeyHash`
+     * @return 'true' if it is succesfully proven that  the `operator` was inactive at the `blockNumber`, and 'false' otherwise
+     * @dev In order for this function to return 'true', the inputs must satisfy all of the following list:
+     * 1) `pubkeyHashToStakeHistory[pubkeyHash][index].updateBlockNumber <= blockNumber`
+     * 2) `pubkeyHashToStakeHistory[pubkeyHash][index].nextUpdateBlockNumber` must be either `0` (signifying no next update) or
+     * is must be strictly greater than `blockNumber`
+     * 3) `pubkeyHashToStakeHistory[pubkeyHash][index].firstQuorumStake > 0`
+     * or `pubkeyHashToStakeHistory[pubkeyHash][index].secondQuorumStake > 0`, i.e. the operator had nonzero stake
+     * @dev Note that a return value of 'false' does not guarantee that the `operator` was active at `blockNumber`, since a
+     * bad `stakeHistoryIndex` can be supplied in order to obtain a response of 'false'.
+     */
+    function checkOperatorInactiveAtBlockNumber(
+        address operator,
+        uint256 blockNumber,
+        uint256 stakeHistoryIndex
+        ) external view returns (bool)
+    {
+        // fetch the `operator`'s pubkey hash
+        bytes32 pubkeyHash = registry[operator].pubkeyHash;
+        // special case for `pubkeyHashToStakeHistory[pubkeyHash]` having lenght zero -- in which case we know the operator was never registered
+        if (pubkeyHashToStakeHistory[pubkeyHash].length == 0) {
+            return true;
+        }
+        // pull the stake history entry specified by `stakeHistoryIndex`
+        OperatorStake memory operatorStake = pubkeyHashToStakeHistory[pubkeyHash][stakeHistoryIndex];
+        return (
+            // check that the update specified by `stakeHistoryIndex` occurred at or prior to `blockNumber`
+            (operatorStake.updateBlockNumber <= blockNumber)
+            &&
+            // if there is a next update, then check that the next update occurred strictly after `blockNumber`
+            (operatorStake.nextUpdateBlockNumber == 0 || operatorStake.nextUpdateBlockNumber > blockNumber)
+            &&
+            /// verify that the stake was zero at the time (note: here was use the assumption that the operator was 'inactive'
+            /// once their stake fell to zero)
+            (operatorStake.firstQuorumStake == 0 && operatorStake.secondQuorumStake == 0) 
+        );
     }
 
     /**
@@ -268,27 +342,9 @@ abstract contract RegistryBase is VoteWeigherBase, IQuorumRegistry {
         return registry[operator].fromTaskNumber;
     }
 
-    /// @notice Returns block number from when `operator` has been registered.
-    function getFromBlockNumberForOperator(address operator) external view returns (uint32) {
-        return registry[operator].fromBlockNumber;
-    }
-
-    /**
-     * @notice Returns the time at which the `operator` deregistered.
-     * @dev Function will return **0** in the event that the operator is actively registered.
-     */
-    function getOperatorDeregisterTime(address operator) external view returns (uint256) {
-        return registry[operator].deregisterTime;
-    }
-
     /// @notice Returns the current number of operators of this service.
     function numOperators() public view returns (uint32) {
         return uint32(operatorList.length);
-    }
-
-    /// @notice Returns when the operator is unbonded from the middleware, if they deregister now.
-    function bondedUntilAtLeast(address operator) public view virtual returns (uint32) {
-        return uint32(Math.max(block.timestamp + UNBONDING_PERIOD, registry[operator].serveUntil));
     }
 
     // MUTATING FUNCTIONS
@@ -346,10 +402,8 @@ abstract contract RegistryBase is VoteWeigherBase, IQuorumRegistry {
 
         // @notice Registrant must continue to serve until the latest time at which an active task expires. this info is used in challenges
         uint32 latestTime = serviceManager.latestTime();
-        registry[operator].serveUntil = latestTime;
         // committing to not signing off on any more middleware tasks
         registry[operator].status = IQuorumRegistry.Status.INACTIVE;
-        registry[operator].deregisterTime = uint32(block.timestamp);
 
         // record a stake update unbonding the operator after `latestTime`
         serviceManager.recordLastStakeUpdateAndRevokeSlashingAbility(operator, latestTime);
@@ -461,29 +515,27 @@ abstract contract RegistryBase is VoteWeigherBase, IQuorumRegistry {
     {
 
         require(
-            investmentManager.slasher().bondedUntil(operator, address(serviceManager)) == type(uint32).max,
+            slasher.bondedUntil(operator, address(serviceManager)) == type(uint32).max,
             "RegistryBase._addRegistrant: operator must be opted into slashing by the serviceManager"
         );
         // store the Operator's info in mapping
         registry[operator] = Operator({
             pubkeyHash: pubkeyHash,
-            id: nextOperatorId,
-            index: numOperators(),
             status: IQuorumRegistry.Status.ACTIVE,
-            fromTaskNumber: serviceManager.taskNumber(),
-            fromBlockNumber: uint32(block.number),
-            serveUntil: 0,
-            deregisterTime: 0
+            fromTaskNumber: serviceManager.taskNumber()
         });
 
-        // record the operator being registered and update the counter for operator ID
+        // add the operator to the list of operators
         operatorList.push(operator);
-        unchecked {
-            ++nextOperatorId;
-        }
 
         // add the `updateBlockNumber` info
         _operatorStake.updateBlockNumber = uint32(block.number);
+        // check special case that operator is re-registering (and thus already has some history)
+        if (pubkeyHashToStakeHistory[pubkeyHash].length != 0) {
+            // correctly set the 'nextUpdateBlockNumber' field for the re-registering operator's oldest history entry
+            pubkeyHashToStakeHistory[pubkeyHash][pubkeyHashToStakeHistory[pubkeyHash].length - 1].nextUpdateBlockNumber
+                = uint32(block.number);
+        }
         // push the new stake for the operator to storage
         pubkeyHashToStakeHistory[pubkeyHash].push(_operatorStake);
 

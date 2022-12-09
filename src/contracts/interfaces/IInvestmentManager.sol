@@ -54,7 +54,7 @@ interface IInvestmentManager {
      * @param amount is the amount of token to be invested in the strategy by the depositor
      * @dev Only called by EigenPod for the staker.
      */
-    function depositBeaconChainETH(address staker, uint256 amount) external returns (uint256);
+    function depositBeaconChainETH(address staker, uint256 amount) external;
 
     /**
      * @notice Used for investing an asset into the specified strategy with the resultant shared created to `staker`,
