@@ -1,10 +1,12 @@
 //SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
- import "../contracts/interfaces/IEigenPod.sol";
- import "./utils/BeaconChainUtils.sol";
+import "../contracts/interfaces/IEigenPod.sol";
+import "../contracts/interfaces/IBLSPublicKeyCompendium.sol";
+import "../contracts/middleware/BLSPublicKeyCompendium.sol";
+import "./utils/BeaconChainUtils.sol";
 import "./EigenLayrDeployer.t.sol";
- import "./mocks/MiddlewareRegistryMock.sol";
+import "./mocks/MiddlewareRegistryMock.sol";
 import "./mocks/ServiceManagerMock.sol";
 import "./mocks/BeaconChainETHReceiver.sol";
 

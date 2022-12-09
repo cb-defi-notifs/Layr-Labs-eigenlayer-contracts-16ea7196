@@ -15,7 +15,6 @@ import "../contracts/interfaces/IETHPOSDeposit.sol";
 import "../contracts/interfaces/IBeaconChainOracle.sol";
 import "../contracts/interfaces/IVoteWeigher.sol";
 
-
 import "../contracts/core/InvestmentManager.sol";
 import "../contracts/strategies/InvestmentStrategyBase.sol";
 import "../contracts/core/Slasher.sol";
@@ -24,7 +23,6 @@ import "../contracts/pods/EigenPod.sol";
 import "../contracts/pods/EigenPodManager.sol";
 
 import "../contracts/permissions/PauserRegistry.sol";
-import "../contracts/middleware/BLSPublicKeyCompendium.sol";
 
 import "../contracts/libraries/BytesLib.sol";
 
@@ -59,17 +57,12 @@ contract EigenLayrDeployer is Operators, SignatureUtils {
     // testing/mock contracts
     IERC20 public eigenToken;
     IERC20 public weth;
-    WETH public liquidStakingMockToken;
     InvestmentStrategyBase public wethStrat;
     InvestmentStrategyBase public eigenStrat;
-    InvestmentStrategyBase public liquidStakingMockStrat;
     InvestmentStrategyBase public baseStrategyImplementation;
     EmptyContract public emptyContract;
 
-    IVoteWeigher public generalVoteWeigher;
-
     mapping(uint256 => IInvestmentStrategy) public strategies;
-    mapping(IInvestmentStrategy => uint256) public initialOperatorShares;
 
     //from testing seed phrase
     bytes32 priv_key_0 = 0x1234567812345678123456781234567812345678123456781234567812345678;
@@ -77,17 +70,10 @@ contract EigenLayrDeployer is Operators, SignatureUtils {
     bytes32 public _testEphemeralKey = 0x3290567812345678123456781234577812345698123456781234567812344389;
     bytes32 public _testEphemeralKeyHash = keccak256(abi.encode(_testEphemeralKey));
 
-    string testSocket = "255.255.255.255";
-
-    // number of strategies deployed
-    uint256 public numberOfStrats;
     //strategy indexes for undelegation (see commitUndelegation function)
     uint256[] public strategyIndexes;
     address[2] public delegates;
     address sample_registrant = cheats.addr(436364636);
-
-    uint256[] apks;
-    uint256[] sigmas;
 
     address[] public slashingContracts;
 
@@ -224,18 +210,6 @@ contract EigenLayrDeployer is Operators, SignatureUtils {
         );
 
         delegates = [acct_0, acct_1];
-
-        // set up a strategy for a mock liquid staking token
-        liquidStakingMockToken = new WETH();
-        liquidStakingMockStrat = InvestmentStrategyBase(
-            address(
-                new TransparentUpgradeableProxy(
-                    address(baseStrategyImplementation),
-                    address(eigenLayrProxyAdmin),
-                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, liquidStakingMockToken, eigenLayrPauserReg)
-                )
-            )
-        );
 
         slashingContracts.push(address(eigenPodManager));
         slasher.addGloballyPermissionedContracts(slashingContracts);
