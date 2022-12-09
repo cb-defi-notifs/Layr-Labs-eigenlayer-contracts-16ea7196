@@ -421,18 +421,19 @@ contract EigenPod is IEigenPod, Initializable, Test {
     function _payOffPenalties() internal {
         uint64 penaltiesDueToOvercommittingGweiMemory = penaltiesDueToOvercommittingGwei;
         if (penaltiesDueToOvercommittingGweiMemory != 0) {
+            uint64 restakedExecutionLayerGweiMemory = restakedExecutionLayerGwei;
             // if restakedExecutionLayerETH is enough to cover all penalties, penalize all that is necessary and return early
-            if (penaltiesDueToOvercommittingGweiMemory <= restakedExecutionLayerGwei) {
+            if (penaltiesDueToOvercommittingGweiMemory <= restakedExecutionLayerGweiMemory) {
                 eigenPodManager.payPenalties{value: penaltiesDueToOvercommittingGweiMemory * GWEI_TO_WEI}(podOwner);
-                restakedExecutionLayerGwei -= penaltiesDueToOvercommittingGweiMemory;
+                restakedExecutionLayerGwei = restakedExecutionLayerGweiMemory - penaltiesDueToOvercommittingGweiMemory;
                 penaltiesDueToOvercommittingGwei = 0;
                 return;
             }
 
             /// otherwise, remove restakedExecutionLayerGwei from `penaltiesDueToOvercommittingGweiMemory` and set restakedExecutionLayerGwei to zero
             /// i.e. spend all of restakedExecutionLayerGwei to pay down what it can
-            uint64 amountPenaltiesToPayGwei = restakedExecutionLayerGwei;
-            penaltiesDueToOvercommittingGweiMemory -= restakedExecutionLayerGwei;
+            uint64 amountPenaltiesToPayGwei = restakedExecutionLayerGweiMemory;
+            penaltiesDueToOvercommittingGweiMemory -= restakedExecutionLayerGweiMemory;
             restakedExecutionLayerGwei = 0;
 
             // next, check if instantlyWithdrawableBalanceGwei is enough to cover the remaining penalties
@@ -442,7 +443,7 @@ contract EigenPod is IEigenPod, Initializable, Test {
                 eigenPodManager.payPenalties{value: penaltiesDueToOvercommittingGwei * GWEI_TO_WEI}(podOwner);
                 // allow this amount to be rolled over from restakedExecutionLayerGwei to instantlyWithdrawableBalanceGwei if penalties are ever fully paid in the future
                 rollableBalanceGwei += penaltiesDueToOvercommittingGweiMemory;
-                instantlyWithdrawableBalanceGwei -= penaltiesDueToOvercommittingGweiMemory;
+                instantlyWithdrawableBalanceGwei = instantlyWithdrawableBalanceGweiMemory - penaltiesDueToOvercommittingGweiMemory;
                 penaltiesDueToOvercommittingGwei = 0;
                 return;
             }
