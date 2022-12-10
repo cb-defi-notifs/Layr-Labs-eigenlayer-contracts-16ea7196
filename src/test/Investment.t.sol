@@ -95,7 +95,7 @@ contract InvestmentTests is EigenLayrTestHelper {
      * @notice Tries to deposit into an unsupported strategy by calling `investmentManager.depositIntoStrategy`.
      * Verifies that reversion occurs correctly.
      */
-    function testDepositNonexistantStrategy(address nonexistentStrategy) public fuzzedAddress(nonexistentStrategy) {
+    function testDepositNonexistentStrategy(address nonexistentStrategy) public fuzzedAddress(nonexistentStrategy) {
         // assume that the fuzzed address is not already a contract!
         uint256 size;
         assembly {
@@ -119,5 +119,11 @@ contract InvestmentTests is EigenLayrTestHelper {
         investmentManager.depositIntoStrategy(IInvestmentStrategy(nonexistentStrategy), token, testDepositAmount);
     }
 
-    // TODO: add test(s) that confirm deposits + withdrawals *of zero shares* fail correctly.
+    function testRevertOnZeroDeposit() public {
+        cheats.expectRevert(bytes("InvestmentManager._addShares: shares should not be zero!"));
+        investmentManager.depositIntoStrategy(wethStrat, weth, 0);
+        cheats.stopPrank();
+    }
+
+    // TODO: add test(s) that confirm withdrawals *of zero shares* fail correctly.
 }
