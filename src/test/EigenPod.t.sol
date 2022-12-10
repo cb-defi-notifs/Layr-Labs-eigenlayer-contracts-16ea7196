@@ -221,11 +221,8 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
                     withdrawalFields, 
                     beaconStateRoot, 
                     beaconStateMerkleProofForExecutionPayloadHeader, 
-                    executionPayloadHeaderRoot, 
                     executionPayloadHeaderProofForWithdrawalProof, 
-                    withdrawalTreeRoot,
-                    withdrawalMerkleProof,
-                    withdrawalRoot
+                    withdrawalMerkleProof
                 ) = getWithdrawalProof();
 
 
@@ -238,9 +235,6 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
                                     );
 
                 bytes memory historicalStateProof;
-
-                emit log_uint(Endian.fromLittleEndianUint64(withdrawalContainerFields[0]));
-
 
                 Relayer relay = new Relayer();
                 relay.verifyWithdrawalProofsHelp(

@@ -157,8 +157,7 @@ library BeaconChainProofs{
         bytes32 withdrawalContainerRoot = Merkle.merkleizeSha256(withdrawalContainerFields);
         uint256 withdrawalIndex = Endian.fromLittleEndianUint64(withdrawalContainerFields[0]);
         uint256 withdrawalConatinerIndex = (WITHDRAWALS_ROOT_INDEX << (WITHDRAWALS_TREE_HEIGHT + 1)) | withdrawalIndex;
-        withdrawalConatinerIndex = 
-                        ((EXECUTION_PAYLOAD_HEADER_INDEX << (EXECUTION_PAYLOAD_HEADER_FIELD_TREE_HEIGHT + WITHDRAWALS_TREE_HEIGHT + 1)) | withdrawalConatinerIndex);
+        withdrawalConatinerIndex = ((EXECUTION_PAYLOAD_HEADER_INDEX << (EXECUTION_PAYLOAD_HEADER_FIELD_TREE_HEIGHT + WITHDRAWALS_TREE_HEIGHT + 1)) | withdrawalConatinerIndex);
 
 
         bool valid = Merkle.verifyInclusionSha256(withdrawalProof, beaconStateRoot, withdrawalContainerRoot, withdrawalConatinerIndex);
@@ -171,6 +170,8 @@ library BeaconChainProofs{
         bytes calldata proofs,
         uint256 pointer
     )internal view returns(uint256){
+
+        pointer = 0;
 
         bytes32 historicalRootsRoot = proofs.toBytes32(pointer);
         pointer += 32;
