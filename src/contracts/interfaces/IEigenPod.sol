@@ -54,6 +54,12 @@ interface IEigenPod {
     /// @notice this is a mapping of validator keys to a Validator struct containing pertinent info about the validator
     function validatorStatus(uint40) external view returns(VALIDATOR_STATUS);
 
+    /// @return claim is the partial withdrawal claim at the provided index
+    function getPartialWithdrawalClaim(uint256) external view returns(PartialWithdrawalClaim memory);
+        
+    /// @return length : the number of partial withdrawal claims ever made for this EigenPod
+    function getPartialWithdrawalClaimsLength() external view returns(uint256);
+
     /// @notice the amount of execution layer ETH in this contract that is staked in EigenLayer (i.e. withdrawn from beaconchain but not EigenLayer), 
     function restakedExecutionLayerGwei() external view returns(uint64);
 

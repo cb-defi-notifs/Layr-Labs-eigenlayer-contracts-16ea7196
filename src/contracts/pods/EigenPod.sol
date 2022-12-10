@@ -360,9 +360,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard, Test {
         emit PartialWithdrawalRedeemed(recipient, claim.partialWithdrawalAmountGwei);
     }
 
-    /**
-     * @notice Withdraws instantlyWithdrawableBalanceGwei to the podOwner
-     */
+    /// @notice Withdraws instantlyWithdrawableBalanceGwei to the podOwner
     function withdrawInstantlyWithdrawableBalanceGwei(address recipient) external nonReentrant {
         Address.sendValue(payable(recipient), instantlyWithdrawableBalanceGwei * GWEI_TO_WEI);
         instantlyWithdrawableBalanceGwei = 0;
@@ -406,6 +404,19 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard, Test {
         Address.sendValue(payable(recipient), amountWei);
 
         emit RestakedBeaconChainETHWithdrawn(recipient, amountWei);
+    }
+
+    // VIEW FUNCTIONS
+
+    /// @return claim is the partial withdrawal claim at the provided index
+    function getPartialWithdrawalClaim(uint256 index) external view returns(PartialWithdrawalClaim memory) {
+        PartialWithdrawalClaim memory claim = partialWithdrawalClaims[index];
+        return claim;
+    }
+
+    /// @return length : the number of partial withdrawal claims ever made for this EigenPod
+    function getPartialWithdrawalClaimsLength() external view returns(uint256) {
+        return partialWithdrawalClaims.length;
     }
 
     // INTERNAL FUNCTIONS
