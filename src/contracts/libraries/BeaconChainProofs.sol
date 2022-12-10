@@ -145,7 +145,10 @@ library BeaconChainProofs{
 
     /// @param beaconStateRoot is the latest beaconStateRoot posted by the oracle
     function verifyWithdrawalProofs(
-        bytes32 beaconStateRoot, 
+        bytes32 beaconStateRoot,
+        bytes32 historicalRootToVerify, 
+        uint40 stateIndex,
+        uint40 historicalRootsIndex, 
         bytes calldata historicalStateProof,
         bytes calldata withdrawalProof, 
         bytes32[] calldata withdrawalContainerFields
@@ -155,8 +158,8 @@ library BeaconChainProofs{
         require(withdrawalProof.length == 32 * (BEACON_STATE_FIELD_TREE_HEIGHT + EXECUTION_PAYLOAD_HEADER_FIELD_TREE_HEIGHT + WITHDRAWALS_TREE_HEIGHT + 1), "withdrawalProof length is incorrect");
 
         // check that beacon state root from oracle is present in historical roots
-        // TODO: uncomment
-        // verifyBeaconChainRootProof(beaconStateRoot, historicalStateProof);
+
+        verifyBeaconChainRootProof(stateIndex, historicalRootsIndex, beaconStateRoot,historicalRootToVerify, historicalStateProof);
 
 
         bytes32 withdrawalContainerRoot = Merkle.merkleizeSha256(withdrawalContainerFields);

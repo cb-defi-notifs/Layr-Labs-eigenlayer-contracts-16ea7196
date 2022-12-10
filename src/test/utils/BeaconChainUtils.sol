@@ -333,14 +333,16 @@ contract BeaconChainProofUtils{
         withdrawalContainerFields.push(0x0000000000000000000000000000000000000000000000000000000000000000);
         withdrawalContainerFields.push(0x0040597307000000000000000000000000000000000000000000000000000000);
         
-        beaconStateRoot = 0xce73ff8a284f54bbf11deb72459b2386781b187599d5150d79e4d576a6548098;
+        beaconStateRoot = 0x6e9e0b08cf3d701d6d1a32576605b608432f99ad9925dc014a145b3374438900;
         
         beaconStateMerkleProofForExecutionPayloadHeader.push(0x0100000000000000000000000000000000000000000000000000000000000000);
         beaconStateMerkleProofForExecutionPayloadHeader.push(0x8a023a9e4affbb255a6b48ae85cc4a7d1a1b9e8e6809fe9e48535c01c1fc071a);
         beaconStateMerkleProofForExecutionPayloadHeader.push(0xdb56114e00fdd4c1f85c892bf35ac9a89289aaecb1ebd0a96cde606a748b5d71);
         beaconStateMerkleProofForExecutionPayloadHeader.push(0x2e9e44d45a41f0e0da340441f66894d25a002b0e18361bc156963eab8a62c597);
-        beaconStateMerkleProofForExecutionPayloadHeader.push( 0x4520eb0bc3182ca3b0f742e524276cc7f5ea7b80376f6181df89cb7925fb531f);
-                
+        beaconStateMerkleProofForExecutionPayloadHeader.push(0x5d1b41cdba61e9cebf2a8a3fbf2970360145f711dd0832bfbef1cd72ecd4e8b1);
+        
+        executionPayloadHeaderRoot = 0x2d4c1a5bf7892ee5755be6552e5bdde6fc19c43aee7afe42f3c5984e0b6d9d3b;
+        
         executionPayloadHeaderProofForWithdrawalProof.push(0x0000000000000000000000000000000000000000000000000000000000000000);
         executionPayloadHeaderProofForWithdrawalProof.push(0xf5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b);
         executionPayloadHeaderProofForWithdrawalProof.push(0x7e716846ef6aade1cdc8586ab65a207f2e94e03bbdcd320da73f2307e872a0fb);
@@ -352,6 +354,8 @@ contract BeaconChainProofUtils{
         withdrawalMerkleProof.push(0xdb56114e00fdd4c1f85c892bf35ac9a89289aaecb1ebd0a96cde606a748b5d71);
         withdrawalMerkleProof.push(0xc78009fdf07fc56a11f122370658a353aaa542ed63e44c4bc15ff4cd105ab33c);
         withdrawalMerkleProof.push(0x0100000000000000000000000000000000000000000000000000000000000000);
+ 
+
         
         return (
             withdrawalContainerFields, 

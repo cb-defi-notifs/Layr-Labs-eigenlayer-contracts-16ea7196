@@ -131,6 +131,9 @@ interface IEigenPod {
      */
      function verifyBeaconChainFullWithdrawal(
         uint40 validatorIndex, 
+        uint40 stateIndex,
+        uint40 historicalRootsIndex, 
+        bytes32 historicalRootToVerify,
         bytes calldata historicalStateProof,
         bytes calldata withdrawalProof, 
         bytes32[] calldata withdrawalFields,
