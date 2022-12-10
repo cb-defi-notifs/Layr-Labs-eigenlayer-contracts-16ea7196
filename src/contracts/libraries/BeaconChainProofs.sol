@@ -34,6 +34,9 @@ library BeaconChainProofs{
     // HISTORICAL_ROOTS_LIMIT	 = 2**24, so tree height is 24
     uint256 public constant HISTORICAL_ROOTS_TREE_HEIGHT = 24;
 
+    // HISTORICAL_BATCH is root of state_roots and block_root, so number of leaves =  2^1
+    uint256 public constant HISTORICAL_BATCH_TREE_HEIGHT = 1;
+
     // SLOTS_PER_HISTORICAL_ROOT = 2**13, so tree height is 13
     uint public constant STATE_ROOTS_TREE_HEIGHT = 13;
 
@@ -47,6 +50,7 @@ library BeaconChainProofs{
     // the max withdrawals per payload is 2**4, making tree height = 4
     uint256 public constant WITHDRAWALS_TREE_HEIGHT = 4;
 
+
     // in beacon block header
     uint256 public constant STATE_ROOT_INDEX = 3;
     uint256 public constant PROPOSER_INDEX_INDEX = 1;
@@ -56,6 +60,7 @@ library BeaconChainProofs{
     uint256 public constant VALIDATOR_TREE_ROOT_INDEX = 11;
     uint256 public constant WITHDRAWALS_ROOT_INDEX = 14;
     uint256 public constant EXECUTION_PAYLOAD_HEADER_INDEX = 24;
+    uint256 public constant HISTORICAL_BATCH_STATE_ROOT_INDEX = 1;
     // in validator
     uint256 public constant VALIDATOR_WITHDRAWAL_CREDENTIALS_INDEX = 1;
     uint256 public constant VALIDATOR_BALANCE_INDEX = 2;
@@ -156,76 +161,31 @@ library BeaconChainProofs{
 
         bytes32 withdrawalContainerRoot = Merkle.merkleizeSha256(withdrawalContainerFields);
         uint256 withdrawalIndex = Endian.fromLittleEndianUint64(withdrawalContainerFields[0]);
-        uint256 withdrawalConatinerIndex = (WITHDRAWALS_ROOT_INDEX << (WITHDRAWALS_TREE_HEIGHT + 1)) | withdrawalIndex;
-        withdrawalConatinerIndex = ((EXECUTION_PAYLOAD_HEADER_INDEX << (EXECUTION_PAYLOAD_HEADER_FIELD_TREE_HEIGHT + WITHDRAWALS_TREE_HEIGHT + 1)) | withdrawalConatinerIndex);
+        uint256 withdrawalContainerIndex = (WITHDRAWALS_ROOT_INDEX << (WITHDRAWALS_TREE_HEIGHT + 1)) | withdrawalIndex;
+        withdrawalContainerIndex = ((EXECUTION_PAYLOAD_HEADER_INDEX << (EXECUTION_PAYLOAD_HEADER_FIELD_TREE_HEIGHT + WITHDRAWALS_TREE_HEIGHT + 1)) | withdrawalContainerIndex);
 
 
-        bool valid = Merkle.verifyInclusionSha256(withdrawalProof, beaconStateRoot, withdrawalContainerRoot, withdrawalConatinerIndex);
+        bool valid = Merkle.verifyInclusionSha256(withdrawalProof, beaconStateRoot, withdrawalContainerRoot, withdrawalContainerIndex);
 
         require(valid, "Withdrawal merkle inclusion proof failed");
     }
 
     function verifyBeaconChainRootProof(
-        bytes32 beaconStateRoot, 
-        bytes calldata proofs,
-        uint256 pointer
-    )internal view returns(uint256){
+        uint40 stateIndex,
+        uint40 historicalRootsIndex,
+        bytes32 beaconStateRoot,
+        bytes32 historicalRootToVerify, 
+        bytes calldata historicalStateRootProofs
+    )internal view {
 
-        pointer = 0;
+        require(historicalStateRootProofs.length == 32 * (BEACON_STATE_FIELD_TREE_HEIGHT + HISTORICAL_ROOTS_TREE_HEIGHT + 1 + HISTORICAL_BATCH_TREE_HEIGHT + STATE_ROOTS_TREE_HEIGHT), "proofs are incorrect length");
+        
+        uint256 stateIndexUint256 = uint256(stateIndex);
+        uint256 stateRootsIndexInHistoricalBatch = (HISTORICAL_BATCH_STATE_ROOT_INDEX << STATE_ROOTS_TREE_HEIGHT) | stateIndexUint256;
+        uint256 historicalBatchIndexinHistoricalRoots = (uint256(historicalRootsIndex) << (STATE_ROOTS_TREE_HEIGHT + HISTORICAL_BATCH_TREE_HEIGHT)) | stateRootsIndexInHistoricalBatch;
+        uint256 historicalRootsIndexinBeaconState = (HISTORICAL_ROOTS_INDEX << (STATE_ROOTS_TREE_HEIGHT + HISTORICAL_BATCH_TREE_HEIGHT + HISTORICAL_ROOTS_TREE_HEIGHT + 1)) | historicalBatchIndexinHistoricalRoots;
 
-        bytes32 historicalRootsRoot = proofs.toBytes32(pointer);
-        pointer += 32;
-        //check if the historical_roots array's root is in the beacon state
-        require(Merkle.verifyInclusionSha256(
-            proofs.slice(pointer, 32 * BeaconChainProofs.BEACON_STATE_FIELD_TREE_HEIGHT), 
-            beaconStateRoot, 
-            historicalRootsRoot, 
-            BeaconChainProofs.HISTORICAL_ROOTS_INDEX),
-            "BeaconChainProofs.verifyBeaconChainRootProof: stateroots Root proof invalid"
-        );
-        pointer += 32 * BeaconChainProofs.BEACON_STATE_FIELD_TREE_HEIGHT;
-
-
-
-        bytes32 historicalBatchRoot = proofs.toBytes32(pointer);
-        pointer += 32;
-        // check if the historicalBatch's root is in the historical_roots array
-        require(Merkle.verifyInclusionSha256(
-            proofs.slice(pointer + 32, 32 * BeaconChainProofs.HISTORICAL_ROOTS_TREE_HEIGHT), 
-            historicalRootsRoot, 
-            historicalBatchRoot, 
-            proofs.toUint256(pointer)),
-            "BeaconChainProofs.verifyBeaconChainRootProof: historicalBatchRoot proof invalid"
-        );
-        pointer += 32 + 32 * BeaconChainProofs.HISTORICAL_ROOTS_TREE_HEIGHT;
-
-
-
-        bytes32 stateRootsRoot = proofs.toBytes32(pointer);
-        pointer += 32;
-        //now we check that the stateRoots array's root is included in the HistoricalBatch
-        require(Merkle.verifyInclusionSha256(
-            proofs.slice(pointer, 32), //the proof is only checking that hash(blockRootsRoot, stateRootsRoot) = historicalBatchRoot
-            historicalBatchRoot, 
-            stateRootsRoot, 
-            BeaconChainProofs.HISTORICALBATCH_STATEROOTS_INDEX),
-            "BeaconChainProofs.verifyBeaconChainRootProof: staterootsRoot proof is invalid"
-        );
-        pointer += 32 * BeaconChainProofs.HISTORICAL_ROOTS_TREE_HEIGHT;
-
-    
-
-        bytes32 beaconStateRootToVerify = proofs.toBytes32(pointer);
-        pointer += 32;
-        require(Merkle.verifyInclusionSha256(
-            proofs.slice(pointer + 32, 32 * BeaconChainProofs.STATE_ROOTS_TREE_HEIGHT), 
-            stateRootsRoot, 
-            beaconStateRootToVerify, 
-            proofs.toUint256(pointer)),
-            "BeaconChainProofs.verifyBeaconChainRootProof: beaconstateRoot to verify proof is invalid"
-        );
-        pointer += 32 + 32 * BeaconChainProofs.STATE_ROOTS_TREE_HEIGHT;
-
-        return pointer;
+        bool valid = Merkle.verifyInclusionSha256(historicalStateRootProofs, beaconStateRoot, historicalRootToVerify, historicalRootsIndexinBeaconState);
+        require(valid, "historical state root merkle proof failed");
     }
 }

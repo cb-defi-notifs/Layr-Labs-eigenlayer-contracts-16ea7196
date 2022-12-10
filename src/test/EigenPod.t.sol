@@ -247,6 +247,41 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         
     }
 
+    function testVerifyHistoricalProofs() public {
+
+
+                //getting proof for withdrawal from beacon chain
+                ( 
+                    beaconStateRoot,
+                    historicalRootToVerify,
+                    beaconStateMerkleProofForHistoricalRoots, 
+                    historicalRootsMerkleProof,
+                    historicalBatchMerkleProof,
+                    stateRootsMerkleProof
+                ) = getHistoricalBeaconStateProof();
+
+
+
+                beaconChainOracle.setBeaconChainStateRoot(beaconStateRoot);
+                bytes memory historicalStateProof = abi.encodePacked(
+                                        stateRootsMerkleProof,
+                                        historicalBatchMerkleProof,
+                                        historicalRootsMerkleProof,
+                                        beaconStateMerkleProofForHistoricalRoots
+                                    );
+
+                Relayer relay = new Relayer();
+                relay.verifyBeaconChainRootProof(
+                    uint40(8191),
+                    uint40(0),
+                    beaconStateRoot,
+                    historicalRootToVerify,
+                    historicalStateProof
+                );
+        
+    }
+
+
     function getBeaconChainETHShares(address staker) internal returns(uint256) {
         return investmentManager.investorStratShares(staker, investmentManager.beaconChainETHStrategy());
     }
@@ -748,5 +783,15 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         bytes32[] calldata withdrawalFields
     ) public {
         BeaconChainProofs.verifyWithdrawalProofs(beaconStateRoot, historicalStateProof, withdrawalProof, withdrawalFields);
+    }
+
+     function verifyBeaconChainRootProof(
+        uint40 stateIndex,
+        uint40 historicalRootsIndex,
+        bytes32 beaconStateRoot, 
+        bytes32 historicalRootToVerify,
+        bytes calldata proofs
+    )public {
+        BeaconChainProofs.verifyBeaconChainRootProof(stateIndex, historicalRootsIndex, beaconStateRoot, historicalRootToVerify,proofs);
     }
  }

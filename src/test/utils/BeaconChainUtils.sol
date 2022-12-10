@@ -11,11 +11,18 @@ contract BeaconChainProofUtils{
     bytes32[] executionPayloadHeaderProofForWithdrawalProof;
     bytes32[] validatorContainerFields;
     bytes32[] withdrawalContainerFields;
+
+    bytes32[] beaconStateMerkleProofForHistoricalRoots;
+    bytes32[] historicalRootsMerkleProof;
+    bytes32[] historicalBatchMerkleProof;
+    bytes32[] stateRootsMerkleProof;
+
     bytes32 beaconStateRoot;
     bytes32 executionPayloadHeaderRoot;
     bytes32 withdrawalListRoot;
     bytes32 withdrawalTreeRoot;
     bytes32 withdrawalRoot;
+    bytes32 historicalRootToVerify;
 
     //this function generates a proof for validator 0x5e2c2b702b0af22301f7ae52886da3827ea100b3d2a52222e6a10ea82e718a7f 
     //with an initial deposit of 32 ETH
@@ -352,6 +359,71 @@ contract BeaconChainProofUtils{
             beaconStateMerkleProofForExecutionPayloadHeader, 
             executionPayloadHeaderProofForWithdrawalProof, 
             withdrawalMerkleProof
+        );
+    }
+
+    function getHistoricalBeaconStateProof() public returns(bytes32, bytes32, bytes32[] memory, bytes32[] memory, bytes32[] memory, bytes32[] memory){
+
+        beaconStateRoot = 0x6e9e0b08cf3d701d6d1a32576605b608432f99ad9925dc014a145b3374438900;
+        historicalRootToVerify = 0xe3d205a298fe95d7e601f8dfe29e8e2ae00c11a884506382860f606309829f0f;
+  
+        beaconStateMerkleProofForHistoricalRoots.push(0x75f5119e1076308e7af941d986f8f43f77229bc584dfb317b3684b9effd31748);
+        beaconStateMerkleProofForHistoricalRoots.push(0x117339c4650c5876ca49006e4b7cf84ae2d458b1d2dfdeda7955662f218986fb);
+        beaconStateMerkleProofForHistoricalRoots.push(0xd803e35a1072c0bfd4562ca0e2f669f9c0fea5e0e26bfbd82efcb57ac757f501);
+        beaconStateMerkleProofForHistoricalRoots.push(0x3ebc4827204cc607c86f8d877027ce611149c1cf63715269bad269751bcdaf78);
+        beaconStateMerkleProofForHistoricalRoots.push(0xfdd6a5ae64e3a7372d3894b854acb02c7a2cfe17d4b7e80c4a34c60295540e7e);
+                
+        historicalRootsMerkleProof.push(0x0000000000000000000000000000000000000000000000000000000000000000);
+        historicalRootsMerkleProof.push(0xf5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b);
+        historicalRootsMerkleProof.push(0xdb56114e00fdd4c1f85c892bf35ac9a89289aaecb1ebd0a96cde606a748b5d71);
+        historicalRootsMerkleProof.push(0xc78009fdf07fc56a11f122370658a353aaa542ed63e44c4bc15ff4cd105ab33c);
+        historicalRootsMerkleProof.push(0x536d98837f2dd165a55d5eeae91485954472d56f246df256bf3cae19352a123c);
+        historicalRootsMerkleProof.push(0x9efde052aa15429fae05bad4d0b1d7c64da64d03d7a1854a588c2cb8430c0d30);
+        historicalRootsMerkleProof.push(0xd88ddfeed400a8755596b21942c1497e114c302e6118290f91e6772976041fa1);
+        historicalRootsMerkleProof.push(0x87eb0ddba57e35f6d286673802a4af5975e22506c7cf4c64bb6be5ee11527f2c);
+        historicalRootsMerkleProof.push(0x26846476fd5fc54a5d43385167c95144f2643f533cc85bb9d16b782f8d7db193);
+        historicalRootsMerkleProof.push(0x506d86582d252405b840018792cad2bf1259f1ef5aa5f887e13cb2f0094f51e1);
+        historicalRootsMerkleProof.push(0xffff0ad7e659772f9534c195c815efc4014ef1e1daed4404c06385d11192e92b);
+        historicalRootsMerkleProof.push(0x6cf04127db05441cd833107a52be852868890e4317e6a02ab47683aa75964220);
+        historicalRootsMerkleProof.push(0xb7d05f875f140027ef5118a2247bbb84ce8f2f0f1123623085daf7960c329f5f);
+        historicalRootsMerkleProof.push(0xdf6af5f5bbdb6be9ef8aa618e4bf8073960867171e29676f8b284dea6a08a85e);
+        historicalRootsMerkleProof.push(0xb58d900f5e182e3c50ef74969ea16c7726c549757cc23523c369587da7293784);
+        historicalRootsMerkleProof.push(0xd49a7502ffcfb0340b1d7885688500ca308161a7f96b62df9d083b71fcc8f2bb);
+        historicalRootsMerkleProof.push(0x8fe6b1689256c0d385f42f5bbe2027a22c1996e110ba97c171d3e5948de92beb);
+        historicalRootsMerkleProof.push(0x8d0d63c39ebade8509e0ae3c9c3876fb5fa112be18f905ecacfecb92057603ab);
+        historicalRootsMerkleProof.push(0x95eec8b2e541cad4e91de38385f2e046619f54496c2382cb6cacd5b98c26f5a4);
+        historicalRootsMerkleProof.push(0xf893e908917775b62bff23294dbbe3a1cd8e6cc1c35b4801887b646a6f81f17f);
+        historicalRootsMerkleProof.push(0xcddba7b592e3133393c16194fac7431abf2f5485ed711db282183c819e08ebaa);
+        historicalRootsMerkleProof.push(0x8a8d7fe3af8caa085a7639a832001457dfb9128a8061142ad0335629ff23ff9c);
+        historicalRootsMerkleProof.push(0xfeb3c337d7a51a6fbf00b9e34c52e1c9195c969bd4e7a0bfd51d5c5bed9c1167);
+        historicalRootsMerkleProof.push(0xe71f0aa83cc32edfbefa9f4d3e0174ca85182eec9f3a09f6a6c0df6377a510d7);
+        historicalRootsMerkleProof.push(0x0100000000000000000000000000000000000000000000000000000000000000);
+        
+        
+        historicalBatchMerkleProof.push(0xcc526c67100d6a2d0337b393c442da2be638390df7316b5187889f3d6607e401);
+        
+        
+        stateRootsMerkleProof.push(0x0000000000000000000000000000000000000000000000000000000000000000);
+        stateRootsMerkleProof.push(0xf5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b);
+        stateRootsMerkleProof.push(0xdb56114e00fdd4c1f85c892bf35ac9a89289aaecb1ebd0a96cde606a748b5d71);
+        stateRootsMerkleProof.push(0xc78009fdf07fc56a11f122370658a353aaa542ed63e44c4bc15ff4cd105ab33c);
+        stateRootsMerkleProof.push(0x536d98837f2dd165a55d5eeae91485954472d56f246df256bf3cae19352a123c);
+        stateRootsMerkleProof.push(0x9efde052aa15429fae05bad4d0b1d7c64da64d03d7a1854a588c2cb8430c0d30);
+        stateRootsMerkleProof.push(0xd88ddfeed400a8755596b21942c1497e114c302e6118290f91e6772976041fa1);
+        stateRootsMerkleProof.push(0x87eb0ddba57e35f6d286673802a4af5975e22506c7cf4c64bb6be5ee11527f2c);
+        stateRootsMerkleProof.push(0x26846476fd5fc54a5d43385167c95144f2643f533cc85bb9d16b782f8d7db193);
+        stateRootsMerkleProof.push(0x506d86582d252405b840018792cad2bf1259f1ef5aa5f887e13cb2f0094f51e1);
+        stateRootsMerkleProof.push(0xffff0ad7e659772f9534c195c815efc4014ef1e1daed4404c06385d11192e92b);
+        stateRootsMerkleProof.push(0x6cf04127db05441cd833107a52be852868890e4317e6a02ab47683aa75964220);
+        stateRootsMerkleProof.push(0xb7d05f875f140027ef5118a2247bbb84ce8f2f0f1123623085daf7960c329f5f);
+
+        return(
+            beaconStateRoot,
+            historicalRootToVerify,
+            beaconStateMerkleProofForHistoricalRoots, 
+            historicalRootsMerkleProof,
+            historicalBatchMerkleProof,
+            stateRootsMerkleProof
         );
     }
 }
