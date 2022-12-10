@@ -69,10 +69,6 @@ contract SlasherTests is EigenLayrTestHelper {
         address[] memory addressArray = new address[](1);
         addressArray[0] = inputAddr;
         cheats.expectRevert(bytes("Ownable: caller is not the owner"));
-        slasher.addGloballyPermissionedContracts(addressArray);
-        cheats.expectRevert(bytes("Ownable: caller is not the owner"));
-        slasher.removeGloballyPermissionedContracts(addressArray);
-        cheats.expectRevert(bytes("Ownable: caller is not the owner"));
         slasher.resetFrozenStatus(addressArray);
         cheats.stopPrank();
     }

@@ -118,7 +118,7 @@ library BeaconChainProofs{
         bytes32 beaconStateRoot, 
         bytes calldata proofs, 
         bytes32[] calldata validatorFields
-    ) internal view returns(uint64) {
+    ) internal view returns(uint40) {
         require(validatorFields.length == 2**VALIDATOR_FIELD_TREE_HEIGHT, "BeaconChainProofs.verifyValidatorFields: Validator fields has incorrect length");
         uint256 pointer;
         //verify that the validatorTreeRoot is within the top level beacon state tree
@@ -154,7 +154,7 @@ library BeaconChainProofs{
             proofs.toUint256(pointer)),
             "BeaconChainProofs.verifyValidatorFields: Invalid validator root from validator tree root proof"
         );
-        return uint64(proofs.toUint256(pointer));
+        return uint40(proofs.toUint256(pointer));
     }
 
     /// @param beaconStateRoot is the latest beaconStateRoot posted by the oracle
