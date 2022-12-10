@@ -401,7 +401,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         assertTrue(pod.validatorStatus(validatorIndex) == IEigenPod.VALIDATOR_STATUS.WITHDRAWN);
     }
 
-    function testPayOffMultipliePenaltiesWithSufficientWithdrawal(IEigenPod pod, address staker, uint40 validatorIndex1, uint40 validatorIndex2, uint64 withdrawalAmountGwei) public {
+    function testPayOffMultiplePenaltiesWithSufficientWithdrawal(IEigenPod pod, address staker, uint40 validatorIndex1, uint40 validatorIndex2, uint64 withdrawalAmountGwei) public {
         cheats.assume(pod.OVERCOMMITMENT_PENALTY_AMOUNT_GWEI() == pod.REQUIRED_BALANCE_GWEI());
         cheats.assume(pod.restakedExecutionLayerGwei() == 0);
         cheats.assume(pod.instantlyWithdrawableBalanceGwei() == 0);
@@ -426,21 +426,23 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     }
 
     // 8. Test instant withdrawals after a bunch of sufficient full withdrawals
-    // Setup: Run (3), run (4) n times.
-    // Test: Withdraw withdrawAmountGwei worth of instantlyWithdrawableBalanceGwei.
+    // Setup: Run (3).
+    // Test: Run n sufficient withdrawals. Withdraw withdrawAmountGwei worth of instantlyWithdrawableBalanceGwei.
     // Expected Behaviour: restakedExecutionLayerBalanceGwei should stay the same
     //                     instantlyWithdrawableBalanceGwei_BEFORE should be (AMOUNT - REQUIRED_BALANCE_GWEI) * n
     //                     instantlyWithdrawableBalanceGwei should be instantlyWithdrawableBalanceGwei_BEFORE - withdrawAmountGwei
     //                     pod owner balance should increase by withdrawAmountGwei
 
     // 9. Roll over penalties paid from instantly withdrawable funds after sufficient withdrawals
-    // Setup: Run (7), run (4). 
-    // Test: Roll over toRollAmountGwei from rollableBalanceGwei to instantlyWithdrawableBalanceGwei.
-    // Expected Behaviour: instantlyWithdrawableBalanceGwei should be instantlyWithdrawableBalanceGwei_BEFORE + toRollAmountGwei
-    //                     rollableBalanceGwei should be rollableBalanceGwei_BEFORE - toRollAmountGwei
+    // Setup: Run testPayOffMultiplePenaltiesWithSufficientWithdrawal. 
+    // Test: Run enough sufficient withdrawals to get a positive restakedExuctionLayerGwei. 
+    //       Roll over toRollAmountGwei from rollableBalanceGwei to instantlyWithdrawableBalanceGwei.
+    // Expected Behaviour: restakedExuctionLayerGwei should decrement by toRollAmountGwei
+    //                     instantlyWithdrawableBalanceGwei should increment by toRollAmountGwei
+    //                     rollableBalanceGwei should decrement toRollAmountGwei
 
     // 10. Fail to roll over rollable balance when all penalties are not paid
-    // Setup: Run (7), run (6). 
+    // Setup: Run (5), run (6). 
     // Test: Roll over toRollAmountGwei from rollableBalanceGwei to instantlyWithdrawableBalanceGwei.
     // Expected Behaviour: Reverts due to penalties not being paid off
 
@@ -483,7 +485,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     // Expected Behaviour: Revert with partial withdrawal already exists
 
     // 18. Pay penalties from partial withdrawal
-    // Setup: Run (3), run (5), run (11). 
+    // Setup: Run (5), run (11). 
     // Test: PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS pass. Pod owner attempts to redeem partial withdrawal
     // Expected Behaviour: if PARTIAL_AMOUNT_GWEI >= OVERCOMMITMENT_PENALTY_AMOUNT_GWEI
     //                          penaltiesDueToOvercommittingGwei should be 0
@@ -491,16 +493,17 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     //                     else
     //                          penaltiesDueToOvercommittingGwei should be OVERCOMMITMENT_PENALTY_AMOUNT_GWEI - PARTIAL_AMOUNT_GWEI
     //                          podOwner.balance should stay the same
+    //                     write relevant test cases here
     //                     pod.balance should decrement by PARTIAL_AMOUNT_GWEI 
     //                     rollableBalanceGwei should increment by PARTIAL_AMOUNT_GWEI 
 
-    // 18. Pay penalties from partial withdrawal and then roll over balance
-    // Setup: Run (18), run(4) until all penalties are paid. 
-    // Test: Attempt to roll over toRollAmountGwei.
+    // 19. Pay penalties from partial withdrawal and then roll over balance
+    // Setup: Run (18).
+    // Test: Run enough full withdrawals until all penalties are paid. Attempt to roll over toRollAmountGwei.
     // Expected Behaviour: Math is more complicated here, but keep track of rollable balance and make sure it
     //                     always accounts for the parital withdrawal
 
-    // 19. Withdraw penalties
+    // 20. Withdraw penalties
     // Setup: Run (7).
     // Test: IM owner attempts to withdraw amount penalties for pod to recipient.
     // Expected Behaviour: EigenPodManager.balance should decrement by amount
