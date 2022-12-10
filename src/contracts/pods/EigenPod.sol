@@ -213,7 +213,8 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard, Test {
      */
     function verifyBeaconChainFullWithdrawal(
         uint40 validatorIndex, 
-        bytes calldata proofs, 
+        bytes calldata historicalStateProof,
+        bytes calldata withdrawalProof, 
         bytes32[] calldata withdrawalFields,
         uint256 beaconChainETHStrategyIndex
     ) external {
@@ -225,7 +226,8 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard, Test {
 
         BeaconChainProofs.verifyWithdrawalProofs(
             beaconStateRoot,
-            proofs,
+            historicalStateProof,
+            withdrawalProof,
             withdrawalFields
         );
 

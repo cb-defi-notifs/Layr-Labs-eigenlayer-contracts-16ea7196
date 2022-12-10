@@ -129,9 +129,10 @@ interface IEigenPod {
      * @param beaconChainETHStrategyIndex is the index of the beaconChainETHStrategy for the pod owner for the callback to 
      *                                    the InvestmentManger in case it must be removed
      */
-    function verifyBeaconChainFullWithdrawal(
+     function verifyBeaconChainFullWithdrawal(
         uint40 validatorIndex, 
-        bytes calldata proofs, 
+        bytes calldata historicalStateProof,
+        bytes calldata withdrawalProof, 
         bytes32[] calldata withdrawalFields,
         uint256 beaconChainETHStrategyIndex
     ) external;

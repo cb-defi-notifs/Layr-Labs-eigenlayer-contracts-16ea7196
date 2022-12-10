@@ -231,20 +231,23 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
 
 
                 beaconChainOracle.setBeaconChainStateRoot(beaconStateRoot);
-                bytes memory proofs = abi.encodePacked(
-                                        executionPayloadHeaderRoot, 
-                                        beaconStateMerkleProofForExecutionPayloadHeader, 
-                                        withdrawalTreeRoot, 
+                bytes memory withdrawalProof = abi.encodePacked(
+                                        withdrawalMerkleProof,
                                         executionPayloadHeaderProofForWithdrawalProof,
-                                        withdrawalRoot,
-                                        bytes32(uint256(0)), 
-                                        withdrawalMerkleProof
+                                        beaconStateMerkleProofForExecutionPayloadHeader 
                                     );
+
+                bytes memory historicalStateProof;
+
+                emit log_uint(Endian.fromLittleEndianUint64(withdrawalContainerFields[0]));
+
 
                 Relayer relay = new Relayer();
                 relay.verifyWithdrawalProofsHelp(
+                    uint40(0),
                     beaconStateRoot,
-                    proofs,
+                    historicalStateProof,
+                    withdrawalProof,
                     withdrawalFields
                 );
         
@@ -744,10 +747,12 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
 
  contract Relayer is Test {
     function verifyWithdrawalProofsHelp(
+        uint40 withdrawalIndex,
         bytes32 beaconStateRoot, 
-        bytes calldata proofs, 
+        bytes calldata historicalStateProof, 
+        bytes calldata withdrawalProof, 
         bytes32[] calldata withdrawalFields
-    ) public view {
-        BeaconChainProofs.verifyWithdrawalProofs(beaconStateRoot, proofs, withdrawalFields);
+    ) public {
+        BeaconChainProofs.verifyWithdrawalProofs(beaconStateRoot, historicalStateProof, withdrawalProof, withdrawalFields);
     }
  }
