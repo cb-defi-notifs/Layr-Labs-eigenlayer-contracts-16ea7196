@@ -20,7 +20,11 @@ interface IEigenPod {
     // this struct keeps track of PartialWithdrawalClaims
     struct PartialWithdrawalClaim {
         PARTIAL_WITHDRAWAL_CLAIM_STATUS status;
-        uint32 blockNumber;
+        // block at which the PartialWithdrawalClaim was created
+        uint32 creationBlockNumber;
+        // last block (inclusive) in which the PartialWithdrawalClaim can be fraudproofed
+        uint32 fraudproofPeriodEndBlockNumber;
+        // amount of ETH -- in Gwei -- to be withdrawn until completion of this claim
         uint64 partialWithdrawalAmountGwei;
     }
 
@@ -30,15 +34,8 @@ interface IEigenPod {
         FAILED
     }
 
-    // this struct keeps track of the total proven full withdrawals on behalf of an EigenPod within a certain snapshot
-    struct BalanceSnapShot {
-        uint32 blockNumber;
-        uint32 toBlockNumber;
-        uint64 amountGwei;
-    }
-
     /// @notice The length, in blocks, if the fraud proof period following a claim on the amount of partial withdrawals in an EigenPod
-    function PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS() external returns(uint32);
+    function PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS() external view returns(uint32);
 
     /// @notice Used to initialize the pointers to contracts crucial to the pod's functionality, in beacon proxy construction from EigenPodManager
     function initialize(IEigenPodManager _eigenPodManager, address owner) external;
@@ -82,7 +79,7 @@ interface IEigenPod {
      *                                    the InvestmentManger in case it must be removed from the list of the podOwners strategies
      * for details: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
      */
-    function verifyOvercommitedStake(
+    function verifyOvercommittedStake(
         bytes calldata proofs, 
         bytes32[] calldata validatorFields,
         uint256 beaconChainETHStrategyIndex
@@ -119,13 +116,12 @@ interface IEigenPod {
     function recordPartialWithdrawalClaim(uint32 expireBlockNumber) external;
 
     /// @notice This function allows pod owners to redeem their partial withdrawals after the dispute period has passed
-    function redeemPartialWithdrawals(address recipient) external;
+    function redeemLatestPartialWithdrawal(address recipient) external;
 
     /**
-     * @notice Withdraws `amount` gwei to the podOwner from their instantlyWithdrawableBalanceGwei
-     * @param amountGwei is the amount, in gwei, to withdraw
+     * @notice Withdraws instantlyWithdrawableBalanceGwei to the podOwner
      */
-    function withdrawInstantlyWithdrawableBalanceGwei(uint64 amountGwei) external;
+    function withdrawInstantlyWithdrawableBalanceGwei(address recipient) external;
 
     /**
      * @notice Rebalances restakedExecutionLayerGwei in case penalties were previously paid from instantlyWithdrawableBalanceGwei or partial 

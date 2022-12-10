@@ -40,21 +40,23 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager,
     /// @notice EigenLayer's Slasher contract
     ISlasher internal immutable slasher;
 
-
     /// @notice Oracle contract that provides updates to the beacon chain's state
     IBeaconChainOracle public beaconChainOracle;
     
     /// @notice Pod owner to the amount of penalties they have paid that are still in this contract
-    mapping(address => uint256) public podOwnerToPaidPenalties;
+    mapping(address => uint256) public podOwnerToUnwithdrawnPaidPenalties;
 
     /// @notice Emitted to notify the update of the beaconChainOracle address
-    event BeaconOracleUpdated(address newOracleAddress);
+    event BeaconOracleUpdated(address indexed newOracleAddress);
 
     /// @notice Emitted to notify the deployment of an EigenPod
-    event PodDeployed(address eigenPod, address podOwner);
+    event PodDeployed(address indexed eigenPod, address indexed podOwner);
 
     /// @notice Emitted to notify a deposit of beacon chain ETH recorded in the investment manager
-    event BeaconChainETHDeposited(address podOwner, uint256 amount);
+    event BeaconChainETHDeposited(address indexed podOwner, uint256 amount);
+
+    /// @notice Emitted when an EigenPod pays penalties, on behalf of its owner
+    event PenaltiesPaid(address indexed podOwner, uint256 amountPaid);
 
     modifier onlyEigenPod(address podOwner) {
         require(address(getPod(podOwner)) == msg.sender, "EigenPodManager.onlyEigenPod: not a pod");
@@ -63,11 +65,6 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager,
 
     modifier onlyInvestmentManager {
         require(msg.sender == address(investmentManager), "EigenPodManager.onlyInvestmentManager: not investmentManager");
-        _;
-    }
-
-    modifier onlySlasher {
-        require(msg.sender == address(slasher), "EigenPodManager.onlySlasher: not slasher");
         _;
     }
 
@@ -153,17 +150,19 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager,
      * @dev Callable only by the podOwner's pod.
      */
     function payPenalties(address podOwner) external payable onlyEigenPod(podOwner) {
-        podOwnerToPaidPenalties[podOwner] += msg.value;
+        emit PenaltiesPaid(podOwner, msg.value);
+        podOwnerToUnwithdrawnPaidPenalties[podOwner] += msg.value;
     }
 
     /**
      * @notice Withdraws penalties of a certain pod
      * @param recipient The recipient of withdrawn ETH.
      * @param amount The amount of ETH to withdraw.
-     * @dev Callable only by the slasher.
+     * @dev Callable only by the investmentManager.owner().
      */
-    function withdrawPenalties(address podOwner, address recipient, uint256 amount) external onlySlasher {
-        podOwnerToPaidPenalties[podOwner] -= amount;
+    function withdrawPenalties(address podOwner, address recipient, uint256 amount) external {
+        require(msg.sender == Ownable(address(investmentManager)).owner(), "EigenPods.withdrawPenalties: only investmentManager owner");
+        podOwnerToUnwithdrawnPaidPenalties[podOwner] -= amount;
         // transfer penalties from pod to `recipient`
         Address.sendValue(payable(recipient), amount);
     }

@@ -160,7 +160,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         
         bytes32 validatorIndexBytes = bytes32(uint256(validatorIndex));
         bytes memory proofs = abi.encodePacked(validatorTreeRoot, beaconStateMerkleProofForValidators, validatorRoot, validatorIndexBytes, validatorMerkleProof);
-        eigenPod.verifyOvercommitedStake(proofs, validatorContainerFields, 0);
+        eigenPod.verifyOvercommittedStake(proofs, validatorContainerFields, 0);
         
         uint256 beaconChainETHShares = investmentManager.investorStratShares(podOwner, investmentManager.beaconChainETHStrategy());
 
@@ -186,7 +186,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
 
         bytes32 validatorIndexBytes = bytes32(uint256(validatorIndex));
         bytes memory proofs = abi.encodePacked(validatorTreeRoot, beaconStateMerkleProofForValidators, validatorRoot, validatorIndexBytes, validatorMerkleProof);
-        cheats.expectRevert(bytes("EigenPod.verifyValidatorFields: Invalid validator fields"));
+        cheats.expectRevert(bytes("BeaconChainProofs.verifyValidatorFields: Invalid validator fields"));
         newPod.verifyCorrectWithdrawalCredentials(proofs, validatorContainerFields);
     }
 
@@ -246,6 +246,138 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
                 );
         
     }
+
+    // TEST CASES:
+
+    // 1. Double withdrawal credential
+    // Test: Submit same withdrawal credential proof twice.
+    // Expected Behaviour: Should revert with a helpful message the second time
+
+    // 2. Double full withdrawal
+    // Test: Submit same full withdrawal proof twice.
+    // Expected Behaviour: Should revert with a helpful message the second time
+
+    // 3. Single withdrawal credential
+    // Test: Owner proves an withdrawal credential.
+    // Expected Behaviour: beaconChainETH shares should increment by REQUIRED_BALANCE_WEI
+    //                     validator status should be marked as ACTIVE
+
+    // 4. Happy case full withdrawal
+    // Setup: Run (3). 
+    // Test: Credit the pod balance with AMOUNT (>= REQUIRED_BALANCE_GWEI) gwei and then owner submit 
+    //       full withdrawal proof for validator from (3).
+    // Expected Behaviour: restakedExecutionLayerBalanceGwei should be REQUIRED_BALANCE_GWEI
+    //                     instantlyWithdrawableBalanceGwei should be AMOUNT - REQUIRED_BALANCE_GWEI
+    //                     validator status should be marked as INACTIVE
+
+    // 5. Prove overcommitted balance
+    // Setup: Run (3). 
+    // Test: Watcher proves an overcommitted balance for validator from (3).
+    // Expected Behaviour: beaconChainETH shares should decrement by REQUIRED_BALANCE_WEI
+    //                     penaltiesDueToOvercommittingGwei should increase by OVERCOMMITMENT_PENALTY_AMOUNT_GWEI
+    //                     validator status should be marked as OVERCOMMITTED
+    
+    // 6. Insufficient full withdrawal for active validator
+    // Setup: Run (3).
+    // Test: Credit the pod balance with AMOUNT (< REQUIRED_BALANCE_GWEI) gwei and then owner submit 
+    //       full withdrawal proof for validator from (3) whose balance is overcommitted but has not been marked as such.    
+    // Expected Behaviour: beaconChainETH shares should decrement by REQUIRED_BALANCE_WEI
+    //                     penaltiesDueToOvercommittingGwei should be OVERCOMMITMENT_PENALTY_AMOUNT_GWEI - AMOUNT
+    //                     restakedExecutionLayerBalanceGwei should be 0
+    //                     instantlyWithdrawableBalanceGwei should be 0
+    //                     validator status should be marked as OVERCOMMITTED
+
+    // 7. Pay off penalties with sufficient full withdrawal
+    // Test: Run (3), run (5), run (4).
+    // Expected Behaviour: beaconChainETH shares should stay the same
+    //                     penaltiesDueToOvercommittingGwei should be 0
+    //                     restakedExecutionLayerBalanceGwei should be max((REQUIRED_BALANCE_GWEI - OVERCOMMITMENT_PENALTY_AMOUNT_GWEI), 0)
+    //                     instantlyWithdrawableBalanceGwei should be (AMOUNT - REQUIRED_BALANCE_GWEI) - max((OVERCOMMITMENT_PENALTY_AMOUNT_GWEI - REQUIRED_BALANCE_GWEI), 0)
+    //                     rollableBalanceGwei should be AMOUNT - REQUIRED_BALANCE_GWEI
+    //                     validator status should be marked as INACTIVE
+
+    // 8. Test instant withdrawals after a bunch of sufficient full withdrawals
+    // Setup: Run (3), run (4) n times.
+    // Test: Withdraw withdrawAmountGwei worth of instantlyWithdrawableBalanceGwei.
+    // Expected Behaviour: restakedExecutionLayerBalanceGwei should stay the same
+    //                     instantlyWithdrawableBalanceGwei_BEFORE should be (AMOUNT - REQUIRED_BALANCE_GWEI) * n
+    //                     instantlyWithdrawableBalanceGwei should be instantlyWithdrawableBalanceGwei_BEFORE - withdrawAmountGwei
+    //                     pod owner balance should increase by withdrawAmountGwei
+
+    // 9. Roll over penalties paid from instantly withdrawable funds after sufficient withdrawals
+    // Setup: Run (7), run (4). 
+    // Test: Roll over toRollAmountGwei from rollableBalanceGwei to instantlyWithdrawableBalanceGwei.
+    // Expected Behaviour: instantlyWithdrawableBalanceGwei should be instantlyWithdrawableBalanceGwei_BEFORE + toRollAmountGwei
+    //                     rollableBalanceGwei should be rollableBalanceGwei_BEFORE - toRollAmountGwei
+
+    // 10. Fail to roll over rollable balance when all penalties are not paid
+    // Setup: Run (7), run (6). 
+    // Test: Roll over toRollAmountGwei from rollableBalanceGwei to instantlyWithdrawableBalanceGwei.
+    // Expected Behaviour: Reverts due to penalties not being paid off
+
+    // 11. Make partial withdrawal claim
+    // Test: Credit balance with PARTIAL_AMOUNT_GWEI gwei and record a balance snapshot with an expire block far in the future
+    // Expected Behaviour: Should append a pending a partial withdrawal claim for 
+    //                     (pod.balance - restakedExecutionLayerGwei - instantlyWithdrawableBalanceGwei) amount 
+    //                     at block.number to the end of the partial withdrawal list
+
+    // 12. Expired partial withdrawal claim
+    // Setup: Credit balance with PARTIAL_AMOUNT gwei
+    // Test: Record a balance snapshot with an expire block in the past
+    // Expected Behaviour: Reverts due to expiry
+
+    // 13. Premature partial withdrawal claim redemption
+    // Setup: Run (11).
+    // Test: Pod owner attempts to redeem partial withdrawals after a duration of blocks less than PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS
+    // Expected Behaviour: Reverts because fraud proof period has not passed
+
+    // 14. Fraudulent partial withdrawal
+    // Setup: Credit balance with AMOUNT (>= REQUIRED_BALANCE_GWEI). Run (11).
+    // Test: Watcher proves withdrawal of AMOUNT before the block in which (11) occured.
+    // Expected Behaviour: Partial withdrawal should be marked as failed.
+
+    // 15. Redeem fraudulent partial withdrawal
+    // Setup: Run (14).
+    // Test: Pod owner attempts to redeem partial withdrawal
+    // Expected Behaviour: Reverts because withdrawal is not pending
+
+    // 16. Test happy partial withdrawal
+    // Setup: Run (11). 
+    // Test: PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS pass. Pod owner attempts to redeem partial withdrawal
+    // Expected Behaviour: pod.balance should be decremented by PARTIAL_AMOUNT_GWEI gwei
+    //                     podOwner balance should be incremented by PARTIAL_AMOUNT_GWEI gwei
+    //                     partial withdrawal should be marked as redeemed
+
+    // 17. Double partial withdrawal
+    // Setup: Run (11). 
+    // Test: before PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS have passed, run (11).
+    // Expected Behaviour: Revert with partial withdrawal already exists
+
+    // 18. Pay penalties from partial withdrawal
+    // Setup: Run (3), run (5), run (11). 
+    // Test: PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS pass. Pod owner attempts to redeem partial withdrawal
+    // Expected Behaviour: if PARTIAL_AMOUNT_GWEI >= OVERCOMMITMENT_PENALTY_AMOUNT_GWEI
+    //                          penaltiesDueToOvercommittingGwei should be 0
+    //                          podOwner.balance should increment by PARTIAL_AMOUNT_GWEI - OVERCOMMITMENT_PENALTY_AMOUNT_GWEI
+    //                     else
+    //                          penaltiesDueToOvercommittingGwei should be OVERCOMMITMENT_PENALTY_AMOUNT_GWEI - PARTIAL_AMOUNT_GWEI
+    //                          podOwner.balance should stay the same
+    //                     pod.balance should decrement by PARTIAL_AMOUNT_GWEI 
+    //                     rollableBalanceGwei should increment by PARTIAL_AMOUNT_GWEI 
+
+    // 18. Pay penalties from partial withdrawal and then roll over balance
+    // Setup: Run (18), run(4) until all penalties are paid. 
+    // Test: Attempt to roll over toRollAmountGwei.
+    // Expected Behaviour: Math is more complicated here, but keep track of rollable balance and make sure it
+    //                     always accounts for the parital withdrawal
+
+    // 19. Withdraw penalties
+    // Setup: Run (7).
+    // Test: IM owner attempts to withdraw amount penalties for pod to recipient.
+    // Expected Behaviour: EigenPodManager.balance should decrement by amount
+    //                     recipient.balance should increment by amount 
+
+    // These seem like the building blocks. would be good to combine them in funky ways too.
 
     // // Withdraw eigenpods balance to an EOA
     // function testEigenPodsQueuedWithdrawalEOA(address operator, bytes memory signature, bytes32 depositDataRoot) public fuzzedAddress(operator){

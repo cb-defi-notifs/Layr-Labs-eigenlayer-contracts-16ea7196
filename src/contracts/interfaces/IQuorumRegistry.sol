@@ -26,19 +26,8 @@ interface IQuorumRegistry is IRegistry {
     struct Operator {
         // hash of pubkey of the operator
         bytes32 pubkeyHash;
-        // id is always unique
-        uint32 id;
-        // corresponds to position in operatorList
-        uint32 index;
         // start taskNumber from which the  operator has been registered
         uint32 fromTaskNumber;
-        // start block from which the  operator has been registered
-        uint32 fromBlockNumber;
-        // UTC time until which this operator is supposed to serve its obligations to this middleware
-        // set only when committing to deregistration
-        uint32 serveUntil;
-        // UTC time at which the operator deregistered. If set to zero then the operator has not deregistered.
-        uint32 deregisterTime;
         // indicates whether the operator is actively registered for serving the middleware or not
         Status status;
     }
@@ -73,17 +62,11 @@ interface IQuorumRegistry is IRegistry {
      */
     function getTotalStakeFromIndex(uint256 index) external view returns (OperatorStake memory);
 
-    /// @notice Returns the unique ID of the specified `operator`.
-    function getOperatorId(address operator) external returns (uint32);
-
     /// @notice Returns the stored pubkeyHash for the specified `operator`.
     function getOperatorPubkeyHash(address operator) external view returns (bytes32);
 
     /// @notice Returns task number from when `operator` has been registered.
     function getFromTaskNumberForOperator(address operator) external view returns (uint32);
-
-    /// @notice Returns block number from when `operator` has been registered.
-    function getFromBlockNumberForOperator(address operator) external view returns (uint32);
 
     /**
      * @notice Returns the stake weight corresponding to `pubkeyHash`, at the
@@ -96,6 +79,50 @@ interface IQuorumRegistry is IRegistry {
         external
         view
         returns (OperatorStake memory);
+
+    /**
+     * @notice Checks that the `operator` was active at the `blockNumber`, using the specified `stakeHistoryIndex` as proof.
+     * @param operator is the operator of interest
+     * @param blockNumber is the block number of interest
+     * @param stakeHistoryIndex specifies an index in `pubkeyHashToStakeHistory[pubkeyHash]`, where `pubkeyHash` is looked up
+     * in `registry[operator].pubkeyHash`
+     * @return 'true' if it is succesfully proven that  the `operator` was active at the `blockNumber`, and 'false' otherwise
+     * @dev In order for this function to return 'true', the inputs must satisfy all of the following list:
+     * 1) `pubkeyHashToStakeHistory[pubkeyHash][index].updateBlockNumber <= blockNumber`
+     * 2) `pubkeyHashToStakeHistory[pubkeyHash][index].nextUpdateBlockNumber` must be either `0` (signifying no next update) or
+     * is must be strictly greater than `blockNumber`
+     * 3) `pubkeyHashToStakeHistory[pubkeyHash][index].firstQuorumStake > 0`
+     * or `pubkeyHashToStakeHistory[pubkeyHash][index].secondQuorumStake > 0`, i.e. the operator had nonzero stake
+     * @dev Note that a return value of 'false' does not guarantee that the `operator` was inactive at `blockNumber`, since a
+     * bad `stakeHistoryIndex` can be supplied in order to obtain a response of 'false'.
+     */
+    function checkOperatorActiveAtBlockNumber(
+        address operator,
+        uint256 blockNumber,
+        uint256 stakeHistoryIndex
+        ) external view returns (bool);
+
+    /**
+     * @notice Checks that the `operator` was inactive at the `blockNumber`, using the specified `stakeHistoryIndex` as proof.
+     * @param operator is the operator of interest
+     * @param blockNumber is the block number of interest
+     * @param stakeHistoryIndex specifies an index in `pubkeyHashToStakeHistory[pubkeyHash]`, where `pubkeyHash` is looked up
+     * in `registry[operator].pubkeyHash`
+     * @return 'true' if it is succesfully proven that  the `operator` was inactive at the `blockNumber`, and 'false' otherwise
+     * @dev In order for this function to return 'true', the inputs must satisfy all of the following list:
+     * 1) `pubkeyHashToStakeHistory[pubkeyHash][index].updateBlockNumber <= blockNumber`
+     * 2) `pubkeyHashToStakeHistory[pubkeyHash][index].nextUpdateBlockNumber` must be either `0` (signifying no next update) or
+     * is must be strictly greater than `blockNumber`
+     * 3) `pubkeyHashToStakeHistory[pubkeyHash][index].firstQuorumStake > 0`
+     * or `pubkeyHashToStakeHistory[pubkeyHash][index].secondQuorumStake > 0`, i.e. the operator had nonzero stake
+     * @dev Note that a return value of 'false' does not guarantee that the `operator` was active at `blockNumber`, since a
+     * bad `stakeHistoryIndex` can be supplied in order to obtain a response of 'false'.
+     */
+    function checkOperatorInactiveAtBlockNumber(
+        address operator,
+        uint256 blockNumber,
+        uint256 stakeHistoryIndex
+        ) external view returns (bool);
 
     /**
      * @notice Looks up the `operator`'s index in the dynamic array `operatorList` at the specified `blockNumber`.
@@ -116,12 +143,6 @@ interface IQuorumRegistry is IRegistry {
 
     /// @notice Returns the current number of operators of this service.
     function numOperators() external view returns (uint32);
-
-    /**
-     * @notice Returns the time at which the `operator` deregistered.
-     * @dev Function will return **0** in the event that the operator is actively registered.
-     */
-    function getOperatorDeregisterTime(address operator) external view returns (uint256);
 
     /**
      * @notice Returns the most recent stake weights for the `operator`

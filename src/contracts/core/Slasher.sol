@@ -47,7 +47,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
      * the operator is serving. Sorted by the block at which they were last updated (content of updates below) in ascending order.
      * This means the 'HEAD' (i.e. start) of the linked list will have the stalest 'updateBlock' value.
      */
-    mapping(address => StructuredLinkedList.List) operatorToWhitelistedContractsByUpdate;
+    mapping(address => StructuredLinkedList.List) public operatorToWhitelistedContractsByUpdate;
     /**
      * operator => 
      *  [
@@ -125,32 +125,6 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
             "Slasher.freezeOperator: msg.sender does not have permission to slash this operator"
         );
         _freezeOperator(toBeFrozen, msg.sender);
-    }
-
-    /**
-     * @notice Used to give global slashing permission to `contracts`.
-     * @dev Callable only by the contract owner (i.e. governance).
-     */
-    function addGloballyPermissionedContracts(address[] calldata contracts) external onlyOwner {
-        for (uint256 i = 0; i < contracts.length;) {
-            _addGloballyPermissionedContract(contracts[i]);
-            unchecked {
-                ++i;
-            }
-        }
-    }
-
-    /**
-     * @notice Used to revoke global slashing permission from `contracts`.
-     * @dev Callable only by the contract owner (i.e. governance).
-     */
-    function removeGloballyPermissionedContracts(address[] calldata contracts) external onlyOwner {
-        for (uint256 i = 0; i < contracts.length;) {
-            _removeGloballyPermissionedContract(contracts[i]);
-            unchecked {
-                ++i;
-            }
-        }
     }
 
     /**

@@ -3,7 +3,6 @@ pragma solidity ^0.8.9;
 
 import "../interfaces/IBLSPublicKeyCompendium.sol";
 import "../libraries/BN254.sol";
-import "../libraries/BLS.sol";
 import "forge-std/Test.sol";
 
 /**
@@ -11,7 +10,7 @@ import "forge-std/Test.sol";
  * @author Layr Labs, Inc.
  */
 contract BLSPublicKeyCompendium is IBLSPublicKeyCompendium, DSTest {
-    //Hash of the zero public key: BLS.hashG1Point(G1Point(0,0))
+    //Hash of the zero public key: BN254.hashG1Point(G1Point(0,0))
     bytes32 internal constant ZERO_PK_HASH = hex"ad3228b676f7d3cd4284a5443f17f1962b36e491b30a40b2405849e597ba5fb5";
 
     /// @notice mapping from operator address to pubkey hash
@@ -43,7 +42,7 @@ contract BLSPublicKeyCompendium is IBLSPublicKeyCompendium, DSTest {
                     rPoint,
                     BN254.scalar_mul(
                         pubkeyG1,
-                        uint256(keccak256(abi.encodePacked(msg.sender, pubkeyG1.X, pubkeyG1.Y, rPoint.X, rPoint.Y))) % BLS.FR_MODULUS
+                        uint256(keccak256(abi.encodePacked(msg.sender, pubkeyG1.X, pubkeyG1.Y, rPoint.X, rPoint.Y))) % BN254.FR_MODULUS
                     )
                 )
             );
@@ -54,13 +53,13 @@ contract BLSPublicKeyCompendium is IBLSPublicKeyCompendium, DSTest {
         // e(P, [1]_2) = e([-1]_1, P')
         require(BN254.pairing(
             pubkeyG1,
-            BN254.G2Point({X: [BLS.G2x1, BLS.G2x0], Y: [BLS.G2y1, BLS.G2y0]}),
+            BN254.generatorG2(),
             negGeneratorG1,
             pubkeyG2
         ), "BLSPublicKeyCompendium.registerBLSPublicKey: G1 and G2 private key do not match");
 
         // getting pubkey hash
-        bytes32 pubkeyHash = BLS.hashG1Point(pubkeyG1);
+        bytes32 pubkeyHash = BN254.hashG1Point(pubkeyG1);
 
         require(
             operatorToPubkeyHash[msg.sender] == bytes32(0),

@@ -24,7 +24,6 @@ import "../src/contracts/pods/EigenPodManager.sol";
 import "../src/contracts/permissions/PauserRegistry.sol";
 import "../src/contracts/middleware/BLSPublicKeyCompendium.sol";
 
-import "../src/contracts/libraries/BLS.sol";
 import "../src/contracts/libraries/BytesLib.sol";
 
 import "../src/test/utils/Signatures.sol";
@@ -38,7 +37,6 @@ import "forge-std/Test.sol";
 import "forge-std/Script.sol";
 import "forge-std/StdJson.sol";
 
-import "../src/contracts/libraries/BLS.sol";
 import "../src/contracts/libraries/BytesLib.sol";
 
 // # To load the variables in the .env file
@@ -115,8 +113,6 @@ contract EigenLayrDeployer is Script, DSTest {
     uint256 public constant eigenTotalSupply = 1000e18;
 
     uint256 public gasLimit = 750000;
-
-    address[] public slashingContracts;
 
     function run() external {
         vm.startBroadcast();
@@ -227,9 +223,6 @@ contract EigenLayrDeployer is Script, DSTest {
                 )
             )
         );
-
-        slashingContracts.push(address(eigenPodManager));
-        slasher.addGloballyPermissionedContracts(slashingContracts);
         
         vm.writeFile("data/investmentManager.addr", vm.toString(address(investmentManager)));
         vm.writeFile("data/delegation.addr", vm.toString(address(delegation)));
