@@ -105,8 +105,6 @@ contract EigenLayrDeployer is Script, DSTest {
     //     0x1234567812345678123456781234567812345698123456781234567812348976;
     // address acct_1 = cheats.addr(uint256(priv_key_1));
 
-    bytes32 public ephemeralKey = 0x3290567812345678123456781234577812345698123456781234567812344389;
-
     uint256 public constant eigenTotalSupply = 1000e18;
 
     uint256 public gasLimit = 750000;
