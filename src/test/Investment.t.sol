@@ -119,11 +119,10 @@ contract InvestmentTests is EigenLayrTestHelper {
         investmentManager.depositIntoStrategy(IInvestmentStrategy(nonexistentStrategy), token, testDepositAmount);
     }
 
+    /// @notice verify that trying to deposit an amount of zero will correctly revert
     function testRevertOnZeroDeposit() public {
         cheats.expectRevert(bytes("InvestmentManager._addShares: shares should not be zero!"));
         investmentManager.depositIntoStrategy(wethStrat, weth, 0);
         cheats.stopPrank();
     }
-
-    // TODO: add test(s) that confirm withdrawals *of zero shares* fail correctly.
 }
