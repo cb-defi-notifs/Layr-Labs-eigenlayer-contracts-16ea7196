@@ -83,16 +83,10 @@ contract EigenLayrDeployer is Script, DSTest {
 
     bytes[] registrationData;
 
-    // strategy index => IInvestmentStrategy
-    mapping(uint256 => IInvestmentStrategy) public strategies;
-    // number of strategies deployed
-    uint256 public numberOfStrats;
-
     //strategy indexes for undelegation (see commitUndelegation function)
     uint256[] public strategyIndexes;
 
     uint256 wethInitialSupply = 10e50;
-    uint256 undelegationFraudProofInterval = 7 days;
     address storer = address(420);
     address registrant = address(0x4206904396bF2f8b173350ADdEc5007A52664293); //sk: e88d9d864d5d731226020c5d2f02b62a4ce2a4534a39c225d32d3db795f83319
 

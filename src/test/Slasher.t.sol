@@ -23,13 +23,13 @@ contract SlasherTests is EigenLayrTestHelper {
         tokensArray[0] = weth;
 
         // have `_operator` make deposits in WETH strategy
-        _testWethDeposit(_operator, amountToDeposit);
+        _testDepositWeth(_operator, amountToDeposit);
         // register `_operator` as an operator
         _testRegisterAsOperator(_operator, IDelegationTerms(_operator));
 
         // make deposit in WETH strategy from each of `accounts`, then delegate them to `_operator`
         for (uint256 i = 0; i < accounts.length; i++) {
-            depositAmounts[i] = _testWethDeposit(accounts[i], amountToDeposit);
+            depositAmounts[i] = _testDepositWeth(accounts[i], amountToDeposit);
             _testDelegateToOperator(accounts[i], _operator);
         }
 
