@@ -521,7 +521,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         bytes32 beaconStateRoot, 
         bytes calldata proofs, 
         bytes32[] calldata withdrawalFields
-    ) public {
+    ) public view {
         BeaconChainProofs.verifyWithdrawalProofs(beaconStateRoot, proofs, withdrawalFields);
     }
  }
