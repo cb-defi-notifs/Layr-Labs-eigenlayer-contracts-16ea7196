@@ -65,6 +65,7 @@ interface IEigenPod {
      * for details: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
      */
     function verifyCorrectWithdrawalCredentials(
+        uint40 validatorIndex,
         bytes calldata proofs, 
         bytes32[] calldata validatorFields
     ) external;
@@ -80,6 +81,7 @@ interface IEigenPod {
      * for details: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
      */
     function verifyOvercommittedStake(
+        uint40 validatorIndex,
         bytes calldata proofs, 
         bytes32[] calldata validatorFields,
         uint256 beaconChainETHStrategyIndex
@@ -92,7 +94,7 @@ interface IEigenPod {
      *                                    the InvestmentManger in case it must be removed
      */
     function verifyBeaconChainFullWithdrawal(
-        uint64 validatorIndex, 
+        uint40 validatorIndex, 
         bytes calldata proofs, 
         bytes32[] calldata withdrawalFields,
         uint256 beaconChainETHStrategyIndex

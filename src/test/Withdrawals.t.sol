@@ -344,7 +344,7 @@ contract WithdrawalTests is DelegationTests {
             slashingContracts[0] = slashingContract;    
 
             cheats.startPrank(slashingContract);
-            slasher.addGloballyPermissionedContracts(slashingContracts);
+            //slasher.addGloballyPermissionedContracts(slashingContracts);
             slasher.freezeOperator(operator);
             cheats.stopPrank();
         }

@@ -61,7 +61,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard, Test {
     address public podOwner;
 
     /// @notice this is a mapping of validator keys to a Validator struct containing pertinent info about the validator
-    mapping(uint64 => VALIDATOR_STATUS) public validatorStatus;
+    mapping(uint40 => VALIDATOR_STATUS) public validatorStatus;
 
     /// @notice the claims on the amount of deserved partial withdrawals for the validators of an EigenPod
     PartialWithdrawalClaim[] public partialWithdrawalClaims;
@@ -135,6 +135,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard, Test {
      * for details: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
      */
     function verifyCorrectWithdrawalCredentials(
+        uint40 validatorIndex,
         bytes calldata proofs, 
         bytes32[] calldata validatorFields
     ) external {
@@ -142,7 +143,8 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard, Test {
         bytes32 beaconStateRoot = eigenPodManager.getBeaconChainStateRoot();
 
         // verify ETH validator proof
-        uint64 validatorIndex = BeaconChainProofs.verifyValidatorFields(
+        BeaconChainProofs.verifyValidatorFields(
+            validatorIndex,
             beaconStateRoot,
             proofs,
             validatorFields
@@ -172,6 +174,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard, Test {
      * for details: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
      */
     function verifyOvercommittedStake(
+        uint40 validatorIndex,
         bytes calldata proofs, 
         bytes32[] calldata validatorFields,
         uint256 beaconChainETHStrategyIndex
@@ -179,7 +182,8 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard, Test {
         //TODO: tailor this to production oracle
         bytes32 beaconStateRoot = eigenPodManager.getBeaconChainStateRoot();
         // verify ETH validator proof
-        uint64 validatorIndex = BeaconChainProofs.verifyValidatorFields(
+        BeaconChainProofs.verifyValidatorFields(
+            validatorIndex,
             beaconStateRoot,
             proofs,
             validatorFields
@@ -208,7 +212,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard, Test {
      *                                    podOwner's list of strategies
      */
     function verifyBeaconChainFullWithdrawal(
-        uint64 validatorIndex, 
+        uint40 validatorIndex, 
         bytes calldata proofs, 
         bytes32[] calldata withdrawalFields,
         uint256 beaconChainETHStrategyIndex

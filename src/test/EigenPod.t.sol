@@ -11,7 +11,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     using BytesLib for bytes;
 
     bytes pubkey = hex"88347ed1c492eedc97fc8c506a35d44d81f27a0c7a1c661b35913cfd15256c0cccbd34a83341f505c7de2983292f2cab";
-    uint64 validatorIndex = 0;
+    uint40 validatorIndex = 0;
     //hash tree root of list of validators
     bytes32 validatorTreeRoot;
 
@@ -159,8 +159,8 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         eigenPod = eigenPodManager.getPod(podOwner);
         
         bytes32 validatorIndexBytes = bytes32(uint256(validatorIndex));
-        bytes memory proofs = abi.encodePacked(validatorTreeRoot, beaconStateMerkleProofForValidators, validatorRoot, validatorIndexBytes, validatorMerkleProof);
-        eigenPod.verifyOvercommittedStake(proofs, validatorContainerFields, 0);
+        bytes memory proofs = abi.encodePacked(validatorMerkleProof, beaconStateMerkleProofForValidators);
+        eigenPod.verifyOvercommittedStake(0, proofs, validatorContainerFields, 0);
         
         uint256 beaconChainETHShares = investmentManager.investorStratShares(podOwner, investmentManager.beaconChainETHStrategy());
 
@@ -184,10 +184,9 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
 
         validatorContainerFields[1] = abi.encodePacked(bytes1(uint8(1)), bytes11(0), wrongWithdrawalAddress).toBytes32(0);
 
-        bytes32 validatorIndexBytes = bytes32(uint256(validatorIndex));
-        bytes memory proofs = abi.encodePacked(validatorTreeRoot, beaconStateMerkleProofForValidators, validatorRoot, validatorIndexBytes, validatorMerkleProof);
-        cheats.expectRevert(bytes("BeaconChainProofs.verifyValidatorFields: Invalid validator fields"));
-        newPod.verifyCorrectWithdrawalCredentials(proofs, validatorContainerFields);
+        bytes memory proofs = abi.encodePacked(validatorMerkleProof, beaconStateMerkleProofForValidators);
+        cheats.expectRevert(bytes("BeaconChainProofs.verifyValidatorFieldsOneShot: Invalid merkle proof"));
+        newPod.verifyCorrectWithdrawalCredentials(validatorIndex, proofs, validatorContainerFields);
     }
 
     //test that when withdrawal credentials are verified more than once, it reverts
@@ -203,11 +202,11 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         newPod = eigenPodManager.getPod(podOwner);
 
         bytes32 validatorIndexBytes = bytes32(uint256(validatorIndex));
-        bytes memory proofs = abi.encodePacked(validatorTreeRoot, beaconStateMerkleProofForValidators, validatorRoot, validatorIndexBytes, validatorMerkleProof);
-        newPod.verifyCorrectWithdrawalCredentials(proofs, validatorContainerFields);
+        bytes memory proofs = abi.encodePacked(validatorMerkleProof, beaconStateMerkleProofForValidators);
+        newPod.verifyCorrectWithdrawalCredentials(validatorIndex, proofs, validatorContainerFields);
 
         cheats.expectRevert(bytes("EigenPod.verifyCorrectWithdrawalCredentials: Validator not inactive"));
-        newPod.verifyCorrectWithdrawalCredentials(proofs, validatorContainerFields);
+        newPod.verifyCorrectWithdrawalCredentials(validatorIndex, proofs, validatorContainerFields);
     }
 
     function testVerifyWithdrawalProofs() public {
@@ -237,6 +236,11 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
                                         bytes32(uint256(0)), 
                                         withdrawalMerkleProof
                                     );
+                emit log_uint(BeaconChainProofs.VALIDATOR_TREE_ROOT_INDEX);
+                emit log_uint(BeaconChainProofs.VALIDATOR_TREE_HEIGHT);
+                emit log_uint(BeaconChainProofs.VALIDATOR_TREE_ROOT_INDEX << BeaconChainProofs.VALIDATOR_TREE_HEIGHT);
+                emit log_named_uint("new index", (BeaconChainProofs.VALIDATOR_TREE_ROOT_INDEX << BeaconChainProofs.VALIDATOR_TREE_HEIGHT) + 234);
+                emit log_named_uint("new index", (BeaconChainProofs.VALIDATOR_TREE_ROOT_INDEX * 2**41) | 0);
 
                 Relayer relay = new Relayer();
                 relay.verifyWithdrawalProofsHelp(
@@ -580,8 +584,9 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         newPod = eigenPodManager.getPod(_podOwner);
 
         bytes32 validatorIndexBytes = bytes32(uint256(validatorIndex));
-        bytes memory proofs = abi.encodePacked(validatorTreeRoot, beaconStateMerkleProofForValidators, validatorRoot, validatorIndexBytes, validatorMerkleProof);
-        newPod.verifyCorrectWithdrawalCredentials(proofs, validatorContainerFields);
+        bytes memory proofs = abi.encodePacked(validatorMerkleProof, beaconStateMerkleProofForValidators);
+
+        newPod.verifyCorrectWithdrawalCredentials(validatorIndex, proofs, validatorContainerFields);
 
         IInvestmentStrategy beaconChainETHStrategy = investmentManager.beaconChainETHStrategy();
 
@@ -589,62 +594,6 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         require(beaconChainETHShares == REQUIRED_BALANCE_WEI, "investmentManager shares not updated correctly");
     }
 
-
-    function verifyWithdrawalProofs(
-        bytes32 beaconStateRoot, 
-        bytes memory proofs, 
-        bytes32[] memory withdrawalFields
-    ) internal {
-        require(withdrawalFields.length == BeaconChainProofs.NUM_WITHDRAWAL_FIELDS, "incorrect executionPayloadHeaderFields length");
-        uint256 pointer = 0;
-        bool valid;
-
-        //check that beacon state root from oracle is present in historical roots
-        //TODO: uncomment
-        //pointer = verifyBeaconChainRootProof(beaconStateRoot, proofs, pointer);
-
-        
-        bytes32 executionPayloadHeaderRoot = proofs.toBytes32(0);
-        pointer += 32;
-        //verify that execution payload header root is correct against beacon state root
-        valid = Merkle.verifyInclusionSha256(
-            proofs.slice(pointer, 32 * BeaconChainProofs.BEACON_STATE_FIELD_TREE_HEIGHT), 
-            beaconStateRoot, 
-            executionPayloadHeaderRoot, 
-            BeaconChainProofs.EXECUTION_PAYLOAD_HEADER_INDEX
-        );
-        require(valid, "Invalid execution payload header proof");
-
-        pointer += 32 * BeaconChainProofs.BEACON_STATE_FIELD_TREE_HEIGHT;
-        bytes32 withdrawalsRoot = proofs.toBytes32(pointer);
-        pointer +=32;
-
-        //verify that the withdrawals root is correct against the execution payload header root
-        valid = Merkle.verifyInclusionSha256(
-            proofs.slice(pointer, 32 * BeaconChainProofs.EXECUTION_PAYLOAD_HEADER_FIELD_TREE_HEIGHT), 
-            executionPayloadHeaderRoot, 
-            withdrawalsRoot, 
-            BeaconChainProofs.WITHDRAWALS_ROOT_INDEX
-        );
-        require(valid, "Invalid withdrawals root proof");
-
-        pointer += 32 * BeaconChainProofs.EXECUTION_PAYLOAD_HEADER_FIELD_TREE_HEIGHT;
-        bytes32 individualWithdrawalContainerRoot = proofs.toBytes32(pointer);
-        pointer += 32;
-
-
-        require(individualWithdrawalContainerRoot == Merkle.merkleizeSha256(withdrawalFields), "provided withdrawalFields do not match withdrawalContainerRoot");
-
-
-        valid = Merkle.verifyInclusionSha256(
-            proofs.slice(pointer + 32, 32 * (BeaconChainProofs.WITHDRAWALS_TREE_HEIGHT + 1)),
-            withdrawalsRoot,
-            individualWithdrawalContainerRoot,
-            proofs.toUint256(pointer)
-        );
-
-        require(valid, "invalid withdrawal container inclusion proof");
-    }
  }
 
 

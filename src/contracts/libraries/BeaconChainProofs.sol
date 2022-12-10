@@ -109,52 +109,33 @@ library BeaconChainProofs{
 
     /**
      * @notice This function verifies merkle proofs the fields of a certain validator against a beacon chain state root
+     * @param validatorIndex the index of the proven validator
      * @param beaconStateRoot is the beacon chain state root.
-     * @param proofs is the data used in proving the validator's fields
+     * @param proof is the data used in proving the validator's fields
+     * Proof Format:
+     * < 
+     * bytes32[] validatorMerkleProof, the inclusion proof for the individual validator container root in the validator registry tree
+     * bytes32[] beaconStateMerkleProofForValidatorTreeRoot, the inclusion proof for the validator registry root in the beacon state
+     * bytes32 validatorContainerRoot, the ndividual validator container root being proven 
+     * >
      * @param validatorFields the claimed fields of the validator
-     * @return validatorIndex the index of the proven validator
      */
     function verifyValidatorFields(
-        bytes32 beaconStateRoot, 
-        bytes calldata proofs, 
+        uint40 validatorIndex,
+        bytes32 beaconStateRoot,
+        bytes calldata proof, 
         bytes32[] calldata validatorFields
-    ) internal view returns(uint64) {
-        require(validatorFields.length == 2**VALIDATOR_FIELD_TREE_HEIGHT, "BeaconChainProofs.verifyValidatorFields: Validator fields has incorrect length");
-        uint256 pointer;
-        //verify that the validatorTreeRoot is within the top level beacon state tree
-        bytes32 validatorTreeRoot = proofs.toBytes32(0);
+    ) internal view {
+        require(validatorFields.length == 2**VALIDATOR_FIELD_TREE_HEIGHT, "BeaconChainProofs.verifyValidatorFieldsOneShot: Validator fields has incorrect length");
 
-        //offset 32 bytes for validatorTreeRoot
-        pointer += 32;
-        require(Merkle.verifyInclusionSha256(
-            proofs.slice(pointer, 32 * BeaconChainProofs.BEACON_STATE_FIELD_TREE_HEIGHT),
-            beaconStateRoot,
-            validatorTreeRoot,
-            BeaconChainProofs.VALIDATOR_TREE_ROOT_INDEX),
-            "BeaconChainProofs.verifyValidatorFields: Invalid validator tree root from beacon state proof"
-        );
-        //offset the length of the beacon state proof
-        pointer += 32 * BeaconChainProofs.BEACON_STATE_FIELD_TREE_HEIGHT;
-        // verify the proof of the validator metadata root against the merkle root of the entire validator tree
-        //https://github.com/prysmaticlabs/prysm/blob/de8e50d8b6bcca923c38418e80291ca4c329848b/beacon-chain/state/stateutil/validator_root.go#L26
-        bytes32 validatorRoot = proofs.toBytes32(pointer);
-        //make sure that the provided validatorFields are consistent with the proven leaf
-        require(validatorRoot == Merkle.merkleizeSha256(validatorFields), "BeaconChainProofs.verifyValidatorFields: Invalid validator fields");
-        //offset another 32 bytes for the length of the validatorRoot
-        pointer += 32;
-        //verify that the validatorRoot is within the validator tree
-        require(Merkle.verifyInclusionSha256(
-            /**
-            * plus 1 here is because the actual validator merkle tree involves hashing 
-            * the final root with the lenght of the list, adding a level to the tree
-            */
-            proofs.slice(pointer + 32, 32 * (BeaconChainProofs.VALIDATOR_TREE_HEIGHT + 1)),
-            validatorTreeRoot,
-            validatorRoot,
-            proofs.toUint256(pointer)),
-            "BeaconChainProofs.verifyValidatorFields: Invalid validator root from validator tree root proof"
-        );
-        return uint64(proofs.toUint256(pointer));
+        // Note: the length of the validator merkle proof is BeaconChainProofs.VALIDATOR_TREE_HEIGHT + 1 - there is an additional layer added by hashing the root with the length of the validator list
+        require(proof.length == 32 * ((VALIDATOR_TREE_HEIGHT + 1) + BEACON_STATE_FIELD_TREE_HEIGHT), "BeaconChainProofs.verifyValidatorFieldsOneShot: Proof has incorrect length");
+        uint256 index = (VALIDATOR_TREE_ROOT_INDEX << (VALIDATOR_TREE_HEIGHT + 1)) | uint256(validatorIndex);
+        // merkleize the validatorFields to get the leaf to prove
+        bytes32 validatorRoot = Merkle.merkleizeSha256(validatorFields);
+
+        // verify the proof
+        require(Merkle.verifyInclusionSha256(proof, beaconStateRoot, validatorRoot, index), "BeaconChainProofs.verifyValidatorFieldsOneShot: Invalid merkle proof");
     }
 
     /// @param beaconStateRoot is the latest beaconStateRoot posted by the oracle
@@ -272,28 +253,5 @@ library BeaconChainProofs{
         pointer += 32 + 32 * BeaconChainProofs.STATE_ROOTS_TREE_HEIGHT;
 
         return pointer;
-    }
-
-    /**
-     * @notice This function verifies merkle proofs the fields of a certain validator against a beacon chain state root
-     * @param validatorIndex the index of the proven validator
-     * @param beaconStateRoot is the beacon chain state root.
-     * @param proof is the data used in proving the validator's fields
-     * @param validatorFields the claimed fields of the validator
-     */
-    function verifyValidatorFieldsOneShot(
-        uint40 validatorIndex,
-        bytes32 beaconStateRoot,
-        bytes calldata proof, 
-        bytes32[] calldata validatorFields
-    ) internal view {
-        require(validatorFields.length == 2**VALIDATOR_FIELD_TREE_HEIGHT, "BeaconChainProofs.verifyValidatorFieldsOneShot: Validator fields has incorrect length");
-        require(proof.length == 32 * (VALIDATOR_TREE_HEIGHT + BEACON_STATE_FIELD_TREE_HEIGHT), "BeaconChainProofs.verifyValidatorFieldsOneShot: Proof has incorrect length");
-        // the index against the beacon state root is VALIDATOR_TREE_ROOT_INDEX || validatorIndex
-        uint256 index = (VALIDATOR_TREE_ROOT_INDEX << VALIDATOR_TREE_HEIGHT) | uint256(validatorIndex);
-        // merkleize the validatorFields to get the leaf to prove
-        bytes32 validatorRoot = Merkle.merkleizeSha256(validatorFields);
-        // verify the proof
-        require(Merkle.verifyInclusionSha256(proof, beaconStateRoot, validatorRoot, index), "BeaconChainProofs.verifyValidatorFieldsOneShot: Invalid merkle proof");
     }
 }
