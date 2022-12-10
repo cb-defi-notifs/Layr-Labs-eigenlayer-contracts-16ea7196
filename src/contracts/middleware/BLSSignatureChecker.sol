@@ -105,7 +105,7 @@ abstract contract BLSSignatureChecker {
      * @dev This calldata is of the format:
      * <
      * bytes32 msgHash, the taskHash for which disperser is calling checkSignatures
-     * uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the BLSRegistryWithBomb
+     * uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the BLSRegistry
      * uint32 blockNumber, the blockNumber at which the task was initated
      * uint32 taskNumberToConfirm
      * uint32 numberOfNonSigners,
