@@ -37,6 +37,42 @@ interface IEigenPod {
     /// @notice The length, in blocks, if the fraud proof period following a claim on the amount of partial withdrawals in an EigenPod
     function PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS() external view returns(uint32);
 
+    /// @notice The amount of eth, in gwei, that is restaked per validator
+    function REQUIRED_BALANCE_GWEI() external view returns(uint64);
+
+    /// @notice The amount of eth, in wei, that is added to the penalty balance of the pod in case a validator's beacon chain balance ever falls
+    ///         below REQUIRED_BALANCE_GWEI
+    /// @dev currently this is set to REQUIRED_BALANCE_GWEI
+    function OVERCOMMITMENT_PENALTY_AMOUNT_GWEI() external view returns(uint64);
+
+    /// @notice The amount of eth, in wei, that is restaked per validator
+    function REQUIRED_BALANCE_WEI() external view returns(uint256);
+
+    /// @notice The amount of eth, in gwei, that can be part of a full withdrawal at the minimum
+    function MIN_FULL_WITHDRAWAL_AMOUNT_GWEI() external view returns(uint64);
+
+    /// @notice this is a mapping of validator keys to a Validator struct containing pertinent info about the validator
+    function validatorStatus(uint40) external view returns(VALIDATOR_STATUS);
+
+    /// @return claim is the partial withdrawal claim at the provided index
+    function getPartialWithdrawalClaim(uint256) external view returns(PartialWithdrawalClaim memory);
+        
+    /// @return length : the number of partial withdrawal claims ever made for this EigenPod
+    function getPartialWithdrawalClaimsLength() external view returns(uint256);
+
+    /// @notice the amount of execution layer ETH in this contract that is staked in EigenLayer (i.e. withdrawn from beaconchain but not EigenLayer), 
+    function restakedExecutionLayerGwei() external view returns(uint64);
+
+    /// @notice the excess balance from full withdrawals over RESTAKED_BALANCE_PER_VALIDATOR or partial withdrawals
+    function instantlyWithdrawableBalanceGwei() external view returns(uint64);
+
+    /// @notice the amount of penalties that have been paid from instantlyWithdrawableBalanceGwei or from partial withdrawals. These can be rolled
+    ///         over from restakedExecutionLayerGwei into instantlyWithdrawableBalanceGwei when all existing penalties have been paid
+    function rollableBalanceGwei() external view returns(uint64);
+
+    /// @notice the total amount of gwei outstanding (i.e. to-be-paid) penalties due to over committing to EigenLayer on behalf of this pod
+    function penaltiesDueToOvercommittingGwei() external view returns(uint64);
+
     /// @notice Used to initialize the pointers to contracts crucial to the pod's functionality, in beacon proxy construction from EigenPodManager
     function initialize(IEigenPodManager _eigenPodManager, address owner) external;
 
