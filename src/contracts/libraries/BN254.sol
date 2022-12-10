@@ -261,7 +261,7 @@ library BN254 {
 
 
     /**
-     * @notice same as hashToPoint function in https://github.com/ChihChengLiang/bls_solidity_python/blob/master/contracts/BLS.sol
+     * @notice adapted from https://github.com/HarryR/solcrypto/blob/master/contracts/altbn128.sol
      */
     function hashToG1(bytes32 _x) internal view returns (uint256, uint256) {
         uint256 beta = 0;

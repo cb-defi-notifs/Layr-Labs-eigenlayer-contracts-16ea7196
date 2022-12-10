@@ -166,8 +166,7 @@ contract DelegationTests is EigenLayrTestHelper {
         bytes32 vs = getVSfromVandS(v, s);
         
         cheats.expectRevert();
-        delegation.delegateToBySignature(staker, operator, 0, r, vs);
-        
+        delegation.delegateToBySignature(staker, operator, 0, r, vs);   
     }
 
     /// @notice registers a fixed address as a delegate, delegates to it from a second address,
