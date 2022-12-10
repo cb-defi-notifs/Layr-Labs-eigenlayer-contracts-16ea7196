@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
+import "../libraries/BeaconChainProofs.sol";
 import "./IEigenPodManager.sol";
 import "./IBeaconChainOracle.sol";
 
@@ -96,13 +97,13 @@ interface IEigenPod {
      * @notice This function verifies that the withdrawal credentials of the podOwner are pointed to
      * this contract.  It verifies the provided proof from the validator against the beacon chain state
      * root.
-     * @param proofs is the bytes that prove the validator's metadata against a beacon state root
+     * @param proof is the bytes that prove the validator's metadata against a beacon state root
      * @param validatorFields are the fields of the "Validator Container", refer to consensus specs 
      * for details: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
      */
     function verifyCorrectWithdrawalCredentials(
         uint40 validatorIndex,
-        bytes calldata proofs, 
+        bytes calldata proof, 
         bytes32[] calldata validatorFields
     ) external;
     
@@ -110,7 +111,7 @@ interface IEigenPod {
      * @notice This function records an overcommitment of stake to EigenLayer on behalf of a certain validator.
      *         If successful, the overcommitted balance is penalized (available for withdrawal whenever the pod's balance allows).
      *         They are also removed from the InvestmentManager and undelegated.
-     * @param proofs is the bytes that prove the validator's metadata against a beacon state root
+     * @param proof is the bytes that prove the validator's metadata against a beacon state root
      * @param validatorFields are the fields of the "Validator Container", refer to consensus specs 
      * @param beaconChainETHStrategyIndex is the index of the beaconChainETHStrategy for the pod owner for the callback to 
      *                                    the InvestmentManger in case it must be removed from the list of the podOwners strategies
@@ -118,24 +119,23 @@ interface IEigenPod {
      */
     function verifyOvercommittedStake(
         uint40 validatorIndex,
-        bytes calldata proofs, 
+        bytes calldata proof, 
         bytes32[] calldata validatorFields,
         uint256 beaconChainETHStrategyIndex
     ) external;
 
     /**
      * @notice This function records a full withdrawal on behalf of one of the Ethereum validators for this EigenPod
-     * @param validatorIndex is the validator index for the validator.
+     * @param proof is the information needed to check the veracity of the block number and withdrawal being proven
+     * @param blockNumberRoot is block number at which the withdrawal being proven is claimed to have happened
+     * @param withdrawalFields are the fields of the withdrawal being proven
      * @param beaconChainETHStrategyIndex is the index of the beaconChainETHStrategy for the pod owner for the callback to 
-     *                                    the InvestmentManger in case it must be removed
+     *                                    the EigenPodManager to the InvestmentManager in case it must be removed from the 
+     *                                    podOwner's list of strategies
      */
-     function verifyBeaconChainFullWithdrawal(
-        uint40 validatorIndex, 
-        uint40 stateIndex,
-        uint40 historicalRootsIndex, 
-        bytes32 historicalRootToVerify,
-        bytes calldata historicalStateProof,
-        bytes calldata withdrawalProof, 
+    function verifyBeaconChainFullWithdrawal(
+        BeaconChainProofs.WithdrawalAndBlockNumberProof calldata proof,
+        bytes32 blockNumberRoot,
         bytes32[] calldata withdrawalFields,
         uint256 beaconChainETHStrategyIndex
     ) external;
