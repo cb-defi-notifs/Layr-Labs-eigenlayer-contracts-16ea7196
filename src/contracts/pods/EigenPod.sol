@@ -252,6 +252,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard, Test {
                 /// allow EigenLayer to penalize the overcommitted balance. in this case, the penalty is reduced -- since we know that we actually have the
                 /// withdrawal amount backing what is deposited in EigenLayer, we can minimize the negative effect on middlewares by minimizing the penalty
                 penaltiesDueToOvercommittingGwei += OVERCOMMITMENT_PENALTY_AMOUNT_GWEI - withdrawalAmountGwei;
+                emit log_named_uint("penaltiesDueToOvercommittingGwei", penaltiesDueToOvercommittingGwei);
                 // remove and undelegate shares in EigenLayer
                 eigenPodManager.recordOvercommittedBeaconChainETH(podOwner, beaconChainETHStrategyIndex, REQUIRED_BALANCE_WEI);
             }
@@ -277,8 +278,12 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard, Test {
             }
         }
 
+        emit log_named_uint("penaltiesDueToOvercommittingGwei", penaltiesDueToOvercommittingGwei);
+
         // pay off any new or existing penalties
         _payOffPenalties();
+
+        emit log_named_uint("penaltiesDueToOvercommittingGwei", penaltiesDueToOvercommittingGwei);
     }
 
     /**
@@ -438,6 +443,8 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard, Test {
         uint64 penaltiesDueToOvercommittingGweiMemory = penaltiesDueToOvercommittingGwei;
         if (penaltiesDueToOvercommittingGweiMemory != 0) {
             uint64 restakedExecutionLayerGweiMemory = restakedExecutionLayerGwei;
+            emit log_named_uint("restakedExecutionLayerGweiMemory", restakedExecutionLayerGweiMemory);
+            emit log_named_uint("penaltiesDueToOvercommittingGweiMemory", penaltiesDueToOvercommittingGweiMemory);
             // if restakedExecutionLayerETH is enough to cover all penalties, penalize all that is necessary and return early
             if (penaltiesDueToOvercommittingGweiMemory <= restakedExecutionLayerGweiMemory) {
                 eigenPodManager.payPenalties{value: penaltiesDueToOvercommittingGweiMemory * GWEI_TO_WEI}(podOwner);
