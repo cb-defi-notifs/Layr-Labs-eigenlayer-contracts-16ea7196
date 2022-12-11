@@ -141,6 +141,7 @@ library BeaconChainProofs{
         bytes calldata proof, 
         bytes32[] calldata validatorFields
     ) internal view {
+        
         require(validatorFields.length == 2**VALIDATOR_FIELD_TREE_HEIGHT, "BeaconChainProofs.verifyValidatorFields: Validator fields has incorrect length");
 
         // Note: the length of the validator merkle proof is BeaconChainProofs.VALIDATOR_TREE_HEIGHT + 1 - there is an additional layer added by hashing the root with the length of the validator list
