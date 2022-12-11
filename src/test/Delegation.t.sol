@@ -118,7 +118,7 @@ contract DelegationTests is EigenLayrTestHelper {
 
         //making additional deposits to the investment strategies
         assertTrue(delegation.isNotDelegated(staker) == true, "testDelegation: staker is not delegate");
-        _testWethDeposit(staker, ethAmount);
+        _testDepositWeth(staker, ethAmount);
         _testDepositEigen(staker, eigenAmount);
         
 
@@ -160,7 +160,7 @@ contract DelegationTests is EigenLayrTestHelper {
 
         //making additional deposits to the investment strategies
         assertTrue(delegation.isNotDelegated(staker) == true, "testDelegation: staker is not delegate");
-        _testWethDeposit(staker, ethAmount);
+        _testDepositWeth(staker, ethAmount);
         _testDepositEigen(staker, eigenAmount);
 
         bytes32 vs = getVSfromVandS(v, s);
@@ -174,7 +174,7 @@ contract DelegationTests is EigenLayrTestHelper {
     /// and checks that the delegate's voteWeights increase properly
     /// @param operator is the operator being delegated to.
     /// @param staker is the staker delegating stake to the operator.
-    function testDelegationMultipleStrategies(uint16 numStratsToAdd, address operator, address staker)
+    function testDelegationMultipleStrategies(uint8 numStratsToAdd, address operator, address staker)
         public
         fuzzedAddress(operator)
         fuzzedAddress(staker)
@@ -247,7 +247,7 @@ contract DelegationTests is EigenLayrTestHelper {
         //register as both ETH and EIGEN operator
         uint256 wethToDeposit = 1e18;
         uint256 eigenToDeposit = 1e10;
-        _testWethDeposit(sender, wethToDeposit);
+        _testDepositWeth(sender, wethToDeposit);
         _testDepositEigen(sender, eigenToDeposit);
         _testRegisterAsOperator(sender, IDelegationTerms(sender));
 
