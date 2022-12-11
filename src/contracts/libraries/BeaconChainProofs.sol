@@ -91,7 +91,7 @@ library BeaconChainProofs{
     function computePhase0BeaconBlockHeaderRoot(bytes32[NUM_BEACON_BLOCK_HEADER_FIELDS] calldata blockHeaderFields) internal pure returns(bytes32) {
         bytes32[] memory paddedHeaderFields = new bytes32[](2**BEACON_BLOCK_HEADER_FIELD_TREE_HEIGHT);
         
-        for (uint i = 0; i < NUM_BEACON_BLOCK_HEADER_FIELDS; i++) {
+        for (uint256 i = 0; i < NUM_BEACON_BLOCK_HEADER_FIELDS; ++i) {
             paddedHeaderFields[i] = blockHeaderFields[i];
         }
 
@@ -101,7 +101,7 @@ library BeaconChainProofs{
     function computePhase0BeaconStateRoot(bytes32[NUM_BEACON_STATE_FIELDS] calldata beaconStateFields) internal pure returns(bytes32) {
         bytes32[] memory paddedBeaconStateFields = new bytes32[](2**BEACON_STATE_FIELD_TREE_HEIGHT);
         
-        for (uint i = 0; i < NUM_BEACON_STATE_FIELDS; i++) {
+        for (uint256 i = 0; i < NUM_BEACON_STATE_FIELDS; ++i) {
             paddedBeaconStateFields[i] = beaconStateFields[i];
         }
         
@@ -111,7 +111,7 @@ library BeaconChainProofs{
     function computePhase0ValidatorRoot(bytes32[NUM_VALIDATOR_FIELDS] calldata validatorFields) internal pure returns(bytes32) {  
         bytes32[] memory paddedValidatorFields = new bytes32[](2**VALIDATOR_FIELD_TREE_HEIGHT);
         
-        for (uint i = 0; i < NUM_VALIDATOR_FIELDS; i++) {
+        for (uint256 i = 0; i < NUM_VALIDATOR_FIELDS; ++i) {
             paddedValidatorFields[i] = validatorFields[i];
         }
 
@@ -121,7 +121,7 @@ library BeaconChainProofs{
     function computePhase0Eth1DataRoot(bytes32[NUM_ETH1_DATA_FIELDS] calldata eth1DataFields) internal pure returns(bytes32) {  
         bytes32[] memory paddedEth1DataFields = new bytes32[](2**ETH1_DATA_FIELD_TREE_HEIGHT);
         
-        for (uint i = 0; i < ETH1_DATA_FIELD_TREE_HEIGHT; i++) {
+        for (uint256 i = 0; i < ETH1_DATA_FIELD_TREE_HEIGHT; ++i) {
             paddedEth1DataFields[i] = eth1DataFields[i];
         }
 
@@ -144,7 +144,10 @@ library BeaconChainProofs{
         
         require(validatorFields.length == 2**VALIDATOR_FIELD_TREE_HEIGHT, "BeaconChainProofs.verifyValidatorFields: Validator fields has incorrect length");
 
-        // Note: the length of the validator merkle proof is BeaconChainProofs.VALIDATOR_TREE_HEIGHT + 1 - there is an additional layer added by hashing the root with the length of the validator list
+        /**
+         * Note: the length of the validator merkle proof is BeaconChainProofs.VALIDATOR_TREE_HEIGHT + 1.
+         * There is an additional layer added by hashing the root with the length of the validator list
+         */
         require(proof.length == 32 * ((VALIDATOR_TREE_HEIGHT + 1) + BEACON_STATE_FIELD_TREE_HEIGHT), "BeaconChainProofs.verifyValidatorFields: Proof has incorrect length");
         uint256 index = (VALIDATOR_TREE_ROOT_INDEX << (VALIDATOR_TREE_HEIGHT + 1)) | uint256(validatorIndex);
         // merkleize the validatorFields to get the leaf to prove
@@ -201,7 +204,7 @@ library BeaconChainProofs{
         require(
             proof.withdrawalProof.length == 32 * (
                 EXECUTION_PAYLOAD_HEADER_FIELD_TREE_HEIGHT + WITHDRAWALS_TREE_HEIGHT + 1
-            ), "withdrawalProof length is incorrect");
+            ), "BeaconChainProofs.verifyWithdrawalFields: withdrawalProof length is incorrect");
 
 
         index = (WITHDRAWALS_ROOT_INDEX << (WITHDRAWALS_TREE_HEIGHT + 1)) | proof.withdrawalIndex;

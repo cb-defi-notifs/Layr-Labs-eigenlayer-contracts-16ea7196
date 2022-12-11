@@ -37,21 +37,21 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard, Test {
     /// @notice This is the beacon chain deposit contract
     IETHPOSDeposit internal immutable ethPOS;
 
-    /// @notice The length, in blocks, if the fraud proof period following a claim on the amount of partial withdrawals in an EigenPod
+    /// @notice The length, in blocks, of the fraudproof period following a claim on the amount of partial withdrawals in an EigenPod
     uint32 immutable public PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS;
 
     /// @notice The amount of eth, in gwei, that is restaked per validator
     uint64 public immutable REQUIRED_BALANCE_GWEI;
 
-    /// @notice The amount of eth, in wei, that is added to the penalty balance of the pod in case a validator's beacon chain balance ever falls
-    ///         below REQUIRED_BALANCE_GWEI
+    /// @notice The amount of eth, in wei, that is added to the penalty balance of the pod in case a validator's beacon chain balance is ever proven to have
+    ///         fallen below REQUIRED_BALANCE_GWEI
     /// @dev currently this is set to REQUIRED_BALANCE_GWEI
     uint64 public immutable OVERCOMMITMENT_PENALTY_AMOUNT_GWEI;
 
-    /// @notice The amount of eth, in wei, that is restaked per validator
+    /// @notice The amount of eth, in wei, that is restaked per ETH validator into EigenLayer
     uint256 public immutable REQUIRED_BALANCE_WEI;
 
-    /// @notice The amount of eth, in gwei, that can be part of a full withdrawal at the minimum
+    /// @notice The minimum amount of eth, in gwei, that can be part of a full withdrawal
     uint64 public immutable MIN_FULL_WITHDRAWAL_AMOUNT_GWEI;
 
     /// @notice The single EigenPodManager for EigenLayer
@@ -63,26 +63,26 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard, Test {
     /// @notice this is a mapping of validator keys to a Validator struct containing pertinent info about the validator
     mapping(uint40 => VALIDATOR_STATUS) public validatorStatus;
 
-    /// @notice the claims on the amount of deserved partial withdrawals for the validators of an EigenPod
+    /// @notice the claims on the amount of deserved partial withdrawals for the ETH validators of this EigenPod
     PartialWithdrawalClaim[] public partialWithdrawalClaims;
 
-    /// @notice the amount of execution layer ETH in this contract that is staked in EigenLayer (i.e. withdrawn from beaconchain but not EigenLayer), 
+    /// @notice the amount of execution layer ETH in this contract that is staked in EigenLayer (i.e. withdrawn from the Beacon Chain but not from EigenLayer), 
     uint64 public restakedExecutionLayerGwei;
 
     /// @notice the excess balance from full withdrawals over RESTAKED_BALANCE_PER_VALIDATOR or partial withdrawals
     uint64 public instantlyWithdrawableBalanceGwei;
 
-    /// @notice the amount of penalties that have been paid from instantlyWithdrawableBalanceGwei or from partial withdrawals. These can be rolled
-    ///         over from restakedExecutionLayerGwei into instantlyWithdrawableBalanceGwei when all existing penalties have been paid
+    /// @notice the amount of penalties that have been paid from instantlyWithdrawableBalanceGwei or from partial withdrawals.
+    /// @dev These can be rolled over from restakedExecutionLayerGwei into instantlyWithdrawableBalanceGwei when all existing penalties have been paid        
     uint64 public rollableBalanceGwei;
 
-    /// @notice the total amount of gwei outstanding (i.e. to-be-paid) penalties due to over committing to EigenLayer on behalf of this pod
+    /// @notice the total amount of gwei in outstanding (i.e. to-be-paid) penalties due to over-committing to EigenLayer on behalf of this pod
     uint64 public penaltiesDueToOvercommittingGwei;
 
-    /// @notice Emitted when a validator stakes via an eigenPod
+    /// @notice Emitted when an ETH validator stakes via this eigenPod
     event EigenPodStaked(bytes pubkey);
 
-    /// @notice Emmitted when a partial withdrawal claim is made on an EigenPod
+    /// @notice Emmitted when a partial withdrawal claim is made on the EigenPod
     event PartialWithdrawalClaimRecorded(uint32 currBlockNumber, uint64 partialWithdrawalAmountGwei);
 
     /// @notice Emitted when a partial withdrawal claim is successfully redeemed
@@ -97,7 +97,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard, Test {
     }
 
     modifier onlyEigenPodOwner {
-        require(msg.sender == podOwner, "EigenPod.onlyEigenPodManager: not podOwner");
+        require(msg.sender == podOwner, "EigenPod.onlyEigenPodOwner: not podOwner");
         _;
     }
 
@@ -272,7 +272,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard, Test {
             PartialWithdrawalClaim memory currentClaim = partialWithdrawalClaims[claimsLength - 1];
             /**
              * if a full withdrawal is proven before the current partial withdrawal claim and the partial withdrawal claim 
-             * is pending (still in its fraud proof period), then the partial withdrawal claim is incorrect and fraudulent
+             * is pending (still in its fraudproof period), then the partial withdrawal claim is incorrect and fraudulent
              */
             if (withdrawalBlockNumber <= currentClaim.creationBlockNumber && currentClaim.status == PARTIAL_WITHDRAWAL_CLAIM_STATUS.PENDING) {
                 // mark the partial withdrawal claim as failed
@@ -336,13 +336,13 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard, Test {
         PartialWithdrawalClaim memory claim = partialWithdrawalClaims[lastClaimIndex];
         require(
             claim.status == PARTIAL_WITHDRAWAL_CLAIM_STATUS.PENDING,
-            "EigenPod.redeemLatestPartialWithdrawal: can only redeem partial withdrawals after fraud proof period"
+            "EigenPod.redeemLatestPartialWithdrawal: can only redeem partial withdrawals after fraudproof period"
         );
         // mark the claim's status as redeemed
         partialWithdrawalClaims[lastClaimIndex].status = PARTIAL_WITHDRAWAL_CLAIM_STATUS.REDEEMED;
         require(
             uint32(block.number) > claim.fraudproofPeriodEndBlockNumber,
-            "EigenPod.redeemLatestPartialWithdrawal: can only redeem partial withdrawals after fraud proof period"
+            "EigenPod.redeemLatestPartialWithdrawal: can only redeem partial withdrawals after fraudproof period"
         );
         // pay penalties if possible
         if (penaltiesDueToOvercommittingGwei != 0) {
