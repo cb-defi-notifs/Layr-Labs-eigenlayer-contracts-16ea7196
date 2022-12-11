@@ -143,24 +143,20 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         cheats.deal(address(podOwner), stakeAmount);        
     }
 
-    function testDeployAndVerifyNewEigenPod(bytes memory signature, bytes32 depositDataRoot) public {
+    function testDeployAndVerifyNewEigenPod(bytes memory signature, bytes32 depositDataRoot) public returns(IEigenPod){
         beaconChainOracle.setBeaconChainStateRoot(0xaf3bf0770df5dd35b984eda6586e6f6eb20af904a5fb840fe65df9a6415293bd);
-        _testDeployAndVerifyNewEigenPod(podOwner, signature, depositDataRoot, false);
+        return _testDeployAndVerifyNewEigenPod(podOwner, signature, depositDataRoot, false);
     }
 
     //test freezing operator after a beacon chain slashing event
     function testUpdateSlashedBeaconBalance(bytes memory signature, bytes32 depositDataRoot) public {
         //make initial deposit
-        testDeployAndVerifyNewEigenPod(signature, depositDataRoot);
+        IEigenPod eigenPod = testDeployAndVerifyNewEigenPod(signature, depositDataRoot);
 
         //get updated proof, set beaconchain state root
         (beaconStateRoot, beaconStateMerkleProofForValidators, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) = getSlashedDepositProof();
 
         beaconChainOracle.setBeaconChainStateRoot(beaconStateRoot);
-        
-
-        IEigenPod eigenPod;
-        eigenPod = eigenPodManager.getPod(podOwner);
         
         bytes32 validatorIndexBytes = bytes32(uint256(validatorIndex));
         bytes memory proofs = abi.encodePacked(validatorMerkleProof, beaconStateMerkleProofForValidators);
@@ -252,20 +248,6 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
 
     // TEST CASES:
 
-    // 1. Double withdrawal credential
-    // Test: Submit same withdrawal credential proof twice.
-    // Expected Behaviour: Should revert with a helpful message the second time
-
-    function testProveWithdrawalCredentialsTwice(IEigenPod pod, uint40 validatorIndex) internal {
-        testProveSingleWithdrawalCredential(pod, validatorIndex);
-        cheats.expectRevert(bytes("EigenPod.verifyCorrectWithdrawalCredentials: Validator not inactive"));
-        testProveSingleWithdrawalCredential(pod, validatorIndex);
-    }
-
-    // 2. Double full withdrawal
-    // Test: Submit same full withdrawal proof twice.
-    // Expected Behaviour: Should revert with a helpful message the second time
-
     // 3. Single withdrawal credential
     // Test: Owner proves an withdrawal credential.
     // Expected Behaviour: beaconChainETH shares should increment by REQUIRED_BALANCE_WEI
@@ -290,9 +272,11 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     //                     instantlyWithdrawableBalanceGwei should be AMOUNT - REQUIRED_BALANCE_GWEI
     //                     validator status should be marked as WITHDRAWN
 
-    function testSufficientFullWithdrawal(IEigenPod pod, uint40 validatorIndex, uint64 withdrawalAmountGwei) internal {
-        cheats.assume(pod.restakedExecutionLayerGwei() == 0);
-        cheats.assume(pod.penaltiesDueToOvercommittingGwei() == 0);
+    function testSufficientFullWithdrawal(bytes memory signature, bytes32 depositDataRoot) public {
+        uint64 withdrawalAmountGwei = 31400000000;
+        uint40 validatorIndex = 0;
+        IEigenPod pod = testDeployAndVerifyNewEigenPod(signature, depositDataRoot);
+
         // withdrawal amount must be sufficient
         cheats.assume(withdrawalAmountGwei >= pod.REQUIRED_BALANCE_GWEI() && withdrawalAmountGwei <= 33 ether);
 
@@ -301,12 +285,22 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
 
         cheats.deal(address(pod), address(pod).balance + withdrawalAmountGwei * GWEI_TO_WEI);
 
-        // prove sufficient full withdrawal
 
-        assertTrue(pod.restakedExecutionLayerGwei() == pod.REQUIRED_BALANCE_GWEI());
-        assertTrue(pod.instantlyWithdrawableBalanceGwei() - instantlyWithdrawableBalanceGweiBefore == withdrawalAmountGwei - pod.REQUIRED_BALANCE_GWEI());
-        assertTrue(pod.rollableBalanceGwei() == rolleableBalanceBefore);
-        assertTrue(pod.validatorStatus(validatorIndex) == IEigenPod.VALIDATOR_STATUS.WITHDRAWN);
+        // prove sufficient full withdrawal
+        _proveFullWithdrawal(pod);
+        //pod.verifyBeaconChainFullWithdrawal(proof, blockNumberRoot, withdrawalFields, beaconChainETHStrategyIndex);
+
+       
+        assertTrue(pod.restakedExecutionLayerGwei() == pod.REQUIRED_BALANCE_GWEI(), "restakedExecutionLayerGwei not set correctly");
+
+        // emit log_uint(pod.instantlyWithdrawableBalanceGwei());
+        // emit log_uint(instantlyWithdrawableBalanceGweiBefore);
+
+        // emit log_uint(withdrawalAmountGwei);
+        // emit log_uint(pod.REQUIRED_BALANCE_GWEI());
+        assertTrue(pod.instantlyWithdrawableBalanceGwei() - instantlyWithdrawableBalanceGweiBefore == withdrawalAmountGwei - pod.REQUIRED_BALANCE_GWEI(), "instantlyWithdrawableBalanceGwei not set correctly");
+        assertTrue(pod.rollableBalanceGwei() == rolleableBalanceBefore, "rollableBalance has changed");
+        assertTrue(pod.validatorStatus(validatorIndex) == IEigenPod.VALIDATOR_STATUS.WITHDRAWN, "validator status not set correctly");
     }
 
     // 5. Prove overcommitted balance
@@ -525,7 +519,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     // These seem like the building blocks. would be good to combine them in funky ways too.
 
     // // Withdraw eigenpods balance to an EOA
-    function testEigenPodsQueuedWithdrawalEOA(address operator, bytes memory signature, bytes32 depositDataRoot) public fuzzedAddress(operator){
+    function testEigenPodsQueuedWithdrawal(address operator, bytes memory signature, bytes32 depositDataRoot) public fuzzedAddress(operator){
         //make initial deposit
         testDeployAndVerifyNewEigenPod(signature, depositDataRoot);
 
@@ -546,28 +540,8 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
                 newPod = eigenPodManager.getPod(podOwner);
                 //adding balance to pod to simulate a withdrawal
                 cheats.deal(address(newPod), stakeAmount);
-
                 //getting proof for withdrawal from beacon chain
-                (
-                    beaconStateRoot, 
-                    executionPayloadHeaderRoot, 
-                    blockNumberRoot,
-                    executionPayloadHeaderProof,
-                    blockNumberProof, 
-                    withdrawalMerkleProof,
-                    withdrawalContainerFields
-                ) = getWithdrawalProofsWithBlockNumber();
-
-                beaconChainOracle.setBeaconChainStateRoot(beaconStateRoot);
-                BeaconChainProofs.WithdrawalAndBlockNumberProof memory proof = BeaconChainProofs.WithdrawalAndBlockNumberProof(
-                                                                            uint16(0), 
-                                                                            executionPayloadHeaderRoot, 
-                                                                            abi.encodePacked(executionPayloadHeaderProof),
-                                                                            uint8(0),
-                                                                            abi.encodePacked(withdrawalMerkleProof),
-                                                                            abi.encodePacked(blockNumberProof)
-                                                                            );
-                newPod.verifyBeaconChainFullWithdrawal(proof, blockNumberRoot, withdrawalContainerFields,  0);
+               _proveFullWithdrawal(newPod);
         }
         
         IInvestmentStrategy[] memory strategyArray = new IInvestmentStrategy[](1);
@@ -702,7 +676,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
             investmentManager.getDeposits(staker);
     }
 
-    function _testDeployAndVerifyNewEigenPod(address _podOwner, bytes memory signature, bytes32 depositDataRoot, bool isContract) internal {
+    function _testDeployAndVerifyNewEigenPod(address _podOwner, bytes memory signature, bytes32 depositDataRoot, bool isContract) internal returns (IEigenPod){
         (beaconStateRoot, beaconStateMerkleProofForValidators, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) = getInitialDepositProof();
 
         //if the _podOwner is a contract, we get the beacon state proof for the contract-specific withdrawal credential
@@ -729,6 +703,32 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
 
         uint256 beaconChainETHShares = investmentManager.investorStratShares(_podOwner, beaconChainETHStrategy);
         require(beaconChainETHShares == REQUIRED_BALANCE_WEI, "investmentManager shares not updated correctly");
+        return newPod;
+    }
+
+    function _proveFullWithdrawal(IEigenPod pod) internal {
+
+        (
+            beaconStateRoot, 
+            executionPayloadHeaderRoot, 
+            blockNumberRoot,
+            executionPayloadHeaderProof,
+            blockNumberProof, 
+            withdrawalMerkleProof,
+            withdrawalContainerFields
+        ) = getWithdrawalProofsWithBlockNumber();
+
+        beaconChainOracle.setBeaconChainStateRoot(beaconStateRoot);
+        BeaconChainProofs.WithdrawalAndBlockNumberProof memory proof = BeaconChainProofs.WithdrawalAndBlockNumberProof(
+                                                                    uint16(0), 
+                                                                    executionPayloadHeaderRoot, 
+                                                                    abi.encodePacked(executionPayloadHeaderProof),
+                                                                    uint8(0),
+                                                                    abi.encodePacked(withdrawalMerkleProof),
+                                                                    abi.encodePacked(blockNumberProof)
+                                                                    );
+        pod.verifyBeaconChainFullWithdrawal(proof, blockNumberRoot, withdrawalContainerFields,  0);
+
     }
 
  }
