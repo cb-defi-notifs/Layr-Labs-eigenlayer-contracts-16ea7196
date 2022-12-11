@@ -12,10 +12,10 @@ import "./IBeaconChainOracle.sol";
 
 interface IEigenPod {
     enum VALIDATOR_STATUS {
-        INACTIVE, //doesnt exist
-        ACTIVE, //staked on ethpos and withdrawal credentials are pointed
-        OVERCOMMITTED, //proven to be overcommitted to EigenLayer
-        WITHDRAWN //withdrawn from the Beacon Chain
+        INACTIVE, // doesnt exist
+        ACTIVE, // staked on ethpos and withdrawal credentials are pointed to the EigenPod
+        OVERCOMMITTED, // proven to be overcommitted to EigenLayer
+        WITHDRAWN // withdrawn from the Beacon Chain
     }
 
     // this struct keeps track of PartialWithdrawalClaims
@@ -52,11 +52,11 @@ interface IEigenPod {
     /// @notice The amount of eth, in gwei, that can be part of a full withdrawal at the minimum
     function MIN_FULL_WITHDRAWAL_AMOUNT_GWEI() external view returns(uint64);
 
-    /// @notice this is a mapping of validator keys to a Validator struct containing pertinent info about the validator
-    function validatorStatus(uint40) external view returns(VALIDATOR_STATUS);
+    /// @notice this is a mapping of validator indices to a Validator struct containing pertinent info about the validator
+    function validatorStatus(uint40 validatorIndex) external view returns(VALIDATOR_STATUS);
 
     /// @return claim is the partial withdrawal claim at the provided index
-    function getPartialWithdrawalClaim(uint256) external view returns(PartialWithdrawalClaim memory);
+    function getPartialWithdrawalClaim(uint256 index) external view returns(PartialWithdrawalClaim memory);
         
     /// @return length : the number of partial withdrawal claims ever made for this EigenPod
     function getPartialWithdrawalClaimsLength() external view returns(uint256);
@@ -77,13 +77,14 @@ interface IEigenPod {
     /// @notice Used to initialize the pointers to contracts crucial to the pod's functionality, in beacon proxy construction from EigenPodManager
     function initialize(IEigenPodManager _eigenPodManager, address owner) external;
 
-    /// @notice Called by EigenPodManager when the owner wants to create another validator.
+    /// @notice Called by EigenPodManager when the owner wants to create another ETH validator.
     function stake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable;
 
     /**
-     * @notice Transfers ether balance of this contract to the specified recipient address
-     * @notice Called by EigenPodManager to withdrawBeaconChainETH that has been added to its balance due to a withdrawal from the beacon chain.
+     * @notice Transfers `amountWei` in ether from this contract to the specified `recipient` address
+     * @notice Called by EigenPodManager to withdrawBeaconChainETH that has been added to the EigenPod's balance due to a withdrawal from the beacon chain.
      * @dev Called during withdrawal or slashing.
+     * @dev Note that this function is marked as non-reentrant to prevent the recipient calling back into it
      */
     function withdrawRestakedBeaconChainETH(address recipient, uint256 amount) external;
 
@@ -95,9 +96,9 @@ interface IEigenPod {
 
     /**
      * @notice This function verifies that the withdrawal credentials of the podOwner are pointed to
-     * this contract.  It verifies the provided proof from the validator against the beacon chain state
-     * root.
-     * @param proof is the bytes that prove the validator's metadata against a beacon state root
+     * this contract.  It verifies the provided proof of the ETH validator against the beacon chain state
+     * root, marks the validator as 'active' in EigenLayer, and credits the restaked ETH in Eigenlayer.
+     * @param proof is the bytes that prove the ETH validator's metadata against a beacon chain state root
      * @param validatorFields are the fields of the "Validator Container", refer to consensus specs 
      * for details: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
      */
@@ -108,14 +109,14 @@ interface IEigenPod {
     ) external;
     
     /**
-     * @notice This function records an overcommitment of stake to EigenLayer on behalf of a certain validator.
+     * @notice This function records an overcommitment of stake to EigenLayer on behalf of a certain ETH validator.
      *         If successful, the overcommitted balance is penalized (available for withdrawal whenever the pod's balance allows).
-     *         They are also removed from the InvestmentManager and undelegated.
-     * @param proof is the bytes that prove the validator's metadata against a beacon state root
+     *         The ETH validator's shares in the enshrined beaconChainETH strategy are also removed from the InvestmentManager and undelegated.
+     * @param proof is the bytes that prove the ETH validator's metadata against a beacon state root
      * @param validatorFields are the fields of the "Validator Container", refer to consensus specs 
      * @param beaconChainETHStrategyIndex is the index of the beaconChainETHStrategy for the pod owner for the callback to 
      *                                    the InvestmentManger in case it must be removed from the list of the podOwners strategies
-     * for details: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
+     * @dev For more details on the Beacon Chain spec, see: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
      */
     function verifyOvercommittedStake(
         uint40 validatorIndex,
@@ -147,21 +148,22 @@ interface IEigenPod {
      *         via  
      *              address(this).balance / GWEI_TO_WEI = 
      *                  restakedExecutionLayerGwei + 
-     *                  withdrawableDueToExcessGwei + 
+     *                  instantlyWithdrawableBalanceGwei + 
      *                  partialWithdrawalsGwei
-     *         if any other full withdrawals are proven to have happened before block.number, the partial withdrawal is marked as failed
-     * @param expireBlockNumber this is the block number before a balance update must be mined to avoid race conditions with pending withdrawals
-     *                          it will be set to the blockNumber at which the next full withdrawal for a validator on this pod is going to occur
-     *                          or type(uint32).max otherwise
-     * @dev the sender should be able to safely set the value to type(uint32).max if there are no pending full withdrawals
+     *         If any other full withdrawals are proven to have happened before block.number, the partial withdrawal is marked as failed
+     * @param expireBlockNumber this is the block number before which the call to this function must be mined. To avoid race conditions with pending withdrawals,
+     *                          if there are any pending full withrawals to this Eigenpod, this parameter should be set to the blockNumber at which the next full withdrawal
+     *                          for a validator on this EigenPod is going to occur.
+     * @dev The sender should be able to safely set the value of `expireBlockNumber` to type(uint32).max if there are no pending full withdrawals to this Eigenpod.
      */
     function recordPartialWithdrawalClaim(uint32 expireBlockNumber) external;
 
-    /// @notice This function allows pod owners to redeem their partial withdrawals after the dispute period has passed
+    /// @notice This function allows pod owners to redeem their partial withdrawals after the fraudproof period has elapsed
     function redeemLatestPartialWithdrawal(address recipient) external;
 
-    /**
-     * @notice Withdraws instantlyWithdrawableBalanceGwei to the podOwner
+    /** 
+     * @notice Withdraws instantlyWithdrawableBalanceGwei to the specified `recipient`
+     * @dev Note that this function is marked as non-reentrant to prevent the recipient calling back into it
      */
     function withdrawInstantlyWithdrawableBalanceGwei(address recipient) external;
 

@@ -112,7 +112,7 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager,
     /**
      * @notice Deposits/Restakes beacon chain ETH in EigenLayer on behalf of the owner of an EigenPod.
      * @param podOwner The owner of the pod whose balance must be deposited.
-     * @param amount The amount of ETH to deposit.
+     * @param amount The amount of ETH to 'deposit' (i.e. be credited to the podOwner).
      * @dev Callable only by the podOwner's EigenPod contract.
      */
     function restakeBeaconChainETH(address podOwner, uint256 amount) external onlyEigenPod(podOwner) {
@@ -134,7 +134,7 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager,
     /**
      * @notice Withdraws ETH from an EigenPod. The ETH must have first been withdrawn from the beacon chain.
      * @param podOwner The owner of the pod whose balance must be withdrawn.
-     * @param recipient The recipient of withdrawn ETH.
+     * @param recipient The recipient of the withdrawn ETH.
      * @param amount The amount of ETH to withdraw.
      * @dev Callable only by the InvestmentManager contract.
      */
@@ -143,9 +143,9 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager,
     }
 
     /**
-     * @notice Sends ETH from the EigenPod to the EigenPodManager in order to fullfill its penalties to EigenLayer
+     * @notice Records receiving ETH from the `PodOwner`'s EigenPod, paid in order to fullfill the EigenPod's penalties to EigenLayer
      * @param podOwner The owner of the pod whose balance is being sent.
-     * @dev Callable only by the podOwner's pod.
+     * @dev Callable only by the podOwner's EigenPod contract.
      */
     function payPenalties(address podOwner) external payable onlyEigenPod(podOwner) {
         podOwnerToUnwithdrawnPaidPenalties[podOwner] += msg.value;
@@ -153,7 +153,7 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager,
     }
 
     /**
-     * @notice Withdraws penalties of a certain pod
+     * @notice Withdraws paid penalties of the `podOwner`'s EigenPod, to the `recipient` address
      * @param recipient The recipient of withdrawn ETH.
      * @param amount The amount of ETH to withdraw.
      * @dev Callable only by the investmentManager.owner().
@@ -168,7 +168,7 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager,
     /**
      * @notice Updates the oracle contract that provides the beacon chain state root
      * @param newBeaconChainOracle is the new oracle contract being pointed to
-     * @dev Callable only by the owner of the InvestmentManager (i.e. governance).
+     * @dev Callable only by the owner of this contract (i.e. governance)
      */
     function updateBeaconChainOracle(IBeaconChainOracle newBeaconChainOracle) external onlyOwner {
         _updateBeaconChainOracle(newBeaconChainOracle);
