@@ -16,66 +16,66 @@ import "../libraries/Endian.sol";
 library BeaconChainProofs{
     using BytesLib for bytes;
     // constants are the number of fields and the heights of the different merkle trees used in merkleizing beacon chain containers
-    uint256 public constant NUM_BEACON_BLOCK_HEADER_FIELDS = 5;
-    uint256 public constant BEACON_BLOCK_HEADER_FIELD_TREE_HEIGHT = 3;
+    uint256 internal constant NUM_BEACON_BLOCK_HEADER_FIELDS = 5;
+    uint256 internal constant BEACON_BLOCK_HEADER_FIELD_TREE_HEIGHT = 3;
 
-    uint256 public constant NUM_BEACON_STATE_FIELDS = 21;
-    uint256 public constant BEACON_STATE_FIELD_TREE_HEIGHT = 5;
+    uint256 internal constant NUM_BEACON_STATE_FIELDS = 21;
+    uint256 internal constant BEACON_STATE_FIELD_TREE_HEIGHT = 5;
 
-    uint256 public constant NUM_ETH1_DATA_FIELDS = 3;
-    uint256 public constant ETH1_DATA_FIELD_TREE_HEIGHT = 2;
+    uint256 internal constant NUM_ETH1_DATA_FIELDS = 3;
+    uint256 internal constant ETH1_DATA_FIELD_TREE_HEIGHT = 2;
 
-    uint256 public constant NUM_VALIDATOR_FIELDS = 8;
-    uint256 public constant VALIDATOR_FIELD_TREE_HEIGHT = 3;
+    uint256 internal constant NUM_VALIDATOR_FIELDS = 8;
+    uint256 internal constant VALIDATOR_FIELD_TREE_HEIGHT = 3;
 
-    uint256 public constant NUM_EXECUTION_PAYLOAD_HEADER_FIELDS = 15;
-    uint256 public constant EXECUTION_PAYLOAD_HEADER_FIELD_TREE_HEIGHT = 4;
+    uint256 internal constant NUM_EXECUTION_PAYLOAD_HEADER_FIELDS = 15;
+    uint256 internal constant EXECUTION_PAYLOAD_HEADER_FIELD_TREE_HEIGHT = 4;
 
     // HISTORICAL_ROOTS_LIMIT	 = 2**24, so tree height is 24
-    uint256 public constant HISTORICAL_ROOTS_TREE_HEIGHT = 24;
+    uint256 internal constant HISTORICAL_ROOTS_TREE_HEIGHT = 24;
 
     // HISTORICAL_BATCH is root of state_roots and block_root, so number of leaves =  2^1
-    uint256 public constant HISTORICAL_BATCH_TREE_HEIGHT = 1;
+    uint256 internal constant HISTORICAL_BATCH_TREE_HEIGHT = 1;
 
     // SLOTS_PER_HISTORICAL_ROOT = 2**13, so tree height is 13
-    uint256 public constant STATE_ROOTS_TREE_HEIGHT = 13;
+    uint256 internal constant STATE_ROOTS_TREE_HEIGHT = 13;
 
 
-    uint256 public constant NUM_WITHDRAWAL_FIELDS = 4;
+    uint256 internal constant NUM_WITHDRAWAL_FIELDS = 4;
     // tree height for hash tree of an individual withdrawal container
-    uint256 public constant WITHDRAWAL_FIELD_TREE_HEIGHT = 2;
+    uint256 internal constant WITHDRAWAL_FIELD_TREE_HEIGHT = 2;
 
-    uint256 public constant VALIDATOR_TREE_HEIGHT = 40;
+    uint256 internal constant VALIDATOR_TREE_HEIGHT = 40;
 
     // MAX_WITHDRAWALS_PER_PAYLOAD = 2**4, making tree height = 4
-    uint256 public constant WITHDRAWALS_TREE_HEIGHT = 4;
+    uint256 internal constant WITHDRAWALS_TREE_HEIGHT = 4;
 
 
     // in beacon block header
-    uint256 public constant STATE_ROOT_INDEX = 3;
-    uint256 public constant PROPOSER_INDEX_INDEX = 1;
+    uint256 internal constant STATE_ROOT_INDEX = 3;
+    uint256 internal constant PROPOSER_INDEX_INDEX = 1;
     // in beacon state
-    uint256 public constant STATE_ROOTS_INDEX = 6;
-    uint256 public constant HISTORICAL_ROOTS_INDEX = 7;
-    uint256 public constant ETH_1_ROOT_INDEX = 8;
-    uint256 public constant VALIDATOR_TREE_ROOT_INDEX = 11;
-    uint256 public constant EXECUTION_PAYLOAD_HEADER_INDEX = 24;
-    uint256 public constant HISTORICAL_BATCH_STATE_ROOT_INDEX = 1;
+    uint256 internal constant STATE_ROOTS_INDEX = 6;
+    uint256 internal constant HISTORICAL_ROOTS_INDEX = 7;
+    uint256 internal constant ETH_1_ROOT_INDEX = 8;
+    uint256 internal constant VALIDATOR_TREE_ROOT_INDEX = 11;
+    uint256 internal constant EXECUTION_PAYLOAD_HEADER_INDEX = 24;
+    uint256 internal constant HISTORICAL_BATCH_STATE_ROOT_INDEX = 1;
 
     // in validator
-    uint256 public constant VALIDATOR_WITHDRAWAL_CREDENTIALS_INDEX = 1;
-    uint256 public constant VALIDATOR_BALANCE_INDEX = 2;
+    uint256 internal constant VALIDATOR_WITHDRAWAL_CREDENTIALS_INDEX = 1;
+    uint256 internal constant VALIDATOR_BALANCE_INDEX = 2;
     
     // in exection payload header
-    uint256 public constant BLOCK_NUMBER_INDEX = 6;
-    uint256 public constant WITHDRAWALS_ROOT_INDEX = 14;
+    uint256 internal constant BLOCK_NUMBER_INDEX = 6;
+    uint256 internal constant WITHDRAWALS_ROOT_INDEX = 14;
 
     // in withdrawal
-    uint256 public constant WITHDRAWAL_VALIDATOR_INDEX_INDEX = 1;
-    uint256 public constant WITHDRAWAL_VALIDATOR_AMOUNT_INDEX = 3;
+    uint256 internal constant WITHDRAWAL_VALIDATOR_INDEX_INDEX = 1;
+    uint256 internal constant WITHDRAWAL_VALIDATOR_AMOUNT_INDEX = 3;
 
     //In historicalBatch
-    uint256 public constant HISTORICALBATCH_STATEROOTS_INDEX = 1;
+    uint256 internal constant HISTORICALBATCH_STATEROOTS_INDEX = 1;
 
     struct WithdrawalAndBlockNumberProof {
         uint16 stateRootIndex;
