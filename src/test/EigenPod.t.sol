@@ -189,7 +189,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         validatorContainerFields[1] = abi.encodePacked(bytes1(uint8(1)), bytes11(0), wrongWithdrawalAddress).toBytes32(0);
 
         bytes memory proofs = abi.encodePacked(validatorMerkleProof, beaconStateMerkleProofForValidators);
-        cheats.expectRevert(bytes("BeaconChainProofs.verifyValidatorFieldsOneShot: Invalid merkle proof"));
+        cheats.expectRevert(bytes("BeaconChainProofs.verifyValidatorFields: Invalid merkle proof"));
         newPod.verifyCorrectWithdrawalCredentials(validatorIndex, proofs, validatorContainerFields);
     }
 
