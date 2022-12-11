@@ -154,37 +154,6 @@ library BeaconChainProofs{
     }
 
     /// @param beaconStateRoot is the latest beaconStateRoot posted by the oracle
-    function verifyWithdrawalProofs(
-        bytes32 beaconStateRoot,
-        bytes32 historicalRootToVerify, 
-        uint40 stateIndex,
-        uint40 historicalRootsIndex, 
-        bytes calldata historicalStateProof,
-        bytes calldata withdrawalProof, 
-        bytes32[] calldata withdrawalContainerFields
-    ) internal view {
-        require(withdrawalContainerFields.length == 2**WITHDRAWAL_FIELD_TREE_HEIGHT, "withdrawalContainerFields has incorrect length");
-        // Note: WITHDRAWALS_TREE_HEIGHT + 1 accounts for the hashing of the withdrawal list root with the number of withdrawals in the withdrawal list
-        require(withdrawalProof.length == 32 * (BEACON_STATE_FIELD_TREE_HEIGHT + EXECUTION_PAYLOAD_HEADER_FIELD_TREE_HEIGHT + WITHDRAWALS_TREE_HEIGHT + 1), "withdrawalProof length is incorrect");
-
-        // check that beacon state root from oracle is present in historical roots
-
-        verifyBeaconChainRootProof(stateIndex, historicalRootsIndex, beaconStateRoot,historicalRootToVerify, historicalStateProof);
-
-
-        bytes32 withdrawalContainerRoot = Merkle.merkleizeSha256(withdrawalContainerFields);
-        uint256 withdrawalIndex = Endian.fromLittleEndianUint64(withdrawalContainerFields[0]);
-        uint256 withdrawalContainerIndex = (WITHDRAWALS_ROOT_INDEX << (WITHDRAWALS_TREE_HEIGHT + 1)) | withdrawalIndex;
-        withdrawalContainerIndex = ((EXECUTION_PAYLOAD_HEADER_INDEX << (EXECUTION_PAYLOAD_HEADER_FIELD_TREE_HEIGHT + WITHDRAWALS_TREE_HEIGHT + 1)) | withdrawalContainerIndex);
-
-
-        bool valid = Merkle.verifyInclusionSha256(withdrawalProof, beaconStateRoot, withdrawalContainerRoot, withdrawalContainerIndex);
-
-        require(valid, "Withdrawal merkle inclusion proof failed");
-    }
-
-
-    /// @param beaconStateRoot is the latest beaconStateRoot posted by the oracle
     function verifyWithdrawalFieldsAndBlockNumber(
         bytes32 beaconStateRoot,
         WithdrawalAndBlockNumberProof calldata proof,
@@ -209,6 +178,7 @@ library BeaconChainProofs{
             | (uint256(proof.stateRootIndex) << BEACON_STATE_FIELD_TREE_HEIGHT) 
             | EXECUTION_PAYLOAD_HEADER_INDEX;
 
+        
         require(
             Merkle.verifyInclusionSha256(proof.executionPayloadHeaderProof, beaconStateRoot, proof.executionPayloadHeaderRoot, index), 
             "BeaconChainProofs.verifyWithdrawalFields: executionPayloadHeader merkle inclusion proof failed"
@@ -233,7 +203,7 @@ library BeaconChainProofs{
             ), "withdrawalProof length is incorrect");
 
 
-        index = (WITHDRAWALS_ROOT_INDEX << WITHDRAWALS_TREE_HEIGHT) | proof.withdrawalIndex;
+        index = (WITHDRAWALS_ROOT_INDEX << (WITHDRAWALS_TREE_HEIGHT + 1)) | proof.withdrawalIndex;
 
         require(
             Merkle.verifyInclusionSha256(proof.withdrawalProof, proof.executionPayloadHeaderRoot,  Merkle.merkleizeSha256(withdrawalFields), index), 
@@ -241,22 +211,4 @@ library BeaconChainProofs{
         );
     }
 
-    function verifyBeaconChainRootProof(
-        uint40 stateIndex,
-        uint40 historicalRootsIndex,
-        bytes32 beaconStateRoot,
-        bytes32 historicalRootToVerify, 
-        bytes calldata historicalStateRootProofs
-    )internal view {
-
-        require(historicalStateRootProofs.length == 32 * (BEACON_STATE_FIELD_TREE_HEIGHT + HISTORICAL_ROOTS_TREE_HEIGHT + 1 + HISTORICAL_BATCH_TREE_HEIGHT + STATE_ROOTS_TREE_HEIGHT), "proofs are incorrect length");
-        
-        uint256 stateIndexUint256 = uint256(stateIndex);
-        uint256 stateRootsIndexInHistoricalBatch = (HISTORICAL_BATCH_STATE_ROOT_INDEX << STATE_ROOTS_TREE_HEIGHT) | stateIndexUint256;
-        uint256 historicalBatchIndexinHistoricalRoots = (uint256(historicalRootsIndex) << (STATE_ROOTS_TREE_HEIGHT + HISTORICAL_BATCH_TREE_HEIGHT)) | stateRootsIndexInHistoricalBatch;
-        uint256 historicalRootsIndexinBeaconState = (HISTORICAL_ROOTS_INDEX << (STATE_ROOTS_TREE_HEIGHT + HISTORICAL_BATCH_TREE_HEIGHT + HISTORICAL_ROOTS_TREE_HEIGHT + 1)) | historicalBatchIndexinHistoricalRoots;
-
-        bool valid = Merkle.verifyInclusionSha256(historicalStateRootProofs, beaconStateRoot, historicalRootToVerify, historicalRootsIndexinBeaconState);
-        require(valid, "historical state root merkle proof failed");
-    }
 }

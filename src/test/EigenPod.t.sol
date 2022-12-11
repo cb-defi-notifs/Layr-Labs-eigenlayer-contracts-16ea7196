@@ -213,54 +213,38 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         newPod.verifyCorrectWithdrawalCredentials(validatorIndex, proofs, validatorContainerFields);
     }
 
-    function testVerifyWithdrawalProofs() public {
+    function testWithdrawalProofs() public {
                 bytes32[] memory withdrawalFields;
 
                 //getting proof for withdrawal from beacon chain
                 (
-                    withdrawalFields, 
                     beaconStateRoot, 
-                    beaconStateMerkleProofForExecutionPayloadHeader, 
-                    executionPayloadHeaderProofForWithdrawalProof, 
-                    withdrawalMerkleProof
-                ) = getWithdrawalProof();
-
-                beaconChainOracle.setBeaconChainStateRoot(beaconStateRoot);
-                bytes memory withdrawalProof = abi.encodePacked(
-                                        withdrawalMerkleProof,
-                                        executionPayloadHeaderProofForWithdrawalProof,
-                                        beaconStateMerkleProofForExecutionPayloadHeader 
-                                    );
-
-                ( 
-                    ,
-                    historicalRootToVerify,
-                    beaconStateMerkleProofForHistoricalRoots, 
-                    historicalRootsMerkleProof,
-                    historicalBatchMerkleProof,
-                    stateRootsMerkleProof
-                ) = getHistoricalBeaconStateProof();
-
-                bytes memory historicalStateProof = abi.encodePacked(
-                                        stateRootsMerkleProof,
-                                        historicalBatchMerkleProof,
-                                        historicalRootsMerkleProof,
-                                        beaconStateMerkleProofForHistoricalRoots
-                                    );
+                    executionPayloadHeaderRoot, 
+                    blockNumberRoot,
+                    executionPayloadHeaderProof,
+                    blockNumberProof, 
+                    withdrawalMerkleProof,
+                    withdrawalContainerFields
+                ) = getWithdrawalProofsWithBlockNumber();
 
                 
                 Relayer relay = new Relayer();
 
-                relay.verifyWithdrawalProofsHelp(
-                    beaconStateRoot,
-                    historicalRootToVerify,
-                    uint40(8191),
-                    uint40(0),
-                    historicalStateProof,
-                    withdrawalProof,
-                    withdrawalFields
+                BeaconChainProofs.WithdrawalAndBlockNumberProof memory proof = BeaconChainProofs.WithdrawalAndBlockNumberProof(
+                                                                            uint16(0), 
+                                                                            executionPayloadHeaderRoot, 
+                                                                            abi.encodePacked(executionPayloadHeaderProof),
+                                                                            uint8(0),
+                                                                            abi.encodePacked(withdrawalMerkleProof),
+                                                                            abi.encodePacked(blockNumberProof)
+                                                                            );
+                relay.verifyWithdrawalFieldsAndBlockNumber(
+                    beaconStateRoot, 
+                    proof, 
+                    blockNumberRoot, 
+                    withdrawalContainerFields
                 );
-        
+
     }
 
     function getBeaconChainETHShares(address staker) internal returns(uint256) {
@@ -756,25 +740,12 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
 
 
  contract Relayer is Test {
-    function verifyWithdrawalProofsHelp(
+    function verifyWithdrawalFieldsAndBlockNumber(
         bytes32 beaconStateRoot,
-        bytes32 historicalRootToVerify, 
-        uint40 stateIndex,
-        uint40 historicalRootsIndex, 
-        bytes calldata historicalStateProof,
-        bytes calldata withdrawalProof, 
-        bytes32[] calldata withdrawalContainerFields
+        BeaconChainProofs.WithdrawalAndBlockNumberProof calldata proof,
+        bytes32 blockNumberRoot,
+        bytes32[] calldata withdrawalFields
     ) public {
-        BeaconChainProofs.verifyWithdrawalProofs(beaconStateRoot, historicalRootToVerify, stateIndex, historicalRootsIndex, historicalStateProof, withdrawalProof, withdrawalContainerFields);
-    }
-
-     function verifyBeaconChainRootProof(
-        uint40 stateIndex,
-        uint40 historicalRootsIndex,
-        bytes32 beaconStateRoot, 
-        bytes32 historicalRootToVerify,
-        bytes calldata proofs
-    )public {
-        BeaconChainProofs.verifyBeaconChainRootProof(stateIndex, historicalRootsIndex, beaconStateRoot, historicalRootToVerify,proofs);
+        BeaconChainProofs.verifyWithdrawalFieldsAndBlockNumber(beaconStateRoot, proof, blockNumberRoot, withdrawalFields);
     }
  }
