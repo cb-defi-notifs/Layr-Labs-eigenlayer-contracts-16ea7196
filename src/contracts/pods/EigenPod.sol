@@ -264,8 +264,6 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard, Test {
                     beaconChainETHStrategyIndex,
                     (uint256(REQUIRED_BALANCE_GWEI) - uint256(withdrawalAmountGwei)) * uint256(GWEI_TO_WEI)
                 );
-                emit log_uint((uint256(REQUIRED_BALANCE_GWEI) - uint256(withdrawalAmountGwei)) * uint256(GWEI_TO_WEI));
-                emit log("HEHEHEHE");
             }
             // in this case, increment the ETH in execution layer by the withdrawalAmount (since we cannot increment by the full REQUIRED_BALANCE_GWEI)
             restakedExecutionLayerGwei += withdrawalAmountGwei;

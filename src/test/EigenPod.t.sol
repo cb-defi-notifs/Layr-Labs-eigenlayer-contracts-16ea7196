@@ -382,7 +382,6 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         uint256 beaconChainETHBefore = getBeaconChainETHShares(pod.podOwner());
         uint64 instantlyWithdrawableBalanceGweiBefore = pod.instantlyWithdrawableBalanceGwei();
         uint64 rolleableBalanceBefore = pod.rollableBalanceGwei();
-        uint64 penaltiesDueToOvercommittingGweiBefore = pod.penaltiesDueToOvercommittingGwei();
 
         cheats.deal(address(pod), address(pod).balance + withdrawalAmountGwei * GWEI_TO_WEI);
 
@@ -471,6 +470,11 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     //                     instantlyWithdrawableBalanceGwei_BEFORE should be (AMOUNT - REQUIRED_BALANCE_GWEI) * n
     //                     instantlyWithdrawableBalanceGwei should be instantlyWithdrawableBalanceGwei_BEFORE - withdrawAmountGwei
     //                     pod owner balance should increase by withdrawAmountGwei
+    // function testInstantWithdrawalsAfterSufficientWithdrawals() public {
+
+
+    // }
+
 
     // 9. Roll over penalties paid from instantly withdrawable funds after sufficient withdrawals
     // Setup: Run testPayOffMultiplePenaltiesWithSufficientWithdrawal. 
@@ -568,7 +572,6 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     // Expected Behaviour: EigenPodManager.balance should decrement by amount
     //                     recipient.balance should increment by amount 
 
-    // These seem like the building blocks. would be good to combine them in funky ways too.
 
     // // Withdraw eigenpods balance to an EOA
     function testEigenPodsQueuedWithdrawal(address operator, bytes memory signature, bytes32 depositDataRoot) public fuzzedAddress(operator){
