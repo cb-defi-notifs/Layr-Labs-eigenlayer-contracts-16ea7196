@@ -618,7 +618,7 @@ contract BeaconChainProofUtils{
         return(beaconStateRoot, executionPayloadHeaderRoot, blockNumberRoot, executionPayloadHeaderProof, blockNumberProof, withdrawalMerkleProof, withdrawalContainerFields);
     }
 
-    function getInsufficientFullWithdrawalProof() public returns(bytes32, bytes32, bytes32, bytes32[] memory, bytes32[] memory, bytes32[] memory, bytes32[] memory) {
+    function getSmallInsufficientFullWithdrawalProof() public returns(bytes32, bytes32, bytes32, bytes32[] memory, bytes32[] memory, bytes32[] memory, bytes32[] memory) {
         withdrawalContainerFields.push(0x0000000000000000000000000000000000000000000000000000000000000000);
         withdrawalContainerFields.push(0x0000000000000000000000000000000000000000000000000000000000000000);
         withdrawalContainerFields.push(0x0000000000000000000000000000000000000000000000000000000000000000);
@@ -657,6 +657,58 @@ contract BeaconChainProofUtils{
         blockNumberProof.push(0xe8e527e84f666163a90ef900e013f56b0a4d020148b2224057b719f351b003a6);
         blockNumberProof.push(0xdb56114e00fdd4c1f85c892bf35ac9a89289aaecb1ebd0a96cde606a748b5d71);
         blockNumberProof.push(0x31ab016430e7310b299a435167486abad476fc9675477fc66189b07ab1451973);
+        
+        withdrawalMerkleProof.push(0x0000000000000000000000000000000000000000000000000000000000000000);
+        withdrawalMerkleProof.push(0xf5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b);
+        withdrawalMerkleProof.push(0xdb56114e00fdd4c1f85c892bf35ac9a89289aaecb1ebd0a96cde606a748b5d71);
+        withdrawalMerkleProof.push(0xc78009fdf07fc56a11f122370658a353aaa542ed63e44c4bc15ff4cd105ab33c);
+        withdrawalMerkleProof.push(0x0100000000000000000000000000000000000000000000000000000000000000);
+        withdrawalMerkleProof.push(0x0000000000000000000000000000000000000000000000000000000000000000);
+        withdrawalMerkleProof.push(0xf5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b);
+        withdrawalMerkleProof.push(0x7e716846ef6aade1cdc8586ab65a207f2e94e03bbdcd320da73f2307e872a0fb);
+        withdrawalMerkleProof.push(0x83ff25f2887e963d4d555834b7a0a9db85633d8d8f095e645d14d652d26aabb3);
+        return(beaconStateRoot, executionPayloadHeaderRoot, blockNumberRoot, executionPayloadHeaderProof, blockNumberProof, withdrawalMerkleProof, withdrawalContainerFields);
+    }
+
+    function getLargeInsufficientFullWithdrawalProof() public returns(bytes32, bytes32, bytes32, bytes32[] memory, bytes32[] memory, bytes32[] memory, bytes32[] memory) {
+        withdrawalContainerFields.push(0x0000000000000000000000000000000000000000000000000000000000000000);
+        withdrawalContainerFields.push(0x0000000000000000000000000000000000000000000000000000000000000000);
+        withdrawalContainerFields.push(0x0000000000000000000000000000000000000000000000000000000000000000);
+        withdrawalContainerFields.push(0x0076be3707000000000000000000000000000000000000000000000000000000);
+        
+        beaconStateRoot = 0xdb3cf841686882c558c156673c8b666d3966bfb1b9e81cf8e224a11fd932a960;
+        blockNumberRoot = 0x0100000000000000000000000000000000000000000000000000000000000000;
+        
+        executionPayloadHeaderRoot = 0x8f10cee7c711cdf0c845380f0a9b5729e8e08d696b60b6ffb38974c63473227c;
+        
+        executionPayloadHeaderProof.push(0x0100000000000000000000000000000000000000000000000000000000000000);
+        executionPayloadHeaderProof.push(0x8a023a9e4affbb255a6b48ae85cc4a7d1a1b9e8e6809fe9e48535c01c1fc071a);
+        executionPayloadHeaderProof.push(0xdb56114e00fdd4c1f85c892bf35ac9a89289aaecb1ebd0a96cde606a748b5d71);
+        executionPayloadHeaderProof.push(0x2e9e44d45a41f0e0da340441f66894d25a002b0e18361bc156963eab8a62c597);
+        executionPayloadHeaderProof.push(0x4520eb0bc3182ca3b0f742e524276cc7f5ea7b80376f6181df89cb7925fb531f);
+        executionPayloadHeaderProof.push(0x0000000000000000000000000000000000000000000000000000000000000000);
+        executionPayloadHeaderProof.push(0xf5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b);
+        executionPayloadHeaderProof.push(0xdb56114e00fdd4c1f85c892bf35ac9a89289aaecb1ebd0a96cde606a748b5d71);
+        executionPayloadHeaderProof.push(0xc78009fdf07fc56a11f122370658a353aaa542ed63e44c4bc15ff4cd105ab33c);
+        executionPayloadHeaderProof.push(0x536d98837f2dd165a55d5eeae91485954472d56f246df256bf3cae19352a123c);
+        executionPayloadHeaderProof.push(0x9efde052aa15429fae05bad4d0b1d7c64da64d03d7a1854a588c2cb8430c0d30);
+        executionPayloadHeaderProof.push(0xd88ddfeed400a8755596b21942c1497e114c302e6118290f91e6772976041fa1);
+        executionPayloadHeaderProof.push(0x87eb0ddba57e35f6d286673802a4af5975e22506c7cf4c64bb6be5ee11527f2c);
+        executionPayloadHeaderProof.push(0x26846476fd5fc54a5d43385167c95144f2643f533cc85bb9d16b782f8d7db193);
+        executionPayloadHeaderProof.push(0x506d86582d252405b840018792cad2bf1259f1ef5aa5f887e13cb2f0094f51e1);
+        executionPayloadHeaderProof.push(0xffff0ad7e659772f9534c195c815efc4014ef1e1daed4404c06385d11192e92b);
+        executionPayloadHeaderProof.push(0x6cf04127db05441cd833107a52be852868890e4317e6a02ab47683aa75964220);
+        executionPayloadHeaderProof.push(0xb7d05f875f140027ef5118a2247bbb84ce8f2f0f1123623085daf7960c329f5f);
+        executionPayloadHeaderProof.push(0xa75b0948052d091c3cb41f390e76fc7cb987b787bf4063c563e09266a357dea1);
+        executionPayloadHeaderProof.push(0x08b07bc01afacc0bc03bc8d1af32e6eddcd953dc489006a9c50c8af870c755f8);
+        executionPayloadHeaderProof.push(0x5a374976a34347c1b56054efcf4f2029c6ec8d34b55385d608475a533a2cce37);
+        executionPayloadHeaderProof.push(0x3ebc4827204cc607c86f8d877027ce611149c1cf63715269bad269751bcdaf78);
+        executionPayloadHeaderProof.push(0xcf14a96b81321e0973a99b6988462da1f5e0748cec414063975ec00000953b1e);
+        
+        blockNumberProof.push(0x0200000000000000000000000000000000000000000000000000000000000000);
+        blockNumberProof.push(0xe8e527e84f666163a90ef900e013f56b0a4d020148b2224057b719f351b003a6);
+        blockNumberProof.push(0xdb56114e00fdd4c1f85c892bf35ac9a89289aaecb1ebd0a96cde606a748b5d71);
+        blockNumberProof.push(0x0f2624c83bbbb8f8baa56d4344da37c13f88ae967d8b91c79c2501f48a6d8947);
         
         withdrawalMerkleProof.push(0x0000000000000000000000000000000000000000000000000000000000000000);
         withdrawalMerkleProof.push(0xf5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b);

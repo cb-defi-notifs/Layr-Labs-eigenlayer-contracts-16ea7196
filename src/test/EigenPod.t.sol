@@ -319,8 +319,9 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     //                     instantlyWithdrawableBalanceGwei should be 0
     //                     validator status should be marked as OVERCOMMITTED
 
-    function testInsufficientFullWithdrawalForActiveValidator(bytes memory signature, bytes32 depositDataRoot) public {
+    function testSmallInsufficientFullWithdrawalForActiveValidator(bytes memory signature, bytes32 depositDataRoot) public {
         uint64 withdrawalAmountGwei = 1e9;
+        bool isLargeWithdrawal = false;
         IEigenPod pod = testDeployAndVerifyNewEigenPod(signature, depositDataRoot);
 
         emit log_uint(pod.restakedExecutionLayerGwei());
@@ -339,7 +340,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         cheats.deal(address(pod), address(pod).balance + withdrawalAmountGwei * GWEI_TO_WEI);
 
         // prove insufficient full withdrawal
-        _proveInsufficientFullWithdrawal(pod);
+        _proveInsufficientFullWithdrawal(pod, isLargeWithdrawal);
 
         uint256 beaconChainETHAfter = getBeaconChainETHShares(pod.podOwner());
         emit log_named_uint("pod.penaltiesDueToOvercommittingGweiAfter", pod.penaltiesDueToOvercommittingGwei());
@@ -362,6 +363,39 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
             "penalties not paid correctly");
         // check that penalties were paid off correctly
         assertTrue(pod.restakedExecutionLayerGwei() == 0, "restakedExecutionLayerGwei is not 0");
+        assertTrue(pod.instantlyWithdrawableBalanceGwei() == instantlyWithdrawableBalanceGweiBefore, "instantlyWithdrawableBalanceGweiBefore has changed");
+        assertTrue(pod.rollableBalanceGwei() == rolleableBalanceBefore, "rollable balance has changed");
+        assertTrue(pod.validatorStatus(validatorIndex0) == IEigenPod.VALIDATOR_STATUS.WITHDRAWN, "validator status not updated correctly");
+    }
+
+    function testLargeInsufficientFullWithdrawalForActiveValidator(bytes memory signature, bytes32 depositDataRoot) public {
+        uint64 withdrawalAmountGwei = 31000000000;
+        bool isLargeWithdrawal = true;
+        IEigenPod pod = testDeployAndVerifyNewEigenPod(signature, depositDataRoot);
+
+        emit log_uint(pod.restakedExecutionLayerGwei());
+
+        // the validator must be active, not proven overcommitted
+        require(pod.validatorStatus(validatorIndex0) == IEigenPod.VALIDATOR_STATUS.ACTIVE, "Validator must be active");
+
+        // get beaconChainETH shares
+        uint256 beaconChainETHBefore = getBeaconChainETHShares(pod.podOwner());
+        uint64 instantlyWithdrawableBalanceGweiBefore = pod.instantlyWithdrawableBalanceGwei();
+        uint64 rolleableBalanceBefore = pod.rollableBalanceGwei();
+        uint64 penaltiesDueToOvercommittingGweiBefore = pod.penaltiesDueToOvercommittingGwei();
+
+        cheats.deal(address(pod), address(pod).balance + withdrawalAmountGwei * GWEI_TO_WEI);
+
+        // prove insufficient full withdrawal
+        _proveInsufficientFullWithdrawal(pod, isLargeWithdrawal);
+
+        uint256 expectedSharePenalty = (uint256(pod.REQUIRED_BALANCE_GWEI()) - uint256(withdrawalAmountGwei)) * 1e9;
+
+        assertTrue(beaconChainETHBefore - getBeaconChainETHShares(pod.podOwner()) == expectedSharePenalty, "beaconChainETHShares not updated");
+
+        assertTrue(pod.penaltiesDueToOvercommittingGwei() == 0, "penalities not set correctly");
+        // check that penalties were paid off correctly
+        assertTrue(pod.restakedExecutionLayerGwei() == withdrawalAmountGwei - (pod.OVERCOMMITMENT_PENALTY_AMOUNT_GWEI() - withdrawalAmountGwei), "restakedExecutionLayerGwei is not 0");
         assertTrue(pod.instantlyWithdrawableBalanceGwei() == instantlyWithdrawableBalanceGweiBefore, "instantlyWithdrawableBalanceGweiBefore has changed");
         assertTrue(pod.rollableBalanceGwei() == rolleableBalanceBefore, "rollable balance has changed");
         assertTrue(pod.validatorStatus(validatorIndex0) == IEigenPod.VALIDATOR_STATUS.WITHDRAWN, "validator status not updated correctly");
@@ -748,27 +782,51 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         pod.verifyBeaconChainFullWithdrawal(proof, blockNumberRoot, withdrawalContainerFields,  0);
     }
 
-    function _proveInsufficientFullWithdrawal(IEigenPod pod) internal {
-        (
-            beaconStateRoot, 
-            executionPayloadHeaderRoot, 
-            blockNumberRoot,
-            executionPayloadHeaderProof,
-            blockNumberProof, 
-            withdrawalMerkleProof,
-            withdrawalContainerFields
-        ) = getInsufficientFullWithdrawalProof();
+    function _proveInsufficientFullWithdrawal(IEigenPod pod, bool isLargeWithdrawal) internal {
 
-        beaconChainOracle.setBeaconChainStateRoot(beaconStateRoot);
-        BeaconChainProofs.WithdrawalAndBlockNumberProof memory proof = BeaconChainProofs.WithdrawalAndBlockNumberProof(
-                                                                    uint16(0), 
-                                                                    executionPayloadHeaderRoot, 
-                                                                    abi.encodePacked(executionPayloadHeaderProof),
-                                                                    uint8(0),
-                                                                    abi.encodePacked(withdrawalMerkleProof),
-                                                                    abi.encodePacked(blockNumberProof)
-                                                                    );
-        pod.verifyBeaconChainFullWithdrawal(proof, blockNumberRoot, withdrawalContainerFields,  0);
+        if(!isLargeWithdrawal){
+            (
+                beaconStateRoot, 
+                executionPayloadHeaderRoot, 
+                blockNumberRoot,
+                executionPayloadHeaderProof,
+                blockNumberProof, 
+                withdrawalMerkleProof,
+                withdrawalContainerFields
+            ) = getSmallInsufficientFullWithdrawalProof();
+
+            beaconChainOracle.setBeaconChainStateRoot(beaconStateRoot);
+            BeaconChainProofs.WithdrawalAndBlockNumberProof memory proof = BeaconChainProofs.WithdrawalAndBlockNumberProof(
+                                                                        uint16(0), 
+                                                                        executionPayloadHeaderRoot, 
+                                                                        abi.encodePacked(executionPayloadHeaderProof),
+                                                                        uint8(0),
+                                                                        abi.encodePacked(withdrawalMerkleProof),
+                                                                        abi.encodePacked(blockNumberProof)
+                                                                        );
+            pod.verifyBeaconChainFullWithdrawal(proof, blockNumberRoot, withdrawalContainerFields,  0);
+        } else {
+            (
+                beaconStateRoot, 
+                executionPayloadHeaderRoot, 
+                blockNumberRoot,
+                executionPayloadHeaderProof,
+                blockNumberProof, 
+                withdrawalMerkleProof,
+                withdrawalContainerFields
+            ) = getLargeInsufficientFullWithdrawalProof();
+
+            beaconChainOracle.setBeaconChainStateRoot(beaconStateRoot);
+            BeaconChainProofs.WithdrawalAndBlockNumberProof memory proof = BeaconChainProofs.WithdrawalAndBlockNumberProof(
+                                                                        uint16(0), 
+                                                                        executionPayloadHeaderRoot, 
+                                                                        abi.encodePacked(executionPayloadHeaderProof),
+                                                                        uint8(0),
+                                                                        abi.encodePacked(withdrawalMerkleProof),
+                                                                        abi.encodePacked(blockNumberProof)
+                                                                        );
+            pod.verifyBeaconChainFullWithdrawal(proof, blockNumberRoot, withdrawalContainerFields,  0);
+        }
     }
 
     function _proveOvercommittedStake(IEigenPod pod, uint40 validatorIndex) internal {
