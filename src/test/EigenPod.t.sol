@@ -496,23 +496,25 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     //                     (pod.balance - restakedExecutionLayerGwei - instantlyWithdrawableBalanceGwei) amount 
     //                     at block.number to the end of the partial withdrawal list
 
-    // function testMakePartialWithdrawalClaim(IEigenPod pod, uint40 validatorIndex, uint64 partialWithdrawalAmountGwei) internal {
-    //     uint64 restakedExectionLayerGweiBefore = pod.restakedExecutionLayerGwei();
-    //     uint64 instantlyWithdrawableBalanceGweiBefore = pod.instantlyWithdrawableBalanceGwei();
-    //     uint256 lengthBefore = pod.getPartialWithdrawalClaimsLength();
+    function testMakePartialWithdrawalClaim(bytes memory signature, bytes32 depositDataRoot, uint64 partialWithdrawalAmountGwei) public {
+        IEigenPod pod = testDeployAndVerifyNewEigenPod(signature, depositDataRoot);
 
-    //     cheats.deal(address(pod), address(pod).balance + partialWithdrawalAmountGwei * GWEI_TO_WEI);
+        uint64 restakedExectionLayerGweiBefore = pod.restakedExecutionLayerGwei();
+        uint64 instantlyWithdrawableBalanceGweiBefore = pod.instantlyWithdrawableBalanceGwei();
+        uint256 lengthBefore = pod.getPartialWithdrawalClaimsLength();
 
-    //     cheats.prank(pod.podOwner());
-    //     pod.recordPartialWithdrawalClaim(uint32(block.number + 100));
+        cheats.deal(address(pod), address(pod).balance + partialWithdrawalAmountGwei * GWEI_TO_WEI);
 
-    //     IEigenPod.PartialWithdrawalClaim memory claim = pod.getPartialWithdrawalClaim(pod.getPartialWithdrawalClaimsLength() - 1);
+        cheats.prank(pod.podOwner());
+        pod.recordPartialWithdrawalClaim(uint32(block.number + 100));
 
-    //     assertTrue(claim.status == IEigenPod.PARTIAL_WITHDRAWAL_CLAIM_STATUS.PENDING);
-    //     assertTrue(claim.partialWithdrawalAmountGwei == uint64(address(pod).balance / GWEI_TO_WEI) - restakedExectionLayerGweiBefore - instantlyWithdrawableBalanceGweiBefore);
-    //     assertTrue(pod.getPartialWithdrawalClaimsLength() == lengthBefore + 1);
+        IEigenPod.PartialWithdrawalClaim memory claim = pod.getPartialWithdrawalClaim(pod.getPartialWithdrawalClaimsLength() - 1);
 
-    // }
+        assertTrue(claim.status == IEigenPod.PARTIAL_WITHDRAWAL_CLAIM_STATUS.PENDING);
+        assertTrue(claim.partialWithdrawalAmountGwei == uint64(address(pod).balance / GWEI_TO_WEI) - restakedExectionLayerGweiBefore - instantlyWithdrawableBalanceGweiBefore);
+        assertTrue(pod.getPartialWithdrawalClaimsLength() == lengthBefore + 1);
+
+    }
 
     // 12. Expired partial withdrawal claim
     // Setup: Credit balance with PARTIAL_AMOUNT gwei
