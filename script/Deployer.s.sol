@@ -80,6 +80,9 @@ contract EigenLayrDeployer is Script, DSTest {
     EmptyContract public emptyContract;
 
     uint256 nonce = 69;
+    uint32 PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD = 7 days / 12 seconds;
+    uint256 REQUIRED_BALANCE_WEI = 31.4 ether;
+    uint64 MAX_PARTIAL_WTIHDRAWAL_AMOUNT_GWEI = 1 ether / 1e9;
 
     bytes[] registrationData;
 
@@ -104,8 +107,6 @@ contract EigenLayrDeployer is Script, DSTest {
     uint256 public constant eigenTotalSupply = 1000e18;
 
     uint256 public gasLimit = 750000;
-
-    address[] public slashingContracts;
 
     function run() external {
         vm.startBroadcast();
@@ -146,7 +147,7 @@ contract EigenLayrDeployer is Script, DSTest {
         beaconChainOracle.setBeaconChainStateRoot(0xb08d5a1454de19ac44d523962096d73b85542f81822c5e25b8634e4e86235413);
 
         ethPOSDeposit = new ETHPOSDepositMock();
-        pod = new EigenPod(ethPOSDeposit);
+        pod = new EigenPod(ethPOSDeposit, PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD, REQUIRED_BALANCE_WEI, MAX_PARTIAL_WTIHDRAWAL_AMOUNT_GWEI);
 
         eigenPodBeacon = new UpgradeableBeacon(address(pod));
 
@@ -216,9 +217,6 @@ contract EigenLayrDeployer is Script, DSTest {
                 )
             )
         );
-
-        slashingContracts.push(address(eigenPodManager));
-        slasher.addGloballyPermissionedContracts(slashingContracts);
         
         vm.writeFile("data/investmentManager.addr", vm.toString(address(investmentManager)));
         vm.writeFile("data/delegation.addr", vm.toString(address(delegation)));

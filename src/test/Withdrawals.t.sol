@@ -340,11 +340,11 @@ contract WithdrawalTests is DelegationTests {
         {
             address slashingContract = slasher.owner(); 
 
-            address[] memory slashingContracts = new address[](1);
-            slashingContracts[0] = slashingContract;    
+            cheats.startPrank(operator);
+            slasher.optIntoSlashing(address(slashingContract));
+            cheats.stopPrank();
 
             cheats.startPrank(slashingContract);
-            slasher.addGloballyPermissionedContracts(slashingContracts);
             slasher.freezeOperator(operator);
             cheats.stopPrank();
         }

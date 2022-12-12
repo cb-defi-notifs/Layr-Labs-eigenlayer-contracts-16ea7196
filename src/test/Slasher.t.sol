@@ -39,10 +39,11 @@ contract SlasherTests is EigenLayrTestHelper {
         uint256[] memory strategyIndexes = new uint256[](1);
         strategyIndexes[0] = 0;
 
-        // investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, nonce);
-        cheats.startPrank(address(slasher.delegation()));
-        slasher.freezeOperator(_operator);
+        cheats.startPrank(_operator);
+        slasher.optIntoSlashing(address(this));
         cheats.stopPrank();
+
+        slasher.freezeOperator(_operator);
 
         uint256 prev_shares = delegation.operatorShares(_operator, strategyArray[0]);
 
@@ -68,10 +69,6 @@ contract SlasherTests is EigenLayrTestHelper {
         cheats.startPrank(incorrectCaller);
         address[] memory addressArray = new address[](1);
         addressArray[0] = inputAddr;
-        cheats.expectRevert(bytes("Ownable: caller is not the owner"));
-        slasher.addGloballyPermissionedContracts(addressArray);
-        cheats.expectRevert(bytes("Ownable: caller is not the owner"));
-        slasher.removeGloballyPermissionedContracts(addressArray);
         cheats.expectRevert(bytes("Ownable: caller is not the owner"));
         slasher.resetFrozenStatus(addressArray);
         cheats.stopPrank();

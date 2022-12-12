@@ -11,12 +11,6 @@ import "./IBeaconChainOracle.sol";
  */
 
 interface IEigenPodManager {
-    //This struct helps manage the info about a certain pod owner's pod
-    struct EigenPodInfo {
-        uint128 balance; //total balance of all validators in the pod
-        uint128 depositedBalance; //amount of balance deposited into EigenLayer
-    }
-
     /**
      * @notice Creates an EigenPod for the sender.
      * @dev Function will revert if the `msg.sender` already has an EigenPod.
@@ -33,43 +27,55 @@ interface IEigenPodManager {
     function stake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable;
 
     /**
-     * @notice Updates the beacon chain balance of the EigenPod, freezing the owner if they have overcommitted beacon chain ETH to EigenLayer.
-     * @param podOwner The owner of the pod to udpate the balance of.
-     * @param balanceToRemove The balance to remove before increasing, used when updating a validators balance.
-     * @param balanceToAdd The balance to add after decreasing, used when updating a validators balance.
-     * @dev Callable only by the `podOwner`'s EigenPod.
+     * @notice Deposits/Restakes beacon chain ETH in EigenLayer on behalf of the owner of an EigenPod.
+     * @param podOwner The owner of the pod whose balance must be deposited.
+     * @param amount The amount of ETH to 'deposit' (i.e. be credited to the podOwner).
+     * @dev Callable only by the podOwner's EigenPod contract.
      */
-    function updateBeaconChainBalance(address podOwner, uint64 balanceToRemove, uint64 balanceToAdd) external;
+    function restakeBeaconChainETH(address podOwner, uint256 amount) external;
 
     /**
-     * @notice Stakes beacon chain ETH into EigenLayer by adding BeaconChainETH shares to InvestmentManager.
-     * @param podOwner The owner of the pod whose balance must be restaked.
-     * @param amount The amount of beacon chain ETH to restake.
-     * @dev Callable only by the `podOwner`'s EigenPod.
+     * @notice Removes beacon chain ETH from EigenLayer on behalf of the owner of an EigenPod, when the
+     *         balance of a validator is lower than how much stake they have committed to EigenLayer
+     * @param podOwner The owner of the pod whose balance must be removed.
+     * @param amount The amount of ETH to remove.
+     * @dev Callable only by the podOwner's EigenPod contract.
      */
-    function depositBeaconChainETH(address podOwner, uint64 amount) external;
-
+    function recordOvercommittedBeaconChainETH(address podOwner, uint256 beaconChainETHStrategyIndex, uint256 amount) external;
+    
     /**
-     * @notice Withdraws ETH that has been withdrawn from the beacon chain from the EigenPod.
+     * @notice Withdraws ETH from an EigenPod. The ETH must have first been withdrawn from the beacon chain.
      * @param podOwner The owner of the pod whose balance must be withdrawn.
-     * @param recipient The recipient of withdrawn ETH.
+     * @param recipient The recipient of the withdrawn ETH.
      * @param amount The amount of ETH to withdraw.
      * @dev Callable only by the InvestmentManager contract.
      */
-    function withdrawBeaconChainETH(address podOwner, address recipient, uint256 amount) external;
+    function withdrawRestakedBeaconChainETH(address podOwner, address recipient, uint256 amount) external;
+
+    /**
+     * @notice Records receiving ETH from the `PodOwner`'s EigenPod, paid in order to fullfill the EigenPod's penalties to EigenLayer
+     * @param podOwner The owner of the pod whose balance is being sent.
+     * @dev Callable only by the podOwner's EigenPod contract.
+     */
+    function payPenalties(address podOwner) external payable;
+
+    /**
+     * @notice Withdraws paid penalties of the `podOwner`'s EigenPod, to the `recipient` address
+     * @param recipient The recipient of withdrawn ETH.
+     * @param amount The amount of ETH to withdraw.
+     * @dev Callable only by the investmentManager.owner().
+     */
+    function withdrawPenalties(address podOwner, address recipient, uint256 amount) external;
 
     /**
      * @notice Updates the oracle contract that provides the beacon chain state root
      * @param newBeaconChainOracle is the new oracle contract being pointed to
-     * @dev Callable only by the owner of the InvestmentManager (i.e. governance).
+     * @dev Callable only by the owner of this contract (i.e. governance)
      */
     function updateBeaconChainOracle(IBeaconChainOracle newBeaconChainOracle) external;
 
     /// @notice Returns the address of the `podOwner`'s EigenPod (whether it is deployed yet or not).
     function getPod(address podOwner) external view returns(IEigenPod);
-
-    /// @notice returns the current EigenPodInfo for the `podOwner`'s EigenPod.
-    function getPodInfo(address podOwner) external view returns(EigenPodInfo memory);
 
     /// @notice Oracle contract that provides updates to the beacon chain's state
     function beaconChainOracle() external view returns(IBeaconChainOracle);    
@@ -79,10 +85,6 @@ interface IEigenPodManager {
 
     /// @notice EigenLayer's InvestmentManager contract
     function investmentManager() external view returns(IInvestmentManager);
-
-    function getBalance(address podOwner) external view returns (uint128);
-
-    function getDepositedBalance(address podOwner) external view returns (uint128);
 
     function hasPod(address podOwner) external view returns (bool);
 }

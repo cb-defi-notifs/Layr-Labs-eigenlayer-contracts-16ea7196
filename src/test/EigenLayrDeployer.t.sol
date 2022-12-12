@@ -81,6 +81,9 @@ contract EigenLayrDeployer is Operators, SignatureUtils {
     uint256 public constant eigenTotalSupply = 1000e18;
     uint256 nonce = 69;
     uint256 public gasLimit = 750000;
+    uint32 PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS = 7 days / 12 seconds;
+    uint256 REQUIRED_BALANCE_WEI = 31.4 ether;
+    uint64 MAX_PARTIAL_WTIHDRAWAL_AMOUNT_GWEI = 1 ether / 1e9;
 
     address pauser = address(69);
     address unpauser = address(489);
@@ -137,7 +140,7 @@ contract EigenLayrDeployer is Operators, SignatureUtils {
         beaconChainOracle.setBeaconChainStateRoot(0xb08d5a1454de19ac44d523962096d73b85542f81822c5e25b8634e4e86235413);
 
         ethPOSDeposit = new ETHPOSDepositMock();
-        pod = new EigenPod(ethPOSDeposit);
+        pod = new EigenPod(ethPOSDeposit, PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS, REQUIRED_BALANCE_WEI, MAX_PARTIAL_WTIHDRAWAL_AMOUNT_GWEI);
 
         eigenPodBeacon = new UpgradeableBeacon(address(pod));
 
@@ -210,8 +213,5 @@ contract EigenLayrDeployer is Operators, SignatureUtils {
         );
 
         stakers = [acct_0, acct_1];
-
-        slashingContracts.push(address(eigenPodManager));
-        slasher.addGloballyPermissionedContracts(slashingContracts);
     }
 }
