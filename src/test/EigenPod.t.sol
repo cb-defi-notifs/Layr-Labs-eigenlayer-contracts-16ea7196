@@ -319,7 +319,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     //                     instantlyWithdrawableBalanceGwei should be 0
     //                     validator status should be marked as OVERCOMMITTED
 
-    function testInsufficientFullWithdrawalForActiveValidator1(bytes memory signature, bytes32 depositDataRoot) public {
+    function testInsufficientFullWithdrawalForActiveValidator(bytes memory signature, bytes32 depositDataRoot) public {
         uint64 withdrawalAmountGwei = 1e9;
         IEigenPod pod = testDeployAndVerifyNewEigenPod(signature, depositDataRoot);
 
@@ -366,45 +366,6 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         assertTrue(pod.rollableBalanceGwei() == rolleableBalanceBefore, "rollable balance has changed");
         assertTrue(pod.validatorStatus(validatorIndex0) == IEigenPod.VALIDATOR_STATUS.WITHDRAWN, "validator status not updated correctly");
     }
-
-    // function testInsufficientFullWithdrawalForActiveValidator2(bytes memory signature, bytes32 depositDataRoot) public {
-    //     uint64 withdrawalAmountGwei = 31000000000;
-    //     IEigenPod pod = testDeployAndVerifyNewEigenPod(signature, depositDataRoot);
-
-    //     emit log_uint(pod.restakedExecutionLayerGwei());
-    //     emit log_uint(pod.penaltiesDueToOvercommittingGwei());
-
-    //     // the validator must be active, not proven overcommitted
-    //     require(pod.validatorStatus(validatorIndex0) == IEigenPod.VALIDATOR_STATUS.ACTIVE, "Validator must be active");
-
-    //     // get beaconChainETH shares
-    //     uint256 beaconChainETHBefore = getBeaconChainETHShares(pod.podOwner());
-    //     uint64 instantlyWithdrawableBalanceGweiBefore = pod.instantlyWithdrawableBalanceGwei();
-    //     uint64 rolleableBalanceBefore = pod.rollableBalanceGwei();
-    //     uint64 penaltiesDueToOvercommittingGwei = pod.penaltiesDueToOvercommittingGwei();
-
-    //     cheats.deal(address(pod), address(pod).balance + withdrawalAmountGwei * GWEI_TO_WEI);
-
-    //     // prove insufficient full withdrawal
-    //     _proveInsufficientFullWithdrawal(pod);
-
-    //     emit log_uint(penaltiesDueToOvercommittingGwei);
-    //     emit log_uint(pod.OVERCOMMITMENT_PENALTY_AMOUNT_GWEI());
-    //     emit log_uint(withdrawalAmountGwei);
-
-    //     assertTrue(beaconChainETHBefore - getBeaconChainETHShares(pod.podOwner()) == pod.REQUIRED_BALANCE_WEI(), "beaconChainETHShares not updated");
-
-
-    //     if(pod.REQUIRED_BALANCE_GWEI() - withdrawalAmountGwei > withdrawalAmountGwei){
-    //         emit log("hello");
-    //         assertTrue(pod.penaltiesDueToOvercommittingGwei() == pod.OVERCOMMITMENT_PENALTY_AMOUNT_GWEI() - withdrawalAmountGwei, "penalties not paid correctly");
-    //     }
-    //     // check that penalties were paid off correctly
-    //     assertTrue(pod.restakedExecutionLayerGwei() == 0, "restakedExecutionLayerGwei is not 0");
-    //     assertTrue(pod.instantlyWithdrawableBalanceGwei() == instantlyWithdrawableBalanceGweiBefore, "instantlyWithdrawableBalanceGweiBefore has changed");
-    //     assertTrue(pod.rollableBalanceGwei() == rolleableBalanceBefore, "rollable balance has changed");
-    //     assertTrue(pod.validatorStatus(validatorIndex0) == IEigenPod.VALIDATOR_STATUS.WITHDRAWN, "validator status not updated correctly");
-    // }
 
     // 7. Pay off penalties with sufficient full withdrawal
     // Test: Run (5). Then prove a sufficient withdrawal.
