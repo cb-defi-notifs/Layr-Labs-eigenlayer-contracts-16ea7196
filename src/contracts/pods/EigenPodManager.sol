@@ -77,8 +77,7 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager,
     }
 
     function initialize(IBeaconChainOracle _beaconChainOracle, address initialOwner) public initializer {
-        beaconChainOracle = _beaconChainOracle;
-        emit BeaconOracleUpdated(address(_beaconChainOracle));
+        _updateBeaconChainOracle(_beaconChainOracle);
         _transferOwnership(initialOwner);
     }
 
@@ -118,7 +117,6 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager,
      */
     function restakeBeaconChainETH(address podOwner, uint256 amount) external onlyEigenPod(podOwner) {
         investmentManager.depositBeaconChainETH(podOwner, amount);
-
         emit BeaconChainETHDeposited(podOwner, amount);
     }
 
@@ -150,8 +148,8 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager,
      * @dev Callable only by the podOwner's EigenPod contract.
      */
     function payPenalties(address podOwner) external payable onlyEigenPod(podOwner) {
-        emit PenaltiesPaid(podOwner, msg.value);
         podOwnerToUnwithdrawnPaidPenalties[podOwner] += msg.value;
+        emit PenaltiesPaid(podOwner, msg.value);
     }
 
     /**
@@ -173,8 +171,7 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager,
      * @dev Callable only by the owner of this contract (i.e. governance)
      */
     function updateBeaconChainOracle(IBeaconChainOracle newBeaconChainOracle) external onlyOwner {
-        beaconChainOracle = newBeaconChainOracle;
-        emit BeaconOracleUpdated(address(newBeaconChainOracle));
+        _updateBeaconChainOracle(newBeaconChainOracle);
     }
 
 
@@ -193,6 +190,11 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager,
                 )
             );
         return pod;
+    }
+
+    function _updateBeaconChainOracle(IBeaconChainOracle newBeaconChainOracle) internal {
+        beaconChainOracle = newBeaconChainOracle;
+        emit BeaconOracleUpdated(address(newBeaconChainOracle));
     }
 
     // VIEW FUNCTIONS

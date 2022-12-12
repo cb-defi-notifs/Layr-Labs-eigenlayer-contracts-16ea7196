@@ -123,13 +123,13 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard, Test {
     function stake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable onlyEigenPodManager {
         // stake on ethpos
         require(msg.value == 32 ether, "EigenPod.stake: must initially stake for any validator with 32 ether");
-        ethPOS.deposit{value : msg.value}(pubkey, _podWithdrawalCredentials(), signature, depositDataRoot);
+        ethPOS.deposit{value : 32 ether}(pubkey, _podWithdrawalCredentials(), signature, depositDataRoot);
         emit EigenPodStaked(pubkey);
     }
 
     /**
      * @notice This function verifies that the withdrawal credentials of the podOwner are pointed to
-     * this contract.  It verifies the provided proof of the ETH validator against the beacon chain state
+     * this contract. It verifies the provided proof of the ETH validator against the beacon chain state
      * root, marks the validator as 'active' in EigenLayer, and credits the restaked ETH in Eigenlayer.
      * @param proof is the bytes that prove the ETH validator's metadata against a beacon chain state root
      * @param validatorFields are the fields of the "Validator Container", refer to consensus specs 
@@ -210,6 +210,8 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard, Test {
         penaltiesDueToOvercommittingGwei += OVERCOMMITMENT_PENALTY_AMOUNT_GWEI;
         // remove and undelegate shares in EigenLayer
         eigenPodManager.recordOvercommittedBeaconChainETH(podOwner, beaconChainETHStrategyIndex, REQUIRED_BALANCE_WEI);
+        // pay off any new or existing penalties
+        _payOffPenalties();
     }
 
     /**
@@ -260,8 +262,8 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard, Test {
                 /// allow EigenLayer to penalize the overcommitted balance. in this case, the penalty is reduced -- since we know that we actually have the
                 /// withdrawal amount backing what is deposited in EigenLayer, we can minimize the negative effect on middlewares by minimizing the penalty
                 penaltiesDueToOvercommittingGwei += OVERCOMMITMENT_PENALTY_AMOUNT_GWEI - withdrawalAmountGwei;
-                // remove and undelegate shares in EigenLayer
-                eigenPodManager.recordOvercommittedBeaconChainETH(podOwner, beaconChainETHStrategyIndex, REQUIRED_BALANCE_WEI);
+                // remove and undelegate the amount of overcommitted shares in EigenLayer
+                eigenPodManager.recordOvercommittedBeaconChainETH(podOwner, beaconChainETHStrategyIndex,  (REQUIRED_BALANCE_GWEI - withdrawalAmountGwei) * GWEI_TO_WEI);
             }
             // in this case, increment the ETH in execution layer by the withdrawalAmount (since we cannot increment by the full REQUIRED_BALANCE_GWEI)
             restakedExecutionLayerGwei += withdrawalAmountGwei;
@@ -350,19 +352,20 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard, Test {
         );
         // pay penalties if possible
         if (penaltiesDueToOvercommittingGwei != 0) {
-            if (penaltiesDueToOvercommittingGwei > claim.partialWithdrawalAmountGwei) {
+            uint64 penaltiesDueToOvercommittingGweiMemory = penaltiesDueToOvercommittingGwei;
+            if (penaltiesDueToOvercommittingGweiMemory > claim.partialWithdrawalAmountGwei) {
                 // if all of the partial withdrawal is not enough to cover existing penalties, send it all
                 eigenPodManager.payPenalties{value: claim.partialWithdrawalAmountGwei * GWEI_TO_WEI}(podOwner);
                 // allow this amount to be rolled over from restakedExecutionLayerGwei to instantlyWithdrawableBalanceGwei if penalties are ever fully paid in the future
                 rollableBalanceGwei += claim.partialWithdrawalAmountGwei;
-                penaltiesDueToOvercommittingGwei -= claim.partialWithdrawalAmountGwei;
+                penaltiesDueToOvercommittingGwei = penaltiesDueToOvercommittingGweiMemory - claim.partialWithdrawalAmountGwei;
                 claim.partialWithdrawalAmountGwei = 0;
             } else {
                 // if partial withdrawal is enough, penalize all that is necessary
-                eigenPodManager.payPenalties{value: penaltiesDueToOvercommittingGwei * GWEI_TO_WEI}(podOwner);
+                eigenPodManager.payPenalties{value: penaltiesDueToOvercommittingGweiMemory * GWEI_TO_WEI}(podOwner);
                 // allow this amount to be rolled over from restakedExecutionLayerGwei to instantlyWithdrawableBalanceGwei if penalties are ever fully paid in the future
-                rollableBalanceGwei += penaltiesDueToOvercommittingGwei;
-                claim.partialWithdrawalAmountGwei -= penaltiesDueToOvercommittingGwei;
+                rollableBalanceGwei += penaltiesDueToOvercommittingGweiMemory;
+                claim.partialWithdrawalAmountGwei = claim.partialWithdrawalAmountGwei - penaltiesDueToOvercommittingGweiMemory;
                 penaltiesDueToOvercommittingGwei = 0;
                 return;
             }
@@ -414,7 +417,6 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard, Test {
         onlyEigenPodManager
         nonReentrant
     {
-
         // reduce the restakedExecutionLayerGwei
         restakedExecutionLayerGwei -= uint64(amountWei / GWEI_TO_WEI);
         
@@ -422,6 +424,18 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard, Test {
         Address.sendValue(payable(recipient), amountWei);
 
         emit RestakedBeaconChainETHWithdrawn(recipient, amountWei);
+    }
+
+    /**
+     * @notice Pays off the penalties due to overcommitting with funds coming
+     *         1) first, from the execution layer ETH that is restaked in EigenLayer because 
+     *            it is the ETH that is actually supposed the be restaked
+     *         2) second, from the instantlyWithdrawableBalanceGwei to avoid allowing instant withdrawals
+     *            from instantlyWithdrawableBalanceGwei in case the balance of the contract is not enough 
+     *            to cover the entire penalty
+     */
+    function payOffPenalties() external {
+        _payOffPenalties();
     }
 
     // VIEW FUNCTIONS
