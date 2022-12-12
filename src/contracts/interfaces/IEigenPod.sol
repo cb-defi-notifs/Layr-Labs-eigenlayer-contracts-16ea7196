@@ -175,11 +175,11 @@ interface IEigenPod {
     function rollOverRollableBalance(uint64 amountGwei) external;
 
     /**
-     * @notice Pays off the penalties due to overcommitting with funds coming
-     *         1) first, from the execution layer ETH that is restaked in EigenLayer because 
-     *            it is the ETH that is actually supposed the be restaked
-     *         2) second, from the instantlyWithdrawableBalanceGwei to avoid allowing instant withdrawals
-     *            from instantlyWithdrawableBalanceGwei in case the balance of the contract is not enough 
+     * @notice Pays off existing penalties due to overcommitting to EigenLayer. Funds for paying penalties are deducted:
+     *         1) first, from the execution layer ETH that is restaked in EigenLayer, because 
+     *            it is the ETH that is actually supposed to be restaked
+     *         2) second, from the instantlyWithdrawableBalanceGwei, to avoid allowing instant withdrawals
+     *            from instantlyWithdrawableBalanceGwei, in case the balance of the contract is not enough 
      *            to cover the entire penalty
      */
     function payOffPenalties() external;

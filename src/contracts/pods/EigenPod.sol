@@ -45,7 +45,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard, Test {
 
     /// @notice The amount of eth, in wei, that is added to the penalty balance of the pod in case a validator's beacon chain balance is ever proven to have
     ///         fallen below REQUIRED_BALANCE_GWEI
-    /// @dev currently this is set to REQUIRED_BALANCE_GWEI
+    /// @dev currently this is set to REQUIRED_BALANCE_GWEI, and we implicitly assume equivalence (esp. in `verifyBeaconChainFullWithdrawal`)
     uint64 public immutable OVERCOMMITMENT_PENALTY_AMOUNT_GWEI;
 
     /// @notice The amount of eth, in wei, that is restaked per ETH validator into EigenLayer
@@ -263,7 +263,11 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard, Test {
                 /// withdrawal amount backing what is deposited in EigenLayer, we can minimize the negative effect on middlewares by minimizing the penalty
                 penaltiesDueToOvercommittingGwei += OVERCOMMITMENT_PENALTY_AMOUNT_GWEI - withdrawalAmountGwei;
                 // remove and undelegate the amount of overcommitted shares in EigenLayer
-                eigenPodManager.recordOvercommittedBeaconChainETH(podOwner, beaconChainETHStrategyIndex,  (REQUIRED_BALANCE_GWEI - withdrawalAmountGwei) * GWEI_TO_WEI);
+                eigenPodManager.recordOvercommittedBeaconChainETH(
+                    podOwner,
+                    beaconChainETHStrategyIndex,
+                    (uint256(REQUIRED_BALANCE_GWEI) - uint256(withdrawalAmountGwei)) * GWEI_TO_WEI
+                );
             }
             // in this case, increment the ETH in execution layer by the withdrawalAmount (since we cannot increment by the full REQUIRED_BALANCE_GWEI)
             restakedExecutionLayerGwei += withdrawalAmountGwei;
@@ -427,11 +431,11 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard, Test {
     }
 
     /**
-     * @notice Pays off the penalties due to overcommitting with funds coming
-     *         1) first, from the execution layer ETH that is restaked in EigenLayer because 
-     *            it is the ETH that is actually supposed the be restaked
-     *         2) second, from the instantlyWithdrawableBalanceGwei to avoid allowing instant withdrawals
-     *            from instantlyWithdrawableBalanceGwei in case the balance of the contract is not enough 
+     * @notice Pays off existing penalties due to overcommitting to EigenLayer. Funds for paying penalties are deducted:
+     *         1) first, from the execution layer ETH that is restaked in EigenLayer, because 
+     *            it is the ETH that is actually supposed to be restaked
+     *         2) second, from the instantlyWithdrawableBalanceGwei, to avoid allowing instant withdrawals
+     *            from instantlyWithdrawableBalanceGwei, in case the balance of the contract is not enough 
      *            to cover the entire penalty
      */
     function payOffPenalties() external {
@@ -453,7 +457,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard, Test {
 
     // INTERNAL FUNCTIONS
     /**
-     * @notice Pays off the penalties due to overcommitting. Funds for paying penalties are deducted:
+     * @notice Pays off existing penalties due to overcommitting to EigenLayer. Funds for paying penalties are deducted:
      *         1) first, from the execution layer ETH that is restaked in EigenLayer, because 
      *            it is the ETH that is actually supposed to be restaked
      *         2) second, from the instantlyWithdrawableBalanceGwei, to avoid allowing instant withdrawals

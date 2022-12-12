@@ -320,7 +320,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     //                     validator status should be marked as OVERCOMMITTED
 
     function testInsufficientFullWithdrawalForActiveValidator1(bytes memory signature, bytes32 depositDataRoot) public {
-        uint64 withdrawalAmountGwei = 1000000000;
+        uint64 withdrawalAmountGwei = 1e9;
         IEigenPod pod = testDeployAndVerifyNewEigenPod(signature, depositDataRoot);
 
         emit log_uint(pod.restakedExecutionLayerGwei());
@@ -333,19 +333,33 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         uint256 beaconChainETHBefore = getBeaconChainETHShares(pod.podOwner());
         uint64 instantlyWithdrawableBalanceGweiBefore = pod.instantlyWithdrawableBalanceGwei();
         uint64 rolleableBalanceBefore = pod.rollableBalanceGwei();
-        uint64 penaltiesDueToOvercommittingGwei = pod.penaltiesDueToOvercommittingGwei();
+        uint64 penaltiesDueToOvercommittingGweiBefore = pod.penaltiesDueToOvercommittingGwei();
+        emit log_named_uint("penaltiesDueToOvercommittingGweiBefore", penaltiesDueToOvercommittingGweiBefore);
 
         cheats.deal(address(pod), address(pod).balance + withdrawalAmountGwei * GWEI_TO_WEI);
 
         // prove insufficient full withdrawal
         _proveInsufficientFullWithdrawal(pod);
 
-        emit log_uint(pod.penaltiesDueToOvercommittingGwei());
-        emit log_uint(pod.OVERCOMMITMENT_PENALTY_AMOUNT_GWEI());
-        emit log_uint(withdrawalAmountGwei);
+        uint256 beaconChainETHAfter = getBeaconChainETHShares(pod.podOwner());
+        emit log_named_uint("pod.penaltiesDueToOvercommittingGweiAfter", pod.penaltiesDueToOvercommittingGwei());
+        emit log_named_uint("pod.OVERCOMMITMENT_PENALTY_AMOUNT_GWEI()", pod.OVERCOMMITMENT_PENALTY_AMOUNT_GWEI());
+        emit log_named_uint("withdrawalAmountGwei", withdrawalAmountGwei);
+        emit log_named_uint("beaconChainETHBefore", beaconChainETHBefore);
+        emit log_named_uint("beaconChainETHAfter", beaconChainETHAfter);
+        emit log_named_uint("pod.REQUIRED_BALANCE_GWEI()", pod.REQUIRED_BALANCE_GWEI());
 
-        assertTrue(beaconChainETHBefore - getBeaconChainETHShares(pod.podOwner()) == pod.REQUIRED_BALANCE_WEI(), "beaconChainETHShares not updated");
-        assertTrue(pod.penaltiesDueToOvercommittingGwei() == pod.OVERCOMMITMENT_PENALTY_AMOUNT_GWEI() - 2*withdrawalAmountGwei, "penalties not paid correctly");
+        uint256 expectedSharePenalty = (uint256(pod.REQUIRED_BALANCE_GWEI()) - uint256(withdrawalAmountGwei)) * 1e9;
+
+        emit log_named_uint("expectedSharePenalty", expectedSharePenalty);
+
+        assertTrue((beaconChainETHBefore - beaconChainETHAfter) == expectedSharePenalty,
+            "beaconChainETHShares not updated correctly");
+        // first the penaltiesDueToOvercommittingGwei is increased by (pod.OVERCOMMITMENT_PENALTY_AMOUNT_GWEI() - withdrawalAmountGwei), and then
+        // the withdrawal amount is used to pay off penalties as part of the `payOffPenalties` logic
+        assertTrue(pod.penaltiesDueToOvercommittingGwei() == 
+            penaltiesDueToOvercommittingGweiBefore + (pod.OVERCOMMITMENT_PENALTY_AMOUNT_GWEI() - withdrawalAmountGwei) - withdrawalAmountGwei,
+            "penalties not paid correctly");
         // check that penalties were paid off correctly
         assertTrue(pod.restakedExecutionLayerGwei() == 0, "restakedExecutionLayerGwei is not 0");
         assertTrue(pod.instantlyWithdrawableBalanceGwei() == instantlyWithdrawableBalanceGweiBefore, "instantlyWithdrawableBalanceGweiBefore has changed");
