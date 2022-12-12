@@ -19,7 +19,7 @@ import "./Slasher.sol";
  * - enabling any staker to delegate its stake to the operator of its choice
  * - enabling a staker to undelegate its assets from an operator (performed as part of the withdrawal process, initiated through the InvestmentManager)
  */
-contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDelegationStorage, Pausable, DSTest {
+contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDelegationStorage, Pausable {
     uint8 internal constant PAUSED_NEW_DELEGATION = 0;
 
     /// @notice Simple permission for functions that are only callable by the InvestmentManager contract.

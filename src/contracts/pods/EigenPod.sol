@@ -12,7 +12,7 @@ import "../interfaces/IETHPOSDeposit.sol";
 import "../interfaces/IEigenPodManager.sol";
 import "../interfaces/IEigenPod.sol";
 
-import "forge-std/Test.sol";
+// import "forge-std/Test.sol";
 
 /**
  * @title The implementation contract used for restaking beacon chain ETH on EigenLayer 
@@ -28,7 +28,7 @@ import "forge-std/Test.sol";
  *   to account balances and penalties in terms of gwei in the EigenPod contract and convert to wei when making
  *   calls to other contracts
  */
-contract EigenPod is IEigenPod, Initializable, ReentrancyGuard, Test {
+contract EigenPod is IEigenPod, Initializable, ReentrancyGuard {
     using BytesLib for bytes;
 
     uint256 internal constant GWEI_TO_WEI = 1e9;
@@ -142,10 +142,6 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard, Test {
     ) external {
         // TODO: tailor this to production oracle
         bytes32 beaconStateRoot = eigenPodManager.getBeaconChainStateRoot();
-
-        emit log_uint(validatorIndex);
-        emit log_uint(validatorFields.length);
-        emit log_uint(proof.length);
 
         // verify ETH validator proof
         BeaconChainProofs.verifyValidatorFields(
@@ -468,8 +464,6 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard, Test {
         uint64 penaltiesDueToOvercommittingGweiMemory = penaltiesDueToOvercommittingGwei;
         if (penaltiesDueToOvercommittingGweiMemory != 0) {
             uint64 restakedExecutionLayerGweiMemory = restakedExecutionLayerGwei;
-            emit log_named_uint("restakedExecutionLayerGweiMemory", restakedExecutionLayerGweiMemory);
-            emit log_named_uint("penaltiesDueToOvercommittingGweiMemory", penaltiesDueToOvercommittingGweiMemory);
             // if restakedExecutionLayerETH is enough to cover all penalties, penalize all that is necessary and return early
             if (penaltiesDueToOvercommittingGweiMemory <= restakedExecutionLayerGweiMemory) {
                 eigenPodManager.payPenalties{value: uint256(penaltiesDueToOvercommittingGweiMemory) * uint256(GWEI_TO_WEI)}(podOwner);
