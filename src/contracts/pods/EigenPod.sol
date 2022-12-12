@@ -266,7 +266,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard, Test {
                 eigenPodManager.recordOvercommittedBeaconChainETH(
                     podOwner,
                     beaconChainETHStrategyIndex,
-                    (uint256(REQUIRED_BALANCE_GWEI) - uint256(withdrawalAmountGwei)) * GWEI_TO_WEI
+                    (uint256(REQUIRED_BALANCE_GWEI) - uint256(withdrawalAmountGwei)) * uint256(GWEI_TO_WEI)
                 );
             }
             // in this case, increment the ETH in execution layer by the withdrawalAmount (since we cannot increment by the full REQUIRED_BALANCE_GWEI)
@@ -359,14 +359,14 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard, Test {
             uint64 penaltiesDueToOvercommittingGweiMemory = penaltiesDueToOvercommittingGwei;
             if (penaltiesDueToOvercommittingGweiMemory > claim.partialWithdrawalAmountGwei) {
                 // if all of the partial withdrawal is not enough to cover existing penalties, send it all
-                eigenPodManager.payPenalties{value: claim.partialWithdrawalAmountGwei * GWEI_TO_WEI}(podOwner);
+                eigenPodManager.payPenalties{value: uint256(claim.partialWithdrawalAmountGwei) * uint256(GWEI_TO_WEI)}(podOwner);
                 // allow this amount to be rolled over from restakedExecutionLayerGwei to instantlyWithdrawableBalanceGwei if penalties are ever fully paid in the future
                 rollableBalanceGwei += claim.partialWithdrawalAmountGwei;
                 penaltiesDueToOvercommittingGwei = penaltiesDueToOvercommittingGweiMemory - claim.partialWithdrawalAmountGwei;
                 claim.partialWithdrawalAmountGwei = 0;
             } else {
                 // if partial withdrawal is enough, penalize all that is necessary
-                eigenPodManager.payPenalties{value: penaltiesDueToOvercommittingGweiMemory * GWEI_TO_WEI}(podOwner);
+                eigenPodManager.payPenalties{value: uint256(penaltiesDueToOvercommittingGweiMemory) * uint256(GWEI_TO_WEI)}(podOwner);
                 // allow this amount to be rolled over from restakedExecutionLayerGwei to instantlyWithdrawableBalanceGwei if penalties are ever fully paid in the future
                 rollableBalanceGwei += penaltiesDueToOvercommittingGweiMemory;
                 claim.partialWithdrawalAmountGwei = claim.partialWithdrawalAmountGwei - penaltiesDueToOvercommittingGweiMemory;
@@ -375,7 +375,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard, Test {
             }
         }
         // send any remaining ETH (after paying penalties) to the `recipient`
-        Address.sendValue(payable(recipient), claim.partialWithdrawalAmountGwei * GWEI_TO_WEI);
+        Address.sendValue(payable(recipient), uint256(claim.partialWithdrawalAmountGwei) * uint256(GWEI_TO_WEI));
 
         emit PartialWithdrawalRedeemed(recipient, claim.partialWithdrawalAmountGwei);
     }
@@ -387,7 +387,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard, Test {
     function withdrawInstantlyWithdrawableBalanceGwei(address recipient) external nonReentrant {
         uint256 instantlyWithdrawableBalanceGweiMemory = instantlyWithdrawableBalanceGwei;
         instantlyWithdrawableBalanceGwei = 0;
-        Address.sendValue(payable(recipient), instantlyWithdrawableBalanceGweiMemory * GWEI_TO_WEI);
+        Address.sendValue(payable(recipient), uint256(instantlyWithdrawableBalanceGweiMemory) * uint256(GWEI_TO_WEI));
     }
 
     /**
@@ -472,7 +472,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard, Test {
             emit log_named_uint("penaltiesDueToOvercommittingGweiMemory", penaltiesDueToOvercommittingGweiMemory);
             // if restakedExecutionLayerETH is enough to cover all penalties, penalize all that is necessary and return early
             if (penaltiesDueToOvercommittingGweiMemory <= restakedExecutionLayerGweiMemory) {
-                eigenPodManager.payPenalties{value: penaltiesDueToOvercommittingGweiMemory * GWEI_TO_WEI}(podOwner);
+                eigenPodManager.payPenalties{value: uint256(penaltiesDueToOvercommittingGweiMemory) * uint256(GWEI_TO_WEI)}(podOwner);
                 restakedExecutionLayerGwei = restakedExecutionLayerGweiMemory - penaltiesDueToOvercommittingGweiMemory;
                 penaltiesDueToOvercommittingGwei = 0;
                 return;
@@ -488,7 +488,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard, Test {
             uint64 instantlyWithdrawableBalanceGweiMemory = instantlyWithdrawableBalanceGwei;
             // if (restakedExecutionLayerGwei + instantlyWithdrawableBalanceGwei) is enough to cover all penalties, then penalize all that is necessary and return early
             if (penaltiesDueToOvercommittingGweiMemory <= instantlyWithdrawableBalanceGweiMemory) {
-                eigenPodManager.payPenalties{value: penaltiesDueToOvercommittingGwei * GWEI_TO_WEI}(podOwner);
+                eigenPodManager.payPenalties{value: uint256(penaltiesDueToOvercommittingGwei) * uint256(GWEI_TO_WEI)}(podOwner);
                 // allow this amount to be rolled over from restakedExecutionLayerGwei to instantlyWithdrawableBalanceGwei if penalties are ever fully paid in the future
                 rollableBalanceGwei += penaltiesDueToOvercommittingGweiMemory;
                 instantlyWithdrawableBalanceGwei = instantlyWithdrawableBalanceGweiMemory - penaltiesDueToOvercommittingGweiMemory;
@@ -498,7 +498,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard, Test {
 
             // if (restakedExecutionLayerGwei + instantlyWithdrawableBalanceGwei) is not enough to cover all penalties, then send it all
             amountPenaltiesToPayGwei += instantlyWithdrawableBalanceGweiMemory;
-            eigenPodManager.payPenalties{value: amountPenaltiesToPayGwei * GWEI_TO_WEI}(podOwner);
+            eigenPodManager.payPenalties{value: uint256(amountPenaltiesToPayGwei) * uint256(GWEI_TO_WEI)}(podOwner);
 
             // allow this amount to be rolled over from restakedExecutionLayerGwei to instantlyWithdrawableBalanceGwei if penalties are ever fully paid in the future
             rollableBalanceGwei += instantlyWithdrawableBalanceGweiMemory;
