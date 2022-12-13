@@ -35,6 +35,8 @@ The DataLayrPaymentManager contract manages all DataLayr-related payments.  Thes
 
 ### DataLayrBombVerifier
 The `DataLayrBombVerifier` is the core slashing module of DataLayr. Using Dankrad's Proofs of Custody, DataLayr is able to slash operators who are provably not storing their data.
+In brief, random blobs contain a "bomb" that is “detonated” if that blob is signed on by a DLN, resulting in slashing. Thus, the DLN must avoid signing that blob, forcing them to download and store the blob correctly to detect the bomb’s presence.
+Whether or not a blob contains a bomb for a given operator is determined by the operator's address.
 
 A challenger proves that an operator wasn't storing data at certain time by attesting to the four following claims:
 1. The existence of a certain datastore referred to as the DETONATION datastore
@@ -64,29 +66,12 @@ Each active middleware operator is associated with a public key corresponding to
 Importantly, the BLSRegistry also stores an aggregate public key, against which the combined signatures of middleware operators can be checked. 
 Additionally, BLSRegistry stores historical records of the aggregate public key, operator stakes, and operator array positions for all time. This historical data can all be referenced as needed, e.g. as part of the payment challenge process.
 
-### BLSRegistryWithBomb
-The BLSRegistryWithBomb contract inherits from the `BLSRegistry`, simply adding minimal functionality in order to support Data Availability Sampling (DAS) through interactions with an `EmphemeralKeyRegistry` contract.
-
 ### BLSSignatureChecker
 This is the contract for checking that the aggregated signatures of all operators which is being asserted by the disperser is valid.  The contract's primary method is called `checkSignatures`.  It is called by disperser when it has aggregated all the signatures of the operators that are part of the quorum for a particular taskNumber and is asserting them into on-chain. It then checks that the claim for aggregated signatures are valid.  The thesis of this procedure entails:
 * Computing the aggregated pubkey of all the operators that are not part of the quorum for this specific taskNumber (represented by aggNonSignerPubkey)
 * Getting the aggregated pubkey of all registered nodes at the time of pre-commit by the disperser (represented by pk),
 * Do subtraction of aggNonSignerPubkey from pk over Jacobian coordinate system to get aggregated pubkey of all operators that are part of quorum.
 * Use this aggregated pubkey to verify the aggregated signature under BLS scheme.
-
-### EphemeralKeyRegistry
-The EphemeralKeyRegistry contract primarily serves to store revealed ephemeral keys for each operator, as a part of the "bomb" proof of custody scheme.  The proof of custody game works as follows: A given blob contains a bomb that is “detonated” if that blob is signed on by a DLN, resulting in slashing. Thus, the DLN must avoid signing that blob, forcing them to download and store the blob correctly to detect the bomb’s presence.
-
-Whether or not a blob contains a bomb is determined by the ephemeral key. This ephemeral key is an arbitrary 32-byte value, unique to a given DLN, allowing them to detect the presence of a bomb. This happens as follows:
-* Upon registering, the DLN generates a random ephemeral key (EK) and posts a commitment to it on chain. After a fixed period of time, the DLN reveals the EK and posts a commitment to a new EK.
-* During this disclosure period, a challenger can check for the presence of a bomb in that DLN’s datastores. If a bomb is found and the DLN signed the block, the DLN is slashed!
-* There are several additonal slashing conditions. The first is when a DLN fails to reveal the EK they committed to within a certain time frame, they are slashed. They are also slashed if their ephemeral key is revealed by a third party on chain before the disclosure period starts.
-
-The main functionalities of this contract are:
-
-(1) storing revealed ephemeral keys for each operator from past.
-(2) checking if ephemeral keys revealed too early and then slashing if needed.
-(3) recording when a previous ephemeral key is made inactive.
 
 ### BLSPublicKeyCompendium
 The `BLSPublicKeyCompendium` contract provides a shared place for EigenLayer operators to register a BLS public key to their standard Ethereum address.
