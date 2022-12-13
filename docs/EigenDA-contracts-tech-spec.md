@@ -41,7 +41,7 @@ Whether or not a blob contains a bomb for a given operator is determined by the 
 A challenger proves that an operator wasn't storing data at certain time by attesting to the four following claims:
 1. The existence of a certain datastore referred to as the DETONATION datastore
 2. The existence of a certain datastore referred to as the BOMB datastore, which the operator has certified to storing, that is chosen on-chain via the result of a function of the DETONATION datastore's header hash
-3. The data that the operator was storing for the BOMB datastore, when hashed with the operator's ephemeral key and the DETONATION datastore's header hash, is below a certain threshold defined by the `DataLayrBombVerifier` contract
+3. The data that the operator was storing for the BOMB datastore, when hashed with the operator's address and the DETONATION datastore's header hash, is below a certain threshold defined by the `DataLayrBombVerifier` contract
 4. The operator certified the storing of DETONATION datastore
 
 If these 4 points are proved, the operator is slashed. The operator should be checking the following above requirements against each new header hash it receives in order to prevent being slashed.
