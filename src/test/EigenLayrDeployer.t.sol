@@ -27,7 +27,6 @@ import "../contracts/permissions/PauserRegistry.sol";
 import "../contracts/libraries/BytesLib.sol";
 
 import "./utils/Operators.sol";
-import "./utils/Signatures.sol";
 
 import "./mocks/LiquidStakingToken.sol";
 import "./mocks/EmptyContract.sol";
@@ -36,7 +35,7 @@ import "./mocks/ETHDepositMock.sol";
 
  import "forge-std/Test.sol";
 
-contract EigenLayrDeployer is Operators, SignatureUtils {
+contract EigenLayrDeployer is Operators {
     using BytesLib for bytes;
 
     Vm cheats = Vm(HEVM_ADDRESS);

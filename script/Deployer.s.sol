@@ -26,8 +26,6 @@ import "../src/contracts/middleware/BLSPublicKeyCompendium.sol";
 
 import "../src/contracts/libraries/BytesLib.sol";
 
-import "../src/test/utils/Signatures.sol";
-
 import "../src/test/mocks/EmptyContract.sol";
 import "../src/test/mocks/BeaconChainOracleMock.sol";
 import "../src/test/mocks/ETHDepositMock.sol";
