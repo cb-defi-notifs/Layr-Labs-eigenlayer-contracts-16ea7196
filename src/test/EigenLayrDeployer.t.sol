@@ -67,8 +67,6 @@ contract EigenLayrDeployer is Operators, SignatureUtils {
     //from testing seed phrase
     bytes32 priv_key_0 = 0x1234567812345678123456781234567812345678123456781234567812345678;
     bytes32 priv_key_1 = 0x1234567812345678123456781234567812345698123456781234567812348976;
-    bytes32 public _testEphemeralKey = 0x3290567812345678123456781234577812345698123456781234567812344389;
-    bytes32 public _testEphemeralKeyHash = keccak256(abi.encode(_testEphemeralKey));
 
     //strategy indexes for undelegation (see commitUndelegation function)
     uint256[] public strategyIndexes;

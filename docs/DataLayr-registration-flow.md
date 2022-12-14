@@ -28,14 +28,13 @@ Although we mentioned above that EigenLayer operators would be calling ``registe
 
 ## Registering as an operator with DataLayr
 
-DataLayr uses the BLSRegistryWithBomb as its registry.
+DataLayr uses the BLSRegistry as its registry.
 
 The regsitry of any middleware on EigenLayer is the primary contract which handles weighing operators' stakes, registration, and operator inforamtion in general. 
 
 ```solidity
 function registerOperator(
     uint8 operatorType, 
-    bytes32 ephemeralKeyHash, 
     bytes calldata pkBytes, 
     string calldata socket
 ) external

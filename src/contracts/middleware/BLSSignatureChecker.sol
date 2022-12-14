@@ -53,7 +53,7 @@ abstract contract BLSSignatureChecker {
 
     // CONSTANTS -- commented out lines are due to inline assembly supporting *only* 'direct number constants' (for now, at least)
     uint256 internal constant BYTE_LENGTH_totalStakeIndex = 6;
-    uint256 internal constant BYTE_LENGTH_stakesBlockNumber = 4;
+    uint256 internal constant BYTE_LENGTH_referenceBlockNumber = 4;
     uint256 internal constant BYTE_LENGTH_taskNumberToConfirm = 4;
     uint256 internal constant BYTE_LENGTH_numberNonSigners = 4;
     // specifying a G2 public key requires 4 32-byte slots worth of data
@@ -66,8 +66,8 @@ abstract contract BLSSignatureChecker {
 
     // uint256 internal constant BIT_SHIFT_totalStakeIndex = 256 - (BYTE_LENGTH_totalStakeIndex * 8);
     uint256 internal constant BIT_SHIFT_totalStakeIndex = 208;
-    // uint256 internal constant BIT_SHIFT_stakesBlockNumber = 256 - (BYTE_LENGTH_stakesBlockNumber * 8);
-    uint256 internal constant BIT_SHIFT_stakesBlockNumber = 224;
+    // uint256 internal constant BIT_SHIFT_referenceBlockNumber = 256 - (BYTE_LENGTH_referenceBlockNumber * 8);
+    uint256 internal constant BIT_SHIFT_referenceBlockNumber = 224;
     // uint256 internal constant BIT_SHIFT_taskNumberToConfirm = 256 - (BYTE_LENGTH_taskNumberToConfirm * 8);
     uint256 internal constant BIT_SHIFT_taskNumberToConfirm = 224;
     // uint256 internal constant BIT_SHIFT_numberNonSigners = 256 - (BYTE_LENGTH_numberNonSigners * 8);
@@ -78,9 +78,9 @@ abstract contract BLSSignatureChecker {
     uint256 internal constant BIT_SHIFT_apkIndex = 224;
 
     uint256 internal constant CALLDATA_OFFSET_totalStakeIndex = 32;
-    // uint256 internal constant CALLDATA_OFFSET_stakesBlockNumber = CALLDATA_OFFSET_totalStakeIndex + BYTE_LENGTH_totalStakeIndex;
-    uint256 internal constant CALLDATA_OFFSET_stakesBlockNumber = 38;
-    // uint256 internal constant CALLDATA_OFFSET_taskNumberToConfirm = CALLDATA_OFFSET_stakesBlockNumber + BYTE_LENGTH_stakesBlockNumber;
+    // uint256 internal constant CALLDATA_OFFSET_referenceBlockNumber = CALLDATA_OFFSET_totalStakeIndex + BYTE_LENGTH_totalStakeIndex;
+    uint256 internal constant CALLDATA_OFFSET_referenceBlockNumber = 38;
+    // uint256 internal constant CALLDATA_OFFSET_taskNumberToConfirm = CALLDATA_OFFSET_referenceBlockNumber + BYTE_LENGTH_referenceBlockNumber;
     uint256 internal constant CALLDATA_OFFSET_taskNumberToConfirm = 42;
     // uint256 internal constant CALLDATA_OFFSET_numberNonSigners = CALLDATA_OFFSET_taskNumberToConfirm + BYTE_LENGTH_taskNumberToConfirm;
     uint256 internal constant CALLDATA_OFFSET_numberNonSigners = 46;
@@ -105,7 +105,7 @@ abstract contract BLSSignatureChecker {
      * @dev This calldata is of the format:
      * <
      * bytes32 msgHash, the taskHash for which disperser is calling checkSignatures
-     * uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the BLSRegistryWithBomb
+     * uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the BLSRegistry
      * uint32 blockNumber, the blockNumber at which the task was initated
      * uint32 taskNumberToConfirm
      * uint32 numberOfNonSigners,
@@ -116,12 +116,12 @@ abstract contract BLSSignatureChecker {
      * uint256[2] sigma, the aggregate signature itself
      * >
      * 
-     * @dev Before signature verification, the function verifies operator stake information.  This includes ensuring that the provided `stakesBlockNumber`
+     * @dev Before signature verification, the function verifies operator stake information.  This includes ensuring that the provided `referenceBlockNumber`
      * is correct, i.e., ensure that the stake returned from the specified block number is recent enough and that the stake is either the most recent update
-     * for the total stake (or the operator) or latest before the stakesBlockNumber.
+     * for the total stake (or the operator) or latest before the referenceBlockNumber.
      * The next step involves computing the aggregated pub key of all the operators that are not part of the quorum for this specific taskNumber.
      * We use a loop to iterate through the `nonSignerPK` array, loading each individual public key from calldata. Before the loop, we isolate the first public key
-     * calldataload - this implementation saves us one `BLS.addJac` operation, which would be performed in the i=0 iteration otherwise.
+     * calldataload - this implementation saves us one ecAdd operation, which would be performed in the i=0 iteration otherwise.
      * Within the loop, each non-signer public key is loaded from the calldata into memory.  The most recent staking-related information is retrieved and is subtracted
      * from the total stake of validators in the quorum.  Then the aggregate public key and the aggregate non-signer public key is subtracted from it.
      * Finally  the siganture is verified by computing the elliptic curve pairing.
@@ -130,7 +130,7 @@ abstract contract BLSSignatureChecker {
         public
         returns (
             uint32 taskNumberToConfirm,
-            uint32 stakesBlockNumber,
+            uint32 referenceBlockNumber,
             bytes32 msgHash,
             SignatoryTotals memory signedTotals,
             bytes32 compressedSignatoryRecord
@@ -153,17 +153,17 @@ abstract contract BLSSignatureChecker {
             placeholder := shr(BIT_SHIFT_totalStakeIndex, calldataload(add(pointer, CALLDATA_OFFSET_totalStakeIndex)))
         }
 
-        // fetch the 4 byte stakesBlockNumber, the block number from which stakes are going to be read from
+        // fetch the 4 byte referenceBlockNumber, the block number from which stakes are going to be read from
         assembly {
-            stakesBlockNumber :=
-                shr(BIT_SHIFT_stakesBlockNumber, calldataload(add(pointer, CALLDATA_OFFSET_stakesBlockNumber)))
+            referenceBlockNumber :=
+                shr(BIT_SHIFT_referenceBlockNumber, calldataload(add(pointer, CALLDATA_OFFSET_referenceBlockNumber)))
         }
 
         // get information on total stakes
         IQuorumRegistry.OperatorStake memory localStakeObject = registry.getTotalStakeFromIndex(placeholder);
 
-        // check that the returned OperatorStake object is the most recent for the stakesBlockNumber
-        _validateOperatorStake(localStakeObject, stakesBlockNumber);
+        // check that the returned OperatorStake object is the most recent for the referenceBlockNumber
+        _validateOperatorStake(localStakeObject, referenceBlockNumber);
 
         // copy total stakes amounts to `signedTotals` -- the 'signedStake' amounts are decreased later, to reflect non-signers
         signedTotals.totalStakeFirstQuorum = localStakeObject.firstQuorumStake;
@@ -237,8 +237,8 @@ abstract contract BLSSignatureChecker {
             // at the time of pre-commit
             localStakeObject = registry.getStakeFromPubkeyHashAndIndex(pubkeyHash, stakeIndex);
 
-            // check that the returned OperatorStake object is the most recent for the stakesBlockNumber
-            _validateOperatorStake(localStakeObject, stakesBlockNumber);
+            // check that the returned OperatorStake object is the most recent for the referenceBlockNumber
+            _validateOperatorStake(localStakeObject, referenceBlockNumber);
 
             // subtract operator stakes from totals
             signedTotals.signedStakeFirstQuorum -= localStakeObject.firstQuorumStake;
@@ -288,8 +288,8 @@ abstract contract BLSSignatureChecker {
             // at the time of pre-commit
             localStakeObject = registry.getStakeFromPubkeyHashAndIndex(pubkeyHash, stakeIndex);
 
-            // check that the returned OperatorStake object is the most recent for the stakesBlockNumber
-            _validateOperatorStake(localStakeObject, stakesBlockNumber);
+            // check that the returned OperatorStake object is the most recent for the referenceBlockNumber
+            _validateOperatorStake(localStakeObject, referenceBlockNumber);
 
             //subtract validator stakes from totals
             signedTotals.signedStakeFirstQuorum -= localStakeObject.firstQuorumStake;
@@ -339,7 +339,7 @@ abstract contract BLSSignatureChecker {
 
             // make sure the caller has provided the correct aggPubKey
             require(
-                IBLSRegistry(address(registry)).getCorrectApkHash(apkIndex, stakesBlockNumber) == keccak256(abi.encodePacked(input[2], input[3])),
+                IBLSRegistry(address(registry)).getCorrectApkHash(apkIndex, referenceBlockNumber) == keccak256(abi.encodePacked(input[2], input[3])),
                 "BLSSignatureChecker.checkSignatures: Incorrect apk provided"
             );
 
@@ -485,24 +485,24 @@ abstract contract BLSSignatureChecker {
             signedTotals.signedStakeSecondQuorum
         );
 
-        // return taskNumber, stakesBlockNumber, msgHash, total stakes that signed, and a hash of the signatories
-        return (taskNumberToConfirm, stakesBlockNumber, msgHash, signedTotals, compressedSignatoryRecord);
+        // return taskNumber, referenceBlockNumber, msgHash, total stakes that signed, and a hash of the signatories
+        return (taskNumberToConfirm, referenceBlockNumber, msgHash, signedTotals, compressedSignatoryRecord);
     }
 
     // simple internal function for validating that the OperatorStake returned from a specified index is the correct one
-    function _validateOperatorStake(IQuorumRegistry.OperatorStake memory opStake, uint32 stakesBlockNumber)
+    function _validateOperatorStake(IQuorumRegistry.OperatorStake memory opStake, uint32 referenceBlockNumber)
         internal
         pure
     {
         // check that the stake returned from the specified index is recent enough
-        require(opStake.updateBlockNumber <= stakesBlockNumber, "Provided stake index is too early");
+        require(opStake.updateBlockNumber <= referenceBlockNumber, "Provided stake index is too early");
 
         /**
          * check that stake is either the most recent update for the total stake (or the operator),
-         * or latest before the stakesBlockNumber
+         * or latest before the referenceBlockNumber
          */
         require(
-            opStake.nextUpdateBlockNumber == 0 || opStake.nextUpdateBlockNumber > stakesBlockNumber,
+            opStake.nextUpdateBlockNumber == 0 || opStake.nextUpdateBlockNumber > referenceBlockNumber,
             "Provided stake index is not the most recent for blockNumber"
         );
     }
