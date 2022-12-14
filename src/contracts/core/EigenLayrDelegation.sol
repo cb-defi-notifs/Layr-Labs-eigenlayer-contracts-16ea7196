@@ -133,33 +133,9 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
     }
 
     /**
-     * @notice Decreases the `staker`'s delegated shares in `strategy` by `shares, typically called when the staker withdraws from EigenLayr
+     * @notice Decreases the `staker`'s delegated shares in each entry of `strategies` by its respective `shares[i]`, typically called when the staker withdraws from EigenLayr
      * @dev Callable only by the InvestmentManager
      */
-    function decreaseDelegatedShares(address staker, IInvestmentStrategy strategy, uint256 shares)
-        external
-        onlyInvestmentManager
-    {
-        //if the staker is delegated to an operator
-        if (isDelegated(staker)) {
-            address operator = delegatedTo[staker];
-
-            // subtract strategy shares from delegate's shares
-            operatorShares[operator][strategy] -= shares;
-
-            //Calls into operator's delegationTerms contract to update weights of individual staker
-            IInvestmentStrategy[] memory investorStrats = new IInvestmentStrategy[](1);
-            uint256[] memory investorShares = new uint[](1);
-            investorStrats[0] = strategy;
-            investorShares[0] = shares;
-
-            // call into hook in delegationTerms contract
-            IDelegationTerms dt = delegationTerms[operator];
-            _delegationWithdrawnHook(dt, staker, investorStrats, investorShares);
-        }
-    }
-
-    /// @notice Version of `decreaseDelegatedShares` that accepts an array of inputs.
     function decreaseDelegatedShares(
         address staker,
         IInvestmentStrategy[] calldata strategies,
