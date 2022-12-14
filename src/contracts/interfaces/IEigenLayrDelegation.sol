@@ -58,12 +58,9 @@ interface IEigenLayrDelegation {
     function increaseDelegatedShares(address staker, IInvestmentStrategy strategy, uint256 shares) external;
 
     /**
-     * @notice Decreases the `staker`'s delegated shares in `strategy` by `shares, typically called when the staker withdraws from EigenLayr
+     * @notice Decreases the `staker`'s delegated shares in each entry of `strategies` by its respective `shares[i]`, typically called when the staker withdraws from EigenLayr
      * @dev Callable only by the InvestmentManager
      */
-    function decreaseDelegatedShares(address staker, IInvestmentStrategy strategy, uint256 shares) external;
-
-    /// @notice Version of `decreaseDelegatedShares` that accepts an array of inputs.
     function decreaseDelegatedShares(
         address staker,
         IInvestmentStrategy[] calldata strategies,
