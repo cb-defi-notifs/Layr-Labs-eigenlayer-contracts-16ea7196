@@ -380,7 +380,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard {
      * @notice Withdraws instantlyWithdrawableBalanceGwei to the specified `recipient`
      * @dev Note that this function is marked as non-reentrant to prevent the recipient calling back into it
      */
-    function withdrawInstantlyWithdrawableBalanceGwei(address recipient) external nonReentrant {
+    function withdrawInstantlyWithdrawableBalanceGwei(address recipient) external onlyEigenPodOwner nonReentrant {
         uint256 instantlyWithdrawableBalanceGweiMemory = instantlyWithdrawableBalanceGwei;
         instantlyWithdrawableBalanceGwei = 0;
         Address.sendValue(payable(recipient), uint256(instantlyWithdrawableBalanceGweiMemory) * uint256(GWEI_TO_WEI));
