@@ -550,9 +550,9 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     // Setup: Credit balance with AMOUNT (>= REQUIRED_BALANCE_GWEI). Run (11).
     // Test: Watcher proves withdrawal of AMOUNT before the block in which (11) occured.
     // Expected Behaviour: Partial withdrawal should be marked as failed.
-    function testFailedPartialWithdrawal(bytes memory signature, bytes32 depositDataRoot, uint64 partialWithdrawalAmountGwei) internal returns(IEigenPod){
+    function testFailedPartialWithdrawal(bytes memory signature, bytes32 depositDataRoot, uint64 partialWithdrawalAmountGwei) public returns(IEigenPod){
         cheats.roll(block.number + 100);
-        (IEigenPod pod, IEigenPod.PartialWithdrawalClaim memory claim) = testMakePartialWithdrawalClaim(signature, depositDataRoot, partialWithdrawalAmountGwei);
+        (IEigenPod pod, ) = testMakePartialWithdrawalClaim(signature, depositDataRoot, partialWithdrawalAmountGwei);
         
         
         uint64 withdrawalAmountGwei = 31400000000;
@@ -563,6 +563,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         _proveFullWithdrawal(pod);
 
         //ensure that partial withdrawal claim is failed because latest claim's creation blocknumber is after most recent full withdrawal
+        emit log_uint(pod.getPartialWithdrawalClaimsLength());
         IEigenPod.PartialWithdrawalClaim memory currentClaim = pod.getPartialWithdrawalClaim(pod.getPartialWithdrawalClaimsLength() - 1);
         require(currentClaim.status == IEigenPod.PARTIAL_WITHDRAWAL_CLAIM_STATUS.FAILED, "status not set correctly");
         return pod;
@@ -572,7 +573,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     // Setup: Run (14).
     // Test: Pod owner attempts to redeem partial withdrawal
     // Expected Behaviour: Reverts because withdrawal is not pending
-    function testRedeemFailedPartialWithdrawal(bytes memory signature, bytes32 depositDataRoot, uint64 partialWithdrawalAmountGwei) internal {
+    function testRedeemFailedPartialWithdrawal(bytes memory signature, bytes32 depositDataRoot, uint64 partialWithdrawalAmountGwei) public {
         IEigenPod pod = testFailedPartialWithdrawal(signature, depositDataRoot, partialWithdrawalAmountGwei);
 
         cheats.prank(podOwner);
