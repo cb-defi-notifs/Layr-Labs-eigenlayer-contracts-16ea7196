@@ -50,7 +50,11 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         cheats.assume(addr != address(0));
         cheats.assume(addr != address(eigenLayrProxyAdmin));
         cheats.assume(addr != address(investmentManager));
-        cheats.assume(addr != podOwner);
+        cheats.assume(addr != address(eigenPodManager));
+        cheats.assume(addr != address(delegation));
+        cheats.assume(addr != address(slasher));
+        cheats.assume(addr != address(generalServiceManager1));
+        cheats.assume(addr != address(generalReg1));
         _;
     }
 
@@ -497,7 +501,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         uint64 restakedExectionLayerGweiBefore = pod.restakedExecutionLayerGwei();
         uint64 instantlyWithdrawableBalanceGweiBefore = pod.instantlyWithdrawableBalanceGwei();
         uint256 lengthBefore = pod.getPartialWithdrawalClaimsLength();
-        cheats.assume(partialWithdrawalAmountGwei >= restakedExectionLayerGweiBefore + instantlyWithdrawableBalanceGweiBefore);
+        cheats.assume(partialWithdrawalAmountGwei > restakedExectionLayerGweiBefore + instantlyWithdrawableBalanceGweiBefore);
         cheats.deal(address(pod), address(pod).balance + partialWithdrawalAmountGwei * GWEI_TO_WEI);
 
         cheats.prank(pod.podOwner());
@@ -505,9 +509,9 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
 
         IEigenPod.PartialWithdrawalClaim memory claim = pod.getPartialWithdrawalClaim(pod.getPartialWithdrawalClaimsLength() - 1);
 
-        assertTrue(claim.status == IEigenPod.PARTIAL_WITHDRAWAL_CLAIM_STATUS.PENDING);
-        assertTrue(claim.partialWithdrawalAmountGwei == uint64(address(pod).balance / GWEI_TO_WEI) - restakedExectionLayerGweiBefore - instantlyWithdrawableBalanceGweiBefore);
-        assertTrue(pod.getPartialWithdrawalClaimsLength() == lengthBefore + 1);
+        assertTrue(claim.status == IEigenPod.PARTIAL_WITHDRAWAL_CLAIM_STATUS.PENDING, "status not set to pending");
+        assertTrue(claim.partialWithdrawalAmountGwei == uint64(address(pod).balance / GWEI_TO_WEI) - restakedExectionLayerGweiBefore - instantlyWithdrawableBalanceGweiBefore, "partialWithdrawalAmount not correct");
+        assertTrue(pod.getPartialWithdrawalClaimsLength() == lengthBefore + 1, "partialWithdrawalClaim not added");
         return (pod, claim);
 
     }
@@ -546,7 +550,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     // Setup: Credit balance with AMOUNT (>= REQUIRED_BALANCE_GWEI). Run (11).
     // Test: Watcher proves withdrawal of AMOUNT before the block in which (11) occured.
     // Expected Behaviour: Partial withdrawal should be marked as failed.
-    function testFraudulentPartialWithdrawal(bytes memory signature, bytes32 depositDataRoot, uint64 partialWithdrawalAmountGwei) public {
+    function testFailedPartialWithdrawal(bytes memory signature, bytes32 depositDataRoot, uint64 partialWithdrawalAmountGwei) public{
         cheats.roll(block.number + 100);
         (IEigenPod pod,) = testMakePartialWithdrawalClaim(signature, depositDataRoot, partialWithdrawalAmountGwei);
         uint64 withdrawalAmountGwei = 31400000000;
@@ -554,13 +558,14 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         cheats.assume(withdrawalAmountGwei >= pod.REQUIRED_BALANCE_GWEI() && withdrawalAmountGwei <= 33 ether);
 
         cheats.deal(address(pod), address(pod).balance + withdrawalAmountGwei * GWEI_TO_WEI);
+        
 
         // prove sufficient full withdrawal
         _proveFullWithdrawal(pod);
 
         //ensure that partial withdrawal claim is failed because latest claim's creation blocknumber is after most recent full withdrawal
         IEigenPod.PartialWithdrawalClaim memory currentClaim = pod.getPartialWithdrawalClaim(pod.getPartialWithdrawalClaimsLength() - 1);
-        assertTrue(currentClaim.status == IEigenPod.PARTIAL_WITHDRAWAL_CLAIM_STATUS.FAILED);
+        assertTrue(currentClaim.status == IEigenPod.PARTIAL_WITHDRAWAL_CLAIM_STATUS.FAILED, "status not set correctly");
 
     }
 
@@ -568,6 +573,13 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     // Setup: Run (14).
     // Test: Pod owner attempts to redeem partial withdrawal
     // Expected Behaviour: Reverts because withdrawal is not pending
+    function testRedeemFailedPartialWithdrawal(bytes memory signature, bytes32 depositDataRoot, uint64 partialWithdrawalAmountGwei) public {
+       //IEigenPod pod = testFailedPartialWithdrawal(signature, depositDataRoot, partialWithdrawalAmountGwei);
+
+        // cheats.prank(podOwner);
+        // cheats.expectRevert(bytes("EigenPod.redeemLatestPartialWithdrawal: partial withdrawal not eligible for redemption"));
+        // pod.redeemLatestPartialWithdrawal(podOwner);
+    }
 
     // 16. Test happy partial withdrawal
     // Setup: Run (11). 
@@ -575,17 +587,17 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     // Expected Behaviour: pod.balance should be decremented by PARTIAL_AMOUNT_GWEI gwei
     //                     podOwner balance should be incremented by PARTIAL_AMOUNT_GWEI gwei
     //                     partial withdrawal should be marked as redeemed
-    function testRedeemPartialWithdrawalClaim(bytes memory signature, bytes32 depositDataRoot, uint64 partialWithdrawalAmountGwei, address recipient) public fuzzedAddress(recipient){
+    function testRedeemPartialWithdrawalClaim(bytes memory signature, bytes32 depositDataRoot, uint64 partialWithdrawalAmountGwei) public {
         (IEigenPod pod, IEigenPod.PartialWithdrawalClaim memory claim) = testMakePartialWithdrawalClaim(signature, depositDataRoot, partialWithdrawalAmountGwei);
         
-        uint256 recipientBalanceBefore = recipient.balance;
+        uint256 recipientBalanceBefore = podOwner.balance;
         uint256 podBalanceBefore = address(pod).balance;
 
         cheats.prank(podOwner);
         cheats.roll(claim.fraudproofPeriodEndBlockNumber + 1);
-        pod.redeemLatestPartialWithdrawal(recipient);
+        pod.redeemLatestPartialWithdrawal(podOwner);
 
-        assertTrue(recipient.balance - recipientBalanceBefore == (uint256(claim.partialWithdrawalAmountGwei) * uint256(1e9))); 
+        assertTrue(podOwner.balance - recipientBalanceBefore == (uint256(claim.partialWithdrawalAmountGwei) * uint256(1e9))); 
         assertTrue(podBalanceBefore - address(pod).balance == (uint256(claim.partialWithdrawalAmountGwei) * uint256(1e9))); 
     }
 

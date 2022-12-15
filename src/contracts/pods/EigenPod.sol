@@ -342,7 +342,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard, Test {
         PartialWithdrawalClaim memory claim = partialWithdrawalClaims[lastClaimIndex];
         require(
             claim.status == PARTIAL_WITHDRAWAL_CLAIM_STATUS.PENDING,
-            "EigenPod.redeemLatestPartialWithdrawal: partial withdrawal status is not pending"
+            "EigenPod.redeemLatestPartialWithdrawal: partial withdrawal not eligible for redemption"
         );
         // mark the claim's status as redeemed
         partialWithdrawalClaims[lastClaimIndex].status = PARTIAL_WITHDRAWAL_CLAIM_STATUS.REDEEMED;
