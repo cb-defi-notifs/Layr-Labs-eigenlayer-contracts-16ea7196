@@ -604,6 +604,13 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     // Setup: Run (11). 
     // Test: before PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS have passed, run (11).
     // Expected Behaviour: Revert with partial withdrawal already exists
+    function testDoublePartialWithdrawal(bytes memory signature, bytes32 depositDataRoot, uint64 partialWithdrawalAmountGwei) public {
+        (IEigenPod pod,  ) = testMakePartialWithdrawalClaim(signature, depositDataRoot, partialWithdrawalAmountGwei);
+        cheats.prank(pod.podOwner());
+        cheats.expectRevert(bytes("EigenPod.recordPartialWithdrawalClaim: cannot make a new claim until previous claim is not pending"));
+        pod.recordPartialWithdrawalClaim(uint32(block.number + 100));
+        
+    }
 
     // 18. Pay penalties from partial withdrawal
     // Setup: Run (5), run (11). 
