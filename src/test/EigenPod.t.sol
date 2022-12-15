@@ -550,10 +550,9 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     // Setup: Credit balance with AMOUNT (>= REQUIRED_BALANCE_GWEI). Run (11).
     // Test: Watcher proves withdrawal of AMOUNT before the block in which (11) occured.
     // Expected Behaviour: Partial withdrawal should be marked as failed.
-    function testFailedPartialWithdrawal(bytes memory signature, bytes32 depositDataRoot, uint64 partialWithdrawalAmountGwei) public returns(IEigenPod){
-        cheats.roll(block.number + 100);
+    function testFraudulentPartialWithdrawal(bytes memory signature, bytes32 depositDataRoot, uint64 partialWithdrawalAmountGwei) public returns(IEigenPod){
+        //cheats.roll(block.number + 100);
         (IEigenPod pod, ) = testMakePartialWithdrawalClaim(signature, depositDataRoot, partialWithdrawalAmountGwei);
-        
         
         uint64 withdrawalAmountGwei = 31400000000;
         // withdrawal amount must be sufficient
@@ -563,18 +562,18 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         _proveFullWithdrawal(pod);
 
         //ensure that partial withdrawal claim is failed because latest claim's creation blocknumber is after most recent full withdrawal
-        emit log_uint(pod.getPartialWithdrawalClaimsLength());
         IEigenPod.PartialWithdrawalClaim memory currentClaim = pod.getPartialWithdrawalClaim(pod.getPartialWithdrawalClaimsLength() - 1);
         require(currentClaim.status == IEigenPod.PARTIAL_WITHDRAWAL_CLAIM_STATUS.FAILED, "status not set correctly");
         return pod;
     }
 
+
     // 15. Redeem fraudulent partial withdrawal
     // Setup: Run (14).
     // Test: Pod owner attempts to redeem partial withdrawal
     // Expected Behaviour: Reverts because withdrawal is not pending
-    function testRedeemFailedPartialWithdrawal(bytes memory signature, bytes32 depositDataRoot, uint64 partialWithdrawalAmountGwei) public {
-        IEigenPod pod = testFailedPartialWithdrawal(signature, depositDataRoot, partialWithdrawalAmountGwei);
+    function testRedeemFraudulentPartialWithdrawal(bytes memory signature, bytes32 depositDataRoot, uint64 partialWithdrawalAmountGwei) public {
+        IEigenPod pod = testFraudulentPartialWithdrawal(signature, depositDataRoot, partialWithdrawalAmountGwei);
 
         cheats.prank(podOwner);
         cheats.expectRevert(bytes("EigenPod.redeemLatestPartialWithdrawal: partial withdrawal not eligible for redemption"));
