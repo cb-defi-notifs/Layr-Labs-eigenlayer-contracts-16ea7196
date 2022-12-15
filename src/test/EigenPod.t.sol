@@ -449,6 +449,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         // withdrawal amount must be sufficient
         cheats.assume(withdrawalAmountGwei >= pod.REQUIRED_BALANCE_GWEI() && withdrawalAmountGwei <= 33 ether);
 
+        //first we prove overcommitted balances, incurring penalites
         testProveOverCommittedBalance(pod, validatorIndex0);
         testProveOverCommittedBalance(pod, validatorIndex1);
 
@@ -456,7 +457,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
 
         cheats.deal(address(pod), address(pod).balance + withdrawalAmountGwei * GWEI_TO_WEI);
 
-        // prove sufficient full withdrawal for validatorIndex0
+        // prove sufficient full withdrawal for validatorIndex0, to cover the penalites
         _proveFullWithdrawal(pod);
 
 
@@ -514,6 +515,26 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         require(pod.getPartialWithdrawalClaimsLength() == lengthBefore + 1, "partialWithdrawalClaim not added");
         return (pod, claim);
 
+    }
+
+    // 16. Test happy partial withdrawal
+    // Setup: Run (11). 
+    // Test: PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS pass. Pod owner attempts to redeem partial withdrawal
+    // Expected Behaviour: pod.balance should be decremented by PARTIAL_AMOUNT_GWEI gwei
+    //                     podOwner balance should be incremented by PARTIAL_AMOUNT_GWEI gwei
+    //                     partial withdrawal should be marked as redeemed
+    function testRedeemPartialWithdrawalClaim(bytes memory signature, bytes32 depositDataRoot, uint64 partialWithdrawalAmountGwei) public {
+        (IEigenPod pod, IEigenPod.PartialWithdrawalClaim memory claim) = testMakePartialWithdrawalClaim(signature, depositDataRoot, partialWithdrawalAmountGwei);
+        
+        uint256 recipientBalanceBefore = podOwner.balance;
+        uint256 podBalanceBefore = address(pod).balance;
+
+        cheats.prank(podOwner);
+        cheats.roll(claim.fraudproofPeriodEndBlockNumber + 1);
+        pod.redeemLatestPartialWithdrawal(podOwner);
+
+        assertTrue(podOwner.balance - recipientBalanceBefore == (uint256(claim.partialWithdrawalAmountGwei) * uint256(1e9))); 
+        assertTrue(podBalanceBefore - address(pod).balance == (uint256(claim.partialWithdrawalAmountGwei) * uint256(1e9))); 
     }
 
     // 12. Expired partial withdrawal claim
@@ -580,26 +601,6 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         pod.redeemLatestPartialWithdrawal(podOwner);
     }
 
-    // 16. Test happy partial withdrawal
-    // Setup: Run (11). 
-    // Test: PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS pass. Pod owner attempts to redeem partial withdrawal
-    // Expected Behaviour: pod.balance should be decremented by PARTIAL_AMOUNT_GWEI gwei
-    //                     podOwner balance should be incremented by PARTIAL_AMOUNT_GWEI gwei
-    //                     partial withdrawal should be marked as redeemed
-    function testRedeemPartialWithdrawalClaim(bytes memory signature, bytes32 depositDataRoot, uint64 partialWithdrawalAmountGwei) public {
-        (IEigenPod pod, IEigenPod.PartialWithdrawalClaim memory claim) = testMakePartialWithdrawalClaim(signature, depositDataRoot, partialWithdrawalAmountGwei);
-        
-        uint256 recipientBalanceBefore = podOwner.balance;
-        uint256 podBalanceBefore = address(pod).balance;
-
-        cheats.prank(podOwner);
-        cheats.roll(claim.fraudproofPeriodEndBlockNumber + 1);
-        pod.redeemLatestPartialWithdrawal(podOwner);
-
-        assertTrue(podOwner.balance - recipientBalanceBefore == (uint256(claim.partialWithdrawalAmountGwei) * uint256(1e9))); 
-        assertTrue(podBalanceBefore - address(pod).balance == (uint256(claim.partialWithdrawalAmountGwei) * uint256(1e9))); 
-    }
-
     // 17. Double partial withdrawal
     // Setup: Run (11). 
     // Test: before PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS have passed, run (11).
@@ -625,6 +626,45 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     //                     pod.balance should decrement by PARTIAL_AMOUNT_GWEI 
     //                     rollableBalanceGwei should increment by PARTIAL_AMOUNT_GWEI 
 
+    function testPayOffPenaltiesWithPartialWithdrawal(bytes memory signature, bytes32 depositDataRoot, uint64 partialWithdrawalAmountGwei) public {
+        IEigenPod pod = testDeployAndVerifyNewEigenPod(signature, depositDataRoot);
+
+        require(pod.OVERCOMMITMENT_PENALTY_AMOUNT_GWEI() == pod.REQUIRED_BALANCE_GWEI());
+        require(pod.restakedExecutionLayerGwei() == 0);
+        require(pod.penaltiesDueToOvercommittingGwei() == 0);
+        testProveOverCommittedBalance(pod, validatorIndex0);
+
+        uint64 instantlyWithdrawableBalanceGweiBefore = pod.instantlyWithdrawableBalanceGwei();
+        uint64 restakedExectionLayerGweiBefore = pod.restakedExecutionLayerGwei();
+        uint64 rolleableBalanceBefore = pod.rollableBalanceGwei();
+        uint256 podOwnerBalanceBefore = podOwner.balance;
+
+        cheats.assume(partialWithdrawalAmountGwei > restakedExectionLayerGweiBefore + instantlyWithdrawableBalanceGweiBefore);
+
+        cheats.deal(address(pod), address(pod).balance + partialWithdrawalAmountGwei * GWEI_TO_WEI);
+        
+        // record a partial withdrawal
+        cheats.startPrank(podOwner);
+        pod.recordPartialWithdrawalClaim(uint32(block.number + 100));
+        IEigenPod.PartialWithdrawalClaim memory claim = pod.getPartialWithdrawalClaim(pod.getPartialWithdrawalClaimsLength() - 1);
+        cheats.roll(claim.fraudproofPeriodEndBlockNumber + 1);
+        pod.redeemLatestPartialWithdrawal(podOwner);
+        cheats.stopPrank();
+
+
+        if(partialWithdrawalAmountGwei >= pod.OVERCOMMITMENT_PENALTY_AMOUNT_GWEI()){
+            assertTrue(pod.penaltiesDueToOvercommittingGwei() == 0, "penalty has not been paid");
+            assertTrue((podOwner.balance - podOwnerBalanceBefore)/GWEI_TO_WEI == partialWithdrawalAmountGwei - pod.OVERCOMMITMENT_PENALTY_AMOUNT_GWEI(), "pod owner balance not updated");
+            assertTrue(pod.rollableBalanceGwei() - rolleableBalanceBefore == pod.OVERCOMMITMENT_PENALTY_AMOUNT_GWEI(), "rollable balance not correct");
+
+        }
+        else {
+            assertTrue(pod.penaltiesDueToOvercommittingGwei() == pod.OVERCOMMITMENT_PENALTY_AMOUNT_GWEI() - partialWithdrawalAmountGwei, "penalties not updated");
+            assertTrue(podOwner.balance == podOwnerBalanceBefore, "podowner balance has changed");
+            assertTrue(pod.rollableBalanceGwei() - rolleableBalanceBefore == partialWithdrawalAmountGwei, "rollable balance not changed correctly");
+        }
+    }
+
     // 19. Pay penalties from partial withdrawal and then roll over balance
     // Setup: Run (18).
     // Test: Run enough full withdrawals until all penalties are paid. Attempt to roll over toRollAmountGwei.
@@ -637,8 +677,6 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     // Expected Behaviour: EigenPodManager.balance should decrement by amount
     //                     recipient.balance should increment by amount 
 
-
-    // // Withdraw eigenpods balance to an EOA
     function testEigenPodsQueuedWithdrawal(address operator, bytes memory signature, bytes32 depositDataRoot) public fuzzedAddress(operator){
         //make initial deposit
         testDeployAndVerifyNewEigenPod(signature, depositDataRoot);

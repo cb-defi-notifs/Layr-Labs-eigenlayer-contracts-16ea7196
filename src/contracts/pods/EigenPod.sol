@@ -338,8 +338,9 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard, Test {
     /// @notice This function allows pod owners to redeem their partial withdrawals after the fraudproof period has elapsed
     function redeemLatestPartialWithdrawal(address recipient) external onlyEigenPodOwner nonReentrant {
         // load claim into memory, note this function should and will fail if there are no claims yet
-        uint256 lastClaimIndex = partialWithdrawalClaims.length - 1;
+        uint256 lastClaimIndex = partialWithdrawalClaims.length - 1;        
         PartialWithdrawalClaim memory claim = partialWithdrawalClaims[lastClaimIndex];
+
         require(
             claim.status == PARTIAL_WITHDRAWAL_CLAIM_STATUS.PENDING,
             "EigenPod.redeemLatestPartialWithdrawal: partial withdrawal not eligible for redemption"
@@ -353,6 +354,8 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard, Test {
         // pay penalties if possible
         if (penaltiesDueToOvercommittingGwei != 0) {
             uint64 penaltiesDueToOvercommittingGweiMemory = penaltiesDueToOvercommittingGwei;
+
+
             if (penaltiesDueToOvercommittingGweiMemory > claim.partialWithdrawalAmountGwei) {
                 // if all of the partial withdrawal is not enough to cover existing penalties, send it all
                 eigenPodManager.payPenalties{value: uint256(claim.partialWithdrawalAmountGwei) * uint256(GWEI_TO_WEI)}(podOwner);
@@ -360,14 +363,15 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard, Test {
                 rollableBalanceGwei += claim.partialWithdrawalAmountGwei;
                 penaltiesDueToOvercommittingGwei = penaltiesDueToOvercommittingGweiMemory - claim.partialWithdrawalAmountGwei;
                 claim.partialWithdrawalAmountGwei = 0;
+                return;
             } else {
                 // if partial withdrawal is enough, penalize all that is necessary
                 eigenPodManager.payPenalties{value: uint256(penaltiesDueToOvercommittingGweiMemory) * uint256(GWEI_TO_WEI)}(podOwner);
                 // allow this amount to be rolled over from restakedExecutionLayerGwei to instantlyWithdrawableBalanceGwei if penalties are ever fully paid in the future
                 rollableBalanceGwei += penaltiesDueToOvercommittingGweiMemory;
                 claim.partialWithdrawalAmountGwei = claim.partialWithdrawalAmountGwei - penaltiesDueToOvercommittingGweiMemory;
+
                 penaltiesDueToOvercommittingGwei = 0;
-                return;
             }
         }
         // send any remaining ETH (after paying penalties) to the `recipient`
