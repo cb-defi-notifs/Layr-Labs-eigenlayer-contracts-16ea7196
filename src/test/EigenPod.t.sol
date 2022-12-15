@@ -509,9 +509,9 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
 
         IEigenPod.PartialWithdrawalClaim memory claim = pod.getPartialWithdrawalClaim(pod.getPartialWithdrawalClaimsLength() - 1);
 
-        assertTrue(claim.status == IEigenPod.PARTIAL_WITHDRAWAL_CLAIM_STATUS.PENDING, "status not set to pending");
-        assertTrue(claim.partialWithdrawalAmountGwei == uint64(address(pod).balance / GWEI_TO_WEI) - restakedExectionLayerGweiBefore - instantlyWithdrawableBalanceGweiBefore, "partialWithdrawalAmount not correct");
-        assertTrue(pod.getPartialWithdrawalClaimsLength() == lengthBefore + 1, "partialWithdrawalClaim not added");
+        require(claim.status == IEigenPod.PARTIAL_WITHDRAWAL_CLAIM_STATUS.PENDING, "status not set to pending");
+        require(claim.partialWithdrawalAmountGwei == uint64(address(pod).balance / GWEI_TO_WEI) - restakedExectionLayerGweiBefore - instantlyWithdrawableBalanceGweiBefore, "partialWithdrawalAmount not correct");
+        require(pod.getPartialWithdrawalClaimsLength() == lengthBefore + 1, "partialWithdrawalClaim not added");
         return (pod, claim);
 
     }
@@ -550,35 +550,34 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     // Setup: Credit balance with AMOUNT (>= REQUIRED_BALANCE_GWEI). Run (11).
     // Test: Watcher proves withdrawal of AMOUNT before the block in which (11) occured.
     // Expected Behaviour: Partial withdrawal should be marked as failed.
-    function testFailedPartialWithdrawal(bytes memory signature, bytes32 depositDataRoot, uint64 partialWithdrawalAmountGwei) public{
+    function testFailedPartialWithdrawal(bytes memory signature, bytes32 depositDataRoot, uint64 partialWithdrawalAmountGwei) internal returns(IEigenPod){
         cheats.roll(block.number + 100);
-        (IEigenPod pod,) = testMakePartialWithdrawalClaim(signature, depositDataRoot, partialWithdrawalAmountGwei);
+        (IEigenPod pod, IEigenPod.PartialWithdrawalClaim memory claim) = testMakePartialWithdrawalClaim(signature, depositDataRoot, partialWithdrawalAmountGwei);
+        
+        
         uint64 withdrawalAmountGwei = 31400000000;
         // withdrawal amount must be sufficient
         cheats.assume(withdrawalAmountGwei >= pod.REQUIRED_BALANCE_GWEI() && withdrawalAmountGwei <= 33 ether);
-
         cheats.deal(address(pod), address(pod).balance + withdrawalAmountGwei * GWEI_TO_WEI);
-        
-
         // prove sufficient full withdrawal
         _proveFullWithdrawal(pod);
 
         //ensure that partial withdrawal claim is failed because latest claim's creation blocknumber is after most recent full withdrawal
         IEigenPod.PartialWithdrawalClaim memory currentClaim = pod.getPartialWithdrawalClaim(pod.getPartialWithdrawalClaimsLength() - 1);
-        assertTrue(currentClaim.status == IEigenPod.PARTIAL_WITHDRAWAL_CLAIM_STATUS.FAILED, "status not set correctly");
-
+        require(currentClaim.status == IEigenPod.PARTIAL_WITHDRAWAL_CLAIM_STATUS.FAILED, "status not set correctly");
+        return pod;
     }
 
     // 15. Redeem fraudulent partial withdrawal
     // Setup: Run (14).
     // Test: Pod owner attempts to redeem partial withdrawal
     // Expected Behaviour: Reverts because withdrawal is not pending
-    function testRedeemFailedPartialWithdrawal(bytes memory signature, bytes32 depositDataRoot, uint64 partialWithdrawalAmountGwei) public {
-       //IEigenPod pod = testFailedPartialWithdrawal(signature, depositDataRoot, partialWithdrawalAmountGwei);
+    function testRedeemFailedPartialWithdrawal(bytes memory signature, bytes32 depositDataRoot, uint64 partialWithdrawalAmountGwei) internal {
+        IEigenPod pod = testFailedPartialWithdrawal(signature, depositDataRoot, partialWithdrawalAmountGwei);
 
-        // cheats.prank(podOwner);
-        // cheats.expectRevert(bytes("EigenPod.redeemLatestPartialWithdrawal: partial withdrawal not eligible for redemption"));
-        // pod.redeemLatestPartialWithdrawal(podOwner);
+        cheats.prank(podOwner);
+        cheats.expectRevert(bytes("EigenPod.redeemLatestPartialWithdrawal: partial withdrawal not eligible for redemption"));
+        pod.redeemLatestPartialWithdrawal(podOwner);
     }
 
     // 16. Test happy partial withdrawal
@@ -841,6 +840,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
                                                                     abi.encodePacked(withdrawalMerkleProof),
                                                                     abi.encodePacked(blockNumberProof)
                                                                     );
+
         pod.verifyBeaconChainFullWithdrawal(proof, blockNumberRoot, withdrawalContainerFields,  0);
     }
 
