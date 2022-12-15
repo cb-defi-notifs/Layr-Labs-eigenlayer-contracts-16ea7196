@@ -664,18 +664,26 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
             assertTrue(pod.rollableBalanceGwei() - rolleableBalanceBefore == partialWithdrawalAmountGwei, "rollable balance not changed correctly");
         }
     }
-
-    // 19. Pay penalties from partial withdrawal and then roll over balance
-    // Setup: Run (18).
-    // Test: Run enough full withdrawals until all penalties are paid. Attempt to roll over toRollAmountGwei.
-    // Expected Behaviour: Math is more complicated here, but keep track of rollable balance and make sure it
-    //                     always accounts for the parital withdrawal
-
-    // 20. Withdraw penalties
+    // 19. Withdraw penalties
     // Setup: Run (7).
     // Test: IM owner attempts to withdraw amount penalties for pod to recipient.
     // Expected Behaviour: EigenPodManager.balance should decrement by amount
     //                     recipient.balance should increment by amount 
+    function testWithdrawPenalties(bytes memory signature, bytes32 depositDataRoot, uint64 partialWithdrawalAmountGwei) public {
+        cheats.assume(partialWithdrawalAmountGwei > REQUIRED_BALANCE_WEI/GWEI_TO_WEI);
+        uint256 amount = partialWithdrawalAmountGwei - REQUIRED_BALANCE_WEI/GWEI_TO_WEI;
+        testPayOffPenaltiesWithPartialWithdrawal(signature, depositDataRoot, partialWithdrawalAmountGwei);
+        uint256 podOwnerBalanceBefore = podOwner.balance;
+        cheats.startPrank(address(this));
+        eigenPodManager.withdrawPenalties(podOwner, podOwner, amount);
+        assertTrue(podOwner.balance - podOwnerBalanceBefore == amount);
+    }
+
+    // 20. Pay penalties from partial withdrawal and then roll over balance
+    // Setup: Run (18).
+    // Test: Run enough full withdrawals until all penalties are paid. Attempt to roll over toRollAmountGwei.
+    // Expected Behaviour: Math is more complicated here, but keep track of rollable balance and make sure it
+    //                     always accounts for the parital withdrawal
 
     function testEigenPodsQueuedWithdrawal(address operator, bytes memory signature, bytes32 depositDataRoot) public fuzzedAddress(operator){
         //make initial deposit
