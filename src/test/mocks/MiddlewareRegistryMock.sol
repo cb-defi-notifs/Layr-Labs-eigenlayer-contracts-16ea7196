@@ -4,6 +4,7 @@ pragma solidity ^0.8.9;
 import "../../contracts/interfaces/IServiceManager.sol";
 import "../../contracts/interfaces/IRegistry.sol";
 import "../../contracts/interfaces/IInvestmentManager.sol";
+import "../../contracts/interfaces/ISlasher.sol";
 
 import "forge-std/Test.sol";
 
@@ -13,6 +14,7 @@ import "forge-std/Test.sol";
 contract MiddlewareRegistryMock is IRegistry, DSTest{
     IServiceManager public serviceManager;
     IInvestmentManager public investmentManager;
+    ISlasher public slasher;
 
 
     constructor(
@@ -21,11 +23,11 @@ contract MiddlewareRegistryMock is IRegistry, DSTest{
     ){
         serviceManager = _serviceManager;
         investmentManager = _investmentManager;
-
+        slasher = _investmentManager.slasher();
     }
 
     function registerOperator(address operator, uint32 serveUntil) public {        
-        require(investmentManager.slasher().canSlash(operator, address(serviceManager)), "Not opted into slashing");
+        require(slasher.canSlash(operator, address(serviceManager)), "Not opted into slashing");
         serviceManager.recordFirstStakeUpdate(operator, serveUntil);
 
     }

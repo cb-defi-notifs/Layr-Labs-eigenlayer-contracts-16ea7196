@@ -36,19 +36,7 @@ interface ISlasher {
      * @dev The operator must have previously given the caller (which should be a contract) the ability to slash them, through a call to `optIntoSlashing`.
      */
     function freezeOperator(address toBeFrozen) external;
-
-    /**
-     * @notice Used to give global slashing permission to `contracts`.
-     * @dev Callable only by the contract owner (i.e. governance).
-     */
-    function addGloballyPermissionedContracts(address[] calldata contracts) external;
-
-    /**
-     * @notice Used to revoke global slashing permission from `contracts`.
-     * @dev Callable only by the contract owner (i.e. governance).
-     */
-    function removeGloballyPermissionedContracts(address[] calldata contracts) external;
-
+    
     /**
      * @notice Removes the 'frozen' status from each of the `frozenAddresses`
      * @dev Callable only by the contract owner (i.e. governance).
