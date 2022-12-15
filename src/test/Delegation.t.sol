@@ -24,6 +24,12 @@ contract DelegationTests is EigenLayrTestHelper {
     MiddlewareVoteWeigherMock public voteWeigher;
     MiddlewareVoteWeigherMock public voteWeigherImplementation;
 
+    modifier fuzzedAmounts(uint256 ethAmount, uint256 eigenAmount){
+        cheats.assume(ethAmount >= 0 && ethAmount <= 1e18);
+        cheats.assume(eigenAmount >= 0 && eigenAmount <= 1e18);
+        _;
+    }
+
     function setUp() public virtual override {
         EigenLayrDeployer.setUp();
 
@@ -89,10 +95,9 @@ contract DelegationTests is EigenLayrTestHelper {
         public
         fuzzedAddress(operator)
         fuzzedAddress(staker)
+        fuzzedAmounts(ethAmount, eigenAmount)
     {
         cheats.assume(staker != operator);
-        cheats.assume(ethAmount >= 0 && ethAmount <= 1e18);
-        cheats.assume(eigenAmount >= 0 && eigenAmount <= 1e18);
         
         _testDelegation(operator, staker, ethAmount, eigenAmount, voteWeigher);
     }
@@ -105,8 +110,6 @@ contract DelegationTests is EigenLayrTestHelper {
     {
         cheats.assume(ethAmount >= 0 && ethAmount <= 1e18);
         cheats.assume(eigenAmount >= 0 && eigenAmount <= 1e18);
-    
-
         if (!delegation.isOperator(operator)) {
             _testRegisterAsOperator(operator, IDelegationTerms(operator));
         }
@@ -115,8 +118,9 @@ contract DelegationTests is EigenLayrTestHelper {
 
         //making additional deposits to the investment strategies
         assertTrue(delegation.isNotDelegated(staker) == true, "testDelegation: staker is not delegate");
-        _testWethDeposit(staker, ethAmount);
+        _testDepositWeth(staker, ethAmount);
         _testDepositEigen(staker, eigenAmount);
+        
 
         uint256 nonceBefore = delegation.nonces(staker);
 
@@ -146,11 +150,8 @@ contract DelegationTests is EigenLayrTestHelper {
     )
         public
         fuzzedAddress(operator)
+        fuzzedAmounts(ethAmount, eigenAmount)
     {
-        cheats.assume(ethAmount >= 0 && ethAmount <= 1e18);
-        cheats.assume(eigenAmount >= 0 && eigenAmount <= 1e18);
-    
-
         if (!delegation.isOperator(operator)) {
             _testRegisterAsOperator(operator, IDelegationTerms(operator));
         }
@@ -159,21 +160,20 @@ contract DelegationTests is EigenLayrTestHelper {
 
         //making additional deposits to the investment strategies
         assertTrue(delegation.isNotDelegated(staker) == true, "testDelegation: staker is not delegate");
-        _testWethDeposit(staker, ethAmount);
+        _testDepositWeth(staker, ethAmount);
         _testDepositEigen(staker, eigenAmount);
 
         bytes32 vs = getVSfromVandS(v, s);
         
         cheats.expectRevert();
-        delegation.delegateToBySignature(staker, operator, 0, r, vs);
-        
+        delegation.delegateToBySignature(staker, operator, 0, r, vs);   
     }
 
     /// @notice registers a fixed address as a delegate, delegates to it from a second address,
     /// and checks that the delegate's voteWeights increase properly
     /// @param operator is the operator being delegated to.
     /// @param staker is the staker delegating stake to the operator.
-    function testDelegationMultipleStrategies(uint16 numStratsToAdd, address operator, address staker)
+    function testDelegationMultipleStrategies(uint8 numStratsToAdd, address operator, address staker)
         public
         fuzzedAddress(operator)
         fuzzedAddress(staker)
@@ -223,7 +223,7 @@ contract DelegationTests is EigenLayrTestHelper {
     /// @param operator is the operator being delegated to.
     function testRegisterAsOperatorMultipleTimes(address operator) public fuzzedAddress(operator) {
         _testRegisterAsOperator(operator, IDelegationTerms(operator));
-        cheats.expectRevert(bytes("EigenLayrDelegation.registerAsOperator: Delegate has already registered"));
+        cheats.expectRevert(bytes("EigenLayrDelegation.registerAsOperator: operator has already registered"));
         _testRegisterAsOperator(operator, IDelegationTerms(operator));
     }
 
@@ -246,7 +246,7 @@ contract DelegationTests is EigenLayrTestHelper {
         //register as both ETH and EIGEN operator
         uint256 wethToDeposit = 1e18;
         uint256 eigenToDeposit = 1e10;
-        _testWethDeposit(sender, wethToDeposit);
+        _testDepositWeth(sender, wethToDeposit);
         _testDepositEigen(sender, eigenToDeposit);
         _testRegisterAsOperator(sender, IDelegationTerms(sender));
 

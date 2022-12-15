@@ -19,7 +19,7 @@ import "./Slasher.sol";
  * - enabling any staker to delegate its stake to the operator of its choice
  * - enabling a staker to undelegate its assets from an operator (performed as part of the withdrawal process, initiated through the InvestmentManager)
  */
-contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDelegationStorage, Pausable, DSTest {
+contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDelegationStorage, Pausable {
     uint8 internal constant PAUSED_NEW_DELEGATION = 0;
 
     /// @notice Simple permission for functions that are only callable by the InvestmentManager contract.
@@ -29,8 +29,8 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
     }
 
     // INITIALIZING FUNCTIONS
-    constructor(IInvestmentManager _investmentManager) 
-        EigenLayrDelegationStorage(_investmentManager)
+    constructor(IInvestmentManager _investmentManager, ISlasher _slasher) 
+        EigenLayrDelegationStorage(_investmentManager, _slasher)
     {
         _disableInitializers();
     }
@@ -61,7 +61,7 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
     function registerAsOperator(IDelegationTerms dt) external {
         require(
             address(delegationTerms[msg.sender]) == address(0),
-            "EigenLayrDelegation.registerAsOperator: Delegate has already registered"
+            "EigenLayrDelegation.registerAsOperator: operator has already registered"
         );
         // store the address of the delegation contract that the operator is providing.
         delegationTerms[msg.sender] = dt;
@@ -101,6 +101,7 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
      * @dev Should only ever be called in the event that the `staker` has no active deposits in EigenLayer.
      */
     function undelegate(address staker) external onlyInvestmentManager {
+        require(!isOperator(staker), "EigenLayrDelegation.undelegate: operators cannot undelegate from themselves");
         delegatedTo[staker] = address(0);
     }
 
@@ -132,33 +133,9 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
     }
 
     /**
-     * @notice Decreases the `staker`'s delegated shares in `strategy` by `shares, typically called when the staker withdraws from EigenLayr
+     * @notice Decreases the `staker`'s delegated shares in each entry of `strategies` by its respective `shares[i]`, typically called when the staker withdraws from EigenLayr
      * @dev Callable only by the InvestmentManager
      */
-    function decreaseDelegatedShares(address staker, IInvestmentStrategy strategy, uint256 shares)
-        external
-        onlyInvestmentManager
-    {
-        //if the staker is delegated to an operator
-        if (isDelegated(staker)) {
-            address operator = delegatedTo[staker];
-
-            // subtract strategy shares from delegate's shares
-            operatorShares[operator][strategy] -= shares;
-
-            //Calls into operator's delegationTerms contract to update weights of individual staker
-            IInvestmentStrategy[] memory investorStrats = new IInvestmentStrategy[](1);
-            uint256[] memory investorShares = new uint[](1);
-            investorStrats[0] = strategy;
-            investorShares[0] = shares;
-
-            // call into hook in delegationTerms contract
-            IDelegationTerms dt = delegationTerms[operator];
-            _delegationWithdrawnHook(dt, staker, investorStrats, investorShares);
-        }
-    }
-
-    /// @notice Version of `decreaseDelegatedShares` that accepts an array of inputs.
     function decreaseDelegatedShares(
         address staker,
         IInvestmentStrategy[] calldata strategies,
@@ -298,7 +275,6 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
 
         require(isNotDelegated(staker), "EigenLayrDelegation._delegate: staker has existing delegation");
         // checks that operator has not been frozen
-        ISlasher slasher = investmentManager.slasher();
         require(!slasher.isFrozen(operator), "EigenLayrDelegation._delegate: cannot delegate to a frozen operator");
 
         // record delegation relation between the staker and operator
@@ -334,7 +310,7 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
     }
 
     /// @notice Returns if an operator can be delegated to, i.e. it has called `registerAsOperator`.
-    function isOperator(address operator) external view returns (bool) {
+    function isOperator(address operator) public view returns (bool) {
         return (address(delegationTerms[operator]) != address(0));
     }
 }

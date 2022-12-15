@@ -44,7 +44,6 @@ abstract contract InvestmentManagerStorage is IInvestmentManager {
 
     IInvestmentStrategy public constant beaconChainETHStrategy = IInvestmentStrategy(0xbeaC0eeEeeeeEEeEeEEEEeeEEeEeeeEeeEEBEaC0);
 
-
     constructor(IEigenLayrDelegation _delegation, IEigenPodManager _eigenPodManager, ISlasher _slasher) {
         delegation = _delegation;
         eigenPodManager = _eigenPodManager;

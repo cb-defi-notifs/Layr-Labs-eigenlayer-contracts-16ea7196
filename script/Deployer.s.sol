@@ -24,10 +24,7 @@ import "../src/contracts/pods/EigenPodManager.sol";
 import "../src/contracts/permissions/PauserRegistry.sol";
 import "../src/contracts/middleware/BLSPublicKeyCompendium.sol";
 
-import "../src/contracts/libraries/BLS.sol";
 import "../src/contracts/libraries/BytesLib.sol";
-
-import "../src/test/utils/Signatures.sol";
 
 import "../src/test/mocks/EmptyContract.sol";
 import "../src/test/mocks/BeaconChainOracleMock.sol";
@@ -38,7 +35,6 @@ import "forge-std/Test.sol";
 import "forge-std/Script.sol";
 import "forge-std/StdJson.sol";
 
-import "../src/contracts/libraries/BLS.sol";
 import "../src/contracts/libraries/BytesLib.sol";
 
 // # To load the variables in the .env file
@@ -46,8 +42,6 @@ import "../src/contracts/libraries/BytesLib.sol";
 
 // # To deploy and verify our contract
 // forge script script/Deployer.s.sol:EigenLayrDeployer --rpc-url $RPC_URL  --private-key $PRIVATE_KEY --broadcast -vvvv
-
-//TODO: encode data properly so that we initialize TransparentUpgradeableProxy contracts in their constructor rather than a separate call (if possible)
 contract EigenLayrDeployer is Script, DSTest {
     //,
     // Signers,
@@ -84,19 +78,16 @@ contract EigenLayrDeployer is Script, DSTest {
     EmptyContract public emptyContract;
 
     uint256 nonce = 69;
+    uint32 PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD = 7 days / 12 seconds;
+    uint256 REQUIRED_BALANCE_WEI = 31.4 ether;
+    uint64 MAX_PARTIAL_WTIHDRAWAL_AMOUNT_GWEI = 1 ether / 1e9;
 
     bytes[] registrationData;
-
-    // strategy index => IInvestmentStrategy
-    mapping(uint256 => IInvestmentStrategy) public strategies;
-    // number of strategies deployed
-    uint256 public numberOfStrats;
 
     //strategy indexes for undelegation (see commitUndelegation function)
     uint256[] public strategyIndexes;
 
     uint256 wethInitialSupply = 10e50;
-    uint256 undelegationFraudProofInterval = 7 days;
     address storer = address(420);
     address registrant = address(0x4206904396bF2f8b173350ADdEc5007A52664293); //sk: e88d9d864d5d731226020c5d2f02b62a4ce2a4534a39c225d32d3db795f83319
 
@@ -109,13 +100,9 @@ contract EigenLayrDeployer is Script, DSTest {
     //     0x1234567812345678123456781234567812345698123456781234567812348976;
     // address acct_1 = cheats.addr(uint256(priv_key_1));
 
-    bytes32 public ephemeralKey = 0x3290567812345678123456781234577812345698123456781234567812344389;
-
     uint256 public constant eigenTotalSupply = 1000e18;
 
     uint256 public gasLimit = 750000;
-
-    address[] public slashingContracts;
 
     function run() external {
         vm.startBroadcast();
@@ -156,15 +143,15 @@ contract EigenLayrDeployer is Script, DSTest {
         beaconChainOracle.setBeaconChainStateRoot(0xb08d5a1454de19ac44d523962096d73b85542f81822c5e25b8634e4e86235413);
 
         ethPOSDeposit = new ETHPOSDepositMock();
-        pod = new EigenPod(ethPOSDeposit);
+        pod = new EigenPod(ethPOSDeposit, PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD, REQUIRED_BALANCE_WEI, MAX_PARTIAL_WTIHDRAWAL_AMOUNT_GWEI);
 
         eigenPodBeacon = new UpgradeableBeacon(address(pod));
 
         // Second, deploy the *implementation* contracts, using the *proxy contracts* as inputs
-        EigenLayrDelegation delegationImplementation = new EigenLayrDelegation(investmentManager);
+        EigenLayrDelegation delegationImplementation = new EigenLayrDelegation(investmentManager, slasher);
         InvestmentManager investmentManagerImplementation = new InvestmentManager(delegation, eigenPodManager, slasher);
         Slasher slasherImplementation = new Slasher(investmentManager, delegation);
-        EigenPodManager eigenPodManagerImplementation = new EigenPodManager(ethPOSDeposit, eigenPodBeacon, investmentManager);
+        EigenPodManager eigenPodManagerImplementation = new EigenPodManager(ethPOSDeposit, eigenPodBeacon, investmentManager, slasher);
 
         // Third, upgrade the proxy contracts to use the correct implementation contracts and initialize them.
         eigenLayrProxyAdmin.upgradeAndCall(
@@ -226,12 +213,10 @@ contract EigenLayrDeployer is Script, DSTest {
                 )
             )
         );
-
-        slashingContracts.push(address(eigenPodManager));
-        investmentManager.slasher().addGloballyPermissionedContracts(slashingContracts);
         
         vm.writeFile("data/investmentManager.addr", vm.toString(address(investmentManager)));
         vm.writeFile("data/delegation.addr", vm.toString(address(delegation)));
+        vm.writeFile("data/slasher.addr", vm.toString(address(slasher)));
         vm.writeFile("data/weth.addr", vm.toString(address(weth)));
         vm.writeFile("data/wethStrat.addr", vm.toString(address(wethStrat)));
         vm.writeFile("data/eigen.addr", vm.toString(address(eigenToken)));
