@@ -408,7 +408,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     //                     rollableBalanceGwei should be 0
     //                     validator status should be marked as WITHDRWAN
 
-    function testPayOffPenaltiesWithSufficientWithdrawal(bytes memory signature, bytes32 depositDataRoot /*, uint64 withdrawalAmountGwei*/) public {
+    function testPayOffPenaltiesWithSufficientWithdrawal(bytes memory signature, bytes32 depositDataRoot) public {
         uint64 withdrawalAmountGwei = 31400000000;
         IEigenPod pod = testDeployAndVerifyNewEigenPod(signature, depositDataRoot);
 
@@ -470,11 +470,6 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     //                     instantlyWithdrawableBalanceGwei_BEFORE should be (AMOUNT - REQUIRED_BALANCE_GWEI) * n
     //                     instantlyWithdrawableBalanceGwei should be instantlyWithdrawableBalanceGwei_BEFORE - withdrawAmountGwei
     //                     pod owner balance should increase by withdrawAmountGwei
-    // function testInstantWithdrawalsAfterSufficientWithdrawals() public {
-
-
-    // }
-
 
     // 9. Roll over penalties paid from instantly withdrawable funds after sufficient withdrawals
     // Setup: Run testPayOffMultiplePenaltiesWithSufficientWithdrawal. 
@@ -483,6 +478,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     // Expected Behaviour: restakedExuctionLayerGwei should decrement by toRollAmountGwei
     //                     instantlyWithdrawableBalanceGwei should increment by toRollAmountGwei
     //                     rollableBalanceGwei should decrement toRollAmountGwei
+
 
     // 10. Fail to roll over rollable balance when all penalties are not paid
     // Setup: Run (5), run (6). 
@@ -495,13 +491,13 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     //                     (pod.balance - restakedExecutionLayerGwei - instantlyWithdrawableBalanceGwei) amount 
     //                     at block.number to the end of the partial withdrawal list
 
-    function testMakePartialWithdrawalClaim(bytes memory signature, bytes32 depositDataRoot, uint64 partialWithdrawalAmountGwei) public {
+    function testMakePartialWithdrawalClaim(bytes memory signature, bytes32 depositDataRoot, uint64 partialWithdrawalAmountGwei) public returns(IEigenPod,  IEigenPod.PartialWithdrawalClaim memory){
         IEigenPod pod = testDeployAndVerifyNewEigenPod(signature, depositDataRoot);
 
         uint64 restakedExectionLayerGweiBefore = pod.restakedExecutionLayerGwei();
         uint64 instantlyWithdrawableBalanceGweiBefore = pod.instantlyWithdrawableBalanceGwei();
         uint256 lengthBefore = pod.getPartialWithdrawalClaimsLength();
-
+        cheats.assume(partialWithdrawalAmountGwei >= restakedExectionLayerGweiBefore + instantlyWithdrawableBalanceGweiBefore);
         cheats.deal(address(pod), address(pod).balance + partialWithdrawalAmountGwei * GWEI_TO_WEI);
 
         cheats.prank(pod.podOwner());
@@ -512,6 +508,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         assertTrue(claim.status == IEigenPod.PARTIAL_WITHDRAWAL_CLAIM_STATUS.PENDING);
         assertTrue(claim.partialWithdrawalAmountGwei == uint64(address(pod).balance / GWEI_TO_WEI) - restakedExectionLayerGweiBefore - instantlyWithdrawableBalanceGweiBefore);
         assertTrue(pod.getPartialWithdrawalClaimsLength() == lengthBefore + 1);
+        return (pod, claim);
 
     }
 
@@ -520,12 +517,32 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     // Test: Record a balance snapshot with an expire block in the past
     // Expected Behaviour: Reverts due to expiry
 
-    // 13. Premature partial withdrawal claim redemption
+    function testExpiredPartialWithdrawalClaim(bytes memory signature, bytes32 depositDataRoot, uint64 partialWithdrawalAmountGwei, uint32 expireBlockNumber) public {
+        IEigenPod pod = testDeployAndVerifyNewEigenPod(signature, depositDataRoot);
+
+        uint64 restakedExectionLayerGweiBefore = pod.restakedExecutionLayerGwei();
+        uint64 instantlyWithdrawableBalanceGweiBefore = pod.instantlyWithdrawableBalanceGwei();
+        cheats.assume(partialWithdrawalAmountGwei >= restakedExectionLayerGweiBefore + instantlyWithdrawableBalanceGweiBefore);
+        cheats.deal(address(pod), address(pod).balance + partialWithdrawalAmountGwei * GWEI_TO_WEI);
+
+        cheats.prank(pod.podOwner());
+        cheats.assume(expireBlockNumber < uint32(block.number));
+        cheats.expectRevert(bytes("EigenPod.recordBalanceSnapshot: recordPartialWithdrawalClaim tx mined too late"));
+        pod.recordPartialWithdrawalClaim(expireBlockNumber);
+    }
+
+    // 14. Premature partial withdrawal claim redemption
     // Setup: Run (11).
     // Test: Pod owner attempts to redeem partial withdrawals after a duration of blocks less than PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS
     // Expected Behaviour: Reverts because fraud proof period has not passed
+    function testPrematurePartialWithdrawalClaim(bytes memory signature, bytes32 depositDataRoot, uint64 partialWithdrawalAmountGwei, address recipient) public fuzzedAddress(recipient){
+        (IEigenPod pod,) = testMakePartialWithdrawalClaim(signature, depositDataRoot, partialWithdrawalAmountGwei);
+        cheats.prank(podOwner);
+        cheats.expectRevert(bytes("EigenPod.redeemLatestPartialWithdrawal: can only redeem partial withdrawals after fraudproof period"));
+        pod.redeemLatestPartialWithdrawal(recipient);
+    }
 
-    // 14. Fraudulent partial withdrawal
+    // 15. Fraudulent partial withdrawal
     // Setup: Credit balance with AMOUNT (>= REQUIRED_BALANCE_GWEI). Run (11).
     // Test: Watcher proves withdrawal of AMOUNT before the block in which (11) occured.
     // Expected Behaviour: Partial withdrawal should be marked as failed.
@@ -541,6 +558,19 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     // Expected Behaviour: pod.balance should be decremented by PARTIAL_AMOUNT_GWEI gwei
     //                     podOwner balance should be incremented by PARTIAL_AMOUNT_GWEI gwei
     //                     partial withdrawal should be marked as redeemed
+    function testRedeemPartialWithdrawalClaim(bytes memory signature, bytes32 depositDataRoot, uint64 partialWithdrawalAmountGwei, address recipient) public fuzzedAddress(recipient){
+        (IEigenPod pod, IEigenPod.PartialWithdrawalClaim memory claim) = testMakePartialWithdrawalClaim(signature, depositDataRoot, partialWithdrawalAmountGwei);
+        
+        uint256 recipientBalanceBefore = recipient.balance;
+        uint256 podBalanceBefore = address(pod).balance;
+
+        cheats.prank(podOwner);
+        cheats.roll(claim.fraudproofPeriodEndBlockNumber + 1);
+        pod.redeemLatestPartialWithdrawal(recipient);
+
+        assertTrue(recipient.balance - recipientBalanceBefore == (uint256(claim.partialWithdrawalAmountGwei) * uint256(1e9))); 
+        assertTrue(podBalanceBefore - address(pod).balance == (uint256(claim.partialWithdrawalAmountGwei) * uint256(1e9))); 
+    }
 
     // 17. Double partial withdrawal
     // Setup: Run (11). 

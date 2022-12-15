@@ -98,6 +98,9 @@ contract EigenLayrDeployer is Operators, SignatureUtils {
         cheats.assume(addr != address(0));
         cheats.assume(addr != address(eigenLayrProxyAdmin));
         cheats.assume(addr != address(investmentManager));
+        cheats.assume(addr != address(eigenPodManager));
+        cheats.assume(addr != address(delegation));
+        cheats.assume(addr != address(slasher));
         _;
     }
 
