@@ -546,6 +546,23 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     // Setup: Credit balance with AMOUNT (>= REQUIRED_BALANCE_GWEI). Run (11).
     // Test: Watcher proves withdrawal of AMOUNT before the block in which (11) occured.
     // Expected Behaviour: Partial withdrawal should be marked as failed.
+    function testFraudulentPartialWithdrawal(bytes memory signature, bytes32 depositDataRoot, uint64 partialWithdrawalAmountGwei) public {
+        cheats.roll(block.number + 100);
+        (IEigenPod pod,) = testMakePartialWithdrawalClaim(signature, depositDataRoot, partialWithdrawalAmountGwei);
+        uint64 withdrawalAmountGwei = 31400000000;
+        // withdrawal amount must be sufficient
+        cheats.assume(withdrawalAmountGwei >= pod.REQUIRED_BALANCE_GWEI() && withdrawalAmountGwei <= 33 ether);
+
+        cheats.deal(address(pod), address(pod).balance + withdrawalAmountGwei * GWEI_TO_WEI);
+
+        // prove sufficient full withdrawal
+        _proveFullWithdrawal(pod);
+
+        //ensure that partial withdrawal claim is failed because latest claim's creation blocknumber is after most recent full withdrawal
+        IEigenPod.PartialWithdrawalClaim memory currentClaim = pod.getPartialWithdrawalClaim(pod.getPartialWithdrawalClaimsLength() - 1);
+        assertTrue(currentClaim.status == IEigenPod.PARTIAL_WITHDRAWAL_CLAIM_STATUS.FAILED);
+
+    }
 
     // 15. Redeem fraudulent partial withdrawal
     // Setup: Run (14).
