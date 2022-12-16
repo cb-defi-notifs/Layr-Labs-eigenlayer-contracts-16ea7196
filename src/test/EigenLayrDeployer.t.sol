@@ -108,15 +108,14 @@ contract EigenLayrDeployer is Operators, SignatureUtils {
 
     //performs basic deployment before each test
     function setUp() public virtual {
+        _deployEigenLayrContracts();
+
         fuzzedAddressMapping[address(0)] = true;
         fuzzedAddressMapping[address(eigenLayrProxyAdmin)] = true;
         fuzzedAddressMapping[address(investmentManager)] = true;
         fuzzedAddressMapping[address(eigenPodManager)] = true;
         fuzzedAddressMapping[address(delegation)] = true;
         fuzzedAddressMapping[address(slasher)] = true;
-
-        _deployEigenLayrContracts();
-
     }
 
     function _deployEigenLayrContracts() internal {
