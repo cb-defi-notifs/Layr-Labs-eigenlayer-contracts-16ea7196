@@ -118,10 +118,6 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
             "BLSRegistry._registerOperator: operator does not own pubkey"
         );
 
-        require(
-            pubkeyHashToStakeHistory[pubkeyHash].length == 0, "BLSRegistry._registerOperator: pubkey already registered"
-        );
-
         // the new aggregate public key is the current one added to registering operator's public key
         BN254.G1Point memory newApk = BN254.plus(apk, pk);
 
