@@ -322,14 +322,11 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     //                     restakedExecutionLayerBalanceGwei should be 0
     //                     instantlyWithdrawableBalanceGwei should be 0
     //                     validator status should be marked as OVERCOMMITTED
-
+    // This test tests a "small" withdrawal amount - this affects the behavior in how penalties are paid.
     function testSmallInsufficientFullWithdrawalForActiveValidator(bytes memory signature, bytes32 depositDataRoot) public {
         uint64 withdrawalAmountGwei = 1e9;
         bool isLargeWithdrawal = false;
         IEigenPod pod = testDeployAndVerifyNewEigenPod(signature, depositDataRoot);
-
-        emit log_uint(pod.restakedExecutionLayerGwei());
-        emit log_uint(pod.penaltiesDueToOvercommittingGwei());
 
         // the validator must be active, not proven overcommitted
         require(pod.validatorStatus(validatorIndex0) == IEigenPod.VALIDATOR_STATUS.ACTIVE, "Validator must be active");
@@ -339,7 +336,6 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         uint64 instantlyWithdrawableBalanceGweiBefore = pod.instantlyWithdrawableBalanceGwei();
         uint64 rolleableBalanceBefore = pod.rollableBalanceGwei();
         uint64 penaltiesDueToOvercommittingGweiBefore = pod.penaltiesDueToOvercommittingGwei();
-        emit log_named_uint("penaltiesDueToOvercommittingGweiBefore", penaltiesDueToOvercommittingGweiBefore);
 
         cheats.deal(address(pod), address(pod).balance + withdrawalAmountGwei * GWEI_TO_WEI);
 
@@ -371,7 +367,8 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         assertTrue(pod.rollableBalanceGwei() == rolleableBalanceBefore, "rollable balance has changed");
         assertTrue(pod.validatorStatus(validatorIndex0) == IEigenPod.VALIDATOR_STATUS.WITHDRAWN, "validator status not updated correctly");
     }
-
+    
+    // This test tests a "large" withdrawal amount - this affects the behavior in how penalties are paid.
     function testLargeInsufficientFullWithdrawalForActiveValidator(bytes memory signature, bytes32 depositDataRoot) public {
         uint64 withdrawalAmountGwei = 31000000000;
         bool isLargeWithdrawal = true;
