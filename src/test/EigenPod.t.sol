@@ -45,16 +45,10 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     address unpauser = address(489);
     address podManagerAddress = 0x212224D2F2d262cd093eE13240ca4873fcCBbA3C;
     uint256 stakeAmount = 32e18;
+    mapping (address => bool) fuzzedAddressMapping;
 
     modifier fuzzedAddress(address addr) virtual {
-        cheats.assume(addr != address(0));
-        cheats.assume(addr != address(eigenLayrProxyAdmin));
-        cheats.assume(addr != address(investmentManager));
-        cheats.assume(addr != address(eigenPodManager));
-        cheats.assume(addr != address(delegation));
-        cheats.assume(addr != address(slasher));
-        cheats.assume(addr != address(generalServiceManager1));
-        cheats.assume(addr != address(generalReg1));
+        cheats.assume(fuzzedAddressMapping[addr] == false);
         _;
     }
 
@@ -145,7 +139,17 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
              investmentManager
         );
 
-        cheats.deal(address(podOwner), stakeAmount);        
+        cheats.deal(address(podOwner), stakeAmount);     
+
+        fuzzedAddressMapping[address(0)] = true;
+        fuzzedAddressMapping[address(eigenLayrProxyAdmin)] = true;
+        fuzzedAddressMapping[address(investmentManager)] = true;
+        fuzzedAddressMapping[address(eigenPodManager)] = true;
+        fuzzedAddressMapping[address(delegation)] = true;
+        fuzzedAddressMapping[address(slasher)] = true;
+        fuzzedAddressMapping[address(generalServiceManager1)] = true;
+        fuzzedAddressMapping[address(generalReg1)] = true;
+
     }
 
     function testDeployAndVerifyNewEigenPod(bytes memory signature, bytes32 depositDataRoot) public returns(IEigenPod){
@@ -367,7 +371,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         assertTrue(pod.rollableBalanceGwei() == rolleableBalanceBefore, "rollable balance has changed");
         assertTrue(pod.validatorStatus(validatorIndex0) == IEigenPod.VALIDATOR_STATUS.WITHDRAWN, "validator status not updated correctly");
     }
-    
+
     // This test tests a "large" withdrawal amount - this affects the behavior in how penalties are paid.
     function testLargeInsufficientFullWithdrawalForActiveValidator(bytes memory signature, bytes32 depositDataRoot) public {
         uint64 withdrawalAmountGwei = 31000000000;
