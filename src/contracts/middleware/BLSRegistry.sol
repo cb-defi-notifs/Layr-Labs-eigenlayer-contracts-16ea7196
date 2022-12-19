@@ -54,14 +54,12 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
     );
 
     constructor(
-        IEigenLayrDelegation _delegation,
         IInvestmentManager _investmentManager,
         IServiceManager _serviceManager,
         uint8 _NUMBER_OF_QUORUMS,
         IBLSPublicKeyCompendium _pubkeyCompendium
     )
         RegistryBase(
-            _delegation,
             _investmentManager,
             _serviceManager,
             _NUMBER_OF_QUORUMS
@@ -171,8 +169,9 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
     /**
      * @notice Used for updating information on deposits of nodes.
      * @param operators are the nodes whose deposit information is getting updated
+     * @param prevElements are the elements before this middleware in the operator's linked list within the slasher
      */
-    function updateStakes(address[] calldata operators) external {
+    function updateStakes(address[] calldata operators, uint256[] calldata prevElements) external {
         // copy total stake to memory
         OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
 
@@ -180,6 +179,8 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
         OperatorStake memory currentStakes;
         bytes32 pubkeyHash;
         uint256 operatorsLength = operators.length;
+        // make sure lengths are consistent
+        require(operatorsLength == prevElements.length, "BLSRegistry.updateStakes: prevElement is not the same length as operators");
         // iterating over all the tuples that are to be updated
         for (uint256 i = 0; i < operatorsLength;) {
             // get operator's pubkeyHash
@@ -191,7 +192,7 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
             _totalStake.secondQuorumStake -= currentStakes.secondQuorumStake;
 
             // update the stake for the i-th operator
-            currentStakes = _updateOperatorStake(operators[i], pubkeyHash, currentStakes);
+            currentStakes = _updateOperatorStake(operators[i], pubkeyHash, currentStakes, prevElements[i]);
 
             // increase _totalStake by operator's updated stakes
             _totalStake.firstQuorumStake += currentStakes.firstQuorumStake;
