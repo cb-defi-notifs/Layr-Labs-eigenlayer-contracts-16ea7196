@@ -327,6 +327,12 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
         return node;
     }
 
+    /// @notice gets the node previous to the given node in the operators middleware update linked list
+    /// @dev used in offchain libs for updating stakes
+    function getPreviousWhitelistedContractByUpdate(address operator, uint256 node) public view returns (bool, uint256) {
+        return operatorToWhitelistedContractsByUpdate[operator].getPreviousNode(node);
+    }
+
     // INTERNAL FUNCTIONS
 
     function _optIntoSlashing(address operator, address contractAddress) internal {

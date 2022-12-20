@@ -640,7 +640,7 @@ abstract contract RegistryBase is VoteWeigherBase, IQuorumRegistry {
         // push new stake to storage
         pubkeyHashToStakeHistory[pubkeyHash].push(updatedOperatorStake);
         // record stake update in the slasher
-        slasher.recordStakeUpdate(operator, uint32(block.number), serviceManager.latestTime(), insertAfter);
+        serviceManager.recordStakeUpdate(operator, uint32(block.number), serviceManager.latestTime(), insertAfter);
 
         emit StakeUpdate(
             operator,
