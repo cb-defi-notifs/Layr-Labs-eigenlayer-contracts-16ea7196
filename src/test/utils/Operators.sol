@@ -74,4 +74,7 @@ contract Operators is Test {
         }
         return result;
     }
+    function setOperatorJsonFilePath(string memory filepath) public {
+        operatorConfigJson = vm.readFile(filepath);
+    }
 }
