@@ -343,7 +343,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard {
 
         require(
             claim.status == PARTIAL_WITHDRAWAL_CLAIM_STATUS.PENDING,
-            "EigenPod.redeemLatestPartialWithdrawal: partial withdrawal either redeemed or failed making it inelgigble for redemption"
+            "EigenPod.redeemLatestPartialWithdrawal: partial withdrawal either redeemed or failed making it ineligible for redemption"
         );
         require(
             uint32(block.number) > claim.fraudproofPeriodEndBlockNumber,

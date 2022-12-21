@@ -601,7 +601,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         IEigenPod pod = testFraudulentPartialWithdrawal(partialWithdrawalAmountGwei);
 
         cheats.prank(podOwner);
-        cheats.expectRevert(bytes("EigenPod.redeemLatestPartialWithdrawal: partial withdrawal not eligible for redemption"));
+        cheats.expectRevert(bytes("EigenPod.redeemLatestPartialWithdrawal: partial withdrawal either redeemed or failed making it ineligible for redemption"));
         pod.redeemLatestPartialWithdrawal(podOwner);
     }
 
