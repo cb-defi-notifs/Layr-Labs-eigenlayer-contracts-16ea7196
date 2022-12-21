@@ -58,15 +58,14 @@ abstract contract VoteWeigherBaseStorage is Initializable, IVoteWeigher {
     mapping(uint256 => uint256) public quorumBips;
 
     constructor(
-        IEigenLayrDelegation _delegation,
         IInvestmentManager _investmentManager,
         IServiceManager _serviceManager,
         uint8 _NUMBER_OF_QUORUMS
     ) {
         // sanity check that the VoteWeigher is being initialized with at least 1 quorum
         require(_NUMBER_OF_QUORUMS != 0, "VoteWeigherBaseStorage.constructor: _NUMBER_OF_QUORUMS == 0");
-        delegation = _delegation;
         investmentManager = _investmentManager;
+        delegation = _investmentManager.delegation();
         slasher = _investmentManager.slasher();
         serviceManager = _serviceManager;
         NUMBER_OF_QUORUMS = _NUMBER_OF_QUORUMS;
