@@ -42,10 +42,7 @@ import "../src/contracts/libraries/BytesLib.sol";
 
 // # To deploy and verify our contract
 // forge script script/Deployer.s.sol:EigenLayrDeployer --rpc-url $RPC_URL  --private-key $PRIVATE_KEY --broadcast -vvvv
-contract EigenLayrDeployer is Script, DSTest {
-    //,
-    // Signers,
-    // SignatureUtils
+contract EigenLayrDeployer is Script, Test {
 
     using BytesLib for bytes;
 
@@ -91,15 +88,6 @@ contract EigenLayrDeployer is Script, DSTest {
     address storer = address(420);
     address registrant = address(0x4206904396bF2f8b173350ADdEc5007A52664293); //sk: e88d9d864d5d731226020c5d2f02b62a4ce2a4534a39c225d32d3db795f83319
 
-    //from testing seed phrase
-    // bytes32 priv_key_0 =
-    //     0x1234567812345678123456781234567812345678123456781234567812345678;
-    // address acct_0 = cheats.addr(uint256(priv_key_0));
-
-    // bytes32 priv_key_1 =
-    //     0x1234567812345678123456781234567812345698123456781234567812348976;
-    // address acct_1 = cheats.addr(uint256(priv_key_1));
-
     uint256 public constant eigenTotalSupply = 1000e18;
 
     uint256 public gasLimit = 750000;
@@ -111,9 +99,6 @@ contract EigenLayrDeployer is Script, DSTest {
         address pauser = msg.sender;
         address unpauser = msg.sender;
         address eigenLayrReputedMultisig = msg.sender;
-
-
-
 
         // deploy proxy admin for ability to upgrade proxy contracts
         eigenLayrProxyAdmin = new ProxyAdmin();
@@ -214,6 +199,8 @@ contract EigenLayrDeployer is Script, DSTest {
             )
         );
         
+        vm.stopBroadcast();
+
         vm.writeFile("data/investmentManager.addr", vm.toString(address(investmentManager)));
         vm.writeFile("data/delegation.addr", vm.toString(address(delegation)));
         vm.writeFile("data/slasher.addr", vm.toString(address(slasher)));
@@ -222,7 +209,5 @@ contract EigenLayrDeployer is Script, DSTest {
         vm.writeFile("data/eigen.addr", vm.toString(address(eigenToken)));
         vm.writeFile("data/eigenStrat.addr", vm.toString(address(eigenStrat)));
         vm.writeFile("data/eigenStrat.addr", vm.toString(address(eigenStrat)));
-
-        vm.stopBroadcast();
     }
 }
