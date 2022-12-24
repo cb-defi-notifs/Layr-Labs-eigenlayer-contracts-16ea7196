@@ -9,6 +9,7 @@ import "./Staker.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/presets/ERC20PresetMinterPauser.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/Create2.sol";
 
 contract Whitelister is Ownable {
     address constant invesmentManager = 0x0000000000000000000000000000000000000000;
@@ -18,26 +19,69 @@ contract Whitelister is Ownable {
 
     uint256 internal constant DEFAULT_AMOUNT = 100e18;
 
-    mapping(address => Staker) public operatorToStakers;
-
-    constructor(ERC20PresetMinterPauser _whitelistToken, IInvestmentStrategy _whitelistStrategy) {
+    //TODO: Deploy ERC20PresetMinterPauser and a corresponding InvestmentStrategyBase for it
+    //TODO: Transfer ownership of Whitelister to multisig after deployment
+    //TODO: Give mint/admin/pauser permssions of whitelistToken to Whitelister and multisig after deployment
+    //TODO: Give up mint/admin/pauser permssions of whitelistToken for deployer
+    constructor(
+        ERC20PresetMinterPauser _whitelistToken,
+        IInvestmentStrategy _whitelistStrategy
+    ) {
         whitelistToken = _whitelistToken;
         whitelistStrategy = _whitelistStrategy;
     }
 
     function whitelist(address operator) public onlyOwner {
-        operatorToStakers[operator] = new Staker(whitelistStrategy, whitelistToken, DEFAULT_AMOUNT, operator);
+        // mint the staker the tokens
+        whitelistToken.mint(getStaker(operator), DEFAULT_AMOUNT);
+        // deploy the staker
+        Create2.deploy(
+            0,
+            bytes32(uint256(uint160(msg.sender))),
+            abi.encodePacked(
+                type(Staker).creationCode,
+                abi.encode(
+                    whitelistStrategy,
+                    whitelistToken,
+                    DEFAULT_AMOUNT,
+                    operator
+                )
+            )
+        );
+    }
+
+    function getStaker(address operator) public view returns (address) {
+        return
+            Create2.computeAddress(
+                bytes32(uint256(uint160(operator))), //salt
+                keccak256(
+                    abi.encodePacked(
+                        type(Staker).creationCode,
+                        abi.encode(
+                            whitelistStrategy,
+                            whitelistToken,
+                            DEFAULT_AMOUNT,
+                            operator
+                        )
+                    )
+                ) //bytecode
+            );
     }
 
     function depositIntoStrategy(
-        address staker, 
-        IInvestmentStrategy strategy, 
-        IERC20 token, 
+        address staker,
+        IInvestmentStrategy strategy,
+        IERC20 token,
         uint256 amount
-    ) public onlyOwner returns(bytes memory) {
+    ) public onlyOwner returns (bytes memory) {
         bytes memory data = abi.encode(
             address(invesmentManager),
-            abi.encodeWithSelector(IInvestmentManager.depositIntoStrategy.selector, strategy, token, amount)
+            abi.encodeWithSelector(
+                IInvestmentManager.depositIntoStrategy.selector,
+                strategy,
+                token,
+                amount
+            )
         );
 
         return _callAddress(staker, data);
@@ -51,11 +95,11 @@ contract Whitelister is Ownable {
         uint256[] calldata shares,
         address withdrawer,
         bool undelegateIfPossible
-    ) public onlyOwner returns(bytes memory) {
+    ) public onlyOwner returns (bytes memory) {
         bytes memory data = abi.encode(
             invesmentManager,
             abi.encodeWithSelector(
-                IInvestmentManager.queueWithdrawal.selector, 
+                IInvestmentManager.queueWithdrawal.selector,
                 strategyIndexes,
                 strategies,
                 tokens,
@@ -69,15 +113,15 @@ contract Whitelister is Ownable {
     }
 
     function completeQueuedWithdrawal(
-        address staker, 
-        IInvestmentManager.QueuedWithdrawal calldata queuedWithdrawal, 
-        uint256 middlewareTimesIndex, 
+        address staker,
+        IInvestmentManager.QueuedWithdrawal calldata queuedWithdrawal,
+        uint256 middlewareTimesIndex,
         bool receiveAsTokens
-    ) public onlyOwner returns(bytes memory) {
+    ) public onlyOwner returns (bytes memory) {
         bytes memory data = abi.encode(
             invesmentManager,
             abi.encodeWithSelector(
-                IInvestmentManager.completeQueuedWithdrawal.selector, 
+                IInvestmentManager.completeQueuedWithdrawal.selector,
                 queuedWithdrawal,
                 middlewareTimesIndex,
                 receiveAsTokens
@@ -88,29 +132,42 @@ contract Whitelister is Ownable {
     }
 
     function transfer(
-        address staker, address token, address to, uint256 amount
-    ) public onlyOwner returns(bytes memory) {
+        address staker,
+        address token,
+        address to,
+        uint256 amount
+    ) public onlyOwner returns (bytes memory) {
         bytes memory data = abi.encode(
             token,
-            abi.encodeWithSelector(
-                IERC20.transfer.selector, 
-                to,
-                amount
-            )
+            abi.encodeWithSelector(IERC20.transfer.selector, to, amount)
         );
 
         return _callAddress(staker, data);
     }
 
-    function callAddress(address addr, bytes calldata data) public onlyOwner returns(bytes memory) {
+    function callAddress(
+        address addr,
+        bytes calldata data
+    ) public onlyOwner returns (bytes memory) {
         _callAddress(addr, data);
     }
 
-    function _callAddress(address addr, bytes memory data) internal  returns(bytes memory) {
+    function _callAddress(
+        address addr,
+        bytes memory data
+    ) internal returns (bytes memory) {
         assembly {
             // Call the implementation.
             // out and outsize are 0 because we don't know the size yet.
-            let result := call(gas(), addr, callvalue(), data, mload(data), 0, 0)
+            let result := call(
+                gas(),
+                addr,
+                callvalue(),
+                data,
+                mload(data),
+                0,
+                0
+            )
 
             // Copy the returned data.
             returndatacopy(0, 0, returndatasize())
