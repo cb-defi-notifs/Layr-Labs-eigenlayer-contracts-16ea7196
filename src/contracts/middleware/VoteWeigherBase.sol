@@ -135,6 +135,32 @@ abstract contract VoteWeigherBase is VoteWeigherBaseStorage {
     }
 
     /**
+     * @notice This function is used for modifying the weights of strategies that are already in the
+     * mapping strategiesConsideredAndMultipliers for a specific @param quorumNumber.
+     * @param strategyIndices is a correctness-check input -- the supplied values must match the indices of the
+     * strategiesToModifyWeightsOf in strategiesConsideredAndMultipliers[quorumNumber]
+     */
+    function modifyStrategyWeights(
+        uint256 quorumNumber,
+        uint256[] calldata strategyIndices,
+        uint96[] calldata newMultipliers
+    ) external virtual onlyServiceManagerOwner {
+        uint256 numStrats = strategyIndices.length;
+        // sanity check on input lengths
+        require(newMultipliers.length == numStrats,
+            "VoteWeigherBase.modifyStrategyWeights: input length mismatch");
+
+        for (uint256 i = 0; i < numStrats;) {
+            // change the strategy's associated multiplier
+            strategiesConsideredAndMultipliers[quorumNumber][strategyIndices[i]].multiplier = newMultipliers[i];
+
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    /**
      * @notice Returns the length of the dynamic array stored in `strategiesConsideredAndMultipliers[quorumNumber]`.
      * @dev Reverts if `quorumNumber` < `NUMBER_OF_QUORUMS`, i.e. the input is out of bounds.
      */
