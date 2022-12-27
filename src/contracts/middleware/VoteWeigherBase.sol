@@ -31,11 +31,10 @@ abstract contract VoteWeigherBase is VoteWeigherBaseStorage {
 
     /// @notice Sets the (immutable) `delegation` and `investmentManager` addresses, as well as the (immutable) `NUMBER_OF_QUORUMS` variable
     constructor(
-        IEigenLayrDelegation _delegation,
         IInvestmentManager _investmentManager,
         IServiceManager _serviceManager,
         uint8 _NUMBER_OF_QUORUMS
-    ) VoteWeigherBaseStorage(_delegation, _investmentManager, _serviceManager, _NUMBER_OF_QUORUMS) 
+    ) VoteWeigherBaseStorage(_investmentManager, _serviceManager, _NUMBER_OF_QUORUMS) 
     // solhint-disable-next-line no-empty-blocks
     {}
 

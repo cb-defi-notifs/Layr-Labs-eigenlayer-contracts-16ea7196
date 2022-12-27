@@ -90,11 +90,11 @@ contract EigenLayrDeployer is Operators {
     address _challenger = address(0x6966904396bF2f8b173350bCcec5007A52669873);
 
     address public eigenLayrReputedMultisig = address(this);
+    mapping (address => bool) fuzzedAddressMapping;
+
 
     modifier fuzzedAddress(address addr) virtual {
-        cheats.assume(addr != address(0));
-        cheats.assume(addr != address(eigenLayrProxyAdmin));
-        cheats.assume(addr != address(investmentManager));
+        cheats.assume(fuzzedAddressMapping[addr] == false);
         _;
     }
 
@@ -106,6 +106,13 @@ contract EigenLayrDeployer is Operators {
     //performs basic deployment before each test
     function setUp() public virtual {
         _deployEigenLayrContracts();
+
+        fuzzedAddressMapping[address(0)] = true;
+        fuzzedAddressMapping[address(eigenLayrProxyAdmin)] = true;
+        fuzzedAddressMapping[address(investmentManager)] = true;
+        fuzzedAddressMapping[address(eigenPodManager)] = true;
+        fuzzedAddressMapping[address(delegation)] = true;
+        fuzzedAddressMapping[address(slasher)] = true;
     }
 
     function _deployEigenLayrContracts() internal {
