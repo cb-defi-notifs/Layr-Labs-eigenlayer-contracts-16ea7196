@@ -142,22 +142,15 @@ abstract contract VoteWeigherBase is VoteWeigherBaseStorage {
      */
     function modifyStrategyWeights(
         uint256 quorumNumber,
-        IInvestmentStrategy[] calldata strategiesToModifyWeightsOf,
         uint256[] calldata strategyIndices,
         uint96[] calldata newMultipliers
     ) external virtual onlyServiceManagerOwner {
-        uint256 numStrats = strategiesToModifyWeightsOf.length;
+        uint256 numStrats = strategyIndices.length;
         // sanity check on input lengths
-        require(strategyIndices.length == numStrats && newMultipliers.length == numStrats,
+        require(newMultipliers.length == numStrats,
             "VoteWeigherBase.modifyStrategyWeights: input length mismatch");
 
         for (uint256 i = 0; i < numStrats;) {
-            // check that the provided index is correct
-            require(
-                strategiesConsideredAndMultipliers[quorumNumber][strategyIndices[i]].strategy == strategiesToModifyWeightsOf[i],
-                "VoteWeigherBase.modifyStrategyWeights: index incorrect"
-            );
-
             // change the strategy's associated multiplier
             strategiesConsideredAndMultipliers[quorumNumber][strategyIndices[i]].multiplier = newMultipliers[i];
 
