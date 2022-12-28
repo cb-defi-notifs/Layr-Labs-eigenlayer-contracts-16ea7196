@@ -1,0 +1,11 @@
+certoraRun contracts/StakeHouseRegistry.sol contracts/StakeHouseUniverse.sol contracts/StakeHouseAccessControls.sol contracts/banking/SlotSettlementRegistry.sol contracts/banking/savETHRegistry.sol \
+  --verify StakeHouseRegistry:certora/specs/stakeHouseRegistry/stakeHouseRegistry.spec \
+  --link StakeHouseRegistry:universe=StakeHouseUniverse \
+  --link StakeHouseUniverse:accessControls=StakeHouseAccessControls \
+  --link StakeHouseUniverse:slotRegistry=SlotSettlementRegistry \
+  --link StakeHouseUniverse:saveETHRegistry=savETHRegistry \
+  --loop_iter 3 --optimistic_loop \
+  --settings -smt_hashingScheme=Legacy \
+  --settings -superOptimisticReturnsize=true \
+  --msg "StakeHouseRegistry" \
+  --send_only
