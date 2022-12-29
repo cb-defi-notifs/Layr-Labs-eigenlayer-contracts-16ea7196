@@ -47,7 +47,7 @@ contract EigenLayrDeployer is Operators {
     Slasher public slasher;
     EigenLayrDelegation public delegation;
     InvestmentManager public investmentManager;
-    IEigenPodManager public eigenPodManager;
+    EigenPodManager public eigenPodManager;
     IEigenPod public pod;
     IETHPOSDeposit public ethPOSDeposit;
     IBeacon public eigenPodBeacon;
@@ -154,6 +154,8 @@ contract EigenLayrDeployer is Operators {
         Slasher slasherImplementation = new Slasher(investmentManager, delegation);
         EigenPodManager eigenPodManagerImplementation = new EigenPodManager(ethPOSDeposit, eigenPodBeacon, investmentManager, slasher);
 
+        
+
 
         // Third, upgrade the proxy contracts to use the correct implementation contracts and initialize them.
         eigenLayrProxyAdmin.upgradeAndCall(
@@ -218,4 +220,5 @@ contract EigenLayrDeployer is Operators {
 
         stakers = [acct_0, acct_1];
     }
+    
 }
