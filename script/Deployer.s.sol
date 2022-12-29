@@ -263,6 +263,11 @@ contract EigenLayrDeployer is Script, DSTest {
         require(slasher.owner() == eigenLayrReputedMultisig, "slasher owner not set correctly");
         require(eigenPodManager.owner() == eigenLayrReputedMultisig, "delegation owner not set correctly");
 
+
+        require(address(delegation.pauserRegistry()) == address(eigenLayrPauserReg), "delegation's pauser registry not set correctly");
+        require(address(investmentManager.pauserRegistry()) == address(eigenLayrPauserReg), "investmentManager's pauser registry not set correctly");
+        require(address(slasher.pauserRegistry()) == address(eigenLayrPauserReg), "slasher's pauser registry not set correctly");
+
         require(eigenLayrPauserReg.pauser() == pauser, "pauser not set correctly");
         require(eigenLayrPauserReg.unpauser() == unpauser, "pauser not set correctly");
     }
