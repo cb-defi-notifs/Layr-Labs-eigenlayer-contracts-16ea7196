@@ -215,7 +215,8 @@ contract EigenLayrDeployer is Script, DSTest {
         );
 
         verifyImplementation(delegationImplementation, investmentManagerImplementation, slasherImplementation, eigenPodManagerImplementation);
-        verifyOwners(pauser, unpauser, eigenLayrReputedMultisig);
+        verifyOwners(eigenLayrReputedMultisig);
+        checkPauserInitializations(pauser, unpauser);
         
         vm.writeFile("data/investmentManager.addr", vm.toString(address(investmentManager)));
         vm.writeFile("data/delegation.addr", vm.toString(address(delegation)));
@@ -253,8 +254,6 @@ contract EigenLayrDeployer is Script, DSTest {
     }
 
     function verifyOwners(
-        address pauser,
-        address unpauser, 
         address eigenLayrReputedMultisig  
     )internal view {
        
@@ -263,7 +262,11 @@ contract EigenLayrDeployer is Script, DSTest {
         require(slasher.owner() == eigenLayrReputedMultisig, "slasher owner not set correctly");
         require(eigenPodManager.owner() == eigenLayrReputedMultisig, "delegation owner not set correctly");
 
-
+    }
+    function checkPauserInitializations(
+        address pauser,
+        address unpauser
+    ) internal view {
         require(address(delegation.pauserRegistry()) == address(eigenLayrPauserReg), "delegation's pauser registry not set correctly");
         require(address(investmentManager.pauserRegistry()) == address(eigenLayrPauserReg), "investmentManager's pauser registry not set correctly");
         require(address(slasher.pauserRegistry()) == address(eigenLayrPauserReg), "slasher's pauser registry not set correctly");
