@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "../src/contracts/interfaces/IEigenLayrDelegation.sol";
-import "../src/contracts/core/EigenLayrDelegation.sol";
+import "../src/contracts/interfaces/IEigenLayerDelegation.sol";
+import "../src/contracts/core/EigenLayerDelegation.sol";
 
 import "../src/contracts/core/InvestmentManager.sol";
 import "../src/contracts/strategies/InvestmentStrategyBase.sol";
@@ -21,7 +21,7 @@ contract EigenLayerParser is Script, DSTest {
     uint256 numCha;
 
     uint256 public constant eigenTotalSupply = 1000e18;
-    EigenLayrDelegation public delegation;
+    EigenLayerDelegation public delegation;
     InvestmentManager public investmentManager;
     IERC20 public weth;
     InvestmentStrategyBase public wethStrat;
@@ -38,7 +38,7 @@ contract EigenLayerParser is Script, DSTest {
         numStaker = stdJson.readUint(configJson, ".numStaker");
 
         addressJson = vm.readFile("data/addresses.json");
-        delegation = EigenLayrDelegation(stdJson.readAddress(addressJson, ".delegation"));
+        delegation = EigenLayerDelegation(stdJson.readAddress(addressJson, ".delegation"));
         investmentManager = InvestmentManager(stdJson.readAddress(addressJson, ".investmentManager"));
         weth = IERC20(stdJson.readAddress(addressJson, ".weth"));
         wethStrat = InvestmentStrategyBase(stdJson.readAddress(addressJson, ".wethStrat"));

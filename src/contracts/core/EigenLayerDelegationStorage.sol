@@ -3,15 +3,15 @@ pragma solidity ^0.8.9;
 
 import "../interfaces/IInvestmentManager.sol";
 import "../interfaces/IDelegationTerms.sol";
-import "../interfaces/IEigenLayrDelegation.sol";
+import "../interfaces/IEigenLayerDelegation.sol";
 import "../interfaces/ISlasher.sol";
 
 /**
- * @title Storage variables for the `EigenLayrDelegation` contract.
+ * @title Storage variables for the `EigenLayerDelegation` contract.
  * @author Layr Labs, Inc.
  * @notice This storage contract is separate from the logic to simplify the upgrade process.
  */
-abstract contract EigenLayrDelegationStorage is IEigenLayrDelegation {
+abstract contract EigenLayerDelegationStorage is IEigenLayerDelegation {
     /// @notice Gas budget provided in calls to DelegationTerms contracts
     uint256 internal constant LOW_LEVEL_GAS_BUDGET = 1e5;
 
@@ -26,10 +26,10 @@ abstract contract EigenLayrDelegationStorage is IEigenLayrDelegation {
     /// @notice EIP-712 Domain separator
     bytes32 public DOMAIN_SEPARATOR;
 
-    /// @notice The InvestmentManager contract for EigenLayr
+    /// @notice The InvestmentManager contract for EigenLayer
     IInvestmentManager public immutable investmentManager;
 
-    /// @notice The Slasher contract for EigenLayr
+    /// @notice The Slasher contract for EigenLayer
     ISlasher public immutable slasher;
 
     // operator => investment strategy => total number of shares delegated to them

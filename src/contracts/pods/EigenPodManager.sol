@@ -10,7 +10,7 @@ import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
 
 import "../interfaces/IInvestmentManager.sol";
-import "../interfaces/IEigenLayrDelegation.sol";
+import "../interfaces/IEigenLayerDelegation.sol";
 import "../interfaces/IEigenPodManager.sol";
 import "../interfaces/IETHPOSDeposit.sol";
 import "../interfaces/IEigenPod.sol";

@@ -8,8 +8,8 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/proxy/beacon/IBeacon.sol";
 import "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 
-import "../contracts/interfaces/IEigenLayrDelegation.sol";
-import "../contracts/core/EigenLayrDelegation.sol";
+import "../contracts/interfaces/IEigenLayerDelegation.sol";
+import "../contracts/core/EigenLayerDelegation.sol";
 
 import "../contracts/interfaces/IETHPOSDeposit.sol";
 import "../contracts/interfaces/IBeaconChainOracle.sol";
@@ -41,11 +41,11 @@ contract EigenLayrDeployer is Operators {
     Vm cheats = Vm(HEVM_ADDRESS);
 
     // EigenLayer contracts
-    ProxyAdmin public eigenLayrProxyAdmin;
+    ProxyAdmin public eigenLayerProxyAdmin;
     PauserRegistry public eigenLayrPauserReg;
 
     Slasher public slasher;
-    EigenLayrDelegation public delegation;
+    EigenLayerDelegation public delegation;
     InvestmentManager public investmentManager;
     IEigenPodManager public eigenPodManager;
     IEigenPod public pod;
@@ -108,7 +108,7 @@ contract EigenLayrDeployer is Operators {
         _deployEigenLayrContracts();
 
         fuzzedAddressMapping[address(0)] = true;
-        fuzzedAddressMapping[address(eigenLayrProxyAdmin)] = true;
+        fuzzedAddressMapping[address(eigenLayerProxyAdmin)] = true;
         fuzzedAddressMapping[address(investmentManager)] = true;
         fuzzedAddressMapping[address(eigenPodManager)] = true;
         fuzzedAddressMapping[address(delegation)] = true;
@@ -117,7 +117,7 @@ contract EigenLayrDeployer is Operators {
 
     function _deployEigenLayrContracts() internal {
         // deploy proxy admin for ability to upgrade proxy contracts
-        eigenLayrProxyAdmin = new ProxyAdmin();
+        eigenLayerProxyAdmin = new ProxyAdmin();
 
         //deploy pauser registry
         eigenLayrPauserReg = new PauserRegistry(pauser, unpauser);
@@ -127,17 +127,17 @@ contract EigenLayrDeployer is Operators {
          * not yet deployed, we give these proxies an empty contract as the initial implementation, to act as if they have no code.
          */
         emptyContract = new EmptyContract();
-        delegation = EigenLayrDelegation(
-            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
+        delegation = EigenLayerDelegation(
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayerProxyAdmin), ""))
         );
         investmentManager = InvestmentManager(
-            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayerProxyAdmin), ""))
         );
         slasher = Slasher(
-            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayerProxyAdmin), ""))
         );
         eigenPodManager = EigenPodManager(
-            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayerProxyAdmin), ""))
         );
 
         beaconChainOracle = new BeaconChainOracleMock();
@@ -149,29 +149,29 @@ contract EigenLayrDeployer is Operators {
         eigenPodBeacon = new UpgradeableBeacon(address(pod));
 
         // Second, deploy the *implementation* contracts, using the *proxy contracts* as inputs
-        EigenLayrDelegation delegationImplementation = new EigenLayrDelegation(investmentManager, slasher);
+        EigenLayerDelegation delegationImplementation = new EigenLayerDelegation(investmentManager, slasher);
         InvestmentManager investmentManagerImplementation = new InvestmentManager(delegation, eigenPodManager, slasher);
         Slasher slasherImplementation = new Slasher(investmentManager, delegation);
         EigenPodManager eigenPodManagerImplementation = new EigenPodManager(ethPOSDeposit, eigenPodBeacon, investmentManager, slasher);
 
 
         // Third, upgrade the proxy contracts to use the correct implementation contracts and initialize them.
-        eigenLayrProxyAdmin.upgradeAndCall(
+        eigenLayerProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(delegation))),
             address(delegationImplementation),
-            abi.encodeWithSelector(EigenLayrDelegation.initialize.selector, eigenLayrPauserReg, eigenLayrReputedMultisig)
+            abi.encodeWithSelector(EigenLayerDelegation.initialize.selector, eigenLayrPauserReg, eigenLayrReputedMultisig)
         );
-        eigenLayrProxyAdmin.upgradeAndCall(
+        eigenLayerProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(investmentManager))),
             address(investmentManagerImplementation),
             abi.encodeWithSelector(InvestmentManager.initialize.selector, eigenLayrPauserReg, eigenLayrReputedMultisig)
         );
-        eigenLayrProxyAdmin.upgradeAndCall(
+        eigenLayerProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(slasher))),
             address(slasherImplementation),
             abi.encodeWithSelector(Slasher.initialize.selector, eigenLayrPauserReg, eigenLayrReputedMultisig)
         );
-        eigenLayrProxyAdmin.upgradeAndCall(
+        eigenLayerProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(eigenPodManager))),
             address(eigenPodManagerImplementation),
             abi.encodeWithSelector(EigenPodManager.initialize.selector, beaconChainOracle, eigenLayrReputedMultisig)
@@ -192,7 +192,7 @@ contract EigenLayrDeployer is Operators {
             address(
                 new TransparentUpgradeableProxy(
                     address(baseStrategyImplementation),
-                    address(eigenLayrProxyAdmin),
+                    address(eigenLayerProxyAdmin),
                     abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, weth, eigenLayrPauserReg)
                 )
             )
@@ -210,7 +210,7 @@ contract EigenLayrDeployer is Operators {
             address(
                 new TransparentUpgradeableProxy(
                     address(baseStrategyImplementation),
-                    address(eigenLayrProxyAdmin),
+                    address(eigenLayerProxyAdmin),
                     abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, eigenToken, eigenLayrPauserReg)
                 )
             )
