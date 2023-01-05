@@ -3,11 +3,11 @@ pragma solidity ^0.8.9;
 
 import "./IInvestmentStrategy.sol";
 import "./ISlasher.sol";
-import "./IEigenLayrDelegation.sol";
+import "./IEigenLayerDelegation.sol";
 import "./IServiceManager.sol";
 
 /**
- * @title Interface for the primary entrypoint for funds into EigenLayr.
+ * @title Interface for the primary entrypoint for funds into EigenLayer.
  * @author Layr Labs, Inc.
  * @notice See the `InvestmentManager` contract itself for implementation details.
  */
@@ -190,7 +190,7 @@ interface IInvestmentManager {
         returns (bytes32);
 
     /// @notice Returns the single, central Delegation contract of EigenLayer
-    function delegation() external view returns (IEigenLayrDelegation);
+    function delegation() external view returns (IEigenLayerDelegation);
 
     /// @notice Returns the single, central Slasher contract of EigenLayer
     function slasher() external view returns (ISlasher);
