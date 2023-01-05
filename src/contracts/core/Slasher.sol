@@ -64,10 +64,10 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
     event SlashingAbilityRevoked(address indexed operator, address indexed contractAddress, uint32 bondedUntil);
 
     /**
-     * @notice Emitted when `slashingContract` 'slashes' (technically, 'freezes') the `slashedOperator`.
+     * @notice Emitted when `slashingContract` 'freezes' the `slashedOperator`.
      * @dev The `slashingContract` must have permission to slash the `slashedOperator`, i.e. `canSlash(slasherOperator, slashingContract)` must return 'true'.
      */
-    event OperatorSlashed(address indexed slashedOperator, address indexed slashingContract);
+    event OperatorFrozen(address indexed slashedOperator, address indexed slashingContract);
 
     /// @notice Emitted when `previouslySlashedAddress` is 'unfrozen', allowing them to again move deposited funds within EigenLayer.
     event FrozenStatusReset(address indexed previouslySlashedAddress);
@@ -352,7 +352,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
     function _freezeOperator(address toBeFrozen, address slashingContract) internal {
         if (!frozenStatus[toBeFrozen]) {
             frozenStatus[toBeFrozen] = true;
-            emit OperatorSlashed(toBeFrozen, slashingContract);
+            emit OperatorFrozen(toBeFrozen, slashingContract);
         }
     }
 
