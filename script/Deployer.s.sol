@@ -42,7 +42,7 @@ import "../src/contracts/libraries/BytesLib.sol";
 
 // # To deploy and verify our contract
 // forge script script/Deployer.s.sol:EigenLayrDeployer --rpc-url $RPC_URL  --private-key $PRIVATE_KEY --broadcast -vvvv
-contract EigenLayrDeployer is Script, DSTest {
+contract EigenLayerDeployer is Script, DSTest {
     //,
     // Signers,
     // SignatureUtils
@@ -55,7 +55,7 @@ contract EigenLayrDeployer is Script, DSTest {
 
     // EigenLayer contracts
     ProxyAdmin public eigenLayerProxyAdmin;
-    PauserRegistry public eigenLayrPauserReg;
+    PauserRegistry public eigenLayerPauserReg;
     Slasher public slasher;
     EigenLayerDelegation public delegation;
     EigenPodManager public eigenPodManager;
@@ -110,7 +110,7 @@ contract EigenLayrDeployer is Script, DSTest {
         emit log_address(address(this));
         address pauser = msg.sender;
         address unpauser = msg.sender;
-        address eigenLayrReputedMultisig = msg.sender;
+        address eigenLayerReputedMultisig = msg.sender;
 
 
 
@@ -119,7 +119,7 @@ contract EigenLayrDeployer is Script, DSTest {
         eigenLayerProxyAdmin = new ProxyAdmin();
 
         //deploy pauser registry
-        eigenLayrPauserReg = new PauserRegistry(pauser, unpauser);
+        eigenLayerPauserReg = new PauserRegistry(pauser, unpauser);
 
         /**
          * First, deploy upgradeable proxy contracts that **will point** to the implementations. Since the implementation contracts are
@@ -157,22 +157,22 @@ contract EigenLayrDeployer is Script, DSTest {
         eigenLayerProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(delegation))),
             address(delegationImplementation),
-            abi.encodeWithSelector(EigenLayerDelegation.initialize.selector, eigenLayrPauserReg, eigenLayrReputedMultisig)
+            abi.encodeWithSelector(EigenLayerDelegation.initialize.selector, eigenLayerPauserReg, eigenLayerReputedMultisig)
         );
         eigenLayerProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(investmentManager))),
             address(investmentManagerImplementation),
-            abi.encodeWithSelector(InvestmentManager.initialize.selector, eigenLayrPauserReg, eigenLayrReputedMultisig)
+            abi.encodeWithSelector(InvestmentManager.initialize.selector, eigenLayerPauserReg, eigenLayerReputedMultisig)
         );
         eigenLayerProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(slasher))),
             address(slasherImplementation),
-            abi.encodeWithSelector(Slasher.initialize.selector, eigenLayrPauserReg, eigenLayrReputedMultisig)
+            abi.encodeWithSelector(Slasher.initialize.selector, eigenLayerPauserReg, eigenLayerReputedMultisig)
         );
         eigenLayerProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(eigenPodManager))),
             address(eigenPodManagerImplementation),
-            abi.encodeWithSelector(EigenPodManager.initialize.selector, beaconChainOracle, eigenLayrReputedMultisig)
+            abi.encodeWithSelector(EigenPodManager.initialize.selector, beaconChainOracle, eigenLayerReputedMultisig)
         );
 
 
@@ -191,7 +191,7 @@ contract EigenLayrDeployer is Script, DSTest {
                 new TransparentUpgradeableProxy(
                     address(baseStrategyImplementation),
                     address(eigenLayerProxyAdmin),
-                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, weth, eigenLayrPauserReg)
+                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, weth, eigenLayerPauserReg)
                 )
             )
         );
@@ -209,7 +209,7 @@ contract EigenLayrDeployer is Script, DSTest {
                 new TransparentUpgradeableProxy(
                     address(baseStrategyImplementation),
                     address(eigenLayerProxyAdmin),
-                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, eigenToken, eigenLayrPauserReg)
+                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, eigenToken, eigenLayerPauserReg)
                 )
             )
         );
