@@ -41,7 +41,7 @@ import "../src/contracts/libraries/BytesLib.sol";
 // source .env
 
 // # To deploy and verify our contract
-// forge script script/Deployer.s.sol:EigenLayrDeployer --rpc-url $RPC_URL  --private-key $PRIVATE_KEY --broadcast -vvvv
+// forge script script/Deployer.s.sol:EigenLayerDeployer --rpc-url $RPC_URL  --private-key $PRIVATE_KEY --broadcast -vvvv
 contract EigenLayerDeployer is Script, DSTest {
     //,
     // Signers,
