@@ -26,7 +26,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     address podOwner = address(42000094993494);
 
     Vm cheats = Vm(HEVM_ADDRESS);
-    EigenLayrDelegation public delegation;
+    EigenLayerDelegation public delegation;
     IInvestmentManager public investmentManager;
     Slasher public slasher;
     PauserRegistry public pauserReg;
@@ -75,7 +75,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
          * not yet deployed, we give these proxies an empty contract as the initial implementation, to act as if they have no code.
          */
         EmptyContract emptyContract = new EmptyContract();
-        delegation = EigenLayrDelegation(
+        delegation = EigenLayerDelegation(
             address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
         );
         investmentManager = InvestmentManager(
@@ -103,7 +103,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         );
 
         // Second, deploy the *implementation* contracts, using the *proxy contracts* as inputs
-        EigenLayrDelegation delegationImplementation = new EigenLayrDelegation(investmentManager, slasher);
+        EigenLayerDelegation delegationImplementation = new EigenLayerDelegation(investmentManager, slasher);
         InvestmentManager investmentManagerImplementation = new InvestmentManager(delegation, eigenPodManager, slasher);
         Slasher slasherImplementation = new Slasher(investmentManager, delegation);
         EigenPodManager eigenPodManagerImplementation = new EigenPodManager(ethPOSDeposit, eigenPodBeacon, investmentManager, slasher);
@@ -118,7 +118,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         eigenLayrProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(delegation))),
             address(delegationImplementation),
-            abi.encodeWithSelector(EigenLayrDelegation.initialize.selector, pauserReg, initialOwner)
+            abi.encodeWithSelector(EigenLayerDelegation.initialize.selector, pauserReg, initialOwner)
         );
         eigenLayrProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(investmentManager))),

@@ -8,8 +8,8 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/proxy/beacon/IBeacon.sol";
 import "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 
-import "../src/contracts/interfaces/IEigenLayrDelegation.sol";
-import "../src/contracts/core/EigenLayrDelegation.sol";
+import "../src/contracts/interfaces/IEigenLayerDelegation.sol";
+import "../src/contracts/core/EigenLayerDelegation.sol";
 
 import "../src/contracts/interfaces/IETHPOSDeposit.sol";
 import "../src/contracts/interfaces/IBeaconChainOracle.sol";
@@ -57,7 +57,7 @@ contract EigenLayrDeployer is Script, DSTest {
     ProxyAdmin public eigenLayrProxyAdmin;
     PauserRegistry public eigenLayrPauserReg;
     Slasher public slasher;
-    EigenLayrDelegation public delegation;
+    EigenLayerDelegation public delegation;
     EigenPodManager public eigenPodManager;
     InvestmentManager public investmentManager;
     IEigenPod public pod;
@@ -126,7 +126,7 @@ contract EigenLayrDeployer is Script, DSTest {
          * not yet deployed, we give these proxies an empty contract as the initial implementation, to act as if they have no code.
          */
         emptyContract = new EmptyContract();
-        delegation = EigenLayrDelegation(
+        delegation = EigenLayerDelegation(
             address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
         );
         investmentManager = InvestmentManager(
@@ -148,7 +148,7 @@ contract EigenLayrDeployer is Script, DSTest {
         eigenPodBeacon = new UpgradeableBeacon(address(pod));
 
         // Second, deploy the *implementation* contracts, using the *proxy contracts* as inputs
-        EigenLayrDelegation delegationImplementation = new EigenLayrDelegation(investmentManager, slasher);
+        EigenLayerDelegation delegationImplementation = new EigenLayerDelegation(investmentManager, slasher);
         InvestmentManager investmentManagerImplementation = new InvestmentManager(delegation, eigenPodManager, slasher);
         Slasher slasherImplementation = new Slasher(investmentManager, delegation);
         EigenPodManager eigenPodManagerImplementation = new EigenPodManager(ethPOSDeposit, eigenPodBeacon, investmentManager, slasher);
@@ -157,7 +157,7 @@ contract EigenLayrDeployer is Script, DSTest {
         eigenLayrProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(delegation))),
             address(delegationImplementation),
-            abi.encodeWithSelector(EigenLayrDelegation.initialize.selector, eigenLayrPauserReg, eigenLayrReputedMultisig)
+            abi.encodeWithSelector(EigenLayerDelegation.initialize.selector, eigenLayrPauserReg, eigenLayrReputedMultisig)
         );
         eigenLayrProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(investmentManager))),

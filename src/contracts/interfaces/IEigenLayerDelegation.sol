@@ -4,15 +4,15 @@ pragma solidity ^0.8.9;
 import "./IDelegationTerms.sol";
 
 /**
- * @title The interface for the primary delegation contract for EigenLayr.
+ * @title The interface for the primary delegation contract for EigenLayer.
  * @author Layr Labs, Inc.
- * @notice  This is the contract for delegation in EigenLayr. The main functionalities of this contract are
- * - enabling anyone to register as an operator in EigenLayr
+ * @notice  This is the contract for delegation in EigenLayer. The main functionalities of this contract are
+ * - enabling anyone to register as an operator in EigenLayer
  * - allowing new operators to provide a DelegationTerms-type contract, which may mediate their interactions with stakers who delegate to them
  * - enabling any staker to delegate its stake to the operator of its choice
  * - enabling a staker to undelegate its assets from an operator (performed as part of the withdrawal process, initiated through the InvestmentManager)
  */
-interface IEigenLayrDelegation {
+interface IEigenLayerDelegation {
 
     /**
      * @notice This will be called by an operator to register itself as an operator that stakers can choose to delegate to.
@@ -52,13 +52,13 @@ interface IEigenLayrDelegation {
     function operatorShares(address operator, IInvestmentStrategy strategy) external view returns (uint256);
 
     /**
-     * @notice Increases the `staker`'s delegated shares in `strategy` by `shares, typically called when the staker has further deposits into EigenLayr
+     * @notice Increases the `staker`'s delegated shares in `strategy` by `shares, typically called when the staker has further deposits into EigenLayer
      * @dev Callable only by the InvestmentManager
      */
     function increaseDelegatedShares(address staker, IInvestmentStrategy strategy, uint256 shares) external;
 
     /**
-     * @notice Decreases the `staker`'s delegated shares in each entry of `strategies` by its respective `shares[i]`, typically called when the staker withdraws from EigenLayr
+     * @notice Decreases the `staker`'s delegated shares in each entry of `strategies` by its respective `shares[i]`, typically called when the staker withdraws from EigenLayer
      * @dev Callable only by the InvestmentManager
      */
     function decreaseDelegatedShares(

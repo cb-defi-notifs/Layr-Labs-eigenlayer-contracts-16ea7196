@@ -2,7 +2,7 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "./IEigenLayrDelegation.sol";
+import "./IEigenLayerDelegation.sol";
 
 /**
  * @title Interface for a `ServiceManager`-type contract.
@@ -29,7 +29,7 @@ interface IServiceManager {
     function collateralToken() external view returns (IERC20);
 
     /// @notice The Delegation contract of EigenLayer.
-    function eigenLayrDelegation() external view returns (IEigenLayrDelegation);
+    function eigenLayerDelegation() external view returns (IEigenLayerDelegation);
 
     /// @notice Returns the `latestTime` until which operators must serve.
     function latestTime() external view returns (uint32);

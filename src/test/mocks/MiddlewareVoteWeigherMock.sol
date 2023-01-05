@@ -9,7 +9,7 @@ contract MiddlewareVoteWeigherMock is RegistryBase, DSTest {
     uint8 _NUMBER_OF_QUORUMS = 2;
 
     constructor(
-        IEigenLayrDelegation _delegation,
+        IEigenLayerDelegation _delegation,
         IInvestmentManager _investmentManager,
         IServiceManager _serviceManager
     )

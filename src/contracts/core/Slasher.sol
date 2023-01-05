@@ -2,7 +2,7 @@
 pragma solidity ^0.8.9;
 
 import "../interfaces/ISlasher.sol";
-import "../interfaces/IEigenLayrDelegation.sol";
+import "../interfaces/IEigenLayerDelegation.sol";
 import "../interfaces/IInvestmentManager.sol";
 import "../libraries/StructuredLinkedList.sol";
 import "../permissions/Pausable.sol";
@@ -12,7 +12,7 @@ import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 // import "forge-std/Test.sol";
 
 /**
- * @title The primary 'slashing' contract for EigenLayr.
+ * @title The primary 'slashing' contract for EigenLayer.
  * @author Layr Labs, Inc.
  * @notice This contract specifies details on slashing. The functionalities are:
  * - adding contracts who have permission to perform slashing,
@@ -29,10 +29,10 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
     uint8 internal constant PAUSED_FIRST_STAKE_UPDATE = 1;
     uint8 internal constant PAUSED_NEW_FREEZING = 2;
 
-    /// @notice The central InvestmentManager contract of EigenLayr
+    /// @notice The central InvestmentManager contract of EigenLayer
     IInvestmentManager public immutable investmentManager;
-    /// @notice The EigenLayrDelegation contract of EigenLayr
-    IEigenLayrDelegation public immutable delegation;
+    /// @notice The EigenLayerDelegation contract of EigenLayer
+    IEigenLayerDelegation public immutable delegation;
     // operator => whitelisted contract with slashing permissions => (the time before which the contract is allowed to slash the user, block it was last updated)
     mapping(address => mapping(address => MiddlewareDetails)) internal _whitelistedContractDetails;
     // staker => if their funds are 'frozen' and potentially subject to slashing or not
@@ -72,7 +72,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
     /// @notice Emitted when `previouslySlashedAddress` is 'unfrozen', allowing them to again move deposited funds within EigenLayer.
     event FrozenStatusReset(address indexed previouslySlashedAddress);
 
-    constructor(IInvestmentManager _investmentManager, IEigenLayrDelegation _delegation) {
+    constructor(IInvestmentManager _investmentManager, IEigenLayerDelegation _delegation) {
         investmentManager = _investmentManager;
         delegation = _delegation;
         _disableInitializers();
