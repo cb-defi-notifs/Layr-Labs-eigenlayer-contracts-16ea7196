@@ -71,7 +71,7 @@ interface IEigenLayrDelegation {
     function isDelegated(address staker) external view returns (bool);
 
     /// @notice Returns 'true' if `staker` is *not* actively delegated, and 'false' otherwise.
-    function isNotDelegated(address staker) external returns (bool);
+    function isNotDelegated(address staker) external view returns (bool);
 
     /// @notice Returns if an operator can be delegated to, i.e. it has called `registerAsOperator`.
     function isOperator(address operator) external view returns (bool);
