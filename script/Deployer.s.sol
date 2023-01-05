@@ -54,7 +54,7 @@ contract EigenLayrDeployer is Script, DSTest {
     uint256 public constant DURATION_SCALE = 1 hours;
 
     // EigenLayer contracts
-    ProxyAdmin public eigenLayrProxyAdmin;
+    ProxyAdmin public eigenLayerProxyAdmin;
     PauserRegistry public eigenLayrPauserReg;
     Slasher public slasher;
     EigenLayerDelegation public delegation;
@@ -116,7 +116,7 @@ contract EigenLayrDeployer is Script, DSTest {
 
 
         // deploy proxy admin for ability to upgrade proxy contracts
-        eigenLayrProxyAdmin = new ProxyAdmin();
+        eigenLayerProxyAdmin = new ProxyAdmin();
 
         //deploy pauser registry
         eigenLayrPauserReg = new PauserRegistry(pauser, unpauser);
@@ -127,16 +127,16 @@ contract EigenLayrDeployer is Script, DSTest {
          */
         emptyContract = new EmptyContract();
         delegation = EigenLayerDelegation(
-            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayerProxyAdmin), ""))
         );
         investmentManager = InvestmentManager(
-            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayerProxyAdmin), ""))
         );
         slasher = Slasher(
-            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayerProxyAdmin), ""))
         );
         eigenPodManager = EigenPodManager(
-            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayerProxyAdmin), ""))
         );
 
         beaconChainOracle = new BeaconChainOracleMock();
@@ -154,22 +154,22 @@ contract EigenLayrDeployer is Script, DSTest {
         EigenPodManager eigenPodManagerImplementation = new EigenPodManager(ethPOSDeposit, eigenPodBeacon, investmentManager, slasher);
 
         // Third, upgrade the proxy contracts to use the correct implementation contracts and initialize them.
-        eigenLayrProxyAdmin.upgradeAndCall(
+        eigenLayerProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(delegation))),
             address(delegationImplementation),
             abi.encodeWithSelector(EigenLayerDelegation.initialize.selector, eigenLayrPauserReg, eigenLayrReputedMultisig)
         );
-        eigenLayrProxyAdmin.upgradeAndCall(
+        eigenLayerProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(investmentManager))),
             address(investmentManagerImplementation),
             abi.encodeWithSelector(InvestmentManager.initialize.selector, eigenLayrPauserReg, eigenLayrReputedMultisig)
         );
-        eigenLayrProxyAdmin.upgradeAndCall(
+        eigenLayerProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(slasher))),
             address(slasherImplementation),
             abi.encodeWithSelector(Slasher.initialize.selector, eigenLayrPauserReg, eigenLayrReputedMultisig)
         );
-        eigenLayrProxyAdmin.upgradeAndCall(
+        eigenLayerProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(eigenPodManager))),
             address(eigenPodManagerImplementation),
             abi.encodeWithSelector(EigenPodManager.initialize.selector, beaconChainOracle, eigenLayrReputedMultisig)
@@ -190,7 +190,7 @@ contract EigenLayrDeployer is Script, DSTest {
             address(
                 new TransparentUpgradeableProxy(
                     address(baseStrategyImplementation),
-                    address(eigenLayrProxyAdmin),
+                    address(eigenLayerProxyAdmin),
                     abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, weth, eigenLayrPauserReg)
                 )
             )
@@ -208,7 +208,7 @@ contract EigenLayrDeployer is Script, DSTest {
             address(
                 new TransparentUpgradeableProxy(
                     address(baseStrategyImplementation),
-                    address(eigenLayrProxyAdmin),
+                    address(eigenLayerProxyAdmin),
                     abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, eigenToken, eigenLayrPauserReg)
                 )
             )
