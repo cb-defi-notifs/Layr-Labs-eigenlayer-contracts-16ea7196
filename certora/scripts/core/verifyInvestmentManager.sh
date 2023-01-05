@@ -9,7 +9,6 @@ certoraRun certora/munged/core/InvestmentManager.sol certora/ComplexityCheck/Dum
     certora/munged/pods/EigenPodManager.sol certora/munged/pods/EigenPod.sol certora/munged/strategies/InvestmentStrategyBase.sol certora/munged/core/EigenLayrDelegation.sol \
     certora/munged/core/Slasher.sol certora/munged/permissions/PauserRegistry.sol \
     --verify InvestmentManager:certora/specs/core/InvestmentManager.spec \
-    --staging master \
     --optimistic_loop \
     --send_only \
     --settings -optimisticFallback=true \

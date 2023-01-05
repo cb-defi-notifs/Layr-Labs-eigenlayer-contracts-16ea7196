@@ -9,7 +9,6 @@ certoraRun certora/munged/core/Slasher.sol certora/ComplexityCheck/DummyERC20A.s
     certora/munged/pods/EigenPodManager.sol certora/munged/pods/EigenPod.sol certora/munged/strategies/InvestmentStrategyBase.sol certora/munged/core/EigenLayrDelegation.sol \
     certora/munged/core/InvestmentManager.sol certora/munged/permissions/PauserRegistry.sol \
     --verify Slasher:certora/specs/core/Slasher.spec \
-    --staging master \
     --optimistic_loop \
     --send_only \
     --settings -optimisticFallback=true,-recursionErrorAsAssert=false,-recursionEntryLimit=3 \
