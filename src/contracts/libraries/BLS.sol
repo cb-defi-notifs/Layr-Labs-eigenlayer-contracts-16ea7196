@@ -78,23 +78,3 @@ library BLS {
             x = addmod(x, 1, FP_MODULUS);
         }
     }
-
-    function sqrt(uint256 xx) internal view returns (uint256 x, bool hasRoot) {
-        bool callSuccess;
-        assembly {
-            let freemem := mload(0x40)
-            mstore(freemem, 0x20)
-            mstore(add(freemem, 0x20), 0x20)
-            mstore(add(freemem, 0x40), 0x20)
-            mstore(add(freemem, 0x60), xx)
-            // (N + 1) / 4 = 0xc19139cb84c680a6e14116da060561765e05aa45a1c72a34f082305b61f3f52
-            mstore(add(freemem, 0x80), 0xc19139cb84c680a6e14116da060561765e05aa45a1c72a34f082305b61f3f52)
-            // N = 0x30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47
-            mstore(add(freemem, 0xA0), 0x30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47)
-            callSuccess := staticcall(sub(gas(), 2000), 5, freemem, 0xC0, freemem, 0x20)
-            x := mload(freemem)
-            hasRoot := eq(xx, mulmod(x, x, FP_MODULUS))
-        }
-        require(callSuccess, "BLS: sqrt modexp call failed");
-    }
-}

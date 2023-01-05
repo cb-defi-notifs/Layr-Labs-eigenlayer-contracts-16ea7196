@@ -52,9 +52,20 @@ interface IInvestmentManager {
      * @param staker is the entity that is restaking in eigenlayer,
      * @param amount is the amount of beaconchain ETH being restaked,
      * @param amount is the amount of token to be invested in the strategy by the depositor
-     * @dev Only called by EigenPod for the staker.
+     * @dev Only callable by EigenPod for the staker.
      */
-    function depositBeaconChainETH(address staker, uint256 amount) external returns (uint256);
+    function depositBeaconChainETH(address staker, uint256 amount) external;
+
+    /**
+     * @notice Records an overcommitment event on behalf of a staker. This allows EigenLayer to slash the overcommitted balance.
+     *         It decreases the delegated shares, but does not freeze the `slashedAddress` completely.
+     * @param overcommittedPodOwner is the pod owner to be slashed
+     * @param beaconChainETHStrategyIndex is the index of the beaconChainETHStrategy in case it must be removed,
+     * @param amount is the amount of token overcommitted to EigenLayer
+     * @dev Only callable by EigenPod for the overcommittedPodOwner.
+     */
+    function recordOvercommittedBeaconChainETH(address overcommittedPodOwner, uint256 beaconChainETHStrategyIndex, uint256 amount)
+        external;
 
     /**
      * @notice Used for investing an asset into the specified strategy with the resultant shared created to `staker`,
@@ -104,17 +115,21 @@ interface IInvestmentManager {
      * to accrue gains during the enforced WITHDRAWAL_WAITING_PERIOD.
      * @param strategyIndexes is a list of the indices in `investorStrats[msg.sender]` that correspond to the strategies
      * for which `msg.sender` is withdrawing 100% of their shares
-     * @dev strategies are removed from `investorStrats` by swapping the last entry with the entry to be removed, then
+     * @dev Strategies are removed from `investorStrats` by swapping the last entry with the entry to be removed, then
      * popping off the last entry in `investorStrats`. The simplest way to calculate the correct `strategyIndexes` to input
      * is to order the strategies *for which `msg.sender` is withdrawing 100% of their shares* from highest index in
      * `investorStrats` to lowest index
+     * @dev Note that if the withdrawal includes shares in the enshrined 'beaconChainETH' strategy, then it must *only* include shares in this strategy, and
+     * `withdrawer` must match the caller's address. The first condition is because slashing of queued withdrawals cannot be guaranteed 
+     * for Beacon Chain ETH (since we cannot trigger a withdrawal from the beacon chain through a smart contract) and the second condition is because shares in
+     * the enshrined 'beaconChainETH' strategy technically represent non-fungible positions (deposits to the Beacon Chain, each pointed at a specific EigenPod).
      */
     function queueWithdrawal(
         uint256[] calldata strategyIndexes,
         IInvestmentStrategy[] calldata strategies,
         IERC20[] calldata tokens,
         uint256[] calldata shareAmounts,
-        WithdrawerAndNonce calldata withdrawerAndNonce,
+        address withdrawer,
         bool undelegateIfPossible
     )
         external returns(bytes32);
@@ -179,4 +194,7 @@ interface IInvestmentManager {
 
     /// @notice Returns the single, central Slasher contract of EigenLayer
     function slasher() external view returns (ISlasher);
+
+    /// @notice returns the enshrined beaconChainETH Strategy
+    function beaconChainETHStrategy() external view returns (IInvestmentStrategy);
 }

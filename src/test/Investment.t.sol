@@ -3,7 +3,6 @@ pragma solidity ^0.8.9;
 
 import "./EigenLayrTestHelper.t.sol";
 import "../contracts/core/InvestmentManagerStorage.sol";
-import "./utils/DataStoreUtilsWrapper.sol";
 
 contract InvestmentTests is EigenLayrTestHelper {
     /**
@@ -11,7 +10,7 @@ contract InvestmentTests is EigenLayrTestHelper {
      * @param amountToDeposit Fuzzed input for amount of WETH to deposit
      */
     function testWethDeposit(uint256 amountToDeposit) public returns (uint256 amountDeposited) {
-        return _testWethDeposit(getOperatorAddress(0), amountToDeposit);
+        return _testDepositWeth(getOperatorAddress(0), amountToDeposit);
     }
 
 // TODO: reimplement with queued withdrawals
@@ -64,7 +63,7 @@ contract InvestmentTests is EigenLayrTestHelper {
 
     /// @notice deploys 'numStratsToAdd' strategies using '_testAddStrategy' and then deposits '1e18' to each of them from 'getOperatorAddress(0)'
     /// @param numStratsToAdd is the number of strategies being added and deposited into
-    function testDepositStrategies(uint16 numStratsToAdd) public {
+    function testDepositStrategies(uint8 numStratsToAdd) public {
         _testDepositStrategies(getOperatorAddress(0), 1e18, numStratsToAdd);
     }
 
@@ -96,7 +95,7 @@ contract InvestmentTests is EigenLayrTestHelper {
      * @notice Tries to deposit into an unsupported strategy by calling `investmentManager.depositIntoStrategy`.
      * Verifies that reversion occurs correctly.
      */
-    function testDepositNonexistantStrategy(address nonexistentStrategy) public fuzzedAddress(nonexistentStrategy) {
+    function testDepositNonexistentStrategy(address nonexistentStrategy) public fuzzedAddress(nonexistentStrategy) {
         // assume that the fuzzed address is not already a contract!
         uint256 size;
         assembly {
@@ -120,5 +119,10 @@ contract InvestmentTests is EigenLayrTestHelper {
         investmentManager.depositIntoStrategy(IInvestmentStrategy(nonexistentStrategy), token, testDepositAmount);
     }
 
-    // TODO: add test(s) that confirm deposits + withdrawals *of zero shares* fail correctly.
+    /// @notice verify that trying to deposit an amount of zero will correctly revert
+    function testRevertOnZeroDeposit() public {
+        cheats.expectRevert(bytes("InvestmentManager._addShares: shares should not be zero!"));
+        investmentManager.depositIntoStrategy(wethStrat, weth, 0);
+        cheats.stopPrank();
+    }
 }

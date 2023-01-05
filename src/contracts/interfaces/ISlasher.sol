@@ -29,9 +29,6 @@ interface ISlasher {
      */
     function optIntoSlashing(address contractAddress) external;
 
-    /// @notice Called by a contract to revoke its ability to slash `operator`, once `bondedUntil` is reached.
-    function revokeSlashingAbility(address operator, uint32 bondedUntil) external;
-
     /**
      * @notice Used for 'slashing' a certain operator.
      * @param toBeFrozen The operator to be frozen.
@@ -39,19 +36,7 @@ interface ISlasher {
      * @dev The operator must have previously given the caller (which should be a contract) the ability to slash them, through a call to `optIntoSlashing`.
      */
     function freezeOperator(address toBeFrozen) external;
-
-    /**
-     * @notice Used to give global slashing permission to `contracts`.
-     * @dev Callable only by the contract owner (i.e. governance).
-     */
-    function addGloballyPermissionedContracts(address[] calldata contracts) external;
-
-    /**
-     * @notice Used to revoke global slashing permission from `contracts`.
-     * @dev Callable only by the contract owner (i.e. governance).
-     */
-    function removeGloballyPermissionedContracts(address[] calldata contracts) external;
-
+    
     /**
      * @notice Removes the 'frozen' status from each of the `frozenAddresses`
      * @dev Callable only by the contract owner (i.e. governance).
@@ -84,9 +69,10 @@ interface ISlasher {
      *         is slashable until serveUntil
      * @param operator the operator whose stake update is being recorded
      * @param serveUntil the timestamp until which the operator's stake at the current block is slashable
-     * @dev removes the middleware's slashing contract to the operator's linked list
+     * @dev removes the middleware's slashing contract to the operator's linked list and revokes the middleware's (i.e. caller's) ability to
+     * slash `operator` once `serveUntil` is reached
      */
-    function recordLastStakeUpdate(address operator, uint32 serveUntil) external;
+    function recordLastStakeUpdateAndRevokeSlashingAbility(address operator, uint32 serveUntil) external;
 
     /**
      * @notice Used to determine whether `staker` is actively 'frozen'. If a staker is frozen, then they are potentially subject to

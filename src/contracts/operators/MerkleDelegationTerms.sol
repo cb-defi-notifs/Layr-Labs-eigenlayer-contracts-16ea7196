@@ -96,11 +96,11 @@ contract MerkleDelegationTerms is Ownable, IDelegationTerms {
 
         // check inclusion of the leafHash in the tree corresponding to `merkleRoots[rootIndex]`
         require(
-            Merkle.checkMembership(
-                leafHash,
-                nodeIndex,
+            Merkle.verifyInclusionKeccak(
+                proof,
                 merkleRoots[rootIndex].root,
-                proof
+                leafHash,
+                nodeIndex
             ),
             "MerkleDelegationTerms.proveEarningsAndWithdraw: proof of inclusion failed"
         );
@@ -129,22 +129,25 @@ contract MerkleDelegationTerms is Ownable, IDelegationTerms {
     }
 
     // FUNCTIONS FROM INTERFACE
-    function payForService(IERC20, uint256) external payable {
-    }
+    function payForService(IERC20, uint256) external payable
+    // solhint-disable-next-line no-empty-blocks
+    {}
 
     /// @notice Hook for receiving new delegation   
     function onDelegationReceived(
         address,
         IInvestmentStrategy[] memory,
         uint256[] memory
-    ) external pure {
-    }
+    ) external pure 
+    // solhint-disable-next-line no-empty-blocks
+    {}
 
     /// @notice Hook for withdrawing delegation   
     function onDelegationWithdrawn(
         address,
         IInvestmentStrategy[] memory,
         uint256[] memory
-    ) external pure {
-    }
+    ) external pure 
+    // solhint-disable-next-line no-empty-blocks
+    {}
 }

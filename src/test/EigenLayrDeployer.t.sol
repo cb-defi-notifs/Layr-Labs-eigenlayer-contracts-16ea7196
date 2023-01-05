@@ -13,6 +13,7 @@ import "../contracts/core/EigenLayrDelegation.sol";
 
 import "../contracts/interfaces/IETHPOSDeposit.sol";
 import "../contracts/interfaces/IBeaconChainOracle.sol";
+import "../contracts/interfaces/IVoteWeigher.sol";
 
 import "../contracts/core/InvestmentManager.sol";
 import "../contracts/strategies/InvestmentStrategyBase.sol";
@@ -23,20 +24,9 @@ import "../contracts/pods/EigenPodManager.sol";
 
 import "../contracts/permissions/PauserRegistry.sol";
 
-import "../contracts/DataLayr/DataLayrServiceManager.sol";
-import "../contracts/DataLayr/BLSRegistryWithBomb.sol";
-import "../contracts/middleware/BLSPublicKeyCompendium.sol";
-import "../contracts/DataLayr/DataLayrPaymentManager.sol";
-import "../contracts/DataLayr/EphemeralKeyRegistry.sol";
-import "../contracts/DataLayr/DataLayrChallengeUtils.sol";
-import "../contracts/DataLayr/DataLayrLowDegreeChallenge.sol";
-
-import "../contracts/libraries/BLS.sol";
 import "../contracts/libraries/BytesLib.sol";
-import "../contracts/libraries/DataStoreUtils.sol";
 
 import "./utils/Operators.sol";
-import "./utils/Signatures.sol";
 
 import "./mocks/LiquidStakingToken.sol";
 import "./mocks/EmptyContract.sol";
@@ -45,7 +35,7 @@ import "./mocks/ETHDepositMock.sol";
 
  import "forge-std/Test.sol";
 
-contract EigenLayrDeployer is Operators, SignatureUtils {
+contract EigenLayrDeployer is Operators {
     using BytesLib for bytes;
 
     Vm cheats = Vm(HEVM_ADDRESS);
@@ -66,35 +56,21 @@ contract EigenLayrDeployer is Operators, SignatureUtils {
     // testing/mock contracts
     IERC20 public eigenToken;
     IERC20 public weth;
-    WETH public liquidStakingMockToken;
     InvestmentStrategyBase public wethStrat;
     InvestmentStrategyBase public eigenStrat;
-    InvestmentStrategyBase public liquidStakingMockStrat;
     InvestmentStrategyBase public baseStrategyImplementation;
     EmptyContract public emptyContract;
 
-    IVoteWeigher public generalVoteWeigher;
-
     mapping(uint256 => IInvestmentStrategy) public strategies;
-    mapping(IInvestmentStrategy => uint256) public initialOperatorShares;
 
     //from testing seed phrase
     bytes32 priv_key_0 = 0x1234567812345678123456781234567812345678123456781234567812345678;
     bytes32 priv_key_1 = 0x1234567812345678123456781234567812345698123456781234567812348976;
-    bytes32 public testEphemeralKey = 0x3290567812345678123456781234577812345698123456781234567812344389;
-    bytes32 public testEphemeralKeyHash = keccak256(abi.encode(testEphemeralKey));
 
-    string testSocket = "255.255.255.255";
-
-    // number of strategies deployed
-    uint256 public numberOfStrats;
     //strategy indexes for undelegation (see commitUndelegation function)
     uint256[] public strategyIndexes;
-    address[2] public delegates;
+    address[2] public stakers;
     address sample_registrant = cheats.addr(436364636);
-
-    uint256[] apks;
-    uint256[] sigmas;
 
     address[] public slashingContracts;
 
@@ -102,6 +78,9 @@ contract EigenLayrDeployer is Operators, SignatureUtils {
     uint256 public constant eigenTotalSupply = 1000e18;
     uint256 nonce = 69;
     uint256 public gasLimit = 750000;
+    uint32 PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS = 7 days / 12 seconds;
+    uint256 REQUIRED_BALANCE_WEI = 31.4 ether;
+    uint64 MAX_PARTIAL_WTIHDRAWAL_AMOUNT_GWEI = 1 ether / 1e9;
 
     address pauser = address(69);
     address unpauser = address(489);
@@ -110,14 +89,12 @@ contract EigenLayrDeployer is Operators, SignatureUtils {
     address acct_1 = cheats.addr(uint256(priv_key_1));
     address _challenger = address(0x6966904396bF2f8b173350bCcec5007A52669873);
 
-    bytes header = hex"0e75f28b7a90f89995e522d0cd3a340345e60e249099d4cd96daef320a3abfc31df7f4c8f6f8bc5dc1de03f56202933ec2cc40acad1199f40c7b42aefd45bfb10000000800000002000000020000014000000000000000000000000000000000000000002b4982b07d4e522c2a94b3e7c5ab68bfeecc33c5fa355bc968491c62c12cf93f0cd04099c3d9742620bf0898cf3843116efc02e6f7d408ba443aa472f950e4f3";
-
     address public eigenLayrReputedMultisig = address(this);
+    mapping (address => bool) fuzzedAddressMapping;
+
 
     modifier fuzzedAddress(address addr) virtual {
-        cheats.assume(addr != address(0));
-        cheats.assume(addr != address(eigenLayrProxyAdmin));
-        cheats.assume(addr != address(investmentManager));
+        cheats.assume(fuzzedAddressMapping[addr] == false);
         _;
     }
 
@@ -129,6 +106,13 @@ contract EigenLayrDeployer is Operators, SignatureUtils {
     //performs basic deployment before each test
     function setUp() public virtual {
         _deployEigenLayrContracts();
+
+        fuzzedAddressMapping[address(0)] = true;
+        fuzzedAddressMapping[address(eigenLayrProxyAdmin)] = true;
+        fuzzedAddressMapping[address(investmentManager)] = true;
+        fuzzedAddressMapping[address(eigenPodManager)] = true;
+        fuzzedAddressMapping[address(delegation)] = true;
+        fuzzedAddressMapping[address(slasher)] = true;
     }
 
     function _deployEigenLayrContracts() internal {
@@ -160,15 +144,15 @@ contract EigenLayrDeployer is Operators, SignatureUtils {
         beaconChainOracle.setBeaconChainStateRoot(0xb08d5a1454de19ac44d523962096d73b85542f81822c5e25b8634e4e86235413);
 
         ethPOSDeposit = new ETHPOSDepositMock();
-        pod = new EigenPod(ethPOSDeposit);
+        pod = new EigenPod(ethPOSDeposit, PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS, REQUIRED_BALANCE_WEI, MAX_PARTIAL_WTIHDRAWAL_AMOUNT_GWEI);
 
         eigenPodBeacon = new UpgradeableBeacon(address(pod));
 
         // Second, deploy the *implementation* contracts, using the *proxy contracts* as inputs
-        EigenLayrDelegation delegationImplementation = new EigenLayrDelegation(investmentManager);
+        EigenLayrDelegation delegationImplementation = new EigenLayrDelegation(investmentManager, slasher);
         InvestmentManager investmentManagerImplementation = new InvestmentManager(delegation, eigenPodManager, slasher);
         Slasher slasherImplementation = new Slasher(investmentManager, delegation);
-        EigenPodManager eigenPodManagerImplementation = new EigenPodManager(ethPOSDeposit, eigenPodBeacon, investmentManager);
+        EigenPodManager eigenPodManagerImplementation = new EigenPodManager(ethPOSDeposit, eigenPodBeacon, investmentManager, slasher);
 
 
         // Third, upgrade the proxy contracts to use the correct implementation contracts and initialize them.
@@ -232,21 +216,6 @@ contract EigenLayrDeployer is Operators, SignatureUtils {
             )
         );
 
-        delegates = [acct_0, acct_1];
-
-        // set up a strategy for a mock liquid staking token
-        liquidStakingMockToken = new WETH();
-        liquidStakingMockStrat = InvestmentStrategyBase(
-            address(
-                new TransparentUpgradeableProxy(
-                    address(baseStrategyImplementation),
-                    address(eigenLayrProxyAdmin),
-                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, liquidStakingMockToken, eigenLayrPauserReg)
-                )
-            )
-        );
-
-        slashingContracts.push(address(eigenPodManager));
-        investmentManager.slasher().addGloballyPermissionedContracts(slashingContracts);
+        stakers = [acct_0, acct_1];
     }
 }

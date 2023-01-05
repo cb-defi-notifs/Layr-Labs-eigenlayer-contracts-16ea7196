@@ -1,84 +1,123 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+// SPDX-License-Identifier: UNLICENCED
+// Adapted from OpenZeppelin Contracts (last updated v4.8.0) (utils/cryptography/MerkleProof.sol)
+
+pragma solidity ^0.8.0;
 
 /**
- * @title Small library for checking Merkle proofs.
- * @author Original authorship of this code is unclear. This implementation is adapted from Polygon's.
- * See https://github.com/maticnetwork/contracts/commits/main/contracts/common/lib/Merkle.sol
- * with added functions for sha256 support for Ethereum Consensus Layer Merkleization.
+ * @dev These functions deal with verification of Merkle Tree proofs.
+ *
+ * The tree and the proofs can be generated using our
+ * https://github.com/OpenZeppelin/merkle-tree[JavaScript library].
+ * You will find a quickstart guide in the readme.
+ *
+ * WARNING: You should avoid using leaf values that are 64 bytes long prior to
+ * hashing, or use a hash function other than keccak256 for hashing leaves.
+ * This is because the concatenation of a sorted pair of internal nodes in
+ * the merkle tree could be reinterpreted as a leaf value.
+ * OpenZeppelin's JavaScript library generates merkle trees that are safe
+ * against this attack out of the box.
  */
 library Merkle {
     /**
-     @notice this function checks whether the given @param leaf is actually a member (leaf) of the 
-             merkle tree with @param rootHash being the Merkle root or not.   
-     @param leaf is the element whose membership in the merkle tree is being checked,
-     @param index is the leaf index
-     @param rootHash is the Merkle root of the Merkle tree,
-     @param proof is the Merkle proof associated with the @param leaf and @param rootHash.
-     */ 
-    function checkMembership(
+     * @dev Returns the rebuilt hash obtained by traversing a Merkle tree up
+     * from `leaf` using `proof`. A `proof` is valid if and only if the rebuilt
+     * hash matches the root of the tree. The tree is built assuming `leaf` is 
+     * the 0 indexed `index`'th leaf from the bottom left of the tree.
+     * 
+     * Note this is for a Merkle tree using the keccak/sha3 hash function
+     */
+    function verifyInclusionKeccak(
+        bytes memory proof,
+        bytes32 root,
         bytes32 leaf,
-        uint256 index,
-        bytes32 rootHash,
-        bytes memory proof
+        uint256 index
     ) internal pure returns (bool) {
+        return processInclusionProofKeccak(proof, leaf, index) == root;
+    }
 
-        require(proof.length % 32 == 0, "Invalid proof length");
-
-        /**
-         Merkle proof consists of all siblings along the path to the Merkle root, each of 32 bytes
-         */
-        uint256 proofHeight = proof.length / 32;
-
-        /**
-          Proof of size n means, height of the tree is n+1.
-          In a tree of height n+1, max #leafs possible is 2**n.
-         */
-        require(index < 2**proofHeight, "Leaf index is too big");
-
-        bytes32 proofElement;
-
-        // starting from the leaf
+    /**
+     * @dev Returns the rebuilt hash obtained by traversing a Merkle tree up
+     * from `leaf` using `proof`. A `proof` is valid if and only if the rebuilt
+     * hash matches the root of the tree. The tree is built assuming `leaf` is 
+     * the 0 indexed `index`'th leaf from the bottom left of the tree.
+     * 
+     * _Available since v4.4._
+     * 
+     * Note this is for a Merkle tree using the keccak/sha3 hash function
+     */
+    function processInclusionProofKeccak(bytes memory proof, bytes32 leaf, uint256 index) internal pure returns (bytes32) {
         bytes32 computedHash = leaf;
-
-        // going up the Merkle tree
-        for (uint256 i = 32; i <= proof.length; i += 32) {
-
-            // retrieve the sibling along the merkle proof
-            assembly {
-                proofElement := mload(add(proof, i))
-            }
-
-
-            /**
-             check whether the association with the parent is of the format:
-
-                computedHash of Parent                    computedHash of Parent        
-                             *                                      *
-                           *   *                or                *   *
-                         *       *                              *       *
-                       *           *                          *           * 
-                computedHash    proofElement            proofElement   computedHash
-                             
-             */
-            // association is of first type
-            if (index % 2 == 0) {
-                computedHash = keccak256(
-                    abi.encodePacked(computedHash, proofElement)
-                );
-
-            // association is of second type
+        for (uint256 i = 32; i <= proof.length; i+=32) {
+            if(index % 2 == 0) {
+                // if ith bit of index is 0, then computedHash is a left sibling
+                assembly {
+                    mstore(0x00, computedHash)
+                    mstore(0x20, mload(add(proof, i)))
+                    computedHash := keccak256(0x00, 0x40)
+                    index := div(index, 2)
+                }
             } else {
-                computedHash = keccak256(
-                    abi.encodePacked(proofElement, computedHash)
-                );
+                // if ith bit of index is 1, then computedHash is a right sibling
+                assembly {
+                    mstore(0x00, mload(add(proof, i)))
+                    mstore(0x20, computedHash)
+                    computedHash := keccak256(0x00, 0x40)
+                    index := div(index, 2)
+                }            
             }
-
-            index = index / 2;
         }
+        return computedHash;
+    }
 
-        // check whether computed root is same as the Merkle root
-        return computedHash == rootHash;
+    /**
+     * @dev Returns the rebuilt hash obtained by traversing a Merkle tree up
+     * from `leaf` using `proof`. A `proof` is valid if and only if the rebuilt
+     * hash matches the root of the tree. The tree is built assuming `leaf` is 
+     * the 0 indexed `index`'th leaf from the bottom left of the tree.
+     * 
+     * Note this is for a Merkle tree using the sha256 hash function
+     */
+    function verifyInclusionSha256(
+        bytes memory proof,
+        bytes32 root,
+        bytes32 leaf,
+        uint256 index
+    ) internal view returns (bool) {
+        return processInclusionProofSha256(proof, leaf, index) == root;
+    }
+
+    /**
+     * @dev Returns the rebuilt hash obtained by traversing a Merkle tree up
+     * from `leaf` using `proof`. A `proof` is valid if and only if the rebuilt
+     * hash matches the root of the tree. The tree is built assuming `leaf` is 
+     * the 0 indexed `index`'th leaf from the bottom left of the tree.
+     *
+     * _Available since v4.4._
+     * 
+     * Note this is for a Merkle tree using the keccak/sha3 hash function
+     */
+    function processInclusionProofSha256(bytes memory proof, bytes32 leaf, uint256 index) internal view returns (bytes32) {
+        bytes32[1] memory computedHash = [leaf];
+        for (uint256 i = 32; i <= proof.length; i+=32) {
+            if(index % 2 == 0) {
+                // if ith bit of index is 0, then computedHash is a left sibling
+                assembly {
+                    mstore(0x00, mload(computedHash))
+                    mstore(0x20, mload(add(proof, i)))
+                    if iszero(staticcall(sub(gas(), 2000), 2, 0x00, 0x40, computedHash, 0x20)) {revert(0, 0)}
+                    index := div(index, 2)
+                }
+            } else {
+                // if ith bit of index is 1, then computedHash is a right sibling
+                assembly {
+                    mstore(0x00, mload(add(proof, i)))
+                    mstore(0x20, mload(computedHash))
+                    if iszero(staticcall(sub(gas(), 2000), 2, 0x00, 0x40, computedHash, 0x20)) {revert(0, 0)}
+                    index := div(index, 2)
+                }            
+            }
+        }
+        return computedHash[0];
     }
 
     /**
@@ -111,39 +150,5 @@ library Merkle {
         }
         //the first node in the layer is the root
         return layer[0];
-    }
-
-    function checkMembershipSha256(
-        bytes32 leaf,
-        uint256 index,
-        bytes32 rootHash,
-        bytes memory proof
-    ) internal pure returns (bool) {
-        require(proof.length % 32 == 0, "Invalid proof length");
-        uint256 proofHeight = proof.length / 32;
-        // Proof of size n means, height of the tree is n+1.
-        // In a tree of height n+1, max #leafs possible is 2 ^ n
-        require(index < 2 ** proofHeight, "Leaf index is too big");
-
-        bytes32 proofElement;
-        bytes32 computedHash = leaf;
-        for (uint256 i = 32; i <= proof.length; i += 32) {
-            assembly {
-                proofElement := mload(add(proof, i))
-            }
-
-            if (index % 2 == 0) {
-                computedHash = sha256(
-                    abi.encodePacked(computedHash, proofElement)
-                );
-            } else {
-                computedHash = sha256(
-                    abi.encodePacked(proofElement, computedHash)
-                );
-            }
-
-            index = index / 2;
-        }
-        return computedHash == rootHash;
     }
 }

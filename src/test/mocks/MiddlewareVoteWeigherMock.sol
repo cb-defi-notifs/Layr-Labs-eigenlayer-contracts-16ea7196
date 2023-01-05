@@ -7,14 +7,13 @@ import "forge-std/Test.sol";
 
 contract MiddlewareVoteWeigherMock is RegistryBase, DSTest {
     uint8 _NUMBER_OF_QUORUMS = 2;
-    uint32 _UNBONDING_PERIOD = 1;
 
     constructor(
         IEigenLayrDelegation _delegation,
         IInvestmentManager _investmentManager,
         IServiceManager _serviceManager
     )
-    RegistryBase(_delegation, _investmentManager, _serviceManager, _NUMBER_OF_QUORUMS, _UNBONDING_PERIOD)
+    RegistryBase(_investmentManager, _serviceManager, _NUMBER_OF_QUORUMS)
     {}
 
     function initialize(
@@ -37,14 +36,14 @@ contract MiddlewareVoteWeigherMock is RegistryBase, DSTest {
     }
 
     function registerOperator(address operator, uint32 serveUntil) public {        
-        require(investmentManager.slasher().canSlash(operator, address(serviceManager)), "Not opted into slashing");
+        require(slasher.canSlash(operator, address(serviceManager)), "Not opted into slashing");
         serviceManager.recordFirstStakeUpdate(operator, serveUntil);
 
     }
 
     function deregisterOperator(address operator) public {
         uint32 latestTime = serviceManager.latestTime();
-        serviceManager.recordLastStakeUpdate(operator, latestTime);
+        serviceManager.recordLastStakeUpdateAndRevokeSlashingAbility(operator, latestTime);
     }
 
     function propagateStakeUpdate(address operator, uint32 blockNumber, uint256 prevElement) external {
