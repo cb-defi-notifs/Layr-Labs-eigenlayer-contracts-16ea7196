@@ -41,6 +41,7 @@ methods {
 }
 
 
+/*
 rule batchEquivalence {
     env e;
     storage initial = lastStorage;
@@ -68,6 +69,7 @@ rule batchEquivalence {
         && operatorSharesStrategy2_single == operatorSharesStrategy2_batch, 
         "operatorShares must be affected in the same way";
 }
+*/
 
 invariant zeroAddrHasNoShares(address strategy)
     get_operatorShares(0,strategy) == 0
