@@ -4,6 +4,7 @@ pragma solidity ^0.8.9;
 import "../../src/contracts/interfaces/IInvestmentManager.sol";
 import "../../src/contracts/interfaces/IInvestmentStrategy.sol";
 import "../../src/contracts/interfaces/IEigenLayrDelegation.sol";
+import "../../src/contracts/interfaces/IBLSRegistry.sol";
 import "./Staker.sol";
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -12,10 +13,12 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Create2.sol";
 
 contract Whitelister is Ownable {
-    address constant invesmentManager = 0x0000000000000000000000000000000000000000;
     //TODO: change before deploy
-    ERC20PresetMinterPauser immutable whitelistToken;
-    IInvestmentStrategy immutable whitelistStrategy;
+    address immutable invesmentManager;
+    ERC20PresetMinterPauser immutable stakeToken;
+    IInvestmentStrategy immutable stakeStrategy;
+
+    IBLSRegistry immutable registry;
 
     uint256 internal constant DEFAULT_AMOUNT = 100e18;
 
@@ -24,16 +27,21 @@ contract Whitelister is Ownable {
     //TODO: Give mint/admin/pauser permssions of whitelistToken to Whitelister and multisig after deployment
     //TODO: Give up mint/admin/pauser permssions of whitelistToken for deployer
     constructor(
-        ERC20PresetMinterPauser _whitelistToken,
-        IInvestmentStrategy _whitelistStrategy
+        address _investmentManager,
+        ERC20PresetMinterPauser _token,
+        IInvestmentStrategy _strategy,
+        IBLSRegistry _registry
     ) {
-        whitelistToken = _whitelistToken;
-        whitelistStrategy = _whitelistStrategy;
+        invesmentManager = _investmentManager;
+        stakeToken = _token;
+        stakeStrategy = _strategy;
+
+        registry = _registry;
     }
 
     function whitelist(address operator) public onlyOwner {
         // mint the staker the tokens
-        whitelistToken.mint(getStaker(operator), DEFAULT_AMOUNT);
+        stakeToken.mint(getStaker(operator), DEFAULT_AMOUNT);
         // deploy the staker
         Create2.deploy(
             0,
@@ -41,13 +49,18 @@ contract Whitelister is Ownable {
             abi.encodePacked(
                 type(Staker).creationCode,
                 abi.encode(
-                    whitelistStrategy,
-                    whitelistToken,
+                    stakeStrategy,
+                    stakeToken,
                     DEFAULT_AMOUNT,
                     operator
                 )
             )
         );
+
+        // add operator to whitelist
+        address[] memory operators = new address[](1);
+        operators[0] = operator;
+        registry.addWhitelist(operators);
     }
 
     function getStaker(address operator) public view returns (address) {
@@ -58,8 +71,8 @@ contract Whitelister is Ownable {
                     abi.encodePacked(
                         type(Staker).creationCode,
                         abi.encode(
-                            whitelistStrategy,
-                            whitelistToken,
+                            stakeStrategy,
+                            stakeToken,
                             DEFAULT_AMOUNT,
                             operator
                         )
