@@ -124,35 +124,63 @@ rule cannotChangeDelegationWithoutUndelegating(address staker) {
     // perform arbitrary function call
     method f;
     env e;
-    calldataarg arg;
-    f(e,arg);
-    address delegatedToAfter = delegatedTo(staker);
     // the only way the staker can become undelegated is if `undelegate` is called
     if (f.selector == undelegate(address).selector) {
-        /// either the `investmentManager` called `undelegate` with the argument `staker` (in which can the staker is now undelegated)
-        /// or the staker's delegation should have remained the same
-        assert (delegatedTo(staker) == 0 || delegatedToAfter == delegatedToBefore, "undelegation bug?");
+        address toUndelegate;
+        undelegate(e, toUndelegate);
+        // either the `investmentManager` called `undelegate` with the argument `staker` (in which can the staker is now undelegated)
+        if (e.msg.sender == investmentManager() && toUndelegate == staker) {
+            assert (delegatedTo(staker) == 0, "undelegation did not result in delegation to zero address");
+        // or the staker's delegation should have remained the same
+        } else {
+            address delegatedToAfter = delegatedTo(staker);
+            assert (delegatedToAfter == delegatedToBefore, "delegation changed without undelegating -- problem in undelegate permissions?");
+        }
     } else {
+        calldataarg arg;
+        f(e,arg);
+        address delegatedToAfter = delegatedTo(staker);
         assert (delegatedToAfter == delegatedToBefore, "delegation changed without undelegating");
     }
 }
 
 // verifies that an undelegated address can only delegate when calling `delegateTo`, `delegateToBySignature` or `registerAsOperator`
 rule canOnlyDelegateWithSpecificFunctions(address staker) {
+    requireInvariant operatorsAlwaysDelegatedToSelf(staker);
     // assume the staker begins as undelegated
     require(isNotDelegated(staker));
     // perform arbitrary function call
     method f;
     env e;
-    calldataarg arg;
-    f(e,arg);
-    if (f.selector == delegateTo(address).selector
-        || f.selector == delegateToBySignature(address, address, uint256, bytes32, bytes32).selector
-        || f.selector == registerAsOperator(address).selector
-    ) {
-        // TODO: this doesn't check anything -- is there a condition we *can* check?
-        assert true;
+    if (f.selector == delegateTo(address).selector) {
+        address operator;
+        delegateTo(e, operator);
+        // we check against operator being the zero address here, since we view being delegated to the zero address as *not* being delegated
+        if (e.msg.sender == staker && isOperator(operator) && operator != 0) {
+            assert (isDelegated(staker) && delegatedTo(staker) == operator, "failure in delegateTo");
+        } else {
+            assert (isNotDelegated(staker), "staker delegated to inappropriate address?");
+        }
+    } else if (f.selector == delegateToBySignature(address, address, uint256, bytes32, bytes32).selector) {
+        address toDelegateFrom;
+        address operator;
+        uint256 expiry;
+        bytes32 r;
+        bytes32 vs;
+        delegateToBySignature(e, toDelegateFrom, operator, expiry, r, vs);
+        // TODO: this check could be stricter! need to filter when the block timestamp is appropriate for expiry and r, vs is a valid signature
+        assert (isNotDelegated(staker) || delegatedTo(staker) == operator, "delegateToBySignature bug?");
+    } else if (f.selector == registerAsOperator(address).selector) {
+        address delegationTerms;
+        registerAsOperator(e, delegationTerms);
+        if (e.msg.sender == staker && delegationTerms != 0) {
+            assert (isOperator(staker));
+        } else {
+            assert(isNotDelegated(staker));
+        }
     } else {
+        calldataarg arg;
+        f(e,arg);
         assert (isNotDelegated(staker), "staker became delegated through inappropriate function call");
     }
 }
