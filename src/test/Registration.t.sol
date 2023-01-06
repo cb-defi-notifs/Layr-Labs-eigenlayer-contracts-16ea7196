@@ -30,8 +30,6 @@ contract RegistrationTests is EigenLayrTestHelper {
     InvestmentManagerMock public investmentManagerMock;
 
 
-
-
     function setUp() public virtual override {
         EigenLayrDeployer.setUp();
 
@@ -108,6 +106,20 @@ contract RegistrationTests is EigenLayrTestHelper {
         assertTrue(toBlockNumber == 0, "block number set when it shouldn't be");
         assertTrue(index == 0, "index has been set incorrectly");
         assertTrue(dlReg.operatorList(0) == operator, "incorrect operator added");
+    }
+
+    function testDeregisterOperator(address operator, string calldata socket) public fuzzedAddress(operator){
+        BN254.G1Point memory pk = BN254.G1Point(0,0);
+
+        testRegisterOperator(operator, socket);
+        cheats.startPrank(operator);
+        dlReg.deregisterOperator(pk, 0);
+        cheats.stopPrank();
+
+        bytes32 pubkeyHash = BN254.hashG1Point(pk);
+        (uint32 toBlockNumber, uint32 index) = dlReg.pubkeyHashToIndexHistory(pubkeyHash,0);
+        assertTrue(index == 0, "index has been set incorrectly");
+        assertTrue(toBlockNumber == block.number, "toBlockNumber has been set incorrectly");
     }
 
 
