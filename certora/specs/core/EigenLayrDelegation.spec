@@ -38,8 +38,60 @@ methods {
     //// Summarized Functions
     _delegationReceivedHook(address,address,address[],uint256[]) => NONDET
     _delegationWithdrawnHook(address,address,address[],uint256[]) => NONDET
+
+    //envfree functions
+    isDelegated(address staker) returns (bool) envfree
+    isNotDelegated(address staker) returns (bool) envfree
+    isOperator(address operator) returns (bool) envfree
+    delegatedTo(address staker) returns (address) envfree
+    delegationTerms(address operator) returns (address) envfree
+    operatorShares(address operator, address strategy) returns (uint256) envfree
 }
 
+/*
+LEGAL STATE TRANSITIONS:
+1)
+FROM not delegated -- defined as delegatedTo(staker) == address(0), likewise returned by isNotDelegated(staker)--
+AND not registered as an operator -- defined as isOperator(operator) == false, or equivalently, delegationTerms(operator) == 0,
+TO delegated but not an operator
+in this case, the end state is that:
+isOperator(staker) == false,
+delegatedTo(staker) != staker && delegatedTo(staker) != 0,
+and isDelegated(staker) == true (redundant with above)
+-only allowed when calling `delegateTo` or `delegateToBySignature`
+
+2)
+FROM not delegated AND not registered as an operator
+TO an operator
+in this case, the end state is that:
+isOperator(staker) == true,
+delegatedTo(staker) == staker,
+and isDelegated(staker) == true (redundant with above)
+-only allowed when calling `registerAsOperator`
+
+3)
+FROM not registered as an operator AND delegated
+TO not delegated (and still not registered as an operator)
+in this case, the end state is that:
+isOperator(staker) == false,
+delegatedTo(staker) == 0,
+and isDelegated(staker) == false (redundant with above)
+
+ILLEGAL STATE TRANSITIONS:
+A)
+FROM registered as an operator
+TO not registered as an operator
+
+B) 
+FROM registered as an operator (necessarily implies they are also delegated to themselves)
+TO not delegated to themselves
+
+FORBIDDEN STATES:
+-an address cannot be simultaneously (classified as an operator) and (not delegated to themselves)
+*/
+
+invariant operatorsAlwaysDelegatedToSelf(address operator)
+    (operator != 0 && isOperator(operator)) => delegatedTo(operator) == operator
 
 /*
 rule batchEquivalence {
@@ -70,6 +122,7 @@ rule batchEquivalence {
         "operatorShares must be affected in the same way";
 }
 */
-
+/*
 invariant zeroAddrHasNoShares(address strategy)
     get_operatorShares(0,strategy) == 0
+*/
