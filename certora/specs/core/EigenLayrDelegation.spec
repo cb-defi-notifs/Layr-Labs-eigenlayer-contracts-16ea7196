@@ -46,6 +46,8 @@ methods {
     delegatedTo(address staker) returns (address) envfree
     delegationTerms(address operator) returns (address) envfree
     operatorShares(address operator, address strategy) returns (uint256) envfree
+    owner() returns (address) envfree
+    investmentManager() returns (address) envfree
 }
 
 /*
@@ -71,7 +73,7 @@ and isDelegated(staker) == true (redundant with above)
 
 3)
 FROM not registered as an operator AND delegated
-TO not delegated (and still not registered as an operator)
+TO not delegated (and still *not* registered as an operator)
 in this case, the end state is that:
 isOperator(staker) == false,
 delegatedTo(staker) == 0,
@@ -83,15 +85,77 @@ FROM registered as an operator
 TO not registered as an operator
 
 B) 
-FROM registered as an operator (necessarily implies they are also delegated to themselves)
+FROM registered as an operator (implies they are also delegated to themselves)
 TO not delegated to themselves
+
+C)
+FROM delegated to an operator
+TO delegated to another operator
+(without undelegating in-between)
 
 FORBIDDEN STATES:
 -an address cannot be simultaneously (classified as an operator) and (not delegated to themselves)
 */
 
+// verify that anyone who is registered as an operator is also always delegated to themselves
 invariant operatorsAlwaysDelegatedToSelf(address operator)
     (operator != 0 && isOperator(operator)) => delegatedTo(operator) == operator
+
+// verify that once registered as an operator, a person cannot 'unregister' from being an operator
+// proving this rule in concert with 'operatorsAlwaysDelegatedToSelf' proves that an operator can never change their delegation
+rule operatorCannotUnregister(address operator) {
+    requireInvariant operatorsAlwaysDelegatedToSelf(operator);
+    // assume `operator` starts in a state of being registered as an operator
+    require(isOperator(operator));
+    // perform arbitrary function call
+    method f;
+    env e;
+    calldataarg arg;
+    f(e,arg);
+    // verify that `operator` is still registered as an operator
+    assert(isOperator(operator), "operator was able to deregister!");
+}
+
+// verifies that in order for an address to change who they are delegated to, `undelegate` must be called
+rule cannotChangeDelegationWithoutUndelegating(address staker) {
+    // assume the staker is delegated to begin with
+    require(isDelegated(staker));
+    address delegatedToBefore = delegatedTo(staker);
+    // perform arbitrary function call
+    method f;
+    env e;
+    calldataarg arg;
+    f(e,arg);
+    address delegatedToAfter = delegatedTo(staker);
+    // the only way the staker can become undelegated is if `undelegate` is called
+    if (f.selector == undelegate(address).selector) {
+        /// either the `investmentManager` called `undelegate` with the argument `staker` (in which can the staker is now undelegated)
+        /// or the staker's delegation should have remained the same
+        assert (delegatedTo(staker) == 0 || delegatedToAfter == delegatedToBefore, "undelegation bug?");
+    } else {
+        assert (delegatedToAfter == delegatedToBefore, "delegation changed without undelegating");
+    }
+}
+
+// verifies that an undelegated address can only delegate when calling `delegateTo`, `delegateToBySignature` or `registerAsOperator`
+rule canOnlyDelegateWithSpecificFunctions(address staker) {
+    // assume the staker begins as undelegated
+    require(isNotDelegated(staker));
+    // perform arbitrary function call
+    method f;
+    env e;
+    calldataarg arg;
+    f(e,arg);
+    if (f.selector == delegateTo(address).selector
+        || f.selector == delegateToBySignature(address, address, uint256, bytes32, bytes32).selector
+        || f.selector == registerAsOperator(address).selector
+    ) {
+        // TODO: this doesn't check anything -- is there a condition we *can* check?
+        assert true;
+    } else {
+        assert (isNotDelegated(staker), "staker became delegated through inappropriate function call");
+    }
+}
 
 /*
 rule batchEquivalence {
