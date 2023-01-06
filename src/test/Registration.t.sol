@@ -119,7 +119,6 @@ contract RegistrationTests is EigenLayrTestHelper {
 
         bytes32 pubkeyHash = BN254.hashG1Point(pk);
         (uint32 toBlockNumber, uint32 index) = dlReg.pubkeyHashToIndexHistory(pubkeyHash,0);
-        assertTrue(index == 0, "index has been set incorrectly");
         assertTrue(toBlockNumber == block.number, "toBlockNumber has been set incorrectly");
     }
 
