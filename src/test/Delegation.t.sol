@@ -10,7 +10,6 @@ import "../contracts/libraries/BytesLib.sol";
 import "./mocks/MiddlewareRegistryMock.sol";
 import "./mocks/MiddlewareVoteWeigherMock.sol";
 import "./mocks/ServiceManagerMock.sol";
-import "./mocks/ServiceManagerMock.sol";
 
 contract DelegationTests is EigenLayrTestHelper {
     using BytesLib for bytes;

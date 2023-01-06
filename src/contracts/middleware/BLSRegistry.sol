@@ -6,6 +6,7 @@ import "../interfaces/IBLSPublicKeyCompendium.sol";
 import "../interfaces/IBLSRegistry.sol";
 import "../libraries/BN254.sol";
 
+import "forge-std/Test.sol";
 /**
  * @title A Registry-type contract using aggregate BLS signatures.
  * @author Layr Labs, Inc.
@@ -110,6 +111,7 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
         bytes32 pubkeyHash = BN254.hashG1Point(pk);
 
         require(pubkeyHash != ZERO_PK_HASH, "BLSRegistry._registerOperator: Cannot register with 0x0 public key");
+
 
         require(
             pubkeyCompendium.pubkeyHashToOperator(pubkeyHash) == operator,

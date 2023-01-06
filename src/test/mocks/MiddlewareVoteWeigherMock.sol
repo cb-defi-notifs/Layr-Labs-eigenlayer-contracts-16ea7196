@@ -5,7 +5,7 @@ import "../../contracts/middleware/RegistryBase.sol";
 
 import "forge-std/Test.sol";
 
-contract MiddlewareVoteWeigherMock is RegistryBase, DSTest {
+contract MiddlewareVoteWeigherMock is RegistryBase {
     uint8 _NUMBER_OF_QUORUMS = 2;
 
     constructor(
