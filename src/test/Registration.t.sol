@@ -80,9 +80,9 @@ contract RegistrationTests is EigenLayrTestHelper {
     }
 
 
-    function testRegisterOperator(address operator, string calldata socket) public fuzzedAddress(operator){
-
-        BN254.G1Point memory pk = BN254.G1Point(0,0);
+    function testRegisterOperator(address operator, uint32 operatorIndex, string calldata socket) public fuzzedAddress(operator){
+        cheats.assume(operatorIndex < 15);
+        BN254.G1Point memory pk = getOperatorPubkeyG1(operatorIndex);
 
         //register as both ETH and EIGEN operator
         uint256 wethToDeposit = 1e18;
@@ -108,10 +108,11 @@ contract RegistrationTests is EigenLayrTestHelper {
         assertTrue(dlReg.operatorList(0) == operator, "incorrect operator added");
     }
 
-    function testDeregisterOperator(address operator, string calldata socket) public fuzzedAddress(operator){
-        BN254.G1Point memory pk = BN254.G1Point(0,0);
+    function testDeregisterOperator(address operator, uint32 operatorIndex, string calldata socket) public fuzzedAddress(operator){
+        cheats.assume(operatorIndex < 15);
+        BN254.G1Point memory pk = getOperatorPubkeyG1(operatorIndex);
 
-        testRegisterOperator(operator, socket);
+        testRegisterOperator(operator, operatorIndex, socket);
         cheats.startPrank(operator);
         dlReg.deregisterOperator(pk, 0);
         cheats.stopPrank();

@@ -524,8 +524,6 @@ abstract contract RegistryBase is VoteWeigherBase, IQuorumRegistry, Test {
             fromTaskNumber: serviceManager.taskNumber()
         });
 
-        
-
         // add the operator to the list of operators
         operatorList.push(operator);
 
