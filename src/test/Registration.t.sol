@@ -94,12 +94,20 @@ contract RegistrationTests is EigenLayrTestHelper {
         _testRegisterAsOperator(operator, IDelegationTerms(operator));
 
 
+        
         cheats.startPrank(operator);
         slasher.optIntoSlashing(address(dlsm));
         pubkeyCompendium.registerPublicKey(pk);
         dlReg.registerOperator(1, pk, socket);
         cheats.stopPrank();
 
+        bytes32 pubkeyHash = BN254.hashG1Point(pk);
+        
+        (uint32 toBlockNumber, uint32 index) = dlReg.pubkeyHashToIndexHistory(pubkeyHash,0);
+
+        assertTrue(toBlockNumber == 0, "block number set when it shouldn't be");
+        assertTrue(index == 0, "index has been set incorrectly");
+        assertTrue(dlReg.operatorList(0) == operator, "incorrect operator added");
     }
 
 
