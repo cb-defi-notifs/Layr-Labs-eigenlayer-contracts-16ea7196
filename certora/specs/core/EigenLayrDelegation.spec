@@ -95,11 +95,14 @@ TO delegated to another operator
 
 FORBIDDEN STATES:
 -an address cannot be simultaneously (classified as an operator) and (not delegated to themselves)
+-an address cannot be (delegated to themselves) and (not classified as an operator)
+Combining the above, an address can be (classified as an operator) *iff* they are (delegated to themselves).
+The exception is the zero address, since by default an address is 'delegated to the zero address' when they are not delegated at all
 */
 
 // verify that anyone who is registered as an operator is also always delegated to themselves
 invariant operatorsAlwaysDelegatedToSelf(address operator)
-    (operator != 0 && isOperator(operator)) => delegatedTo(operator) == operator
+    (operator != 0 && isOperator(operator)) <=> operator != 0 && delegatedTo(operator) == operator
 
 // verify that once registered as an operator, a person cannot 'unregister' from being an operator
 // proving this rule in concert with 'operatorsAlwaysDelegatedToSelf' proves that an operator can never change their delegation
