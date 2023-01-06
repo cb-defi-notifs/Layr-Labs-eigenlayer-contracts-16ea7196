@@ -18,7 +18,7 @@ import "forge-std/Test.sol";
  * - updating the stakes of the operator
  * @dev This contract is missing key functions. See `BLSRegistry` or `ECDSARegistry` for examples that inherit from this contract.
  */
-abstract contract RegistryBase is VoteWeigherBase, IQuorumRegistry {
+abstract contract RegistryBase is VoteWeigherBase, IQuorumRegistry, Test {
     using BytesLib for bytes;
 
     // TODO: set these on initialization
@@ -517,12 +517,16 @@ abstract contract RegistryBase is VoteWeigherBase, IQuorumRegistry {
             slasher.bondedUntil(operator, address(serviceManager)) == type(uint32).max,
             "RegistryBase._addRegistrant: operator must be opted into slashing by the serviceManager"
         );
+        emit log("whats up");
         // store the Operator's info in mapping
         registry[operator] = Operator({
             pubkeyHash: pubkeyHash,
             status: IQuorumRegistry.Status.ACTIVE,
             fromTaskNumber: serviceManager.taskNumber()
         });
+        emit log("hehe");
+
+        
 
         // add the operator to the list of operators
         operatorList.push(operator);

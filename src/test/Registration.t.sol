@@ -10,6 +10,7 @@ import "../contracts/libraries/BytesLib.sol";
 import "./mocks/MiddlewareVoteWeigherMock.sol";
 import "./mocks/ServiceManagerMock.sol";
 import "./mocks/PublicKeyCompendiumMock.sol";
+import "./mocks/InvestmentManagerMock.sol";
 
 import "../../src/contracts/middleware/BLSRegistry.sol";
 import "../../src/contracts/middleware/BLSPublicKeyCompendium.sol";
@@ -26,6 +27,7 @@ contract RegistrationTests is EigenLayrTestHelper {
     ProxyAdmin public dataLayrProxyAdmin;
 
     ServiceManagerMock public dlsm;
+    InvestmentManagerMock public investmentManagerMock;
 
 
 
@@ -42,12 +44,16 @@ contract RegistrationTests is EigenLayrTestHelper {
 
         pubkeyCompendium = new BLSPublicKeyCompendiumMock();
 
+        investmentManagerMock = new InvestmentManagerMock(delegation, eigenPodManager, slasher);
+
+        dlsm = new ServiceManagerMock(investmentManagerMock);
+
         dlReg = BLSRegistry(
             address(new TransparentUpgradeableProxy(address(emptyContract), address(dataLayrProxyAdmin), ""))
         );
 
         dlRegImplementation = new BLSRegistry(
-                investmentManager,
+                investmentManagerMock,
                 dlsm,
                 2,
                 pubkeyCompendium
@@ -76,7 +82,9 @@ contract RegistrationTests is EigenLayrTestHelper {
     }
 
 
-    function testRegisterOperator(address operator, BN254.G1Point memory pk, string calldata socket) public fuzzedAddress(operator){
+    function testRegisterOperator(address operator, string calldata socket) public fuzzedAddress(operator){
+
+        BN254.G1Point memory pk = BN254.G1Point(0,0);
 
         //register as both ETH and EIGEN operator
         uint256 wethToDeposit = 1e18;
@@ -87,6 +95,7 @@ contract RegistrationTests is EigenLayrTestHelper {
 
 
         cheats.startPrank(operator);
+        slasher.optIntoSlashing(address(dlsm));
         pubkeyCompendium.registerPublicKey(pk);
         dlReg.registerOperator(1, pk, socket);
         cheats.stopPrank();

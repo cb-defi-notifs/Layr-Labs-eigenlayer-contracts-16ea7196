@@ -15,7 +15,7 @@ import "forge-std/Test.sol";
  * - committing to and finalizing de-registration as an operator
  * - updating the stakes of the operator
  */
-contract BLSRegistry is RegistryBase, IBLSRegistry, Test {
+contract BLSRegistry is RegistryBase, IBLSRegistry {
     using BytesLib for bytes;
 
     // Hash of the zero public key
@@ -112,7 +112,6 @@ contract BLSRegistry is RegistryBase, IBLSRegistry, Test {
 
         require(pubkeyHash != ZERO_PK_HASH, "BLSRegistry._registerOperator: Cannot register with 0x0 public key");
 
-        emit log("hehehe");
 
         require(
             pubkeyCompendium.pubkeyHashToOperator(pubkeyHash) == operator,

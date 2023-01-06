@@ -17,7 +17,7 @@ contract ServiceManagerMock is IServiceManager, DSTest {
     }
 
     /// @notice Returns the current 'taskNumber' for the middleware
-    function taskNumber() external pure returns (uint32) {
+    function taskNumber() public view returns (uint32) {
         return 0;
     }
 
