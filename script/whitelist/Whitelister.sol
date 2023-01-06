@@ -75,7 +75,7 @@ contract Whitelister is Ownable {
         uint256 amount
     ) public onlyOwner returns (bytes memory) {
         bytes memory data = abi.encode(
-            address(invesmentManager),
+            address(investmentManager),
             abi.encodeWithSelector(
                 IInvestmentManager.depositIntoStrategy.selector,
                 strategy,
@@ -97,7 +97,7 @@ contract Whitelister is Ownable {
         bool undelegateIfPossible
     ) public onlyOwner returns (bytes memory) {
         bytes memory data = abi.encode(
-            invesmentManager,
+            investmentManager,
             abi.encodeWithSelector(
                 IInvestmentManager.queueWithdrawal.selector,
                 strategyIndexes,
@@ -119,7 +119,7 @@ contract Whitelister is Ownable {
         bool receiveAsTokens
     ) public onlyOwner returns (bytes memory) {
         bytes memory data = abi.encode(
-            invesmentManager,
+            investmentManager,
             abi.encodeWithSelector(
                 IInvestmentManager.completeQueuedWithdrawal.selector,
                 queuedWithdrawal,
