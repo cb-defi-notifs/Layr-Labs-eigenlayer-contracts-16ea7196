@@ -7,15 +7,16 @@ import "../../src/contracts/interfaces/IEigenLayrDelegation.sol";
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "forge-std/Test.sol";
 
-contract Staker is Ownable {
+contract Staker is Ownable, Test {
     //TODO: change before deploy
-    IInvestmentManager constant invesmentManager = IInvestmentManager(0x0000000000000000000000000000000000000000);
+    //IInvestmentManager constant investmentManager = IInvestmentManager(0x0000000000000000000000000000000000000000);
     IEigenLayrDelegation constant delegation = IEigenLayrDelegation(0x0000000000000000000000000000000000000000);
 
-    constructor(IInvestmentStrategy strategy, IERC20 token, uint256 amount, address operator) Ownable() {
-        token.approve(address(invesmentManager), type(uint256).max);
-        invesmentManager.depositIntoStrategy(strategy, token, amount);
+    constructor(IInvestmentStrategy strategy, IInvestmentManager investmentManager, IERC20 token, uint256 amount, address operator) Ownable() {
+        token.approve(address(investmentManager), type(uint256).max);
+        investmentManager.depositIntoStrategy(strategy, token, amount);
         delegation.delegateTo(operator);
     }
 

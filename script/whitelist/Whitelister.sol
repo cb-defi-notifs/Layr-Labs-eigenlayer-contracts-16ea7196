@@ -13,9 +13,9 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Create2.sol";
 
 contract Whitelister is Ownable {
-    address constant investmentManager = 0x0000000000000000000000000000000000000000;
+    //address constant investmentManager = 0x0000000000000000000000000000000000000000;
     //TODO: change before deploy
-    address immutable invesmentManager;
+    address immutable investmentManager;
     ERC20PresetMinterPauser immutable stakeToken;
     IInvestmentStrategy immutable stakeStrategy;
 
@@ -33,7 +33,7 @@ contract Whitelister is Ownable {
         IInvestmentStrategy _strategy,
         IBLSRegistry _registry
     ) {
-        invesmentManager = _investmentManager;
+        investmentManager = _investmentManager;
         stakeToken = _token;
         stakeStrategy = _strategy;
 
@@ -51,6 +51,7 @@ contract Whitelister is Ownable {
                 type(Staker).creationCode,
                 abi.encode(
                     stakeStrategy,
+                    investmentManager,
                     stakeToken,
                     DEFAULT_AMOUNT,
                     operator

@@ -106,7 +106,13 @@ contract WhitelisterTests is EigenLayrDeployer {
 
     }
 
-    function testWhitelist() external {
+    function testWhitelistingOperator(address operator) external {
+        cheats.startPrank(theMultiSig);
+
+        emit log_address(theMultiSig);
+        emit log_address(address(whiteLister));
+        whiteLister.whitelist(operator);
+        cheats.stopPrank();
         
     }
 
