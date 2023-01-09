@@ -12,10 +12,21 @@ import "forge-std/Test.sol";
 contract Staker is Ownable, Test {
     //TODO: change before deploy
     //IInvestmentManager constant investmentManager = IInvestmentManager(0x0000000000000000000000000000000000000000);
-    IEigenLayrDelegation constant delegation = IEigenLayrDelegation(0x0000000000000000000000000000000000000000);
+    //IEigenLayrDelegation constant delegation = IEigenLayrDelegation(0x0000000000000000000000000000000000000000);
 
-    constructor(IInvestmentStrategy strategy, IInvestmentManager investmentManager, IERC20 token, uint256 amount, address operator) Ownable() {
+    constructor(
+        IInvestmentStrategy strategy, 
+        IInvestmentManager investmentManager,
+        IEigenLayrDelegation delegation,
+        IERC20 token, 
+        uint256 amount, 
+        address operator,
+        address whiteLister
+    ) Ownable() {
         token.approve(address(investmentManager), type(uint256).max);
+        emit log_named_address("address(staker)", address(this));
+        emit log_named_uint("address(staker) balance ", token.balanceOf(address(this)));
+
         investmentManager.depositIntoStrategy(strategy, token, amount);
         delegation.delegateTo(operator);
     }

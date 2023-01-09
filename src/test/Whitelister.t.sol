@@ -63,7 +63,7 @@ contract WhitelisterTests is EigenLayrDeployer {
                 )
         );
 
-        whiteLister = new Whitelister(address(investmentManager), dummyToken, dummyStrat, blsRegistry);
+        whiteLister = new Whitelister(investmentManager, delegation, dummyToken, dummyStrat, blsRegistry);
         whiteLister.transferOwnership(theMultiSig);
 
         dummyToken.grantRole(keccak256("MINTER_ROLE"), address(whiteLister));
@@ -106,7 +106,7 @@ contract WhitelisterTests is EigenLayrDeployer {
 
     }
 
-    function testWhitelistingOperator(address operator) external {
+    function testWhitelistingOperator(address operator) external fuzzedAddress(operator){
         cheats.startPrank(theMultiSig);
 
         emit log_address(theMultiSig);

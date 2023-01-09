@@ -12,28 +12,33 @@ import "./ERC20PresetMinterPauser.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Create2.sol";
 
-contract Whitelister is Ownable {
+import "forge-std/Test.sol";
+
+contract Whitelister is Ownable, Test {
     //address constant investmentManager = 0x0000000000000000000000000000000000000000;
     //TODO: change before deploy
-    address immutable investmentManager;
+    IInvestmentManager immutable investmentManager;
     ERC20PresetMinterPauser immutable stakeToken;
     IInvestmentStrategy immutable stakeStrategy;
+    IEigenLayrDelegation delegation;
 
     IBLSRegistry immutable registry;
 
-    uint256 internal constant DEFAULT_AMOUNT = 100e18;
+    uint256 public constant DEFAULT_AMOUNT = 100e18;
 
     //TODO: Deploy ERC20PresetMinterPauser and a corresponding InvestmentStrategyBase for it
     //TODO: Transfer ownership of Whitelister to multisig after deployment
     //TODO: Give mint/admin/pauser permssions of whitelistToken to Whitelister and multisig after deployment
     //TODO: Give up mint/admin/pauser permssions of whitelistToken for deployer
     constructor(
-        address _investmentManager,
+        IInvestmentManager _investmentManager,
+        IEigenLayrDelegation _delegation,
         ERC20PresetMinterPauser _token,
         IInvestmentStrategy _strategy,
         IBLSRegistry _registry
     ) {
         investmentManager = _investmentManager;
+        delegation = _delegation;
         stakeToken = _token;
         stakeStrategy = _strategy;
 
@@ -44,7 +49,7 @@ contract Whitelister is Ownable {
         // mint the staker the tokens
         stakeToken.mint(getStaker(operator), DEFAULT_AMOUNT);
         // deploy the staker
-        Create2.deploy(
+        address staker = Create2.deploy(
             0,
             bytes32(uint256(uint160(msg.sender))),
             abi.encodePacked(
@@ -52,12 +57,17 @@ contract Whitelister is Ownable {
                 abi.encode(
                     stakeStrategy,
                     investmentManager,
+                    delegation,
                     stakeToken,
                     DEFAULT_AMOUNT,
-                    operator
+                    operator,
+                    address(this)
                 )
             )
         );
+
+        emit log_named_address("astaker", staker);
+        emit log_named_address("astaker", getStaker(operator));
 
         // add operator to whitelist
         address[] memory operators = new address[](1);
@@ -74,9 +84,12 @@ contract Whitelister is Ownable {
                         type(Staker).creationCode,
                         abi.encode(
                             stakeStrategy,
+                            investmentManager,
+                            delegation,
                             stakeToken,
                             DEFAULT_AMOUNT,
-                            operator
+                            operator,
+                            address(this)
                         )
                     )
                 ) //bytecode
