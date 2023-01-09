@@ -6,6 +6,8 @@ import "../interfaces/IBLSPublicKeyCompendium.sol";
 import "../interfaces/IBLSRegistry.sol";
 import "../libraries/BN254.sol";
 
+import "forge-std/Test.sol";
+
 /**
  * @title A Registry-type contract using aggregate BLS signatures.
  * @author Layr Labs, Inc.
@@ -14,7 +16,7 @@ import "../libraries/BN254.sol";
  * - committing to and finalizing de-registration as an operator
  * - updating the stakes of the operator
  */
-contract BLSRegistry is RegistryBase, IBLSRegistry {
+contract BLSRegistry is RegistryBase, IBLSRegistry, Test {
     using BytesLib for bytes;
 
     // Hash of the zero public key
@@ -111,6 +113,7 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
      * @param operators the operators to add to the whitelist
      */
     function addWhitelist(address[] calldata operators) external {
+
         require(whitelister == msg.sender, "BLSRegistry.addWhitelist: not whitelister");
         for (uint i = 0; i < operators.length; i++) {
             whitelisted[operators[i]] = true;

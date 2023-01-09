@@ -93,20 +93,22 @@ contract WhitelisterTests is EigenLayrDeployer {
             eigenStratsAndMultipliers[0].strategy = eigenStrat;
             eigenStratsAndMultipliers[0].multiplier = 1e18;
 
+        eigenLayrProxyAdmin.upgradeAndCall(
+                TransparentUpgradeableProxy(payable(address(blsRegistry))),
+                address(blsRegistryImplementation),
+                abi.encodeWithSelector(BLSRegistry.initialize.selector, address(whiteLister), true, _quorumBips, ethStratsAndMultipliers, eigenStratsAndMultipliers)
+            );
 
-        blsRegistry = BLSRegistry(
-            address(
-                new TransparentUpgradeableProxy(
-                    address(blsRegistryImplementation),
-                    address(eigenLayrProxyAdmin),
-                    abi.encodeWithSelector(BLSRegistry.initialize.selector, address(whiteLister), true, _quorumBips, ethStratsAndMultipliers, eigenStratsAndMultipliers)
-                )
-            )
-        );
+        emit log_named_address("blsRegistry", address(blsRegistry));
 
     }
 
     function testWhitelistingOperator(address operator) external fuzzedAddress(operator){
+        cheats.startPrank(operator);
+        IDelegationTerms dt = IDelegationTerms(address(89));
+        delegation.registerAsOperator(dt);
+        cheats.stopPrank();
+
         cheats.startPrank(theMultiSig);
         whiteLister.whitelist(operator);
         cheats.stopPrank();

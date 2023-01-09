@@ -49,7 +49,7 @@ contract Whitelister is Ownable, Test {
         // mint the staker the tokens
         stakeToken.mint(getStaker(operator), DEFAULT_AMOUNT);
         // deploy the staker
-        address staker = Create2.deploy(
+        Create2.deploy(
             0,
             bytes32(uint256(uint160(operator))),
             abi.encodePacked(
@@ -66,12 +66,10 @@ contract Whitelister is Ownable, Test {
             )
         );
 
-        emit log_named_address("astaker", staker);
-        emit log_named_address("astaker", getStaker(operator));
-
         // add operator to whitelist
         address[] memory operators = new address[](1);
         operators[0] = operator;
+        emit log_named_address("registry", address(registry));
         registry.addWhitelist(operators);
     }
 
