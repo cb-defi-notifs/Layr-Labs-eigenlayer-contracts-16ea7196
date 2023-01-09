@@ -99,8 +99,6 @@ contract WhitelisterTests is EigenLayrDeployer {
                 abi.encodeWithSelector(BLSRegistry.initialize.selector, address(whiteLister), true, _quorumBips, ethStratsAndMultipliers, eigenStratsAndMultipliers)
             );
 
-        emit log_named_address("blsRegistry", address(blsRegistry));
-
     }
 
     function testWhitelistingOperator(address operator) external fuzzedAddress(operator){
@@ -112,6 +110,8 @@ contract WhitelisterTests is EigenLayrDeployer {
         cheats.startPrank(theMultiSig);
         whiteLister.whitelist(operator);
         cheats.stopPrank();
+
+        assertTrue(blsRegistry.whitelisted(operator) == true, "operator not added to whitelist");
         
     }
 

@@ -69,7 +69,6 @@ contract Whitelister is Ownable, Test {
         // add operator to whitelist
         address[] memory operators = new address[](1);
         operators[0] = operator;
-        emit log_named_address("registry", address(registry));
         registry.addWhitelist(operators);
     }
 
