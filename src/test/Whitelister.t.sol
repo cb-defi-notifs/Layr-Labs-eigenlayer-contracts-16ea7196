@@ -108,9 +108,6 @@ contract WhitelisterTests is EigenLayrDeployer {
 
     function testWhitelistingOperator(address operator) external fuzzedAddress(operator){
         cheats.startPrank(theMultiSig);
-
-        emit log_address(theMultiSig);
-        emit log_address(address(whiteLister));
         whiteLister.whitelist(operator);
         cheats.stopPrank();
         

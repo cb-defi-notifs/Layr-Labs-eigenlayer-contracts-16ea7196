@@ -51,7 +51,7 @@ contract Whitelister is Ownable, Test {
         // deploy the staker
         address staker = Create2.deploy(
             0,
-            bytes32(uint256(uint160(msg.sender))),
+            bytes32(uint256(uint160(operator))),
             abi.encodePacked(
                 type(Staker).creationCode,
                 abi.encode(
