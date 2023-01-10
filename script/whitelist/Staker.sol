@@ -33,9 +33,11 @@ contract Staker is Ownable, Test {
     }
     
     function callAddress(address implementation, bytes memory data) external onlyWhiteLister returns(bytes memory) {
+        emit log("whats");      
         uint256 length = data.length;
 
-        bytes memory returndata;        
+        bytes memory returndata;  
+        emit log("whats");      
 
         assembly{
             let result := call(

@@ -40,9 +40,11 @@ contract WhitelisterTests is EigenLayrTestHelper {
 
     ServiceManagerMock dummyServiceManager;
     BLSPublicKeyCompendiumMock dummyCompendium;
+    MiddlewareRegistryMock dummyReg;
 
     MiddlewareVoteWeigherMock public voteWeigher;
     MiddlewareVoteWeigherMock public voteWeigherImplementation;
+    address withdrawer = address(345);
 
     modifier fuzzedAmounts(uint256 ethAmount, uint256 eigenAmount){
         cheats.assume(ethAmount >= 0 && ethAmount <= 1e18);
@@ -130,6 +132,11 @@ contract WhitelisterTests is EigenLayrTestHelper {
                 address(voteWeigherImplementation),
                 abi.encodeWithSelector(MiddlewareVoteWeigherMock.initialize.selector, _quorumBips, ethStratsAndMultipliers, eigenStratsAndMultipliers)
             );
+        
+        dummyReg = new MiddlewareRegistryMock(
+             dummyServiceManager,
+             investmentManager
+        );
 
     }
 
@@ -160,31 +167,19 @@ contract WhitelisterTests is EigenLayrTestHelper {
 
     function testQueueWithdrawal(
             address operator, 
-            address staker,
-            address withdrawer, 
-            uint256 ethAmount,
-            uint256 eigenAmount,
-            bool withdrawAsTokens,
+            uint256 amount,
             string calldata socket
         ) 
-            external  fuzzedAddress(operator) fuzzedAddress(staker) fuzzedAmounts(ethAmount, eigenAmount)
+            external  fuzzedAddress(operator) fuzzedAmounts(amount, amount)
         {
-        cheats.assume(operator != staker);
-        _testRegisterAsOperator(operator, IDelegationTerms(operator));
-        _testDepositWeth(staker, ethAmount);
-        _testDepositEigen(staker, eigenAmount);
-        _testDelegateToOperator(staker, operator);
-        assertTrue(delegation.isDelegated(staker) == true, "testDelegation: staker is not delegate");
-
+        address staker = whiteLister.getStaker(operator);
+        cheats.assume(staker!=operator);
+         _testRegisterAsOperator(operator, IDelegationTerms(operator));
+        //delegate(operator, staker, amount, amount);
 
         cheats.startPrank(operator);
         slasher.optIntoSlashing(address(dummyServiceManager));
         cheats.stopPrank();
-
-
-        // BN254.G1Point memory pk = getOperatorPubkeyG1(0);
-
-        BN254.G1Point memory pk = getOperatorPubkeyG1(0);
 
         //register as both ETH and EIGEN operator
         
@@ -193,60 +188,48 @@ contract WhitelisterTests is EigenLayrTestHelper {
         cheats.stopPrank();
 
         cheats.startPrank(operator);
-                emit log("ss");
-                emit log("ss");
+        dummyReg.registerOperator(operator, uint32(block.timestamp) + 3 days);
+        cheats.stopPrank();
 
-        dummyCompendium.registerPublicKey(pk);
-                        emit log("ss");
+        // packed data structure to deal with stack-too-deep issues
+        DataForTestWithdrawal memory dataForTestWithdrawal;
+
+        // scoped block to deal with stack-too-deep issues
+        {
+            //delegator-specific information
+            (IInvestmentStrategy[] memory delegatorStrategies, uint256[] memory delegatorShares) =
+                investmentManager.getDeposits(staker);
+            dataForTestWithdrawal.delegatorStrategies = delegatorStrategies;
+            dataForTestWithdrawal.delegatorShares = delegatorShares;
+
+            IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce = 
+                IInvestmentManager.WithdrawerAndNonce({
+                    withdrawer: withdrawer,
+                    // harcoded nonce value
+                    nonce: 0
+                }
+            );
+            dataForTestWithdrawal.withdrawerAndNonce = withdrawerAndNonce;
+        }
+
+        uint256[] memory strategyIndexes = new uint256[](2);
+        IERC20[] memory tokensArray = new IERC20[](2);
+        {
+            // hardcoded values
+            strategyIndexes[0] = 0;
+            strategyIndexes[1] = 0;
+            tokensArray[0] = weth;
+            tokensArray[1] = eigenToken;
+        }
 
 
-        blsRegistry.registerOperator(1, pk, socket);
-
-
-    //     // address delegatedTo = delegation.delegatedTo(staker);
-
-    //     // // packed data structure to deal with stack-too-deep issues
-    //     // DataForTestWithdrawal memory dataForTestWithdrawal;
-
-    //     // // scoped block to deal with stack-too-deep issues
-    //     // {
-    //     //     //delegator-specific information
-    //     //     (IInvestmentStrategy[] memory delegatorStrategies, uint256[] memory delegatorShares) =
-    //     //         investmentManager.getDeposits(staker);
-    //     //     dataForTestWithdrawal.delegatorStrategies = delegatorStrategies;
-    //     //     dataForTestWithdrawal.delegatorShares = delegatorShares;
-
-    //     //     IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce = 
-    //     //         IInvestmentManager.WithdrawerAndNonce({
-    //     //             withdrawer: withdrawer,
-    //     //             // harcoded nonce value
-    //     //             nonce: 0
-    //     //         }
-    //     //     );
-    //     //     dataForTestWithdrawal.withdrawerAndNonce = withdrawerAndNonce;
-    //     // }
-
-    //     // uint256[] memory strategyIndexes = new uint256[](2);
-    //     // IERC20[] memory tokensArray = new IERC20[](2);
-    //     // {
-    //     //     // hardcoded values
-    //     //     strategyIndexes[0] = 0;
-    //     //     strategyIndexes[1] = 0;
-    //     //     tokensArray[0] = weth;
-    //     //     tokensArray[1] = eigenToken;
-    //     // }
-
-    //     // cheats.warp(uint32(block.timestamp) + 1 days);
-    //     // cheats.roll(uint32(block.timestamp) + 1 days);
-
-    //     // _testQueueWithdrawal(
-    //     //     staker,
-    //     //     dataForTestWithdrawal.delegatorStrategies,
-    //     //     tokensArray,
-    //     //     dataForTestWithdrawal.delegatorShares,
-    //     //     strategyIndexes,
-    //     //     withdrawer
-    //     // );
+        _testQueueWithdrawal(
+            staker,
+            dataForTestWithdrawal.delegatorStrategies,
+            tokensArray,
+            dataForTestWithdrawal.delegatorShares,
+            strategyIndexes
+        );
     //     // uint32 queuedWithdrawalBlock = uint32(block.number);
         
     //     // //now withdrawal block time is before deregistration
@@ -291,8 +274,7 @@ contract WhitelisterTests is EigenLayrTestHelper {
         IInvestmentStrategy[] memory strategyArray,
         IERC20[] memory tokensArray,
         uint256[] memory shareAmounts,
-        uint256[] memory strategyIndexes,
-        address withdrawer
+        uint256[] memory strategyIndexes
     )
         internal
         returns (bytes32)
@@ -310,26 +292,23 @@ contract WhitelisterTests is EigenLayrTestHelper {
         );
         cheats.stopPrank();
     }
+    
+    function delegate(
+         address operator, 
+            address staker,
+            uint256 ethAmount,
+            uint256 eigenAmount
+    ) internal {
+         _testRegisterAsOperator(operator, IDelegationTerms(operator));
+        _testDepositWeth(staker, ethAmount);
+        _testDepositEigen(staker, eigenAmount);
+        _testDelegateToOperator(staker, operator);
+        assertTrue(delegation.isDelegated(staker) == true, "testDelegation: staker is not delegate");
 
 
-    function registerOperator(address operator, uint32 operatorIndex, string calldata socket) public fuzzedAddress(operator){
-        cheats.assume(operatorIndex < 15);
-        BN254.G1Point memory pk = getOperatorPubkeyG1(operatorIndex);
-
-        //register as both ETH and EIGEN operator
-        
-        cheats.startPrank(operator);
-        dummyCompendium.registerPublicKey(pk);
-        blsRegistry.registerOperator(1, pk, socket);
-        cheats.stopPrank();
-
-        bytes32 pubkeyHash = BN254.hashG1Point(pk);
-        
-        (uint32 toBlockNumber, uint32 index) = blsRegistry.pubkeyHashToIndexHistory(pubkeyHash,0);
-
-        assertTrue(toBlockNumber == 0, "block number set when it shouldn't be");
-        assertTrue(index == 0, "index has been set incorrectly");
-        assertTrue(blsRegistry.operatorList(0) == operator, "incorrect operator added");
     }
+
+
+
 
 }

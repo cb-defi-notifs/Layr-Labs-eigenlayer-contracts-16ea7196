@@ -126,7 +126,7 @@ contract Whitelister is Ownable, Test {
                 withdrawer,
                 undelegateIfPossible
             );
-
+        emit log("heyyy");
         return callAddress(staker, address(investmentManager), data);
     }
 
