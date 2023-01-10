@@ -21,10 +21,11 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Create2.sol";
 
 import "./EigenLayrDeployer.t.sol";
+import "./Delegation.t.sol";
 
 import "forge-std/Test.sol";
 
-contract WhitelisterTests is EigenLayrDeployer {
+contract WhitelisterTests is DelegationTests {
 
     ERC20PresetMinterPauser dummyToken;
     IInvestmentStrategy dummyStrat;
@@ -39,6 +40,14 @@ contract WhitelisterTests is EigenLayrDeployer {
     BLSPublicKeyCompendiumMock dummyCompendium;
 
     uint256 DEFAULT_AMOUNT = 10e18;
+
+    // packed info used to help handle stack-too-deep errors
+    struct DataForTestWithdrawal {
+        IInvestmentStrategy[] delegatorStrategies;
+        uint256[] delegatorShares;
+        IInvestmentManager.WithdrawerAndNonce withdrawerAndNonce;
+    }
+
 
 
 
@@ -125,6 +134,132 @@ contract WhitelisterTests is EigenLayrDeployer {
         dummyToken.mint(staker, DEFAULT_AMOUNT);
 
         whiteLister.depositIntoStrategy(staker, dummyStrat, dummyToken, amount);
+        cheats.stopPrank();
+    }
+
+    function testQueueWithdrawal(
+            address operator, 
+            address staker,
+            address withdrawer, 
+            uint256 ethAmount,
+            uint256 eigenAmount,
+            bool withdrawAsTokens
+        ) 
+            internal 
+        {
+
+        testDelegation(operator, staker, ethAmount, eigenAmount);
+
+        cheats.startPrank(operator);
+        slasher.optIntoSlashing(address(dummyServiceManager));
+        cheats.stopPrank();
+
+        address delegatedTo = delegation.delegatedTo(staker);
+
+        // packed data structure to deal with stack-too-deep issues
+        DataForTestWithdrawal memory dataForTestWithdrawal;
+
+        // scoped block to deal with stack-too-deep issues
+        {
+            //delegator-specific information
+            (IInvestmentStrategy[] memory delegatorStrategies, uint256[] memory delegatorShares) =
+                investmentManager.getDeposits(staker);
+            dataForTestWithdrawal.delegatorStrategies = delegatorStrategies;
+            dataForTestWithdrawal.delegatorShares = delegatorShares;
+
+            IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce = 
+                IInvestmentManager.WithdrawerAndNonce({
+                    withdrawer: withdrawer,
+                    // harcoded nonce value
+                    nonce: 0
+                }
+            );
+            dataForTestWithdrawal.withdrawerAndNonce = withdrawerAndNonce;
+        }
+
+        uint256[] memory strategyIndexes = new uint256[](2);
+        IERC20[] memory tokensArray = new IERC20[](2);
+        {
+            // hardcoded values
+            strategyIndexes[0] = 0;
+            strategyIndexes[1] = 0;
+            tokensArray[0] = weth;
+            tokensArray[1] = eigenToken;
+        }
+
+        cheats.warp(uint32(block.timestamp) + 1 days);
+        cheats.roll(uint32(block.timestamp) + 1 days);
+
+        _testQueueWithdrawal(
+            staker,
+            dataForTestWithdrawal.delegatorStrategies,
+            tokensArray,
+            dataForTestWithdrawal.delegatorShares,
+            strategyIndexes,
+            withdrawer
+        );
+        // uint32 queuedWithdrawalBlock = uint32(block.number);
+        
+        // //now withdrawal block time is before deregistration
+        // cheats.warp(uint32(block.timestamp) + 2 days);
+        // cheats.roll(uint32(block.timestamp) + 2 days);
+        
+        // generalReg1.deregisterOperator(operator);
+        // {
+        //     //warp past the serve until time, which is 3 days from the beginning.  THis puts us at 4 days past that point
+        //     cheats.warp(uint32(block.timestamp) + 4 days);
+        //     cheats.roll(uint32(block.timestamp) + 4 days);
+
+        //     uint256 middlewareTimeIndex =  1;
+        //     if (withdrawAsTokens) {
+        //         _testCompleteQueuedWithdrawalTokens(
+        //             depositor,
+        //             dataForTestWithdrawal.delegatorStrategies,
+        //             tokensArray,
+        //             dataForTestWithdrawal.delegatorShares,
+        //             delegatedTo,
+        //             dataForTestWithdrawal.withdrawerAndNonce,
+        //             queuedWithdrawalBlock,
+        //             middlewareTimeIndex
+        //         );
+        //     } else {
+        //         _testCompleteQueuedWithdrawalShares(
+        //             depositor,
+        //             dataForTestWithdrawal.delegatorStrategies,
+        //             tokensArray,
+        //             dataForTestWithdrawal.delegatorShares,
+        //             delegatedTo,
+        //             dataForTestWithdrawal.withdrawerAndNonce,
+        //             queuedWithdrawalBlock,
+        //             middlewareTimeIndex
+        //         );
+        //     }
+        // }
+    }
+
+    function _testQueueWithdrawal(
+        address staker,
+        IInvestmentStrategy[] memory strategyArray,
+        IERC20[] memory tokensArray,
+        uint256[] memory shareAmounts,
+        uint256[] memory strategyIndexes,
+        address withdrawer
+    )
+        internal
+        returns (bytes32)
+    {
+        cheats.startPrank(theMultiSig);
+
+        whiteLister.queueWithdrawal(
+            staker,
+            strategyIndexes,
+            strategyArray,
+            tokensArray,
+            shareAmounts,
+            withdrawer,
+            // TODO: make this an input
+            true
+        );
         cheats.stopPrank();
     }
 
