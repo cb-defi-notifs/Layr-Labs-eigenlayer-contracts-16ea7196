@@ -10,6 +10,7 @@ import "../../contracts/permissions/Pausable.sol";
 import "../../contracts/core/InvestmentManagerStorage.sol";
 import "../../contracts/interfaces/IServiceManager.sol";
 import "../../contracts/interfaces/IEigenPodManager.sol";
+import "../../contracts/interfaces/IEigenLayerDelegation.sol";
 
 // import "forge-std/Test.sol";
 
@@ -22,11 +23,11 @@ contract InvestmentManagerMock is
     // ,Test
 {
 
-    IEigenLayrDelegation public immutable delegation;
+    IEigenLayerDelegation public immutable delegation;
     IEigenPodManager public immutable eigenPodManager;
     ISlasher public immutable slasher;
 
-    constructor(IEigenLayrDelegation _delegation, IEigenPodManager _eigenPodManager, ISlasher _slasher)
+    constructor(IEigenLayerDelegation _delegation, IEigenPodManager _eigenPodManager, ISlasher _slasher)
     {
        delegation = _delegation;
        slasher = _slasher;
