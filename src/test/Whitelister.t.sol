@@ -175,13 +175,10 @@ contract WhitelisterTests is EigenLayrTestHelper {
         address staker = whiteLister.getStaker(operator);
         cheats.assume(staker!=operator);
          _testRegisterAsOperator(operator, IDelegationTerms(operator));
-        //delegate(operator, staker, amount, amount);
 
         cheats.startPrank(operator);
         slasher.optIntoSlashing(address(dummyServiceManager));
         cheats.stopPrank();
-
-        //register as both ETH and EIGEN operator
         
         cheats.startPrank(theMultiSig);
         whiteLister.whitelist(operator);
