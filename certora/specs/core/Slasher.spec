@@ -38,11 +38,19 @@ methods {
     //// Harnessed Functions
     // Harnessed calls
     // Harmessed getters
+	get_is_operator(address) returns (bool) envfree
+	get_is_delegated(address) returns (bool) envfree
 
 	//// Normal Functions
 	owner() returns(address) envfree
+	bondedUntil(address, address) returns (uint32) envfree
+	paused(uint8) returns (bool) envfree
 }
 
+/*
+TODO: sort out if `isFrozen` can also be marked as envfree -- currently this is failing with the error
+could not type expression "isFrozen(staker)", message: Could not find an overloading of method isFrozen that matches
+the given arguments: address. Method is not envfree; did you forget to provide the environment as the first function argument?
 rule cantBeUnfrozen(method f) {
 	address staker;
 
@@ -56,4 +64,45 @@ rule cantBeUnfrozen(method f) {
 	bool frozen_ = isFrozen(staker);
 	assert frozen_, "frozen stakers must stay frozen";
 }
+*/
 
+/*
+verifies that `bondedUntil[operator][contractAddress]` only changes when either:
+the `operator` themselves calls `allowToSlash`
+or
+the `contractAddress` calls `recordLastStakeUpdateAndRevokeSlashingAbility`
+*/
+rule canOnlyChangeBondedUntilWithSpecificFunctions(address operator, address contractAddress) {
+	uint256 valueBefore = bondedUntil(operator, contractAddress);
+    // perform arbitrary function call
+    method f;
+    env e;
+    if (f.selector == recordLastStakeUpdateAndRevokeSlashingAbility(address, uint32).selector) {
+        address operator2;
+		uint32 serveUntil;
+        recordLastStakeUpdateAndRevokeSlashingAbility(e, operator2, serveUntil);
+		uint256 valueAfter = bondedUntil(operator, contractAddress);
+        if (e.msg.sender == contractAddress && operator2 == operator/* TODO: proper check */) {
+			/* TODO: proper check */
+            assert (true, "failure in recordLastStakeUpdateAndRevokeSlashingAbility");
+        } else {
+            assert (valueBefore == valueAfter, "bad permissions on recordLastStakeUpdateAndRevokeSlashingAbility?");
+        }
+	} else if (f.selector == optIntoSlashing(address).selector) {
+		address arbitraryContract;
+		optIntoSlashing(e, arbitraryContract);
+		uint256 valueAfter = bondedUntil(operator, contractAddress);
+		// uses that the `PAUSED_OPT_INTO_SLASHING` index is 0, as an input to the `paused` function
+		if (e.msg.sender == operator && arbitraryContract == contractAddress && get_is_operator(operator) && !paused(0)) {
+			// uses that `MAX_BONDED_UNTIL` is equal to max_uint32
+			assert(valueAfter == max_uint32, "MAX_BONDED_UNTIL different than max_uint32?");
+		} else {
+            assert(valueBefore == valueAfter, "bad permissions on optIntoSlashing?");
+		}
+	} else {
+		calldataarg arg;
+		f(e, arg);
+		uint256 valueAfter = bondedUntil(operator, contractAddress);
+        assert(valueBefore == valueAfter, "bondedAfter value changed when it shouldn't have!");
+	}
+}
