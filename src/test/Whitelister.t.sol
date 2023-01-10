@@ -44,6 +44,12 @@ contract WhitelisterTests is EigenLayrTestHelper {
     MiddlewareVoteWeigherMock public voteWeigher;
     MiddlewareVoteWeigherMock public voteWeigherImplementation;
 
+    modifier fuzzedAmounts(uint256 ethAmount, uint256 eigenAmount){
+        cheats.assume(ethAmount >= 0 && ethAmount <= 1e18);
+        cheats.assume(eigenAmount >= 0 && eigenAmount <= 1e18);
+        _;
+    }
+
 
 
     uint256 DEFAULT_AMOUNT = 10e18;
@@ -161,7 +167,7 @@ contract WhitelisterTests is EigenLayrTestHelper {
             bool withdrawAsTokens,
             string calldata socket
         ) 
-            external  fuzzedAddress(operator) fuzzedAddress(staker)
+            external  fuzzedAddress(operator) fuzzedAddress(staker) fuzzedAmounts(ethAmount, eigenAmount)
         {
         cheats.assume(operator != staker);
         _testRegisterAsOperator(operator, IDelegationTerms(operator));
@@ -194,7 +200,7 @@ contract WhitelisterTests is EigenLayrTestHelper {
                         emit log("ss");
 
 
-        blsRegistry.registerOperator(0, pk, socket);
+        blsRegistry.registerOperator(1, pk, socket);
 
 
     //     // address delegatedTo = delegation.delegatedTo(staker);
