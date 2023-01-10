@@ -162,6 +162,6 @@ contract Whitelister is Ownable, Test {
         address implementation,
         bytes memory data
     ) public onlyOwner returns (bytes memory) {
-        return  Staker(staker).callAddress(implementation, data);
+        return Staker(staker).callAddress(implementation, data);
     }
 }

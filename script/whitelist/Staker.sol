@@ -47,7 +47,6 @@ contract Staker is Ownable, Test {
                 0,
                 0
             )
-
             mstore(returndata, returndatasize())
             returndatacopy(add(returndata, 32), 0, returndatasize())
         }

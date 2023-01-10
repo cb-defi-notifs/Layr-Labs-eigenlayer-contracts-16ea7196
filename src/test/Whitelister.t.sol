@@ -38,6 +38,8 @@ contract WhitelisterTests is EigenLayrDeployer {
     ServiceManagerMock dummyServiceManager;
     BLSPublicKeyCompendiumMock dummyCompendium;
 
+    uint256 DEFAULT_AMOUNT = 10e18;
+
 
 
     address theMultiSig = address(420);
@@ -114,14 +116,14 @@ contract WhitelisterTests is EigenLayrDeployer {
         assertTrue(blsRegistry.whitelisted(operator) == true, "operator not added to whitelist");
     }
 
-    function testDepositIntoStrategy(address operator) external fuzzedAddress(operator){
+    function testDepositIntoStrategy(address operator, uint256 amount) external fuzzedAddress(operator){
+        cheats.assume(amount < DEFAULT_AMOUNT);
         testWhitelistingOperator(operator);
 
         cheats.startPrank(theMultiSig);
         address staker = whiteLister.getStaker(operator);
-         dummyToken.mint(staker, 10e18);
-         emit log_named_uint("staker balance", dummyToken.balanceOf(staker));
-        uint256 amount = 200;
+        dummyToken.mint(staker, DEFAULT_AMOUNT);
+
         whiteLister.depositIntoStrategy(staker, dummyStrat, dummyToken, amount);
         cheats.stopPrank();
     }
