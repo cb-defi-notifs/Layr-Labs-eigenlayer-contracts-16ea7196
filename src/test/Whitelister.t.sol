@@ -174,7 +174,7 @@ contract WhitelisterTests is EigenLayrTestHelper {
         {
         address staker = whiteLister.getStaker(operator);
         cheats.assume(staker!=operator);
-         _testRegisterAsOperator(operator, IDelegationTerms(operator));
+        _testRegisterAsOperator(operator, IDelegationTerms(operator));
 
         cheats.startPrank(operator);
         slasher.optIntoSlashing(address(dummyServiceManager));
@@ -227,45 +227,34 @@ contract WhitelisterTests is EigenLayrTestHelper {
             dataForTestWithdrawal.delegatorShares,
             strategyIndexes
         );
-    //     // uint32 queuedWithdrawalBlock = uint32(block.number);
+        uint32 queuedWithdrawalBlock = uint32(block.number);
         
-    //     // //now withdrawal block time is before deregistration
-    //     // cheats.warp(uint32(block.timestamp) + 2 days);
-    //     // cheats.roll(uint32(block.timestamp) + 2 days);
+        // //now withdrawal block time is before deregistration
+        cheats.warp(uint32(block.timestamp) + 2 days);
+        cheats.roll(uint32(block.timestamp) + 2 days);
         
-    //     // generalReg1.deregisterOperator(operator);
-    //     // {
-    //     //     //warp past the serve until time, which is 3 days from the beginning.  THis puts us at 4 days past that point
-    //     //     cheats.warp(uint32(block.timestamp) + 4 days);
-    //     //     cheats.roll(uint32(block.timestamp) + 4 days);
+        // dummyReg.deregisterOperator(operator);
+        {
+            //warp past the serve until time, which is 3 days from the beginning.  THis puts us at 4 days past that point
+            cheats.warp(uint32(block.timestamp) + 4 days);
+            cheats.roll(uint32(block.timestamp) + 4 days);
 
-    //     //     uint256 middlewareTimeIndex =  1;
-    //     //     if (withdrawAsTokens) {
-    //     //         _testCompleteQueuedWithdrawalTokens(
-    //     //             depositor,
-    //     //             dataForTestWithdrawal.delegatorStrategies,
-    //     //             tokensArray,
-    //     //             dataForTestWithdrawal.delegatorShares,
-    //     //             delegatedTo,
-    //     //             dataForTestWithdrawal.withdrawerAndNonce,
-    //     //             queuedWithdrawalBlock,
-    //     //             middlewareTimeIndex
-    //     //         );
-    //     //     } else {
-    //     //         _testCompleteQueuedWithdrawalShares(
-    //     //             depositor,
-    //     //             dataForTestWithdrawal.delegatorStrategies,
-    //     //             tokensArray,
-    //     //             dataForTestWithdrawal.delegatorShares,
-    //     //             delegatedTo,
-    //     //             dataForTestWithdrawal.withdrawerAndNonce,
-    //     //             queuedWithdrawalBlock,
-    //     //             middlewareTimeIndex
-    //     //         );
-    //     //     }
-    //     // }
+            uint256 middlewareTimeIndex =  1;
+            _testCompleteQueuedWithdrawal(
+                staker,
+                dataForTestWithdrawal.delegatorStrategies,
+                tokensArray,
+                dataForTestWithdrawal.delegatorShares,
+                delegation.delegatedTo(staker),
+                dataForTestWithdrawal.withdrawerAndNonce,
+                queuedWithdrawalBlock,
+                middlewareTimeIndex
+            );
+        
+
+        }
+
     }
-
     function _testQueueWithdrawal(
         address staker,
         IInvestmentStrategy[] memory strategyArray,
@@ -289,21 +278,35 @@ contract WhitelisterTests is EigenLayrTestHelper {
         );
         cheats.stopPrank();
     }
-    
-    function delegate(
-         address operator, 
-            address staker,
-            uint256 ethAmount,
-            uint256 eigenAmount
-    ) internal {
-         _testRegisterAsOperator(operator, IDelegationTerms(operator));
-        _testDepositWeth(staker, ethAmount);
-        _testDepositEigen(staker, eigenAmount);
-        _testDelegateToOperator(staker, operator);
-        assertTrue(delegation.isDelegated(staker) == true, "testDelegation: staker is not delegate");
 
+     function _testCompleteQueuedWithdrawal(
+        address staker,
+        IInvestmentStrategy[] memory strategyArray,
+        IERC20[] memory tokensArray,
+        uint256[] memory shareAmounts,
+        address delegatedTo,
+        IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce,
+        uint32 withdrawalStartBlock,
+        uint256 middlewareTimesIndex
+    )
+        internal
+    {
+        IInvestmentManager.QueuedWithdrawal memory queuedWithdrawal = IInvestmentManager.QueuedWithdrawal({
+            strategies: strategyArray,
+            tokens: tokensArray,
+            shares: shareAmounts,
+            depositor: staker,
+            withdrawerAndNonce: withdrawerAndNonce,
+            withdrawalStartBlock: withdrawalStartBlock,
+            delegatedAddress: delegatedTo
+        });
 
+        cheats.startPrank(theMultiSig);
+        // complete the queued withdrawal
+        whiteLister.completeQueuedWithdrawal(staker, queuedWithdrawal, middlewareTimesIndex, true);
+        cheats.stopPrank();
     }
+
 
 
 
