@@ -734,9 +734,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         cheats.warp(uint32(block.timestamp) + 1 days);
         cheats.roll(uint32(block.timestamp) + 1 days);
 
-        cheats.startPrank(podOwner);
-        investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, podOwner, undelegateIfPossible);
-        cheats.stopPrank();
+        _testQueueWithdrawal(podOwner, strategyIndexes, strategyArray, tokensArray, shareAmounts, podOwner, undelegateIfPossible);
         uint32 queuedWithdrawalStartBlock = uint32(block.number);
 
         //*************************DELEGATION/Stake Update STUFF******************************//
@@ -963,6 +961,32 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         // bytes32 validatorIndexBytes = bytes32(uint256(validatorIndex));
         bytes memory proofs = abi.encodePacked(validatorMerkleProof, beaconStateMerkleProofForValidators);
         pod.verifyOvercommittedStake(validatorIndex, proofs, validatorContainerFields, 0);
+    }
+
+    function _testQueueWithdrawal(
+        address depositor,
+        uint256[] memory strategyIndexes,
+        IInvestmentStrategy[] memory strategyArray,
+        IERC20[] memory tokensArray,
+        uint256[] memory shareAmounts,
+        address withdrawer,
+        bool undelegateIfPossible
+    )
+        internal
+        returns (bytes32)
+    {
+        IInvestmentManager.StratsTokensShares memory sts = IInvestmentManager.StratsTokensShares(strategyArray, tokensArray, shareAmounts);
+        cheats.startPrank(depositor);
+
+        bytes32 withdrawalRoot = investmentManager.queueWithdrawal(
+            strategyIndexes,
+            sts,
+            withdrawer,
+            // TODO: make this an input
+            undelegateIfPossible
+        );
+        cheats.stopPrank();
+        return withdrawalRoot;
     }
 
  }
