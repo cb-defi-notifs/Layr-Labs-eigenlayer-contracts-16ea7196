@@ -331,10 +331,8 @@ contract EigenLayrTestHelper is EigenLayrDeployer {
         }
 
         //queue the withdrawal
-        cheats.startPrank(staker);
         // TODO: check with 'undelegateIfPossible' = false, rather than just true
-        withdrawalRoot = investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawer, true);
-        cheats.stopPrank();
+        withdrawalRoot = _testQueueWithdrawal(staker, strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawer, true);
         return (withdrawalRoot, queuedWithdrawal);
     }
 
@@ -503,6 +501,37 @@ contract EigenLayrTestHelper is EigenLayrDeployer {
             );
         }
         cheats.stopPrank();
+    }
+
+    //*******INTERNAL FUNCTIONS*********//
+    function _testQueueWithdrawal(
+        address depositor,
+        uint256[] memory strategyIndexes,
+        IInvestmentStrategy[] memory strategyArray,
+        IERC20[] memory tokensArray,
+        uint256[] memory shareAmounts,
+        address withdrawer,
+        bool undelegateIfPossible
+    )
+        internal
+        returns (bytes32)
+    {
+        IInvestmentManager.StratsTokensShares memory sts = IInvestmentManager.StratsTokensShares({
+            strategies: strategyArray,
+            tokens: tokensArray,
+            shares: shareAmounts
+        }); 
+        cheats.startPrank(depositor);
+
+        bytes32 withdrawalRoot = investmentManager.queueWithdrawal(
+            strategyIndexes,
+            sts,
+            withdrawer,
+            // TODO: make this an input
+            undelegateIfPossible
+        );
+        cheats.stopPrank();
+        return withdrawalRoot;
     }
 }
 

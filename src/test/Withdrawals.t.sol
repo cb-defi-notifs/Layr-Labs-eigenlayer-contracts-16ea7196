@@ -132,11 +132,12 @@ contract WithdrawalTests is DelegationTests {
 
         _testQueueWithdrawal(
             depositor,
+            strategyIndexes,
             dataForTestWithdrawal.delegatorStrategies,
             tokensArray,
             dataForTestWithdrawal.delegatorShares,
-            strategyIndexes,
-            withdrawer
+            withdrawer,
+            true
         );
         uint32 queuedWithdrawalBlock = uint32(block.number);
         
@@ -247,11 +248,12 @@ contract WithdrawalTests is DelegationTests {
 
         _testQueueWithdrawal(
             depositor,
+            strategyIndexes,
             dataForTestWithdrawal.delegatorStrategies,
             tokensArray,
             dataForTestWithdrawal.delegatorShares,
-            strategyIndexes,
-            dataForTestWithdrawal.withdrawerAndNonce.withdrawer
+            dataForTestWithdrawal.withdrawerAndNonce.withdrawer,
+            true
         );
         uint32 queuedWithdrawalBlock = uint32(block.number);
         
@@ -364,32 +366,6 @@ contract WithdrawalTests is DelegationTests {
         cheats.expectRevert(
             bytes("InvestmentManager.onlyNotFrozen: staker has been frozen and may be subject to slashing")
         );
-        _testQueueWithdrawal(staker, updatedStrategies, tokensArray, updatedShares, strategyIndexes, staker);
-    }
-    //*******INTERNAL FUNCTIONS*********//
-    function _testQueueWithdrawal(
-        address depositor,
-        IInvestmentStrategy[] memory strategyArray,
-        IERC20[] memory tokensArray,
-        uint256[] memory shareAmounts,
-        uint256[] memory strategyIndexes,
-        address withdrawer
-    )
-        internal
-        returns (bytes32)
-    {
-        cheats.startPrank(depositor);
-
-        bytes32 withdrawalRoot = investmentManager.queueWithdrawal(
-            strategyIndexes,
-            strategyArray,
-            tokensArray,
-            shareAmounts,
-            withdrawer,
-            // TODO: make this an input
-            true
-        );
-        cheats.stopPrank();
-        return withdrawalRoot;
+        _testQueueWithdrawal(staker, strategyIndexes, updatedStrategies, tokensArray, updatedShares, staker, true);
     }
 }
