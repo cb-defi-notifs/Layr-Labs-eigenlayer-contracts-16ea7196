@@ -10,9 +10,13 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "forge-std/Test.sol";
 
 contract Staker is Ownable, Test {
-    //TODO: change before deploy
-    //IInvestmentManager constant investmentManager = IInvestmentManager(0x0000000000000000000000000000000000000000);
-    //IEigenLayrDelegation constant delegation = IEigenLayrDelegation(0x0000000000000000000000000000000000000000);
+
+    address immutable whiteLister;
+    
+    modifier onlyWhiteLister(){
+        msg.sender == whiteLister;
+        _;
+    }
 
     constructor(
         IInvestmentStrategy strategy, 
@@ -20,36 +24,35 @@ contract Staker is Ownable, Test {
         IEigenLayrDelegation delegation,
         IERC20 token, 
         uint256 amount, 
-        address operator,
-        address whiteLister
+        address operator
     ) Ownable() {
         token.approve(address(investmentManager), type(uint256).max);
-        emit log_named_address("address(staker)", address(this));
-        emit log_named_uint("address(staker) balance ", token.balanceOf(address(this)));
-
         investmentManager.depositIntoStrategy(strategy, token, amount);
         delegation.delegateTo(operator);
+        whiteLister = msg.sender;
     }
+    
+    function callAddress(address implementation, bytes memory data) external onlyWhiteLister returns(bytes memory) {
+        uint256 length = data.length;
 
-    // add proxy call for further things we may we want to do
-    fallback() external onlyOwner {
-        (address to, bytes memory data) = abi.decode(msg.data, (address, bytes));
-        assembly {
-            // Call the implementation.
-            // out and outsize are 0 because we don't know the size yet.
-            let result := call(gas(), to, callvalue(), data, mload(data), 0, 0)
+        bytes memory returndata;        
 
-            // Copy the returned data.
-            returndatacopy(0, 0, returndatasize())
+        assembly{
+            let result := call(
+                gas(),
+                implementation,
+                callvalue(),
+                add(data, 32),
+                length,
+                0,
+                0
+            )
 
-            switch result
-            // delegatecall returns 0 on error.
-            case 0 {
-                revert(0, returndatasize())
-            }
-            default {
-                return(0, returndatasize())
-            }
+            mstore(returndata, returndatasize())
+            returndatacopy(add(returndata, 32), 0, returndatasize())
         }
-    }
+        return returndata;
+
+}
+
 }

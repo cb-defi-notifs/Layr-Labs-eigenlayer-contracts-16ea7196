@@ -60,8 +60,7 @@ contract Whitelister is Ownable, Test {
                     delegation,
                     stakeToken,
                     DEFAULT_AMOUNT,
-                    operator,
-                    address(this)
+                    operator
                 )
             )
         );
@@ -85,8 +84,7 @@ contract Whitelister is Ownable, Test {
                             delegation,
                             stakeToken,
                             DEFAULT_AMOUNT,
-                            operator,
-                            address(this)
+                            operator
                         )
                     )
                 ) //bytecode
@@ -99,17 +97,15 @@ contract Whitelister is Ownable, Test {
         IERC20 token,
         uint256 amount
     ) public onlyOwner returns (bytes memory) {
-        bytes memory data = abi.encode(
-            address(investmentManager),
-            abi.encodeWithSelector(
+       
+        bytes memory data = abi.encodeWithSelector(
                 IInvestmentManager.depositIntoStrategy.selector,
                 strategy,
                 token,
                 amount
-            )
         );
 
-        return _callAddress(staker, data);
+        return callAddress(staker, address(investmentManager), data);
     }
 
     function queueWithdrawal(
@@ -121,9 +117,7 @@ contract Whitelister is Ownable, Test {
         address withdrawer,
         bool undelegateIfPossible
     ) public onlyOwner returns (bytes memory) {
-        bytes memory data = abi.encode(
-            investmentManager,
-            abi.encodeWithSelector(
+        bytes memory data = abi.encodeWithSelector(
                 IInvestmentManager.queueWithdrawal.selector,
                 strategyIndexes,
                 strategies,
@@ -131,10 +125,9 @@ contract Whitelister is Ownable, Test {
                 shares,
                 withdrawer,
                 undelegateIfPossible
-            )
-        );
+            );
 
-        return _callAddress(staker, data);
+        return callAddress(staker, address(investmentManager), data);
     }
 
     function completeQueuedWithdrawal(
@@ -143,17 +136,14 @@ contract Whitelister is Ownable, Test {
         uint256 middlewareTimesIndex,
         bool receiveAsTokens
     ) public onlyOwner returns (bytes memory) {
-        bytes memory data = abi.encode(
-            investmentManager,
-            abi.encodeWithSelector(
+        bytes memory data = abi.encodeWithSelector(
                 IInvestmentManager.completeQueuedWithdrawal.selector,
                 queuedWithdrawal,
                 middlewareTimesIndex,
                 receiveAsTokens
-            )
         );
 
-        return _callAddress(staker, data);
+        return callAddress(staker, address(investmentManager), data);
     }
 
     function transfer(
@@ -162,49 +152,16 @@ contract Whitelister is Ownable, Test {
         address to,
         uint256 amount
     ) public onlyOwner returns (bytes memory) {
-        bytes memory data = abi.encode(
-            token,
-            abi.encodeWithSelector(IERC20.transfer.selector, to, amount)
-        );
+        bytes memory data = abi.encodeWithSelector(IERC20.transfer.selector, to, amount);
 
-        return _callAddress(staker, data);
+        return callAddress(staker, token, data);
     }
 
     function callAddress(
-        address addr,
-        bytes calldata data
-    ) public onlyOwner returns (bytes memory) {
-        _callAddress(addr, data);
-    }
-
-    function _callAddress(
-        address addr,
+        address staker,
+        address implementation,
         bytes memory data
-    ) internal returns (bytes memory) {
-        assembly {
-            // Call the implementation.
-            // out and outsize are 0 because we don't know the size yet.
-            let result := call(
-                gas(),
-                addr,
-                callvalue(),
-                data,
-                mload(data),
-                0,
-                0
-            )
-
-            // Copy the returned data.
-            returndatacopy(0, 0, returndatasize())
-
-            switch result
-            // delegatecall returns 0 on error.
-            case 0 {
-                revert(0, returndatasize())
-            }
-            default {
-                return(0, returndatasize())
-            }
-        }
+    ) public onlyOwner returns (bytes memory) {
+        return  Staker(staker).callAddress(implementation, data);
     }
 }

@@ -11,7 +11,7 @@ import "./InvestmentManagerStorage.sol";
 import "../interfaces/IServiceManager.sol";
 import "../interfaces/IEigenPodManager.sol";
 
-// import "forge-std/Test.sol";
+import "forge-std/Test.sol";
 
 /**
  * @title The primary entry- and exit-point for funds into and out of EigenLayr.
@@ -31,7 +31,7 @@ contract InvestmentManager is
     ReentrancyGuardUpgradeable,
     InvestmentManagerStorage,
     Pausable
-    // ,Test
+    ,Test
 {
     using SafeERC20 for IERC20;
 
@@ -163,7 +163,7 @@ contract InvestmentManager is
         nonReentrant
         returns (uint256 shares)
     {
-        shares = _depositIntoStrategy(msg.sender, strategy, token, amount);
+        return _depositIntoStrategy(msg.sender, strategy, token, amount);
     }
 
     /**
@@ -553,6 +553,7 @@ contract InvestmentManager is
 
         // add the returned shares to the depositor's existing shares for this strategy
         _addShares(depositor, strategy, shares);
+        emit log_named_uint("SHARES", shares);
 
         return shares;
     }

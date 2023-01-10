@@ -101,7 +101,7 @@ contract WhitelisterTests is EigenLayrDeployer {
 
     }
 
-    function testWhitelistingOperator(address operator) external fuzzedAddress(operator){
+    function testWhitelistingOperator(address operator) public fuzzedAddress(operator){
         cheats.startPrank(operator);
         IDelegationTerms dt = IDelegationTerms(address(89));
         delegation.registerAsOperator(dt);
@@ -112,7 +112,18 @@ contract WhitelisterTests is EigenLayrDeployer {
         cheats.stopPrank();
 
         assertTrue(blsRegistry.whitelisted(operator) == true, "operator not added to whitelist");
-        
+    }
+
+    function testDepositIntoStrategy(address operator) external fuzzedAddress(operator){
+        testWhitelistingOperator(operator);
+
+        cheats.startPrank(theMultiSig);
+        address staker = whiteLister.getStaker(operator);
+         dummyToken.mint(staker, 10e18);
+         emit log_named_uint("staker balance", dummyToken.balanceOf(staker));
+        uint256 amount = 200;
+        whiteLister.depositIntoStrategy(staker, dummyStrat, dummyToken, amount);
+        cheats.stopPrank();
     }
 
 }
