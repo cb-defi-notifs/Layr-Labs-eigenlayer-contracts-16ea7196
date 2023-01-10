@@ -15,4 +15,8 @@ contract SlasherHarness is Slasher {
     function get_is_delegated(address staker) external returns (bool) {
         return delegation.isDelegated(staker);        
     }
+
+    function get_node_exists(address operator, address contractAddress) external returns (bool) {
+        return StructuredLinkedList.nodeExists(operatorToWhitelistedContractsByUpdate[operator], _addressToUint(contractAddress));
+    }
 }

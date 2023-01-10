@@ -40,6 +40,7 @@ methods {
     // Harmessed getters
 	get_is_operator(address) returns (bool) envfree
 	get_is_delegated(address) returns (bool) envfree
+	get_node_exists(address, address) returns (bool) envfree
 
 	//// Normal Functions
 	owner() returns(address) envfree
@@ -106,3 +107,23 @@ rule canOnlyChangeBondedUntilWithSpecificFunctions(address operator, address con
         assert(valueBefore == valueAfter, "bondedAfter value changed when it shouldn't have!");
 	}
 }
+
+/* TODO: assess if this rule is salvageable. seems to have poor storage assumptions due to the way 'node existence' is defined
+rule cannotAddSameContractTwice(address operator, address contractAddress) {
+	bool nodeExistsBefore = get_node_exists(operator, contractAddress);
+	env e;
+	uint32 serveUntil;
+	recordFirstStakeUpdate(e, operator, serveUntil);
+	if (nodeExistsBefore) {
+		bool callReverted = lastReverted;
+		assert (callReverted, "recordFirstStakeUpdate didn't revert!");
+	} else {
+		bool nodeExistsAfter = get_node_exists(operator, contractAddress);
+		if (e.msg.sender == contractAddress) {
+			assert(nodeExistsAfter, "node not added correctly");
+		} else {
+			assert(!nodeExistsAfter, "node added incorrectly");
+		}
+	}
+}
+*/
