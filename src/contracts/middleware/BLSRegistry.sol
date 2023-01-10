@@ -16,7 +16,7 @@ import "forge-std/Test.sol";
  * - committing to and finalizing de-registration as an operator
  * - updating the stakes of the operator
  */
-contract BLSRegistry is RegistryBase, IBLSRegistry, Test {
+contract BLSRegistry is RegistryBase, IBLSRegistry {
     using BytesLib for bytes;
 
     // Hash of the zero public key
@@ -150,12 +150,16 @@ contract BLSRegistry is RegistryBase, IBLSRegistry, Test {
     function _registerOperator(address operator, uint8 operatorType, BN254.G1Point memory pk, string calldata socket)
         internal
     {
+        emit log("whhhhh");
         if(isWhitelist) {
             require(whitelisted[operator], "BLSRegistry._registerOperator: not whitelisted");
         }
+                emit log("whhhhh");
+
         // validate the registration of `operator` and find their `OperatorStake`
         OperatorStake memory _operatorStake = _registrationStakeEvaluation(operator, operatorType);
 
+        emit log("whhhhh");
         // getting pubkey hash
         bytes32 pubkeyHash = BN254.hashG1Point(pk);
 

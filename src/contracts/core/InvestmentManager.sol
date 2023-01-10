@@ -553,7 +553,6 @@ contract InvestmentManager is
 
         // add the returned shares to the depositor's existing shares for this strategy
         _addShares(depositor, strategy, shares);
-        emit log_named_uint("SHARES", shares);
 
         return shares;
     }

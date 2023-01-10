@@ -9,6 +9,8 @@ import "../../src/contracts/middleware/BLSRegistry.sol";
 
 import "../../src/test/mocks/ServiceManagerMock.sol";
 import "../../src/test/mocks/PublicKeyCompendiumMock.sol";
+import "../../src/test/mocks/MiddlewareVoteWeigherMock.sol";
+
 
 
 import "../../script/whitelist/ERC20PresetMinterPauser.sol";
@@ -20,12 +22,12 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Create2.sol";
 
-import "./EigenLayrDeployer.t.sol";
+import "./EigenLayrTestHelper.t.sol";
 import "./Delegation.t.sol";
 
 import "forge-std/Test.sol";
 
-contract WhitelisterTests is DelegationTests {
+contract WhitelisterTests is EigenLayrTestHelper {
 
     ERC20PresetMinterPauser dummyToken;
     IInvestmentStrategy dummyStrat;
@@ -39,6 +41,11 @@ contract WhitelisterTests is DelegationTests {
     ServiceManagerMock dummyServiceManager;
     BLSPublicKeyCompendiumMock dummyCompendium;
 
+    MiddlewareVoteWeigherMock public voteWeigher;
+    MiddlewareVoteWeigherMock public voteWeigherImplementation;
+
+
+
     uint256 DEFAULT_AMOUNT = 10e18;
 
     // packed info used to help handle stack-too-deep errors
@@ -48,9 +55,6 @@ contract WhitelisterTests is DelegationTests {
         IInvestmentManager.WithdrawerAndNonce withdrawerAndNonce;
     }
 
-
-
-
     address theMultiSig = address(420);
 
     function setUp() public virtual override{
@@ -58,7 +62,12 @@ contract WhitelisterTests is DelegationTests {
 
 
         emptyContract = new EmptyContract();
+
+        dummyCompendium = new BLSPublicKeyCompendiumMock();
         blsRegistry = BLSRegistry(
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
+        );
+        voteWeigher = MiddlewareVoteWeigherMock(
             address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
         );
 
@@ -89,6 +98,7 @@ contract WhitelisterTests is DelegationTests {
 
         dummyServiceManager  = new ServiceManagerMock(investmentManager);
         blsRegistryImplementation = new BLSRegistry(delegation, investmentManager, dummyServiceManager, 2, dummyCompendium);
+        voteWeigherImplementation = new MiddlewareVoteWeigherMock(delegation, investmentManager, dummyServiceManager);
 
         uint256[] memory _quorumBips = new uint256[](2);
         // split 60% ETH quorum, 40% EIGEN quorum
@@ -108,6 +118,11 @@ contract WhitelisterTests is DelegationTests {
                 TransparentUpgradeableProxy(payable(address(blsRegistry))),
                 address(blsRegistryImplementation),
                 abi.encodeWithSelector(BLSRegistry.initialize.selector, address(whiteLister), true, _quorumBips, ethStratsAndMultipliers, eigenStratsAndMultipliers)
+            );
+        eigenLayrProxyAdmin.upgradeAndCall(
+                TransparentUpgradeableProxy(payable(address(voteWeigher))),
+                address(voteWeigherImplementation),
+                abi.encodeWithSelector(MiddlewareVoteWeigherMock.initialize.selector, _quorumBips, ethStratsAndMultipliers, eigenStratsAndMultipliers)
             );
 
     }
@@ -143,98 +158,126 @@ contract WhitelisterTests is DelegationTests {
             address withdrawer, 
             uint256 ethAmount,
             uint256 eigenAmount,
-            bool withdrawAsTokens
+            bool withdrawAsTokens,
+            string calldata socket
         ) 
-            internal 
+            external  fuzzedAddress(operator) fuzzedAddress(staker)
         {
+        cheats.assume(operator != staker);
+        _testRegisterAsOperator(operator, IDelegationTerms(operator));
+        _testDepositWeth(staker, ethAmount);
+        _testDepositEigen(staker, eigenAmount);
+        _testDelegateToOperator(staker, operator);
+        assertTrue(delegation.isDelegated(staker) == true, "testDelegation: staker is not delegate");
 
-        testDelegation(operator, staker, ethAmount, eigenAmount);
 
         cheats.startPrank(operator);
         slasher.optIntoSlashing(address(dummyServiceManager));
         cheats.stopPrank();
 
-        address delegatedTo = delegation.delegatedTo(staker);
 
-        // packed data structure to deal with stack-too-deep issues
-        DataForTestWithdrawal memory dataForTestWithdrawal;
+        // BN254.G1Point memory pk = getOperatorPubkeyG1(0);
 
-        // scoped block to deal with stack-too-deep issues
-        {
-            //delegator-specific information
-            (IInvestmentStrategy[] memory delegatorStrategies, uint256[] memory delegatorShares) =
-                investmentManager.getDeposits(staker);
-            dataForTestWithdrawal.delegatorStrategies = delegatorStrategies;
-            dataForTestWithdrawal.delegatorShares = delegatorShares;
+        BN254.G1Point memory pk = getOperatorPubkeyG1(0);
 
-            IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce = 
-                IInvestmentManager.WithdrawerAndNonce({
-                    withdrawer: withdrawer,
-                    // harcoded nonce value
-                    nonce: 0
-                }
-            );
-            dataForTestWithdrawal.withdrawerAndNonce = withdrawerAndNonce;
-        }
-
-        uint256[] memory strategyIndexes = new uint256[](2);
-        IERC20[] memory tokensArray = new IERC20[](2);
-        {
-            // hardcoded values
-            strategyIndexes[0] = 0;
-            strategyIndexes[1] = 0;
-            tokensArray[0] = weth;
-            tokensArray[1] = eigenToken;
-        }
-
-        cheats.warp(uint32(block.timestamp) + 1 days);
-        cheats.roll(uint32(block.timestamp) + 1 days);
-
-        _testQueueWithdrawal(
-            staker,
-            dataForTestWithdrawal.delegatorStrategies,
-            tokensArray,
-            dataForTestWithdrawal.delegatorShares,
-            strategyIndexes,
-            withdrawer
-        );
-        // uint32 queuedWithdrawalBlock = uint32(block.number);
+        //register as both ETH and EIGEN operator
         
-        // //now withdrawal block time is before deregistration
-        // cheats.warp(uint32(block.timestamp) + 2 days);
-        // cheats.roll(uint32(block.timestamp) + 2 days);
-        
-        // generalReg1.deregisterOperator(operator);
-        // {
-        //     //warp past the serve until time, which is 3 days from the beginning.  THis puts us at 4 days past that point
-        //     cheats.warp(uint32(block.timestamp) + 4 days);
-        //     cheats.roll(uint32(block.timestamp) + 4 days);
+        cheats.startPrank(theMultiSig);
+        whiteLister.whitelist(operator);
+        cheats.stopPrank();
 
-        //     uint256 middlewareTimeIndex =  1;
-        //     if (withdrawAsTokens) {
-        //         _testCompleteQueuedWithdrawalTokens(
-        //             depositor,
-        //             dataForTestWithdrawal.delegatorStrategies,
-        //             tokensArray,
-        //             dataForTestWithdrawal.delegatorShares,
-        //             delegatedTo,
-        //             dataForTestWithdrawal.withdrawerAndNonce,
-        //             queuedWithdrawalBlock,
-        //             middlewareTimeIndex
-        //         );
-        //     } else {
-        //         _testCompleteQueuedWithdrawalShares(
-        //             depositor,
-        //             dataForTestWithdrawal.delegatorStrategies,
-        //             tokensArray,
-        //             dataForTestWithdrawal.delegatorShares,
-        //             delegatedTo,
-        //             dataForTestWithdrawal.withdrawerAndNonce,
-        //             queuedWithdrawalBlock,
-        //             middlewareTimeIndex
-        //         );
-        //     }
-        // }
+        cheats.startPrank(operator);
+                emit log("ss");
+                emit log("ss");
+
+        dummyCompendium.registerPublicKey(pk);
+                        emit log("ss");
+
+
+        blsRegistry.registerOperator(0, pk, socket);
+
+
+    //     // address delegatedTo = delegation.delegatedTo(staker);
+
+    //     // // packed data structure to deal with stack-too-deep issues
+    //     // DataForTestWithdrawal memory dataForTestWithdrawal;
+
+    //     // // scoped block to deal with stack-too-deep issues
+    //     // {
+    //     //     //delegator-specific information
+    //     //     (IInvestmentStrategy[] memory delegatorStrategies, uint256[] memory delegatorShares) =
+    //     //         investmentManager.getDeposits(staker);
+    //     //     dataForTestWithdrawal.delegatorStrategies = delegatorStrategies;
+    //     //     dataForTestWithdrawal.delegatorShares = delegatorShares;
+
+    //     //     IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce = 
+    //     //         IInvestmentManager.WithdrawerAndNonce({
+    //     //             withdrawer: withdrawer,
+    //     //             // harcoded nonce value
+    //     //             nonce: 0
+    //     //         }
+    //     //     );
+    //     //     dataForTestWithdrawal.withdrawerAndNonce = withdrawerAndNonce;
+    //     // }
+
+    //     // uint256[] memory strategyIndexes = new uint256[](2);
+    //     // IERC20[] memory tokensArray = new IERC20[](2);
+    //     // {
+    //     //     // hardcoded values
+    //     //     strategyIndexes[0] = 0;
+    //     //     strategyIndexes[1] = 0;
+    //     //     tokensArray[0] = weth;
+    //     //     tokensArray[1] = eigenToken;
+    //     // }
+
+    //     // cheats.warp(uint32(block.timestamp) + 1 days);
+    //     // cheats.roll(uint32(block.timestamp) + 1 days);
+
+    //     // _testQueueWithdrawal(
+    //     //     staker,
+    //     //     dataForTestWithdrawal.delegatorStrategies,
+    //     //     tokensArray,
+    //     //     dataForTestWithdrawal.delegatorShares,
+    //     //     strategyIndexes,
+    //     //     withdrawer
+    //     // );
+    //     // uint32 queuedWithdrawalBlock = uint32(block.number);
+        
+    //     // //now withdrawal block time is before deregistration
+    //     // cheats.warp(uint32(block.timestamp) + 2 days);
+    //     // cheats.roll(uint32(block.timestamp) + 2 days);
+        
+    //     // generalReg1.deregisterOperator(operator);
+    //     // {
+    //     //     //warp past the serve until time, which is 3 days from the beginning.  THis puts us at 4 days past that point
+    //     //     cheats.warp(uint32(block.timestamp) + 4 days);
+    //     //     cheats.roll(uint32(block.timestamp) + 4 days);
+
+    //     //     uint256 middlewareTimeIndex =  1;
+    //     //     if (withdrawAsTokens) {
+    //     //         _testCompleteQueuedWithdrawalTokens(
+    //     //             depositor,
+    //     //             dataForTestWithdrawal.delegatorStrategies,
+    //     //             tokensArray,
+    //     //             dataForTestWithdrawal.delegatorShares,
+    //     //             delegatedTo,
+    //     //             dataForTestWithdrawal.withdrawerAndNonce,
+    //     //             queuedWithdrawalBlock,
+    //     //             middlewareTimeIndex
+    //     //         );
+    //     //     } else {
+    //     //         _testCompleteQueuedWithdrawalShares(
+    //     //             depositor,
+    //     //             dataForTestWithdrawal.delegatorStrategies,
+    //     //             tokensArray,
+    //     //             dataForTestWithdrawal.delegatorShares,
+    //     //             delegatedTo,
+    //     //             dataForTestWithdrawal.withdrawerAndNonce,
+    //     //             queuedWithdrawalBlock,
+    //     //             middlewareTimeIndex
+    //     //         );
+    //     //     }
+    //     // }
     }
 
     function _testQueueWithdrawal(
@@ -257,10 +300,30 @@ contract WhitelisterTests is DelegationTests {
             tokensArray,
             shareAmounts,
             withdrawer,
-            // TODO: make this an input
             true
         );
         cheats.stopPrank();
+    }
+
+
+    function registerOperator(address operator, uint32 operatorIndex, string calldata socket) public fuzzedAddress(operator){
+        cheats.assume(operatorIndex < 15);
+        BN254.G1Point memory pk = getOperatorPubkeyG1(operatorIndex);
+
+        //register as both ETH and EIGEN operator
+        
+        cheats.startPrank(operator);
+        dummyCompendium.registerPublicKey(pk);
+        blsRegistry.registerOperator(1, pk, socket);
+        cheats.stopPrank();
+
+        bytes32 pubkeyHash = BN254.hashG1Point(pk);
+        
+        (uint32 toBlockNumber, uint32 index) = blsRegistry.pubkeyHashToIndexHistory(pubkeyHash,0);
+
+        assertTrue(toBlockNumber == 0, "block number set when it shouldn't be");
+        assertTrue(index == 0, "index has been set incorrectly");
+        assertTrue(blsRegistry.operatorList(0) == operator, "incorrect operator added");
     }
 
 }

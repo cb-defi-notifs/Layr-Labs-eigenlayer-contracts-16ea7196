@@ -18,7 +18,7 @@ import "forge-std/Test.sol";
  * - updating the stakes of the operator
  * @dev This contract is missing key functions. See `BLSRegistry` or `ECDSARegistry` for examples that inherit from this contract.
  */
-abstract contract RegistryBase is VoteWeigherBase, IQuorumRegistry {
+abstract contract RegistryBase is VoteWeigherBase, IQuorumRegistry, Test {
     using BytesLib for bytes;
 
     // TODO: set these on initialization
