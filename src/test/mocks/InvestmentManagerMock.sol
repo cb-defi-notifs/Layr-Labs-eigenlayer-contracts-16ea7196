@@ -73,9 +73,7 @@ contract InvestmentManagerMock is
 
     function queueWithdrawal(
         uint256[] calldata strategyIndexes,
-        IInvestmentStrategy[] calldata strategies,
-        IERC20[] calldata tokens,
-        uint256[] calldata shareAmounts,
+        StratsTokensShares calldata sts,
         address withdrawer,
         bool undelegateIfPossible
     )

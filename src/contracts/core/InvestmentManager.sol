@@ -41,14 +41,37 @@ contract InvestmentManager is
     uint8 internal constant PAUSED_WITHDRAWALS = 1;
 
     /**
+     * @notice Emitted when a new deposit occurs on behalf of `depositor`.
+     * @param depositor Is the staker who is depositing funds into EigenLayer.
+     * @param strategy Is the investment strategy that `depositor` has deposited into.
+     * @param token Is the token that `depositor` deposited.
+     * @param shares Is the number of shares `depositor` has in `strategy`.
+     */
+    event Deposit(
+        address depositor, IERC20 token, IInvestmentStrategy strategy, uint256 shares
+    );
+
+    /**
+     * @notice Emitted when a new withdrawal occurs on behalf of `depositor`.
+     * @param depositor Is the staker who is queuing a withdrawal from EigenLayer.
+     * @param nonce Is the withdrawal's unique identifier (to the depositor).
+     * @param strategy Is the investment strategy that `depositor` has queued to withdraw from.
+     * @param shares Is the number of shares `depositor` has queued to withdraw.
+     */
+    event ShareWithdrawalQueued(
+        address depositor, uint96 nonce, IInvestmentStrategy strategy, uint256 shares
+    );
+
+    /**
      * @notice Emitted when a new withdrawal is queued by `depositor`.
      * @param depositor Is the staker who is withdrawing funds from EigenLayer.
+     * @param nonce Is the withdrawal's unique identifier (to the depositor).
      * @param withdrawer Is the party specified by `staker` who will be able to complete the queued withdrawal and receive the withdrawn funds.
      * @param delegatedAddress Is the party who the `staker` was delegated to at the time of creating the queued withdrawal
      * @param withdrawalRoot Is a hash of the input data for the withdrawal.
      */
     event WithdrawalQueued(
-        address indexed depositor, address indexed withdrawer, address indexed delegatedAddress, bytes32 withdrawalRoot
+        address depositor, uint96 nonce, address withdrawer, address delegatedAddress, bytes32 withdrawalRoot
     );
 
     /// @notice Emitted when a queued withdrawal is completed
@@ -238,9 +261,7 @@ contract InvestmentManager is
      */
     function queueWithdrawal(
         uint256[] calldata strategyIndexes,
-        IInvestmentStrategy[] calldata strategies,
-        IERC20[] calldata tokens,
-        uint256[] calldata shares,
+        StratsTokensShares calldata sts,
         address withdrawer,
         bool undelegateIfPossible
     )
@@ -253,43 +274,37 @@ contract InvestmentManager is
     {
         require(!paused(PAUSED_WITHDRAWALS), "Pausable: index is paused");
 
-        {
-            /**
-             * Ensure that if the withdrawal includes beacon chain ETH, the specified 'withdrawer' is not different than the caller.
-             * This is because shares in the enshrined `beaconChainETHStrategy` ultimately represent tokens in **non-fungible** EigenPods,
-             * while other share in all other strategies represent purely fungible positions.
-             */
-            for (uint256 i = 0; i < strategies.length;) {
-                if (strategies[i] == beaconChainETHStrategy) {
-
-                    require(withdrawer == msg.sender,
-                        "InvestmentManager.queueWithdrawal: cannot queue a withdrawal of Beacon Chain ETH to a different address");
-                    require(strategies.length == 1,
-                        "InvestmentManager.queueWithdrawal: cannot queue a withdrawal including Beacon Chain ETH and other tokens");
-                    require(shares[i] % GWEI_TO_WEI == 0,
-                        "InvestmentManager.queueWithdrawal: cannot queue a withdrawal of Beacon Chain ETH for an non-whole amount of gwei");
-                }
-
-                //increment the loop
-                unchecked {
-                    ++i;
-                }
-            }
-        }
-
         // modify delegated shares accordingly, if applicable
-        delegation.decreaseDelegatedShares(msg.sender, strategies, shares);
+        delegation.decreaseDelegatedShares(msg.sender, sts.strategies, sts.shares);
+
+        uint96 nonce = uint96(numWithdrawalsQueued[msg.sender]);
 
         uint256 strategyIndexIndex;
 
-        for (uint256 i = 0; i < strategies.length;) {
+        /**
+         * Ensure that if the withdrawal includes beacon chain ETH, the specified 'withdrawer' is not different than the caller.
+         * This is because shares in the enshrined `beaconChainETHStrategy` ultimately represent tokens in **non-fungible** EigenPods,
+         * while other share in all other strategies represent purely fungible positions.
+         */
+        for (uint256 i = 0; i < sts.strategies.length;) {
+            if (sts.strategies[i] == beaconChainETHStrategy) {
+                require(withdrawer == msg.sender,
+                    "InvestmentManager.queueWithdrawal: cannot queue a withdrawal of Beacon Chain ETH to a different address");
+                require(sts.strategies.length == 1,
+                    "InvestmentManager.queueWithdrawal: cannot queue a withdrawal including Beacon Chain ETH and other tokens");
+                require(sts.shares[i] % GWEI_TO_WEI == 0,
+                    "InvestmentManager.queueWithdrawal: cannot queue a withdrawal of Beacon Chain ETH for an non-whole amount of gwei");
+            }      
+
             // the internal function will return 'true' in the event the strategy was
             // removed from the depositor's array of strategies -- i.e. investorStrats[depositor]
-            if (_removeShares(msg.sender, strategyIndexes[strategyIndexIndex], strategies[i], shares[i])) {
+            if (_removeShares(msg.sender, strategyIndexes[strategyIndexIndex], sts.strategies[i], sts.shares[i])) {
                 unchecked {
                     ++strategyIndexIndex;
                 }
             }
+
+            emit ShareWithdrawalQueued(msg.sender, nonce, sts.strategies[i], sts.shares[i]);
 
             //increment the loop
             unchecked {
@@ -305,18 +320,18 @@ contract InvestmentManager is
         {
             WithdrawerAndNonce memory withdrawerAndNonce = WithdrawerAndNonce({
                 withdrawer: withdrawer,
-                nonce: uint96(numWithdrawalsQueued[msg.sender])
+                nonce: nonce
             });
             // increment the numWithdrawalsQueued of the sender
             unchecked {
-                ++numWithdrawalsQueued[msg.sender];
+                numWithdrawalsQueued[msg.sender] = nonce + 1;
             }
 
             // copy arguments into struct and pull delegation info
             queuedWithdrawal = QueuedWithdrawal({
-                strategies: strategies,
-                tokens: tokens,
-                shares: shares,
+                strategies: sts.strategies,
+                tokens: sts.tokens,
+                shares: sts.shares,
                 depositor: msg.sender,
                 withdrawerAndNonce: withdrawerAndNonce,
                 withdrawalStartBlock: uint32(block.number),
@@ -339,7 +354,7 @@ contract InvestmentManager is
             _undelegate(msg.sender);
         }
 
-        emit WithdrawalQueued(msg.sender, withdrawer, delegatedAddress, withdrawalRoot);
+        emit WithdrawalQueued(msg.sender, nonce, withdrawer, delegatedAddress, withdrawalRoot);
 
         return withdrawalRoot;
     }
@@ -554,6 +569,8 @@ contract InvestmentManager is
         // add the returned shares to the depositor's existing shares for this strategy
         _addShares(depositor, strategy, shares);
 
+        emit Deposit(depositor, token, strategy, shares);
+
         return shares;
     }
 
@@ -619,7 +636,6 @@ contract InvestmentManager is
                 }
             }
         }
-
         // pop off the last entry in the list of strategies
         investorStrats[depositor].pop();
     }

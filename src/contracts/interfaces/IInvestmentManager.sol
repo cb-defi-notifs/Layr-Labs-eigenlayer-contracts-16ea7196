@@ -12,6 +12,13 @@ import "./IServiceManager.sol";
  * @notice See the `InvestmentManager` contract itself for implementation details.
  */
 interface IInvestmentManager {
+    // struct to reduce stack
+    struct StratsTokensShares {
+        IInvestmentStrategy[] strategies;
+        IERC20[] tokens;
+        uint256[] shares;
+    }
+
     // packed struct for queued withdrawals
     struct WithdrawerAndNonce {
         address withdrawer;
@@ -126,14 +133,12 @@ interface IInvestmentManager {
      */
     function queueWithdrawal(
         uint256[] calldata strategyIndexes,
-        IInvestmentStrategy[] calldata strategies,
-        IERC20[] calldata tokens,
-        uint256[] calldata shareAmounts,
+        StratsTokensShares calldata sts,
         address withdrawer,
         bool undelegateIfPossible
     )
         external returns(bytes32);
-
+        
     /**
      * @notice Used to complete the specified `queuedWithdrawal`. The function caller must match `queuedWithdrawal.withdrawer`
      * @param queuedWithdrawal The QueuedWithdrawal to complete.
