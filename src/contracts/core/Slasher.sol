@@ -57,6 +57,9 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
      */
     mapping(address => MiddlewareTimes[]) public operatorToMiddlewareTimes;
 
+    /// @notice Emitted when a middleware times is added to `operator`'s array.
+    event MiddlewareTimesAdded(address operator, MiddlewareTimes middlewareTimes);
+
     /// @notice Emitted when `operator` begins to allow `contractAddress` to slash them.
     event OptedIntoSlashing(address indexed operator, address indexed contractAddress);
 
@@ -421,6 +424,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
         // if `next` has new information, then push it
         if (pushToMiddlewareTimes) {
             operatorToMiddlewareTimes[operator].push(next);
+            emit MiddlewareTimesAdded(operator, next);
         }
     }
 
