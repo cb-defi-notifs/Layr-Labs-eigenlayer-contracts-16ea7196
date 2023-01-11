@@ -42,8 +42,6 @@ contract WhitelisterTests is EigenLayrTestHelper {
     BLSPublicKeyCompendiumMock dummyCompendium;
     MiddlewareRegistryMock dummyReg;
 
-    MiddlewareVoteWeigherMock public voteWeigher;
-    MiddlewareVoteWeigherMock public voteWeigherImplementation;
     address withdrawer = address(345);
     address theMultiSig = address(420);
     
@@ -54,7 +52,7 @@ contract WhitelisterTests is EigenLayrTestHelper {
         _;
     }
 
-    uint256 amount;
+    uint256 AMOUNT;
 
     // packed info used to help handle stack-too-deep errors
     struct DataForTestWithdrawal {
@@ -73,9 +71,6 @@ contract WhitelisterTests is EigenLayrTestHelper {
         blsRegistry = BLSRegistry(
             address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
         );
-        voteWeigher = MiddlewareVoteWeigherMock(
-            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
-        );
 
         dummyToken = new ERC20PresetMinterPauser("dummy staked ETH", "dsETH");
         dummyStratImplementation = new InvestmentStrategyBase(investmentManager);
@@ -91,7 +86,7 @@ contract WhitelisterTests is EigenLayrTestHelper {
 
         whiteLister = new Whitelister(investmentManager, delegation, dummyToken, dummyStrat, blsRegistry);
         whiteLister.transferOwnership(theMultiSig);
-        amount = whiteLister.DEFAULT_AMOUNT();
+        AMOUNT = whiteLister.DEFAULT_AMOUNT();
 
         dummyToken.grantRole(keccak256("MINTER_ROLE"), address(whiteLister));
         dummyToken.grantRole(keccak256("PAUSER_ROLE"), address(whiteLister));  
@@ -105,7 +100,6 @@ contract WhitelisterTests is EigenLayrTestHelper {
 
         dummyServiceManager  = new ServiceManagerMock(investmentManager);
         blsRegistryImplementation = new BLSRegistry(delegation, investmentManager, dummyServiceManager, 2, dummyCompendium);
-        voteWeigherImplementation = new MiddlewareVoteWeigherMock(delegation, investmentManager, dummyServiceManager);
 
         uint256[] memory _quorumBips = new uint256[](2);
         // split 60% ETH quorum, 40% EIGEN quorum
@@ -125,11 +119,6 @@ contract WhitelisterTests is EigenLayrTestHelper {
                 TransparentUpgradeableProxy(payable(address(blsRegistry))),
                 address(blsRegistryImplementation),
                 abi.encodeWithSelector(BLSRegistry.initialize.selector, address(whiteLister), true, _quorumBips, ethStratsAndMultipliers, eigenStratsAndMultipliers)
-            );
-        eigenLayrProxyAdmin.upgradeAndCall(
-                TransparentUpgradeableProxy(payable(address(voteWeigher))),
-                address(voteWeigherImplementation),
-                abi.encodeWithSelector(MiddlewareVoteWeigherMock.initialize.selector, _quorumBips, ethStratsAndMultipliers, eigenStratsAndMultipliers)
             );
         
         dummyReg = new MiddlewareRegistryMock(
@@ -153,22 +142,24 @@ contract WhitelisterTests is EigenLayrTestHelper {
     }
 
     function testWhitelistDepositIntoStrategy(address operator, uint256 depositAmount) external fuzzedAddress(operator){
-        cheats.assume(depositAmount < amount);
+        cheats.assume(depositAmount < AMOUNT);
         testWhitelistingOperator(operator);
 
         cheats.startPrank(theMultiSig);
         address staker = whiteLister.getStaker(operator);
-        dummyToken.mint(staker, amount);
+        dummyToken.mint(staker, AMOUNT);
 
         whiteLister.depositIntoStrategy(staker, dummyStrat, dummyToken, depositAmount);
         cheats.stopPrank();
     }
 
+    
+
     function testWhitelistQueueWithdrawal(
             address operator, 
             string calldata socket
         ) 
-            external  fuzzedAddress(operator)
+            public  fuzzedAddress(operator)
         {
 
         address staker = whiteLister.getStaker(operator);
@@ -239,7 +230,7 @@ contract WhitelisterTests is EigenLayrTestHelper {
             emit log_named_uint("Balance Before Withdrawal", dummyToken.balanceOf(staker));
             emit log_named_uint("Balance After Withdrawal", balanceBeforeWithdrawal);
         
-            require(dummyToken.balanceOf(staker) == balanceBeforeWithdrawal + amount, "balance not incremented");
+            require(dummyToken.balanceOf(staker) == balanceBeforeWithdrawal + AMOUNT, "balance not incremented");
 
         }        
     }
@@ -302,9 +293,16 @@ contract WhitelisterTests is EigenLayrTestHelper {
         whiteLister.completeQueuedWithdrawal(staker, queuedWithdrawal, middlewareTimesIndex, true);
         cheats.stopPrank();
     }
+    
+    function testWhitelistTransfer(address operator, address receiver, string calldata socket) public fuzzedAddress(receiver) {
+        address staker = whiteLister.getStaker(operator);
 
+        testWhitelistQueueWithdrawal(operator, socket);
 
+        cheats.startPrank(theMultiSig);
 
-
-
+        whiteLister.transfer(staker, address(dummyToken), receiver, AMOUNT);
+        cheats.stopPrank();
+        require(dummyToken.balanceOf(receiver) == AMOUNT, "receiver hasn't received tokens");
+    }
 }
