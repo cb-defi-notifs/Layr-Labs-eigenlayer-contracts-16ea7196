@@ -49,8 +49,13 @@ contract SlasherHarness is Slasher {
     function get_lastest_update_block_at_node(address operator, uint256 node) public returns (uint256) {
         return _whitelistedContractDetails[operator][_uintToAddress(node)].latestUpdateBlock;
     }
+
     function get_lastest_update_block_at_head(address operator) public returns (uint256) {
         return get_lastest_update_block_at_node(operator, get_list_head(operator));
+    }
+
+    function get_linked_list_entry(address operator, uint256 node, bool direction) public returns (uint256) {
+        return (operatorToWhitelistedContractsByUpdate[operator].list[node][direction]);
     }
     
 }
