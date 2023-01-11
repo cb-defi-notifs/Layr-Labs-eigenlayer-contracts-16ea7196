@@ -1,4 +1,3 @@
-import "../../ComplexityCheck/erc20.spec"
 
 methods {
     //// External Calls
