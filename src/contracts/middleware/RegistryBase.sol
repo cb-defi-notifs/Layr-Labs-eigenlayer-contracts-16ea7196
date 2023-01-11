@@ -7,8 +7,6 @@ import "../interfaces/IQuorumRegistry.sol";
 import "../libraries/BytesLib.sol";
 import "./VoteWeigherBase.sol";
 
-import "forge-std/Test.sol";
-
 /**
  * @title An abstract Registry-type contract that is signature scheme agnostic.
  * @author Layr Labs, Inc.
@@ -18,7 +16,7 @@ import "forge-std/Test.sol";
  * - updating the stakes of the operator
  * @dev This contract is missing key functions. See `BLSRegistry` or `ECDSARegistry` for examples that inherit from this contract.
  */
-abstract contract RegistryBase is VoteWeigherBase, IQuorumRegistry, Test {
+abstract contract RegistryBase is VoteWeigherBase, IQuorumRegistry {
     using BytesLib for bytes;
 
     // TODO: set these on initialization

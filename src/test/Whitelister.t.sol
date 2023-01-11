@@ -243,7 +243,6 @@ contract WhitelisterTests is EigenLayrTestHelper {
         uint256[] memory strategyIndexes
     )
         internal
-        returns (bytes32)
     {
         cheats.startPrank(theMultiSig);
 

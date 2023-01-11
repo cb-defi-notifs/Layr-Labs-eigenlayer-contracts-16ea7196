@@ -31,7 +31,7 @@ contract InvestmentManager is
     ReentrancyGuardUpgradeable,
     InvestmentManagerStorage,
     Pausable
-    ,Test
+    // ,Test
 {
     using SafeERC20 for IERC20;
 
@@ -364,7 +364,6 @@ contract InvestmentManager is
         // find the withdrawalRoot
         bytes32 withdrawalRoot = calculateWithdrawalRoot(queuedWithdrawal);
 
-
         // verify that the queued withdrawal is pending
         require(
             withdrawalRootPending[withdrawalRoot],
@@ -384,7 +383,6 @@ contract InvestmentManager is
 
         // reset the storage slot in mapping of queued withdrawals
         withdrawalRootPending[withdrawalRoot] = false;
-
 
         // store length for gas savings
         uint256 strategiesLength = queuedWithdrawal.strategies.length;
@@ -415,7 +413,6 @@ contract InvestmentManager is
                 }
             }
         }
-
         emit WithdrawalCompleted(queuedWithdrawal.depositor, msg.sender, withdrawalRoot);
     }
 

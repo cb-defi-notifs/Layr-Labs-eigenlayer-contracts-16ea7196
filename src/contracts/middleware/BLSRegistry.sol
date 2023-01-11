@@ -6,8 +6,6 @@ import "../interfaces/IBLSPublicKeyCompendium.sol";
 import "../interfaces/IBLSRegistry.sol";
 import "../libraries/BN254.sol";
 
-import "forge-std/Test.sol";
-
 /**
  * @title A Registry-type contract using aggregate BLS signatures.
  * @author Layr Labs, Inc.
@@ -150,16 +148,13 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
     function _registerOperator(address operator, uint8 operatorType, BN254.G1Point memory pk, string calldata socket)
         internal
     {
-        emit log("whhhhh");
         if(isWhitelist) {
             require(whitelisted[operator], "BLSRegistry._registerOperator: not whitelisted");
         }
-                emit log("whhhhh");
 
         // validate the registration of `operator` and find their `OperatorStake`
         OperatorStake memory _operatorStake = _registrationStakeEvaluation(operator, operatorType);
 
-        emit log("whhhhh");
         // getting pubkey hash
         bytes32 pubkeyHash = BN254.hashG1Point(pk);
 
