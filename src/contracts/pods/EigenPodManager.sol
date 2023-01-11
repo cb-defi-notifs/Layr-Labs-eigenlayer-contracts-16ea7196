@@ -29,7 +29,7 @@ import "../interfaces/IBeaconChainOracle.sol";
  */
 contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager {
     //TODO: change this to constant in prod
-    IETHPOSDeposit internal immutable ethPOS;
+    IETHPOSDeposit public immutable ethPOS;
     
     /// @notice Beacon proxy to which the EigenPods point
     IBeacon public immutable eigenPodBeacon;
@@ -38,7 +38,7 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager 
     IInvestmentManager public immutable investmentManager;
 
     /// @notice EigenLayer's Slasher contract
-    ISlasher internal immutable slasher;
+    ISlasher public immutable slasher;
 
     /// @notice Oracle contract that provides updates to the beacon chain's state
     IBeaconChainOracle public beaconChainOracle;
