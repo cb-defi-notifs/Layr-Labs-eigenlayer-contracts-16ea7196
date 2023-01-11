@@ -1,3 +1,4 @@
+Binary files ../s.DS_Store and .DS_Store differ
 diff -druN ../score/EigenLayrDelegation.sol core/EigenLayrDelegation.sol
 --- ../score/EigenLayrDelegation.sol	2023-01-06 14:39:35
 +++ core/EigenLayrDelegation.sol	2023-01-09 14:13:40
@@ -15,3 +16,18 @@ diff -druN ../score/EigenLayrDelegation.sol core/EigenLayrDelegation.sol
          onlyInvestmentManager
      {
          if (isDelegated(staker)) {
+diff -druN ../score/Slasher.sol core/Slasher.sol
+--- ../score/Slasher.sol	2023-01-10 16:24:19
++++ core/Slasher.sol	2023-01-09 14:13:40
+@@ -142,8 +142,10 @@
+         onlyCanSlash(operator) 
+     {
+ 
+-        // update the 'stalest' stakes update time + latest 'serveUntil' time of the `operator`
++        // update latest update
++
+         _recordUpdateAndAddToMiddlewareTimes(operator, uint32(block.number), serveUntil);
++
+ 
+         // Push the middleware to the end of the update list. This will fail if the caller *is* already in the list.
+         require(operatorToWhitelistedContractsByUpdate[operator].pushBack(_addressToUint(msg.sender)), 

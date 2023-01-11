@@ -36,11 +36,19 @@ methods {
 	
     //// Harnessed Functions
     // Harnessed calls
-    // Harmessed getters
+    // Harnessed getters
 	get_is_operator(address) returns (bool) envfree
 	get_is_delegated(address) returns (bool) envfree
+	get_list_exists(address) returns (bool) envfree
+	get_next_node_exists(address, uint256) returns (bool) envfree
+	get_next_node(address, uint256) returns (uint256) envfree
+	get_previous_node_exists(address, uint256) returns (bool) envfree
+	get_previous_node(address, uint256) returns (uint256) envfree
 	get_node_exists(address, address) returns (bool) envfree
-
+	get_list_head(address) returns (uint256) envfree
+	get_lastest_update_block_at_node(address, uint256) returns (uint256) envfree
+	get_lastest_update_block_at_head(address) returns (uint256) envfree
+	
 	//// Normal Functions
 	owner() returns(address) envfree
 	bondedUntil(address, address) returns (uint32) envfree
@@ -106,6 +114,18 @@ rule canOnlyChangeBondedUntilWithSpecificFunctions(address operator, address con
         assert(valueBefore == valueAfter, "bondedAfter value changed when it shouldn't have!");
 	}
 }
+
+/*
+checks that the entry in the linked list _whitelistedContractDetails[operator] with the **smallest** value of 'latestUpdateBlock'
+is always at the 'HEAD' position in the linked list
+*/
+/* TODO: modify rule so it works! This seems to make too broad assumptions about initial state (i.e. isn't strict enough)
+invariant listHeadHasSmallestValueOfLatestUpdateBlock(address operator, uint256 node)
+	(
+	get_list_exists(operator) && get_next_node_exists(operator, get_list_head(operator)) => 
+		get_lastest_update_block_at_head(operator) <= get_lastest_update_block_at_node(operator, get_next_node(operator, get_list_head(operator)))
+	)
+*/
 
 /* TODO: assess if this rule is salvageable. seems to have poor storage assumptions due to the way 'node existence' is defined
 rule cannotAddSameContractTwice(address operator, address contractAddress) {
