@@ -49,7 +49,7 @@ The balance of an EigenPod at anytime is `FULL_WITHDRAWALS + PARTIAL_WITHDRAWALS
 
 In more detail, the EigenPod owner:
 1. Proves all their full withdrawals up to the `currentBlockNumber`
-2. Calculates the block number of the next full withdrawal occuring at or after `currentBlockNumber`. Call this `expireBlockNumber`.
+2. Calculates the block number of the next full withdrawal occuring at or after `currentBlockNumber`. Call this `expireBlockNumber`.  This is the block number before which the partial withdrawal transaction must be mined (in order to avoid race conditions related to any pending withdrawals that may exist simultaneously).
 3. Pings the contract with a transaction claiming that they have proven all full withdrawals until `expireBlockNumber`. The contract will note this in storage along with `partialWithdrawals = address(this).balance - FULL_WITHDRAWALS`.
 4. If a watcher proves a full withdrawal for a validator restaked on the EigenPod that occured before `currentBlockNumber` that has not been proven before and this proof occurs within `PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS` (an EigenPod contract variable) of the partial withdrawal claim, the claim is marked as failed. This means that the claim cannot be withdrawn, but the mechanism for rewarding watchers has not been fully worked out yet. It will prbably be the case that watchers will eventually end up being paid through penalty withdrawals.
 5. If no such proof is provided within `PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS`, the staker is allow withdraw `partialWithdrawals` (first attempting to pay off penalties with the ether to withdraw) and make new partial withdrawal claims
