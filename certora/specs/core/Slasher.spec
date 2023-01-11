@@ -49,6 +49,8 @@ methods {
 	get_lastest_update_block_at_node(address, uint256) returns (uint256) envfree
 	get_lastest_update_block_at_head(address) returns (uint256) envfree
 	get_linked_list_entry(address operator, uint256 node, bool direction) returns (uint256) envfree
+	nodeDoesExist(address operator, uint256 node) returns (bool) envfree
+	nodeIsWellLinked(address operator, uint256 node) returns (bool) envfree
 	
 	//// Normal Functions
 	owner() returns(address) envfree
@@ -128,32 +130,21 @@ invariant listHeadHasSmallestValueOfLatestUpdateBlock(address operator, uint256 
 	)
 */
 
+/*
+TODO: rule doesn't pass.
+key properties seem to be that
+1) `StructuredLinkedList._createLink` creates only two-way links
+2) `StructuredLinkedList.remove` removes both links from a node, and stiches together its existing links (which it breaks)
+3) `StructuredLinkedList._insert` similarly inserts a new node 'between' nodes, ensuring that the new node is well-linked
+*/
 invariant consistentListStructure(address operator, uint256 node1)
-	// uses that _HEAD = 0, _PREV = false, _NEXT = true
-
 	(
-	// either node1 doesn't exist (i.e. isn't linked to any other node)
-	(get_next_node(operator, node1) == 0 && get_previous_node(operator, node1) == 0)
+	// either node1 doesn't exist
+	!nodeDoesExist(operator, node1)
 	// or node1 is consistently two-way linked
 	||
-	(
-		// node1 is not linked to itself!
-		get_previous_node(operator, node1) != node1 && get_next_node(operator, node1) != node1
-		&&
-		// node1 is the previous node's next node and the next node's previous node
-		get_linked_list_entry(operator, get_previous_node(operator, node1), true) == node1 && get_linked_list_entry(operator, get_next_node(operator, node1), false) == node1
+	nodeIsWellLinked(operator, node1)
 	)
-	)
-
-	/*
-	// or node1 is the node after _HEAD
-	||
-	(get_linked_list_entry(operator, 0, true)  == node1 && get_linked_list_entry(operator, node1, false) == 0)
-	// or node1 is the node before _HEAD
-	||
-	(get_linked_list_entry(operator, 0, false)  == node1 && get_linked_list_entry(operator, node1, true) == 0)
-	*/
-
 
 /* TODO: assess if this rule is salvageable. seems to have poor storage assumptions due to the way 'node existence' is defined
 rule cannotAddSameContractTwice(address operator, address contractAddress) {
