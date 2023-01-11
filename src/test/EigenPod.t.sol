@@ -689,7 +689,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     // Expected Behaviour: Math is more complicated here, but keep track of rollable balance and make sure it
     //                     always accounts for the parital withdrawal
 
-    function testEigenPodsQueuedWithdrawal(address operator) public fuzzedAddress(operator){
+    function testEigenPodsQueuedWithdrawal(address operator, address withdrawer) public fuzzedAddress(operator){
         cheats.assume(operator != podOwner);
         //make initial deposit
         testDeployAndVerifyNewEigenPod();
@@ -735,7 +735,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         cheats.warp(uint32(block.timestamp) + 1 days);
         cheats.roll(uint32(block.timestamp) + 1 days);
 
-        _testQueueWithdrawal(podOwner, strategyIndexes, strategyArray, tokensArray, shareAmounts, podOwner, undelegateIfPossible);
+        _testQueueWithdrawal(podOwner, strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawer, undelegateIfPossible);
         uint32 queuedWithdrawalStartBlock = uint32(block.number);
 
         //*************************DELEGATION/Stake Update STUFF******************************//
@@ -979,13 +979,25 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         IInvestmentManager.StratsTokensShares memory sts = IInvestmentManager.StratsTokensShares(strategyArray, tokensArray, shareAmounts);
         cheats.startPrank(depositor);
 
-        bytes32 withdrawalRoot = investmentManager.queueWithdrawal(
+        cheats.expectRevert(bytes("InvestmentManager.queueWithdrawal: cannot queue a withdrawal of Beacon Chain ETH to a different address"));
+        investmentManager.queueWithdrawal(
             strategyIndexes,
             sts,
             withdrawer,
             // TODO: make this an input
             undelegateIfPossible
         );
+
+        //make a call with depositor aka podOwner also as withdrawer.
+        bytes32 withdrawalRoot = investmentManager.queueWithdrawal(
+            strategyIndexes,
+            sts,
+            depositor,
+            // TODO: make this an input
+            undelegateIfPossible
+        );
+
+
         cheats.stopPrank();
         return withdrawalRoot;
     }
