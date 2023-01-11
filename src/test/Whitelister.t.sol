@@ -45,6 +45,7 @@ contract WhitelisterTests is EigenLayrTestHelper {
     MiddlewareVoteWeigherMock public voteWeigher;
     MiddlewareVoteWeigherMock public voteWeigherImplementation;
     address withdrawer = address(345);
+    
 
     modifier fuzzedAmounts(uint256 ethAmount, uint256 eigenAmount){
         cheats.assume(ethAmount >= 0 && ethAmount <= 1e18);
@@ -54,7 +55,8 @@ contract WhitelisterTests is EigenLayrTestHelper {
 
 
 
-    uint256 DEFAULT_AMOUNT = 10e18;
+
+    uint256 amount;
 
     // packed info used to help handle stack-too-deep errors
     struct DataForTestWithdrawal {
@@ -93,6 +95,7 @@ contract WhitelisterTests is EigenLayrTestHelper {
 
         whiteLister = new Whitelister(investmentManager, delegation, dummyToken, dummyStrat, blsRegistry);
         whiteLister.transferOwnership(theMultiSig);
+        amount = whiteLister.DEFAULT_AMOUNT();
 
         dummyToken.grantRole(keccak256("MINTER_ROLE"), address(whiteLister));
         dummyToken.grantRole(keccak256("PAUSER_ROLE"), address(whiteLister));  
@@ -153,40 +156,50 @@ contract WhitelisterTests is EigenLayrTestHelper {
         assertTrue(blsRegistry.whitelisted(operator) == true, "operator not added to whitelist");
     }
 
-    function testDepositIntoStrategy(address operator, uint256 amount) external fuzzedAddress(operator){
-        cheats.assume(amount < DEFAULT_AMOUNT);
+    function testDepositIntoStrategy(address operator, uint256 depositAmount) external fuzzedAddress(operator){
+        cheats.assume(depositAmount < amount);
         testWhitelistingOperator(operator);
 
         cheats.startPrank(theMultiSig);
         address staker = whiteLister.getStaker(operator);
-        dummyToken.mint(staker, DEFAULT_AMOUNT);
+        dummyToken.mint(staker, amount);
 
-        whiteLister.depositIntoStrategy(staker, dummyStrat, dummyToken, amount);
+        whiteLister.depositIntoStrategy(staker, dummyStrat, dummyToken, depositAmount);
         cheats.stopPrank();
     }
 
     function testQueueWithdrawal(
             address operator, 
-            uint256 amount,
             string calldata socket
         ) 
-            external  fuzzedAddress(operator) fuzzedAmounts(amount, amount)
+            external  fuzzedAddress(operator)
         {
+
         address staker = whiteLister.getStaker(operator);
         cheats.assume(staker!=operator);
         _testRegisterAsOperator(operator, IDelegationTerms(operator));
 
-        cheats.startPrank(operator);
-        slasher.optIntoSlashing(address(dummyServiceManager));
-        cheats.stopPrank();
-        
-        cheats.startPrank(theMultiSig);
-        whiteLister.whitelist(operator);
-        cheats.stopPrank();
+        {
+            // cheats.startPrank(operator);
+            // slasher.optIntoSlashing(address(dummyServiceManager));
+            // cheats.stopPrank();
+                    emit log("*******whiteLister.depositIntoStrategy***********");
 
-        cheats.startPrank(operator);
-        dummyReg.registerOperator(operator, uint32(block.timestamp) + 3 days);
-        cheats.stopPrank();
+            cheats.startPrank(theMultiSig);
+            whiteLister.whitelist(operator);
+                    emit log("*******whiteLister.depositIntoStrategy***********");
+
+                    emit log("*******whiteLister.depositIntoStrategy***********");
+
+            
+            //whiteLister.depositIntoStrategy(staker, dummyStrat, dummyToken, amount);
+            cheats.stopPrank();
+
+            cheats.startPrank(operator);
+            slasher.optIntoSlashing(address(dummyServiceManager));
+            dummyReg.registerOperator(operator, uint32(block.timestamp) + 3 days);
+            cheats.stopPrank();
+        }
 
         // packed data structure to deal with stack-too-deep issues
         DataForTestWithdrawal memory dataForTestWithdrawal;
@@ -201,7 +214,7 @@ contract WhitelisterTests is EigenLayrTestHelper {
 
             IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce = 
                 IInvestmentManager.WithdrawerAndNonce({
-                    withdrawer: withdrawer,
+                    withdrawer: staker,
                     // harcoded nonce value
                     nonce: 0
                 }
@@ -209,16 +222,13 @@ contract WhitelisterTests is EigenLayrTestHelper {
             dataForTestWithdrawal.withdrawerAndNonce = withdrawerAndNonce;
         }
 
-        uint256[] memory strategyIndexes = new uint256[](2);
-        IERC20[] memory tokensArray = new IERC20[](2);
+        uint256[] memory strategyIndexes = new uint256[](1);
+        IERC20[] memory tokensArray = new IERC20[](1);
         {
             // hardcoded values
             strategyIndexes[0] = 0;
-            strategyIndexes[1] = 0;
-            tokensArray[0] = weth;
-            tokensArray[1] = eigenToken;
+            tokensArray[0] = dummyToken;
         }
-
 
         _testQueueWithdrawal(
             staker,
@@ -227,32 +237,32 @@ contract WhitelisterTests is EigenLayrTestHelper {
             dataForTestWithdrawal.delegatorShares,
             strategyIndexes
         );
-        uint32 queuedWithdrawalBlock = uint32(block.number);
-        
-        // //now withdrawal block time is before deregistration
-        cheats.warp(uint32(block.timestamp) + 2 days);
-        cheats.roll(uint32(block.timestamp) + 2 days);
-        
-        // dummyReg.deregisterOperator(operator);
-        {
-            //warp past the serve until time, which is 3 days from the beginning.  THis puts us at 4 days past that point
-            cheats.warp(uint32(block.timestamp) + 4 days);
-            cheats.roll(uint32(block.timestamp) + 4 days);
 
-            uint256 middlewareTimeIndex =  1;
+        {
+            uint256 balanceBeforeWithdrawal = dummyToken.balanceOf(staker);
+            //warp past the serve until time, which is 3 days from the beginning.  THis puts us at 4 days past that point
+            // cheats.warp(uint32(block.timestamp) + 4 days);
+            // cheats.roll(uint32(block.timestamp) + 4 days);
+
             _testCompleteQueuedWithdrawal(
                 staker,
                 dataForTestWithdrawal.delegatorStrategies,
                 tokensArray,
                 dataForTestWithdrawal.delegatorShares,
-                delegation.delegatedTo(staker),
+                operator,
                 dataForTestWithdrawal.withdrawerAndNonce,
-                queuedWithdrawalBlock,
-                middlewareTimeIndex
+                uint32(block.number),
+                1
             );
+                        emit log_named_uint("dummyToken.balanceOf(staker)", dummyToken.balanceOf(staker));
+            emit log_named_uint("balanceBeforeWithdrawal", balanceBeforeWithdrawal);
         
+            require(dummyToken.balanceOf(staker) == balanceBeforeWithdrawal + amount, "balance not incremented");
 
         }
+        // uint256 balanceAfterWithdrawal = dummyToken.balanceOf(staker);
+        // emit log_uint(balanceAfterWithdrawal);
+        
 
     }
     function _testQueueWithdrawal(
@@ -273,7 +283,7 @@ contract WhitelisterTests is EigenLayrTestHelper {
             strategyArray,
             tokensArray,
             shareAmounts,
-            withdrawer,
+            staker,
             true
         );
         cheats.stopPrank();
@@ -300,6 +310,17 @@ contract WhitelisterTests is EigenLayrTestHelper {
             withdrawalStartBlock: withdrawalStartBlock,
             delegatedAddress: delegatedTo
         });
+
+         emit log("***********************************************************************");
+        emit log_named_address("delegatedAddress", delegatedTo);
+        emit log_named_uint("withdrawalStartBlock", withdrawalStartBlock);
+        emit log_named_uint("withdrawerAndNonce.Nonce", withdrawerAndNonce.nonce);
+        emit log_named_address("withdrawerAndNonce.Adress", withdrawerAndNonce.withdrawer);
+        emit log_named_address("depositor", staker);
+         emit log("***********************************************************************");
+
+
+
 
         cheats.startPrank(theMultiSig);
         // complete the queued withdrawal

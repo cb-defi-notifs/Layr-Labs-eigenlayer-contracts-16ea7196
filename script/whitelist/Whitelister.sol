@@ -126,7 +126,6 @@ contract Whitelister is Ownable, Test {
                 withdrawer,
                 undelegateIfPossible
             );
-        emit log("heyyy");
         return callAddress(staker, address(investmentManager), data);
     }
 
@@ -142,6 +141,7 @@ contract Whitelister is Ownable, Test {
                 middlewareTimesIndex,
                 receiveAsTokens
         );
+        emit log("yoooooo");
 
         return callAddress(staker, address(investmentManager), data);
     }

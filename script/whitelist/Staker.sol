@@ -36,6 +36,8 @@ contract Staker is Ownable, Test {
         uint256 length = data.length;
         bytes memory returndata;  
 
+         emit log("yoooooo 2");
+
         assembly{
             let result := call(
                 gas(),
@@ -49,6 +51,8 @@ contract Staker is Ownable, Test {
             mstore(returndata, returndatasize())
             returndatacopy(add(returndata, 32), 0, returndatasize())
         }
+
+         emit log("yoooooo 3");
         return returndata;
 
 }
