@@ -717,8 +717,8 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         
         IInvestmentStrategy[] memory strategyArray = new IInvestmentStrategy[](1);
         IERC20[] memory tokensArray = new IERC20[](1);
-        uint256[] memory shareAmounts = new uint256[](1);
-        uint256[] memory strategyIndexes = new uint256[](1);
+        uint256[] memory shareAmounts = new uint256[](2);
+        uint256[] memory strategyIndexes = new uint256[](2);
         IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce =
             IInvestmentManager.WithdrawerAndNonce({withdrawer: podOwner, nonce: 0});
         bool undelegateIfPossible = false;
