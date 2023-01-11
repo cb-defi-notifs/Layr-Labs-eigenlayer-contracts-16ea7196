@@ -141,7 +141,6 @@ contract Whitelister is Ownable, Test {
                 middlewareTimesIndex,
                 receiveAsTokens
         );
-        emit log("yoooooo");
 
         return callAddress(staker, address(investmentManager), data);
     }

@@ -11,7 +11,7 @@ import "forge-std/Test.sol";
 
 contract Staker is Ownable, Test {
 
-    address immutable whiteLister;
+    address public immutable whiteLister;
     
     modifier onlyWhiteLister(){
         msg.sender == whiteLister;
@@ -36,8 +36,6 @@ contract Staker is Ownable, Test {
         uint256 length = data.length;
         bytes memory returndata;  
 
-         emit log("yoooooo 2");
-
         assembly{
             let result := call(
                 gas(),
@@ -52,9 +50,8 @@ contract Staker is Ownable, Test {
             returndatacopy(add(returndata, 32), 0, returndatasize())
         }
 
-         emit log("yoooooo 3");
         return returndata;
 
-}
+    }
 
 }

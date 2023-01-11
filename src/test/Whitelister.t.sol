@@ -45,6 +45,7 @@ contract WhitelisterTests is EigenLayrTestHelper {
     MiddlewareVoteWeigherMock public voteWeigher;
     MiddlewareVoteWeigherMock public voteWeigherImplementation;
     address withdrawer = address(345);
+    address theMultiSig = address(420);
     
 
     modifier fuzzedAmounts(uint256 ethAmount, uint256 eigenAmount){
@@ -52,9 +53,6 @@ contract WhitelisterTests is EigenLayrTestHelper {
         cheats.assume(eigenAmount >= 0 && eigenAmount <= 1e18);
         _;
     }
-
-
-
 
     uint256 amount;
 
@@ -64,8 +62,6 @@ contract WhitelisterTests is EigenLayrTestHelper {
         uint256[] delegatorShares;
         IInvestmentManager.WithdrawerAndNonce withdrawerAndNonce;
     }
-
-    address theMultiSig = address(420);
 
     function setUp() public virtual override{
         EigenLayrDeployer.setUp();
@@ -156,7 +152,7 @@ contract WhitelisterTests is EigenLayrTestHelper {
         assertTrue(blsRegistry.whitelisted(operator) == true, "operator not added to whitelist");
     }
 
-    function testDepositIntoStrategy(address operator, uint256 depositAmount) external fuzzedAddress(operator){
+    function testWhitelistDepositIntoStrategy(address operator, uint256 depositAmount) external fuzzedAddress(operator){
         cheats.assume(depositAmount < amount);
         testWhitelistingOperator(operator);
 
@@ -168,7 +164,7 @@ contract WhitelisterTests is EigenLayrTestHelper {
         cheats.stopPrank();
     }
 
-    function testQueueWithdrawal(
+    function testWhitelistQueueWithdrawal(
             address operator, 
             string calldata socket
         ) 
@@ -180,19 +176,8 @@ contract WhitelisterTests is EigenLayrTestHelper {
         _testRegisterAsOperator(operator, IDelegationTerms(operator));
 
         {
-            // cheats.startPrank(operator);
-            // slasher.optIntoSlashing(address(dummyServiceManager));
-            // cheats.stopPrank();
-                    emit log("*******whiteLister.depositIntoStrategy***********");
-
             cheats.startPrank(theMultiSig);
             whiteLister.whitelist(operator);
-                    emit log("*******whiteLister.depositIntoStrategy***********");
-
-                    emit log("*******whiteLister.depositIntoStrategy***********");
-
-            
-            //whiteLister.depositIntoStrategy(staker, dummyStrat, dummyToken, amount);
             cheats.stopPrank();
 
             cheats.startPrank(operator);
@@ -240,9 +225,6 @@ contract WhitelisterTests is EigenLayrTestHelper {
 
         {
             uint256 balanceBeforeWithdrawal = dummyToken.balanceOf(staker);
-            //warp past the serve until time, which is 3 days from the beginning.  THis puts us at 4 days past that point
-            // cheats.warp(uint32(block.timestamp) + 4 days);
-            // cheats.roll(uint32(block.timestamp) + 4 days);
 
             _testCompleteQueuedWithdrawal(
                 staker,
@@ -254,17 +236,14 @@ contract WhitelisterTests is EigenLayrTestHelper {
                 uint32(block.number),
                 1
             );
-                        emit log_named_uint("dummyToken.balanceOf(staker)", dummyToken.balanceOf(staker));
-            emit log_named_uint("balanceBeforeWithdrawal", balanceBeforeWithdrawal);
+            emit log_named_uint("Balance Before Withdrawal", dummyToken.balanceOf(staker));
+            emit log_named_uint("Balance After Withdrawal", balanceBeforeWithdrawal);
         
             require(dummyToken.balanceOf(staker) == balanceBeforeWithdrawal + amount, "balance not incremented");
 
-        }
-        // uint256 balanceAfterWithdrawal = dummyToken.balanceOf(staker);
-        // emit log_uint(balanceAfterWithdrawal);
-        
-
+        }        
     }
+
     function _testQueueWithdrawal(
         address staker,
         IInvestmentStrategy[] memory strategyArray,
@@ -311,19 +290,15 @@ contract WhitelisterTests is EigenLayrTestHelper {
             delegatedAddress: delegatedTo
         });
 
-         emit log("***********************************************************************");
-        emit log_named_address("delegatedAddress", delegatedTo);
-        emit log_named_uint("withdrawalStartBlock", withdrawalStartBlock);
-        emit log_named_uint("withdrawerAndNonce.Nonce", withdrawerAndNonce.nonce);
-        emit log_named_address("withdrawerAndNonce.Adress", withdrawerAndNonce.withdrawer);
-        emit log_named_address("depositor", staker);
-         emit log("***********************************************************************");
-
-
-
+        // emit log("***********************************************************************");
+        // emit log_named_address("delegatedAddress", delegatedTo);
+        // emit log_named_uint("withdrawalStartBlock", withdrawalStartBlock);
+        // emit log_named_uint("withdrawerAndNonce.Nonce", withdrawerAndNonce.nonce);
+        // emit log_named_address("withdrawerAndNonce.Adress", withdrawerAndNonce.withdrawer);
+        // emit log_named_address("depositor", staker);
+        // emit log("***********************************************************************");
 
         cheats.startPrank(theMultiSig);
-        // complete the queued withdrawal
         whiteLister.completeQueuedWithdrawal(staker, queuedWithdrawal, middlewareTimesIndex, true);
         cheats.stopPrank();
     }

@@ -323,13 +323,6 @@ contract InvestmentManager is
                 delegatedAddress: delegatedAddress
             });
 
-            emit log("***********************************************************************");
-            emit log_named_address("delegatedAddress in queue", delegatedAddress);
-            emit log_named_uint("withdrawalStartBlock",  uint32(block.number));
-            emit log_named_uint("withdrawerAndNonce.Nonce", withdrawerAndNonce.nonce);
-            emit log_named_address("withdrawerAndNonce.Adress", withdrawerAndNonce.withdrawer);
-             emit log_named_address("depositor", msg.sender);
-              emit log("***********************************************************************");
         }
 
         // calculate the withdrawal root
@@ -556,9 +549,7 @@ contract InvestmentManager is
         returns (uint256 shares)
     {
         // transfer tokens from the sender to the strategy
-        emit log_named_uint("token balane before deposit into strategy", token.balanceOf(msg.sender));
         token.safeTransferFrom(msg.sender, address(strategy), amount);
-        emit log_named_uint("token balane after deposit into strategy", token.balanceOf(msg.sender));
 
         // deposit the assets into the specified strategy and get the equivalent amount of shares in that strategy
         shares = strategy.deposit(token, amount);
