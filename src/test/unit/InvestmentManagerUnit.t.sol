@@ -6,11 +6,11 @@ import "forge-std/Test.sol";
 import "../../contracts/core/InvestmentManager.sol";
 import "../mocks/DelegationMock.sol";
 import "../mocks/SlasherMock.sol";
-import "../EigenLayrTestHelper.t.sol";
+import "../EigenLayerTestHelper.t.sol";
 import "../mocks/ERC20Mock.sol";
 
 
-contract InvestmentManagerUnitTests is EigenLayrTestHelper {
+contract InvestmentManagerUnitTests is EigenLayerTestHelper {
 
     InvestmentManager investmentManagerMock;
     DelegationMock delegationMock;
@@ -21,7 +21,7 @@ contract InvestmentManagerUnitTests is EigenLayrTestHelper {
     uint256 GWEI_TO_WEI = 1e9;
 
     function setUp() override virtual public{
-        EigenLayrDeployer.setUp();
+        EigenLayerDeployer.setUp();
 
         
         slasherMock = new SlasherMock();
@@ -37,7 +37,7 @@ contract InvestmentManagerUnitTests is EigenLayrTestHelper {
                 new TransparentUpgradeableProxy(
                     address(dummyStratImplementation),
                     address(eigenLayerProxyAdmin),
-                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, dummyToken, eigenLayrPauserReg)
+                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, dummyToken, eigenLayerPauserReg)
                 )
             )
         );
