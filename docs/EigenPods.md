@@ -7,15 +7,15 @@ This document explains *EigenPods*, the mechanism by which EigenLayer facilitate
 
 It is important to contrast this with the restaking of liquid staking derivatives (LSDs) on EigenLayer. EigenLayer will integrate with liquid staking protocols "above the hood", meaning that withdrawal credentials will be pointed to EigenLayer at the smart contract layer rather than the consensus layer. This is because liquid staking protocols need their contracts to be in possession of the withdrawal credentials in order to not have platform risk on EigenLayer. As always, this means that value of liquid staking derivatives carries a discount due to additional smart contract risk.
 
-The architechtural design of the EigenPods system is inspired by various liquid staking protocols, particularly Rocket Pool 🚀.
+The architectural design of the EigenPods system is inspired by various liquid staking protocols, particularly Rocket Pool 🚀.
 
 ## The EigenPodManager
 
-The EigenPodManager facilitates the higher level functionality of EigenPods and their interactions with the rest of the EigenLayer smart contracts (the InvestmentManager and the InvestmentManager's owner). Stakers can call the EigenPodManager to create pods (whose addresses are determintically calculated via the Create2 OZ library) and stake on the Beacon Chain through them. The EigenPodManager also handles the cumulative paid penalties (explained later) of all EigenPods and allows the InvestmentManger's owner to redistribute them. 
+The EigenPodManager facilitates the higher level functionality of EigenPods and their interactions with the rest of the EigenLayer smart contracts (the InvestmentManager and the InvestmentManager's owner). Stakers can call the EigenPodManager to create pods (whose addresses are deterministically calculated via the Create2 OZ library) and stake on the Beacon Chain through them. The EigenPodManager also handles the cumulative paid penalties (explained later) of all EigenPods and allows the InvestmentManager's owner to redistribute them. 
 
 ## The EigenPod
 
-The EigenPod is the contract that a staker must set their Etherum validators' withdrawal credentials to. EigenPods can be created by stakers through a call to the EigenPodManger. EigenPods are deployed using the beacon proxy pattern to have flexible global upgradability for future changes to the Ethereum specification. Stakers can stake for an Etherum validator when they create their EigenPod, through further calls to their EigenPod, and through parallel deposits to the Beacon Chain deposit contract.
+The EigenPod is the contract that a staker must set their Etherum validators' withdrawal credentials to. EigenPods can be created by stakers through a call to the EigenPodManager. EigenPods are deployed using the beacon proxy pattern to have flexible global upgradability for future changes to the Ethereum specification. Stakers can stake for an Etherum validator when they create their EigenPod, through further calls to their EigenPod, and through parallel deposits to the Beacon Chain deposit contract.
 
 ### Beacon State Root Oracle
 
