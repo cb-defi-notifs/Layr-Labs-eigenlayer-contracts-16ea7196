@@ -11,7 +11,7 @@ import "./InvestmentManagerStorage.sol";
 import "../interfaces/IServiceManager.sol";
 import "../interfaces/IEigenPodManager.sol";
 
-// import "forge-std/Test.sol";
+import "forge-std/Test.sol";
 
 /**
  * @title The primary entry- and exit-point for funds into and out of EigenLayer.
@@ -31,7 +31,7 @@ contract InvestmentManager is
     ReentrancyGuardUpgradeable,
     InvestmentManagerStorage,
     Pausable
-    // ,Test
+    ,Test
 {
     using SafeERC20 for IERC20;
 
@@ -278,6 +278,7 @@ contract InvestmentManager is
         delegation.decreaseDelegatedShares(msg.sender, sts.strategies, sts.shares);
 
         uint96 nonce = uint96(numWithdrawalsQueued[msg.sender]);
+        
 
         uint256 strategyIndexIndex;
 
