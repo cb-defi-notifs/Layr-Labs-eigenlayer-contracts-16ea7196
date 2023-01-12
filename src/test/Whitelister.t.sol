@@ -153,6 +153,15 @@ contract WhitelisterTests is EigenLayrTestHelper {
         cheats.stopPrank();
     }
 
+    function testCallStakerFromNonWhitelisterAddress(address nonWhitelister, bytes memory data) external {
+        testWhitelistingOperator(operator);
+        address staker = whiteLister.getStaker(operator);
+
+        cheats.startPrank(nonWhitelister);
+        cheats.expectRevert(bytes("Ownable: caller is not the owner"));
+        Staker(staker).callAddress(address(investmentManager), data);
+    }
+
     
 
     function testWhitelistQueueWithdrawal(

@@ -10,14 +10,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "forge-std/Test.sol";
 
 contract Staker is Ownable, Test {
-
-    address public immutable whiteLister;
     
-    modifier onlyWhiteLister(){
-        msg.sender == whiteLister;
-        _;
-    }
-
     constructor(
         IInvestmentStrategy strategy, 
         IInvestmentManager investmentManager,
@@ -29,10 +22,9 @@ contract Staker is Ownable, Test {
         token.approve(address(investmentManager), type(uint256).max);
         investmentManager.depositIntoStrategy(strategy, token, amount);
         delegation.delegateTo(operator);
-        whiteLister = msg.sender;
     }
     
-    function callAddress(address implementation, bytes memory data) external onlyWhiteLister returns(bytes memory) {
+    function callAddress(address implementation, bytes memory data) external onlyOwner returns(bytes memory) {
         uint256 length = data.length;
         bytes memory returndata;  
 
