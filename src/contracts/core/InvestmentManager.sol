@@ -163,7 +163,7 @@ contract InvestmentManager is
         nonReentrant
         returns (uint256 shares)
     {
-        return _depositIntoStrategy(msg.sender, strategy, token, amount);
+        shares = _depositIntoStrategy(msg.sender, strategy, token, amount);
     }
 
     /**
