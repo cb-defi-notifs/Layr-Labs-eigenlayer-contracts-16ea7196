@@ -5,7 +5,7 @@ import "../contracts/interfaces/IEigenPod.sol";
 import "../contracts/interfaces/IBLSPublicKeyCompendium.sol";
 import "../contracts/middleware/BLSPublicKeyCompendium.sol";
 import "./utils/BeaconChainUtils.sol";
-import "./EigenLayrDeployer.t.sol";
+import "./EigenLayerDeployer.t.sol";
 import "./mocks/MiddlewareRegistryMock.sol";
 import "./mocks/ServiceManagerMock.sol";
 
@@ -777,8 +777,8 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         require(podOwner.balance - podOwnerBalanceBefore == shareAmounts[0], "podOwner balance not updated correcty");
     } 
 
-    // simply tries to register 'sender' as a delegate, setting their 'DelegationTerms' contract in EigenLayrDelegation to 'dt'
-    // verifies that the storage of EigenLayrDelegation contract is updated appropriately
+    // simply tries to register 'sender' as a delegate, setting their 'DelegationTerms' contract in EigenLayerDelegation to 'dt'
+    // verifies that the storage of EigenLayerDelegation contract is updated appropriately
     function _testRegisterAsOperator(address sender, IDelegationTerms dt) internal {
         cheats.startPrank(sender);
 

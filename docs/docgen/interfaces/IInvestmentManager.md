@@ -4,6 +4,16 @@
 
 See the `InvestmentManager` contract itself for implementation details.
 
+### StratsTokensShares
+
+```solidity
+struct StratsTokensShares {
+  contract IInvestmentStrategy[] strategies;
+  contract IERC20[] tokens;
+  uint256[] shares;
+}
+```
+
 ### WithdrawerAndNonce
 
 ```solidity
@@ -85,7 +95,7 @@ _Only callable by EigenPod for the overcommittedPodOwner._
 ### depositIntoStrategyOnBehalfOf
 
 ```solidity
-function depositIntoStrategyOnBehalfOf(contract IInvestmentStrategy strategy, contract IERC20 token, uint256 amount, address staker, uint256 expiry, bytes32 r, bytes32 vs) external returns (uint256 shares)
+function depositIntoStrategyOnBehalfOf(contract IInvestmentStrategy strategy, contract IERC20 token, uint256 amount, address staker, uint256 expiry, bytes signature) external returns (uint256 shares)
 ```
 
 Used for investing an asset into the specified strategy with the resultant shared created to `staker`,
@@ -105,8 +115,7 @@ Cannot be called on behalf of a staker that is 'frozen' (this function will reve
 | amount | uint256 | is the amount of token to be invested in the strategy by the depositor |
 | staker | address | the staker that the assets will be deposited on behalf of |
 | expiry | uint256 | the timestamp at which the signature expires |
-| r | bytes32 | and @param vs are the elements of the ECDSA signature |
-| vs | bytes32 |  |
+| signature | bytes | is a valid signature from the `staker`. either an ECDSA signature if the `staker` is an EOA, or data to forward following EIP-1271 if the `staker` is a contract |
 
 ### investorStratShares
 
@@ -142,7 +151,7 @@ Simple getter function that returns `investorStrats[staker].length`.
 ### queueWithdrawal
 
 ```solidity
-function queueWithdrawal(uint256[] strategyIndexes, contract IInvestmentStrategy[] strategies, contract IERC20[] tokens, uint256[] shareAmounts, address withdrawer, bool undelegateIfPossible) external returns (bytes32)
+function queueWithdrawal(uint256[] strategyIndexes, struct IInvestmentManager.StratsTokensShares sts, address withdrawer, bool undelegateIfPossible) external returns (bytes32)
 ```
 
 Called by a staker to queue a withdraw in the given token and shareAmount from each of the respective given strategies.
@@ -167,9 +176,7 @@ the enshrined 'beaconChainETH' strategy technically represent non-fungible posit
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | strategyIndexes | uint256[] | is a list of the indices in `investorStrats[msg.sender]` that correspond to the strategies for which `msg.sender` is withdrawing 100% of their shares |
-| strategies | contract IInvestmentStrategy[] |  |
-| tokens | contract IERC20[] |  |
-| shareAmounts | uint256[] |  |
+| sts | struct IInvestmentManager.StratsTokensShares |  |
 | withdrawer | address |  |
 | undelegateIfPossible | bool |  |
 
@@ -241,7 +248,7 @@ Returns the keccak256 hash of `queuedWithdrawal`.
 ### delegation
 
 ```solidity
-function delegation() external view returns (contract IEigenLayrDelegation)
+function delegation() external view returns (contract IEigenLayerDelegation)
 ```
 
 Returns the single, central Delegation contract of EigenLayer

@@ -38,15 +38,15 @@ uint8 PAUSED_NEW_FREEZING
 contract IInvestmentManager investmentManager
 ```
 
-The central InvestmentManager contract of EigenLayr
+The central InvestmentManager contract of EigenLayer
 
 ### delegation
 
 ```solidity
-contract IEigenLayrDelegation delegation
+contract IEigenLayerDelegation delegation
 ```
 
-The EigenLayrDelegation contract of EigenLayr
+The EigenLayerDelegation contract of EigenLayer
 
 ### _whitelistedContractDetails
 
@@ -90,6 +90,14 @@ operator =>
      )
  ]
 
+### MiddlewareTimesAdded
+
+```solidity
+event MiddlewareTimesAdded(address operator, uint256 index, struct ISlasher.MiddlewareTimes middlewareTimes)
+```
+
+Emitted when a middleware times is added to `operator`'s array.
+
 ### OptedIntoSlashing
 
 ```solidity
@@ -106,13 +114,13 @@ event SlashingAbilityRevoked(address operator, address contractAddress, uint32 b
 
 Emitted when `contractAddress` signals that it will no longer be able to slash `operator` after the UTC timestamp `bondedUntil.
 
-### OperatorSlashed
+### OperatorFrozen
 
 ```solidity
-event OperatorSlashed(address slashedOperator, address slashingContract)
+event OperatorFrozen(address slashedOperator, address slashingContract)
 ```
 
-Emitted when `slashingContract` 'slashes' (technically, 'freezes') the `slashedOperator`.
+Emitted when `slashingContract` 'freezes' the `slashedOperator`.
 
 _The `slashingContract` must have permission to slash the `slashedOperator`, i.e. `canSlash(slasherOperator, slashingContract)` must return 'true'._
 
@@ -127,7 +135,7 @@ Emitted when `previouslySlashedAddress` is 'unfrozen', allowing them to again mo
 ### constructor
 
 ```solidity
-constructor(contract IInvestmentManager _investmentManager, contract IEigenLayrDelegation _delegation) public
+constructor(contract IInvestmentManager _investmentManager, contract IEigenLayerDelegation _delegation) public
 ```
 
 ### onlyCanSlash

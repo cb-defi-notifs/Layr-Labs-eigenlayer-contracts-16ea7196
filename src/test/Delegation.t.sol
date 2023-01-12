@@ -2,8 +2,9 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/utils/math/Math.sol";
+import "@openzeppelin/contracts/utils/Address.sol";
 
-import "../test/EigenLayrTestHelper.t.sol";
+import "../test/EigenLayerTestHelper.t.sol";
 
 import "../contracts/libraries/BytesLib.sol";
 
@@ -11,7 +12,7 @@ import "./mocks/MiddlewareRegistryMock.sol";
 import "./mocks/MiddlewareVoteWeigherMock.sol";
 import "./mocks/ServiceManagerMock.sol";
 
-contract DelegationTests is EigenLayrTestHelper {
+contract DelegationTests is EigenLayerTestHelper {
     using BytesLib for bytes;
     using Math for uint256;
 
@@ -30,7 +31,7 @@ contract DelegationTests is EigenLayrTestHelper {
     }
 
     function setUp() public virtual override {
-        EigenLayrDeployer.setUp();
+        EigenLayerDeployer.setUp();
 
         initializeMiddlewares();
     }
@@ -101,7 +102,7 @@ contract DelegationTests is EigenLayrTestHelper {
         _testDelegation(operator, staker, ethAmount, eigenAmount, voteWeigher);
     }
 
-    /// @notice tests delegation to EigenLayr via an ECDSA signatures - meta transactions are the future bby
+    /// @notice tests delegation to EigenLayer via an ECDSA signatures - meta transactions are the future bby
     /// @param operator is the operator being delegated to.
     function testDelegateToBySignature(address operator, uint256 ethAmount, uint256 eigenAmount)
         public
@@ -123,21 +124,20 @@ contract DelegationTests is EigenLayrTestHelper {
 
         uint256 nonceBefore = delegation.nonces(staker);
 
-        bytes32 structHash = keccak256(abi.encode(delegation.DELEGATION_TYPEHASH(), staker, operator, nonceBefore, 0));
+        bytes32 structHash = keccak256(abi.encode(delegation.DELEGATION_TYPEHASH(), staker, operator, nonceBefore, type(uint256).max));
         bytes32 digestHash = keccak256(abi.encodePacked("\x19\x01", delegation.DOMAIN_SEPARATOR(), structHash));
-
 
         (uint8 v, bytes32 r, bytes32 s) = cheats.sign(PRIVATE_KEY, digestHash);
 
-        bytes32 vs = getVSfromVandS(v, s);
+        bytes memory signature = abi.encodePacked(r, s, v);
         
-        delegation.delegateToBySignature(staker, operator, 0, r, vs);
+        delegation.delegateToBySignature(staker, operator, type(uint256).max, signature);
         assertTrue(delegation.isDelegated(staker) == true, "testDelegation: staker is not delegate");
         assertTrue(nonceBefore + 1 == delegation.nonces(staker), "nonce not incremented correctly");
         assertTrue(delegation.delegatedTo(staker) == operator, "staker delegated to wrong operator");
     }
 
-    /// @notice tests delegation to EigenLayr via an ECDSA signatures with invalid signature
+    /// @notice tests delegation to EigenLayer via an ECDSA signatures with invalid signature
     /// @param operator is the operator being delegated to.
     function testDelegateToByInvalidSignature(
         address operator, 
@@ -162,10 +162,10 @@ contract DelegationTests is EigenLayrTestHelper {
         _testDepositWeth(staker, ethAmount);
         _testDepositEigen(staker, eigenAmount);
 
-        bytes32 vs = getVSfromVandS(v, s);
+        bytes memory signature = abi.encodePacked(r, s, v);
         
         cheats.expectRevert();
-        delegation.delegateToBySignature(staker, operator, 0, r, vs);   
+        delegation.delegateToBySignature(staker, operator, type(uint256).max, signature);   
     }
 
     /// @notice registers a fixed address as a delegate, delegates to it from a second address,
@@ -215,7 +215,7 @@ contract DelegationTests is EigenLayrTestHelper {
     ///         cannot be intitialized multiple times
     function testCannotInitMultipleTimesDelegation() public cannotReinit {
         //delegation has already been initialized in the Deployer test contract
-        delegation.initialize(eigenLayrPauserReg, address(this));
+        delegation.initialize(eigenLayerPauserReg, address(this));
     }
 
     /// @notice This function tests to ensure that a you can't register as a delegate multiple times

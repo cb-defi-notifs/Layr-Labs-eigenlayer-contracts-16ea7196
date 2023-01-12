@@ -1,9 +1,9 @@
 # Solidity API
 
-## IEigenLayrDelegation
+## IEigenLayerDelegation
 
-This is the contract for delegation in EigenLayr. The main functionalities of this contract are
-- enabling anyone to register as an operator in EigenLayr
+This is the contract for delegation in EigenLayer. The main functionalities of this contract are
+- enabling anyone to register as an operator in EigenLayer
 - allowing new operators to provide a DelegationTerms-type contract, which may mediate their interactions with stakers who delegate to them
 - enabling any staker to delegate its stake to the operator of its choice
 - enabling a staker to undelegate its assets from an operator (performed as part of the withdrawal process, initiated through the InvestmentManager)
@@ -38,12 +38,14 @@ function delegateTo(address operator) external
 ### delegateToBySignature
 
 ```solidity
-function delegateToBySignature(address staker, address operator, uint256 expiry, bytes32 r, bytes32 vs) external
+function delegateToBySignature(address staker, address operator, uint256 expiry, bytes signature) external
 ```
 
 Delegates from `staker` to `operator`.
 
-_requires that r, vs are a valid ECSDA signature from `staker` indicating their intention for this action_
+_requires that:
+1) if `staker` is an EOA, then `signature` is valid ECSDA signature from `staker`, indicating their intention for this action
+2) if `staker` is a contract, then `signature` must will be checked according to EIP-1271_
 
 ### undelegate
 
@@ -86,7 +88,7 @@ returns the total number of shares in `strategy` that are delegated to `operator
 function increaseDelegatedShares(address staker, contract IInvestmentStrategy strategy, uint256 shares) external
 ```
 
-Increases the `staker`'s delegated shares in `strategy` by `shares, typically called when the staker has further deposits into EigenLayr
+Increases the `staker`'s delegated shares in `strategy` by `shares, typically called when the staker has further deposits into EigenLayer
 
 _Callable only by the InvestmentManager_
 
@@ -96,7 +98,7 @@ _Callable only by the InvestmentManager_
 function decreaseDelegatedShares(address staker, contract IInvestmentStrategy[] strategies, uint256[] shares) external
 ```
 
-Decreases the `staker`'s delegated shares in each entry of `strategies` by its respective `shares[i]`, typically called when the staker withdraws from EigenLayr
+Decreases the `staker`'s delegated shares in each entry of `strategies` by its respective `shares[i]`, typically called when the staker withdraws from EigenLayer
 
 _Callable only by the InvestmentManager_
 

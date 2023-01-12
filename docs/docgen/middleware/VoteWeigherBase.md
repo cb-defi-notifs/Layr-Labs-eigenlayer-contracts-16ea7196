@@ -79,6 +79,23 @@ mapping strategiesConsideredAndMultipliers for a specific @param quorumNumber.
 _higher indices should be *first* in the list of @param indicesToRemove, since otherwise
 the removal of lower index entries will cause a shift in the indices of the other strategiesToRemove_
 
+### modifyStrategyWeights
+
+```solidity
+function modifyStrategyWeights(uint256 quorumNumber, uint256[] strategyIndices, uint96[] newMultipliers) external virtual
+```
+
+This function is used for modifying the weights of strategies that are already in the
+mapping strategiesConsideredAndMultipliers for a specific @param quorumNumber.
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| quorumNumber | uint256 |  |
+| strategyIndices | uint256[] | is a correctness-check input -- the supplied values must match the indices of the strategiesToModifyWeightsOf in strategiesConsideredAndMultipliers[quorumNumber] |
+| newMultipliers | uint96[] |  |
+
 ### strategiesConsideredAndMultipliersLength
 
 ```solidity

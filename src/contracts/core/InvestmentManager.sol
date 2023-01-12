@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
+import "@openzeppelin/contracts/interfaces/IERC1271.sol";
+import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
 import "@openzeppelin-upgrades/contracts/security/ReentrancyGuardUpgradeable.sol";
@@ -37,8 +39,13 @@ contract InvestmentManager is
 
     uint256 constant GWEI_TO_WEI = 1e9;
 
+    // index for flag that pauses deposits when set
     uint8 internal constant PAUSED_DEPOSITS = 0;
+    // index for flag that pauses withdrawals when set
     uint8 internal constant PAUSED_WITHDRAWALS = 1;
+
+    // bytes4(keccak256("isValidSignature(bytes32,bytes)")
+    bytes4 constant internal ERC1271_MAGICVALUE = 0x1626ba7e;
 
     /**
      * @notice Emitted when a new deposit occurs on behalf of `depositor`.
@@ -197,7 +204,8 @@ contract InvestmentManager is
      * @param amount is the amount of token to be invested in the strategy by the depositor
      * @param staker the staker that the assets will be deposited on behalf of
      * @param expiry the timestamp at which the signature expires
-     * @param r and @param vs are the elements of the ECDSA signature
+     * @param signature is a valid signature from the `staker`. either an ECDSA signature if the `staker` is an EOA, or data to forward
+     * following EIP-1271 if the `staker` is a contract
      * @dev The `msg.sender` must have previously approved this contract to transfer at least `amount` of `token` on their behalf.
      * @dev A signature is required for this function to eliminate the possibility of griefing attacks, specifically those
      * targetting stakers who may be attempting to undelegate.
@@ -209,8 +217,7 @@ contract InvestmentManager is
         uint256 amount,
         address staker,
         uint256 expiry,
-        bytes32 r,
-        bytes32 vs
+        bytes memory signature
     )
         external
         onlyWhenNotPaused(PAUSED_DEPOSITS)
@@ -219,15 +226,31 @@ contract InvestmentManager is
         returns (uint256 shares)
     {
         require(
-            expiry == 0 || expiry >= block.timestamp,
+            expiry >= block.timestamp,
             "InvestmentManager.depositIntoStrategyOnBehalfOf: delegation signature expired"
         );
         // calculate struct hash, then increment `staker`'s nonce
-        bytes32 structHash = keccak256(abi.encode(DEPOSIT_TYPEHASH, strategy, token, amount, nonces[staker]++, expiry));
+        uint256 nonce = nonces[staker];
+        bytes32 structHash = keccak256(abi.encode(DEPOSIT_TYPEHASH, strategy, token, amount, nonce, expiry));
+        unchecked {
+            nonces[staker] = nonce + 1;
+        }
         bytes32 digestHash = keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, structHash));
-        // check validity of signature
-        address recoveredAddress = ECDSA.recover(digestHash, r, vs);
-        require(recoveredAddress == staker, "InvestmentManager.depositIntoStrategyOnBehalfOf: sig not from staker");
+
+
+        /**
+         * check validity of signature:
+         * 1) if `staker` is an EOA, then `signature` must be a valid ECSDA signature from `staker`,
+         * indicating their intention for this action
+         * 2) if `staker` is a contract, then `signature` must will be checked according to EIP-1271
+         */
+        if (Address.isContract(staker)) {
+            require(IERC1271(staker).isValidSignature(digestHash, signature) == ERC1271_MAGICVALUE,
+                "InvestmentManager.depositIntoStrategyOnBehalfOf: ERC1271 signature verification failed");
+        } else {
+            require(ECDSA.recover(digestHash, signature) == staker,
+                "InvestmentManager.depositIntoStrategyOnBehalfOf: sig not from staker");
+        }
 
         shares = _depositIntoStrategy(staker, strategy, token, amount);
     }

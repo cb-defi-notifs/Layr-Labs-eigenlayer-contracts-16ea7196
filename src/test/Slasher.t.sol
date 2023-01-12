@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "./EigenLayrDeployer.t.sol";
-import "./EigenLayrTestHelper.t.sol";
+import "./EigenLayerDeployer.t.sol";
+import "./EigenLayerTestHelper.t.sol";
 
-contract SlasherTests is EigenLayrTestHelper {
+contract SlasherTests is EigenLayerTestHelper {
     /**
      * @notice this function tests the slashing process by first freezing
      * the operator and then calling the investmentManager.slashShares()

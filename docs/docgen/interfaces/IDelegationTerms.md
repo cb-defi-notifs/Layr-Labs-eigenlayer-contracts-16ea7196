@@ -2,7 +2,7 @@
 
 ## IDelegationTerms
 
-The gas budget provided to this contract in calls from EigenLayr contracts is limited.
+The gas budget provided to this contract in calls from EigenLayer contracts is limited.
 
 ### payForService
 
