@@ -241,7 +241,7 @@ Returns the keccak256 hash of `queuedWithdrawal`.
 ### delegation
 
 ```solidity
-function delegation() external view returns (contract IEigenLayrDelegation)
+function delegation() external view returns (contract IEigenLayerDelegation)
 ```
 
 Returns the single, central Delegation contract of EigenLayer

@@ -38,15 +38,15 @@ uint8 PAUSED_NEW_FREEZING
 contract IInvestmentManager investmentManager
 ```
 
-The central InvestmentManager contract of EigenLayr
+The central InvestmentManager contract of EigenLayer
 
 ### delegation
 
 ```solidity
-contract IEigenLayrDelegation delegation
+contract IEigenLayerDelegation delegation
 ```
 
-The EigenLayrDelegation contract of EigenLayr
+The EigenLayerDelegation contract of EigenLayer
 
 ### _whitelistedContractDetails
 
@@ -127,7 +127,7 @@ Emitted when `previouslySlashedAddress` is 'unfrozen', allowing them to again mo
 ### constructor
 
 ```solidity
-constructor(contract IInvestmentManager _investmentManager, contract IEigenLayrDelegation _delegation) public
+constructor(contract IInvestmentManager _investmentManager, contract IEigenLayerDelegation _delegation) public
 ```
 
 ### onlyCanSlash

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "./EigenLayrTestHelper.t.sol";
+import "./EigenLayerTestHelper.t.sol";
 
 import "@openzeppelin/contracts/utils/math/Math.sol";
 
@@ -17,7 +17,7 @@ import "../../src/contracts/middleware/BLSPublicKeyCompendium.sol";
 
 
 
-contract RegistrationTests is EigenLayrTestHelper {
+contract RegistrationTests is EigenLayerTestHelper {
 
     BLSRegistry public dlRegImplementation;
     BLSPublicKeyCompendiumMock public pubkeyCompendium;
@@ -31,7 +31,7 @@ contract RegistrationTests is EigenLayrTestHelper {
 
 
     function setUp() public virtual override {
-        EigenLayrDeployer.setUp();
+        EigenLayerDeployer.setUp();
 
         initializeMiddlewares();
     }

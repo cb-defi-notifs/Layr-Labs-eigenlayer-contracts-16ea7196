@@ -2,9 +2,9 @@
 
 pragma solidity ^0.8.9;
 
-import "./EigenLayrTestHelper.t.sol";
+import "./EigenLayerTestHelper.t.sol";
 
-contract PausableTests is EigenLayrTestHelper {
+contract PausableTests is EigenLayerTestHelper {
     ///@dev test that pausing a contract works
     function testPausingWithdrawalsFromInvestmentManager(uint256 amountToDeposit, uint256 amountToWithdraw) public {
         cheats.assume(amountToDeposit <= weth.balanceOf(address(this)));
@@ -31,7 +31,7 @@ contract PausableTests is EigenLayrTestHelper {
         public
         fuzzedAddress(unauthorizedPauser)
     {
-        cheats.assume(unauthorizedPauser != eigenLayrPauserReg.pauser());
+        cheats.assume(unauthorizedPauser != eigenLayerPauserReg.pauser());
         cheats.startPrank(unauthorizedPauser);
         cheats.expectRevert(bytes("msg.sender is not permissioned as pauser"));
         investmentManager.pause(type(uint256).max);
@@ -40,13 +40,13 @@ contract PausableTests is EigenLayrTestHelper {
 
     function testSetPauser(address newPauser) public fuzzedAddress(newPauser) {
         cheats.startPrank(unpauser);
-        eigenLayrPauserReg.setPauser(newPauser);
+        eigenLayerPauserReg.setPauser(newPauser);
         cheats.stopPrank();
     }
 
     function testSetUnpauser(address newUnpauser) public fuzzedAddress(newUnpauser) {
         cheats.startPrank(unpauser);
-        eigenLayrPauserReg.setUnpauser(newUnpauser);
+        eigenLayerPauserReg.setUnpauser(newUnpauser);
         cheats.stopPrank();
     }
 
@@ -55,10 +55,10 @@ contract PausableTests is EigenLayrTestHelper {
         fuzzedAddress(newPauser)
         fuzzedAddress(fakePauser)
     {
-        cheats.assume(fakePauser != eigenLayrPauserReg.unpauser());
+        cheats.assume(fakePauser != eigenLayerPauserReg.unpauser());
         cheats.startPrank(fakePauser);
         cheats.expectRevert(bytes("msg.sender is not permissioned as unpauser"));
-        eigenLayrPauserReg.setPauser(newPauser);
+        eigenLayerPauserReg.setPauser(newPauser);
         cheats.stopPrank();
     }
 }

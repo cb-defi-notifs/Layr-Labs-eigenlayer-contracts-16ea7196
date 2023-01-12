@@ -40,10 +40,10 @@ Constant used as a divisor in dealing with BIPS amounts.
 ### delegation
 
 ```solidity
-contract IEigenLayrDelegation delegation
+contract IEigenLayerDelegation delegation
 ```
 
-The address of the Delegation contract for EigenLayr.
+The address of the Delegation contract for EigenLayer.
 
 ### investmentManager
 
@@ -51,7 +51,7 @@ The address of the Delegation contract for EigenLayr.
 contract IInvestmentManager investmentManager
 ```
 
-The address of the InvestmentManager contract for EigenLayr.
+The address of the InvestmentManager contract for EigenLayer.
 
 ### slasher
 
@@ -59,7 +59,7 @@ The address of the InvestmentManager contract for EigenLayr.
 contract ISlasher slasher
 ```
 
-The address of the Slasher contract for EigenLayr.
+The address of the Slasher contract for EigenLayer.
 
 ### serviceManager
 
