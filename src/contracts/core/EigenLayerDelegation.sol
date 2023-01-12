@@ -22,7 +22,7 @@ import "./Slasher.sol";
  * - enabling a staker to undelegate its assets from an operator (performed as part of the withdrawal process, initiated through the InvestmentManager)
  */
 contract EigenLayerDelegation is Initializable, OwnableUpgradeable, EigenLayerDelegationStorage, Pausable {
-    // index for flag that pauses new delegations
+    // index for flag that pauses new delegations when set
     uint8 internal constant PAUSED_NEW_DELEGATION = 0;
     // bytes4(keccak256("isValidSignature(bytes32,bytes)")
     bytes4 constant internal ERC1271_MAGICVALUE = 0x1626ba7e;
@@ -87,13 +87,17 @@ contract EigenLayerDelegation is Initializable, OwnableUpgradeable, EigenLayerDe
      * 1) if `staker` is an EOA, then `signature` is valid ECSDA signature from `staker`, indicating their intention for this action
      * 2) if `staker` is a contract, then `signature` must will be checked according to EIP-1271
      */
-    function delegateToBySignature(address staker, address operator, uint256 expiry, bytes calldata signature)
+    function delegateToBySignature(address staker, address operator, uint256 expiry, bytes memory signature)
         external
     {
         require(expiry >= block.timestamp, "delegation signature expired");
 
         // calculate struct hash, then increment `staker`'s nonce
-        bytes32 structHash = keccak256(abi.encode(DELEGATION_TYPEHASH, staker, operator, nonces[staker]++, expiry));
+        uint256 nonce = nonces[staker];
+        bytes32 structHash = keccak256(abi.encode(DELEGATION_TYPEHASH, staker, operator, nonce, expiry));
+        unchecked {
+            nonces[staker] = nonce + 1;
+        }
         bytes32 digestHash = keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, structHash));
 
         /**
@@ -104,7 +108,7 @@ contract EigenLayerDelegation is Initializable, OwnableUpgradeable, EigenLayerDe
          */
         if (Address.isContract(staker)) {
             require(IERC1271(staker).isValidSignature(digestHash, signature) == ERC1271_MAGICVALUE,
-                "EigenLayerDelegation.delegateToBySignature:  ERC1271 signature verification failed");
+                "EigenLayerDelegation.delegateToBySignature: ERC1271 signature verification failed");
         } else {
             require(ECDSA.recover(digestHash, signature) == staker,
                 "EigenLayerDelegation.delegateToBySignature: sig not from staker");

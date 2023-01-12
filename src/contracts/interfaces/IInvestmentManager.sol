@@ -82,7 +82,8 @@ interface IInvestmentManager {
      * @param amount is the amount of token to be invested in the strategy by the depositor
      * @param staker the staker that the assets will be deposited on behalf of
      * @param expiry the timestamp at which the signature expires
-     * @param r and @param vs are the elements of the ECDSA signature
+     * @param signature is a valid signature from the `staker`. either an ECDSA signature if the `staker` is an EOA, or data to forward
+     * following EIP-1271 if the `staker` is a contract
      * @dev The `msg.sender` must have previously approved this contract to transfer at least `amount` of `token` on their behalf.
      * @dev A signature is required for this function to eliminate the possibility of griefing attacks, specifically those
      * targetting stakers who may be attempting to undelegate.
@@ -94,8 +95,7 @@ interface IInvestmentManager {
         uint256 amount,
         address staker,
         uint256 expiry,
-        bytes32 r,
-        bytes32 vs
+        bytes memory signature
     )
         external
         returns (uint256 shares);
