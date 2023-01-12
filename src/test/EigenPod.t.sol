@@ -735,7 +735,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         cheats.warp(uint32(block.timestamp) + 1 days);
         cheats.roll(uint32(block.timestamp) + 1 days);
 
-        _testQueueWithdrawal(podOwner, strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawer, undelegateIfPossible);
+        _testQueueWithdrawal(podOwner, strategyIndexes, strategyArray, tokensArray, shareAmounts, undelegateIfPossible);
         uint32 queuedWithdrawalStartBlock = uint32(block.number);
 
         //*************************DELEGATION/Stake Update STUFF******************************//
@@ -970,7 +970,6 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         IInvestmentStrategy[] memory strategyArray,
         IERC20[] memory tokensArray,
         uint256[] memory shareAmounts,
-        address withdrawer,
         bool undelegateIfPossible
     )
         internal
@@ -978,15 +977,6 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     {
         IInvestmentManager.StratsTokensShares memory sts = IInvestmentManager.StratsTokensShares(strategyArray, tokensArray, shareAmounts);
         cheats.startPrank(depositor);
-
-        cheats.expectRevert(bytes("InvestmentManager.queueWithdrawal: cannot queue a withdrawal of Beacon Chain ETH to a different address"));
-        investmentManager.queueWithdrawal(
-            strategyIndexes,
-            sts,
-            withdrawer,
-            // TODO: make this an input
-            undelegateIfPossible
-        );
 
         //make a call with depositor aka podOwner also as withdrawer.
         bytes32 withdrawalRoot = investmentManager.queueWithdrawal(
@@ -996,7 +986,6 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
             // TODO: make this an input
             undelegateIfPossible
         );
-
 
         cheats.stopPrank();
         return withdrawalRoot;
