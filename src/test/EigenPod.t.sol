@@ -689,7 +689,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     // Expected Behaviour: Math is more complicated here, but keep track of rollable balance and make sure it
     //                     always accounts for the parital withdrawal
 
-    function testEigenPodsQueuedWithdrawal(address operator, address withdrawer) public fuzzedAddress(operator){
+    function testEigenPodsQueuedWithdrawal(address operator) public fuzzedAddress(operator){
         cheats.assume(operator != podOwner);
         //make initial deposit
         testDeployAndVerifyNewEigenPod();
