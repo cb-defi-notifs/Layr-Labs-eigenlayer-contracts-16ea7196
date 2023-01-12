@@ -89,8 +89,6 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager 
         require(!hasPod(msg.sender), "EigenPodManager.createPod: Sender already has a pod");
         //deploy a pod if the sender doesn't have one already
         IEigenPod pod = _deployPod();
-
-        emit PodDeployed(address(pod), msg.sender);
     }
 
     /**
@@ -189,6 +187,7 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager 
                     )
                 )
             );
+        emit PodDeployed(address(pod), msg.sender);
         return pod;
     }
 
