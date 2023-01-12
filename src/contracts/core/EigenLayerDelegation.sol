@@ -2,6 +2,8 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/interfaces/IERC1271.sol";
+import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
@@ -20,7 +22,10 @@ import "./Slasher.sol";
  * - enabling a staker to undelegate its assets from an operator (performed as part of the withdrawal process, initiated through the InvestmentManager)
  */
 contract EigenLayerDelegation is Initializable, OwnableUpgradeable, EigenLayerDelegationStorage, Pausable {
+    // index for flag that pauses new delegations when set
     uint8 internal constant PAUSED_NEW_DELEGATION = 0;
+    // bytes4(keccak256("isValidSignature(bytes32,bytes)")
+    bytes4 constant internal ERC1271_MAGICVALUE = 0x1626ba7e;
 
     /// @notice Simple permission for functions that are only callable by the InvestmentManager contract.
     modifier onlyInvestmentManager() {
@@ -78,20 +83,37 @@ contract EigenLayerDelegation is Initializable, OwnableUpgradeable, EigenLayerDe
 
     /**
      * @notice Delegates from `staker` to `operator`.
-     * @dev requires that r, vs are a valid ECSDA signature from `staker` indicating their intention for this action
+     * @dev requires that:
+     * 1) if `staker` is an EOA, then `signature` is valid ECSDA signature from `staker`, indicating their intention for this action
+     * 2) if `staker` is a contract, then `signature` must will be checked according to EIP-1271
      */
-    function delegateToBySignature(address staker, address operator, uint256 expiry, bytes32 r, bytes32 vs)
+    function delegateToBySignature(address staker, address operator, uint256 expiry, bytes memory signature)
         external
     {
-        require(expiry == 0 || expiry >= block.timestamp, "delegation signature expired");
+        require(expiry >= block.timestamp, "delegation signature expired");
+
         // calculate struct hash, then increment `staker`'s nonce
-        bytes32 structHash = keccak256(abi.encode(DELEGATION_TYPEHASH, staker, operator, nonces[staker]++, expiry));
+        uint256 nonce = nonces[staker];
+        bytes32 structHash = keccak256(abi.encode(DELEGATION_TYPEHASH, staker, operator, nonce, expiry));
+        unchecked {
+            nonces[staker] = nonce + 1;
+        }
         bytes32 digestHash = keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, structHash));
-        //check validity of signature
 
-        address recoveredAddress = ECDSA.recover(digestHash, r, vs);
+        /**
+         * check validity of signature:
+         * 1) if `staker` is an EOA, then `signature` must be a valid ECSDA signature from `staker`,
+         * indicating their intention for this action
+         * 2) if `staker` is a contract, then `signature` must will be checked according to EIP-1271
+         */
+        if (Address.isContract(staker)) {
+            require(IERC1271(staker).isValidSignature(digestHash, signature) == ERC1271_MAGICVALUE,
+                "EigenLayerDelegation.delegateToBySignature: ERC1271 signature verification failed");
+        } else {
+            require(ECDSA.recover(digestHash, signature) == staker,
+                "EigenLayerDelegation.delegateToBySignature: sig not from staker");
+        }
 
-        require(recoveredAddress == staker, "EigenLayerDelegation.delegateToBySignature: sig not from staker");
         _delegate(staker, operator);
     }
 

@@ -5,7 +5,6 @@ import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
 import "@openzeppelin-upgrades/contracts/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "../../contracts/permissions/Pausable.sol";
 import "../../contracts/core/InvestmentManagerStorage.sol";
 import "../../contracts/interfaces/IServiceManager.sol";
@@ -52,8 +51,7 @@ contract InvestmentManagerMock is
         uint256 amount,
         address staker,
         uint256 expiry,
-        bytes32 r,
-        bytes32 vs
+        bytes memory signature
     )
         external
         returns (uint256 shares){}
