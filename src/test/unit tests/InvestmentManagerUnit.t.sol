@@ -3,10 +3,10 @@ pragma solidity ^0.8.9;
 
 import "forge-std/Test.sol";
 
-import "../contracts/core/InvestmentManager.sol";
-import "./mocks/DelegationMock.sol";
-import "./mocks/SlasherMock.sol";
-import "./EigenLayrTestHelper.t.sol";
+import "../../contracts/core/InvestmentManager.sol";
+import "../mocks/DelegationMock.sol";
+import "../mocks/SlasherMock.sol";
+import "../EigenLayrTestHelper.t.sol";
 
 
 contract UnitTests is EigenLayrTestHelper {
