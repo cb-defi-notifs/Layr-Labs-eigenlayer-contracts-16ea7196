@@ -12,7 +12,7 @@ contract DelegationMock is IEigenLayerDelegation, Test {
     function delegateTo(address operator) external{}
 
 
-    function delegateToBySignature(address staker, address operator, uint256 expiry, bytes32 r, bytes32 vs) external{}
+    function delegateToBySignature(address staker, address operator, uint256 expiry, bytes memory signature) external{}
 
 
     function undelegate(address staker) external{}
