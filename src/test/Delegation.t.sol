@@ -2,6 +2,7 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/utils/math/Math.sol";
+import "@openzeppelin/contracts/utils/Address.sol";
 
 import "../test/EigenLayerTestHelper.t.sol";
 
@@ -123,15 +124,14 @@ contract DelegationTests is EigenLayerTestHelper {
 
         uint256 nonceBefore = delegation.nonces(staker);
 
-        bytes32 structHash = keccak256(abi.encode(delegation.DELEGATION_TYPEHASH(), staker, operator, nonceBefore, 0));
+        bytes32 structHash = keccak256(abi.encode(delegation.DELEGATION_TYPEHASH(), staker, operator, nonceBefore, type(uint256).max));
         bytes32 digestHash = keccak256(abi.encodePacked("\x19\x01", delegation.DOMAIN_SEPARATOR(), structHash));
-
 
         (uint8 v, bytes32 r, bytes32 s) = cheats.sign(PRIVATE_KEY, digestHash);
 
-        bytes32 vs = getVSfromVandS(v, s);
+        bytes memory signature = abi.encodePacked(r, s, v);
         
-        delegation.delegateToBySignature(staker, operator, 0, r, vs);
+        delegation.delegateToBySignature(staker, operator, type(uint256).max, signature);
         assertTrue(delegation.isDelegated(staker) == true, "testDelegation: staker is not delegate");
         assertTrue(nonceBefore + 1 == delegation.nonces(staker), "nonce not incremented correctly");
         assertTrue(delegation.delegatedTo(staker) == operator, "staker delegated to wrong operator");
@@ -162,10 +162,10 @@ contract DelegationTests is EigenLayerTestHelper {
         _testDepositWeth(staker, ethAmount);
         _testDepositEigen(staker, eigenAmount);
 
-        bytes32 vs = getVSfromVandS(v, s);
+        bytes memory signature = abi.encodePacked(r, s, v);
         
         cheats.expectRevert();
-        delegation.delegateToBySignature(staker, operator, 0, r, vs);   
+        delegation.delegateToBySignature(staker, operator, type(uint256).max, signature);   
     }
 
     /// @notice registers a fixed address as a delegate, delegates to it from a second address,
