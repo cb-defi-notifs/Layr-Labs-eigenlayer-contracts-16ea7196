@@ -162,6 +162,16 @@ contract WhitelisterTests is EigenLayrTestHelper {
         Staker(staker).callAddress(address(investmentManager), data);
     }
 
+    function testNonWhitelistedOperatorRegistration(address nonWhitelister, BN254.G1Point memory pk, string memory socket ) external {
+        cheats.startPrank(operator);
+        IDelegationTerms dt = IDelegationTerms(address(89));
+        delegation.registerAsOperator(dt);
+        cheats.stopPrank();
+
+        cheats.expectRevert(bytes("BLSRegistry._registerOperator: not whitelisted"));
+        blsRegistry.registerOperator(1, pk, socket);
+    }
+
     
 
     function testWhitelistQueueWithdrawal(
