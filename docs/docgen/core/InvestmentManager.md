@@ -8,7 +8,7 @@ functionalities are:
 - enabling deposit of assets into specified investment strategy(s)
 - enabling removal of assets from specified investment strategy(s)
 - recording deposit of ETH into settlement layer
-- recording deposit of Eigen for securing EigenLayr
+- recording deposit of Eigen for securing EigenLayer
 - slashing of assets for permissioned strategies
 
 ### GWEI_TO_WEI
@@ -81,16 +81,16 @@ modifier onlyEigenPod(address podOwner, address pod)
 ### constructor
 
 ```solidity
-constructor(contract IEigenLayrDelegation _delegation, contract IEigenPodManager _eigenPodManager, contract ISlasher _slasher) public
+constructor(contract IEigenLayerDelegation _delegation, contract IEigenPodManager _eigenPodManager, contract ISlasher _slasher) public
 ```
 
 #### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| _delegation | contract IEigenLayrDelegation | The delegation contract of EigenLayr. |
+| _delegation | contract IEigenLayerDelegation | The delegation contract of EigenLayer. |
 | _eigenPodManager | contract IEigenPodManager | The contract that keeps track of EigenPod stakes for restaking beacon chain ether. |
-| _slasher | contract ISlasher | The primary slashing contract of EigenLayr. |
+| _slasher | contract ISlasher | The primary slashing contract of EigenLayer. |
 
 ### initialize
 

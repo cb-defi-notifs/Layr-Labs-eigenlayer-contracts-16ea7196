@@ -2,10 +2,10 @@
 pragma solidity ^0.8.9;
 
 import "../contracts/libraries/BytesLib.sol";
-import "../test/EigenLayrDeployer.t.sol";
+import "../test/EigenLayerDeployer.t.sol";
 
 
-contract EigenLayrTestHelper is EigenLayrDeployer {
+contract EigenLayerTestHelper is EigenLayerDeployer {
     using BytesLib for bytes;
 
     uint8 durationToInit = 2;
@@ -56,8 +56,8 @@ contract EigenLayrTestHelper is EigenLayrDeployer {
         return (amountEthStaked, amountEigenStaked);
     }
 
-    // simply tries to register 'sender' as an operator, setting their 'DelegationTerms' contract in EigenLayrDelegation to 'dt'
-    // verifies that the storage of EigenLayrDelegation contract is updated appropriately
+    // simply tries to register 'sender' as an operator, setting their 'DelegationTerms' contract in EigenLayerDelegation to 'dt'
+    // verifies that the storage of EigenLayerDelegation contract is updated appropriately
     function _testRegisterAsOperator(address sender, IDelegationTerms dt) internal {
         cheats.startPrank(sender);
         delegation.registerAsOperator(dt);
@@ -253,7 +253,7 @@ contract EigenLayrTestHelper is EigenLayrDeployer {
                     new TransparentUpgradeableProxy(
                         address(baseStrategyImplementation),
                         address(eigenLayerProxyAdmin),
-                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, underlyingToken, eigenLayrPauserReg)
+                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, underlyingToken, eigenLayerPauserReg)
                     )
                 )
             );

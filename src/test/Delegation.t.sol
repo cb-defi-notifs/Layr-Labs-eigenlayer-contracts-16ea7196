@@ -3,7 +3,7 @@ pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/utils/math/Math.sol";
 
-import "../test/EigenLayrTestHelper.t.sol";
+import "../test/EigenLayerTestHelper.t.sol";
 
 import "../contracts/libraries/BytesLib.sol";
 
@@ -11,7 +11,7 @@ import "./mocks/MiddlewareRegistryMock.sol";
 import "./mocks/MiddlewareVoteWeigherMock.sol";
 import "./mocks/ServiceManagerMock.sol";
 
-contract DelegationTests is EigenLayrTestHelper {
+contract DelegationTests is EigenLayerTestHelper {
     using BytesLib for bytes;
     using Math for uint256;
 
@@ -30,7 +30,7 @@ contract DelegationTests is EigenLayrTestHelper {
     }
 
     function setUp() public virtual override {
-        EigenLayrDeployer.setUp();
+        EigenLayerDeployer.setUp();
 
         initializeMiddlewares();
     }
@@ -101,7 +101,7 @@ contract DelegationTests is EigenLayrTestHelper {
         _testDelegation(operator, staker, ethAmount, eigenAmount, voteWeigher);
     }
 
-    /// @notice tests delegation to EigenLayr via an ECDSA signatures - meta transactions are the future bby
+    /// @notice tests delegation to EigenLayer via an ECDSA signatures - meta transactions are the future bby
     /// @param operator is the operator being delegated to.
     function testDelegateToBySignature(address operator, uint256 ethAmount, uint256 eigenAmount)
         public
@@ -137,7 +137,7 @@ contract DelegationTests is EigenLayrTestHelper {
         assertTrue(delegation.delegatedTo(staker) == operator, "staker delegated to wrong operator");
     }
 
-    /// @notice tests delegation to EigenLayr via an ECDSA signatures with invalid signature
+    /// @notice tests delegation to EigenLayer via an ECDSA signatures with invalid signature
     /// @param operator is the operator being delegated to.
     function testDelegateToByInvalidSignature(
         address operator, 
@@ -215,7 +215,7 @@ contract DelegationTests is EigenLayrTestHelper {
     ///         cannot be intitialized multiple times
     function testCannotInitMultipleTimesDelegation() public cannotReinit {
         //delegation has already been initialized in the Deployer test contract
-        delegation.initialize(eigenLayrPauserReg, address(this));
+        delegation.initialize(eigenLayerPauserReg, address(this));
     }
 
     /// @notice This function tests to ensure that a you can't register as a delegate multiple times

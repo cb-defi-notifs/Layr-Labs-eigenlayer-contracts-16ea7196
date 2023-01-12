@@ -43,7 +43,7 @@ uint8 MAX_INVESTOR_STRATS_LENGTH
 ### delegation
 
 ```solidity
-contract IEigenLayrDelegation delegation
+contract IEigenLayerDelegation delegation
 ```
 
 Returns the single, central Delegation contract of EigenLayer
@@ -99,6 +99,6 @@ returns the enshrined beaconChainETH Strategy
 ### constructor
 
 ```solidity
-constructor(contract IEigenLayrDelegation _delegation, contract IEigenPodManager _eigenPodManager, contract ISlasher _slasher) internal
+constructor(contract IEigenLayerDelegation _delegation, contract IEigenPodManager _eigenPodManager, contract ISlasher _slasher) internal
 ```
 

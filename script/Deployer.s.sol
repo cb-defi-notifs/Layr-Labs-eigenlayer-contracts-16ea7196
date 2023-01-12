@@ -216,7 +216,7 @@ contract EigenLayerDeployer is Script, DSTest {
 
         verifyContract(delegationImplementation, investmentManagerImplementation, slasherImplementation, eigenPodManagerImplementation);
         verifyContract(delegation, investmentManager, slasher, eigenPodManager);
-        verifyOwners(eigenLayrReputedMultisig);
+        verifyOwners(eigenLayerReputedMultisig);
         checkPauserInitializations(pauser, unpauser);
         
         vm.writeFile("data/investmentManager.addr", vm.toString(address(investmentManager)));
@@ -232,7 +232,7 @@ contract EigenLayerDeployer is Script, DSTest {
     }
 
     function verifyContract(
-        EigenLayrDelegation delegationContract,  
+        EigenLayerDelegation delegationContract,  
         InvestmentManager investmentManagerContract, 
         Slasher slasherContract,  
         EigenPodManager eigenPodManagerContract
@@ -255,25 +255,25 @@ contract EigenLayerDeployer is Script, DSTest {
     }
 
     function verifyOwners(
-        address eigenLayrReputedMultisig  
+        address eigenLayerReputedMultisig  
     )internal view {
        
-        require(investmentManager.owner() == eigenLayrReputedMultisig, "investmentManager owner not set correctly");
-        require(delegation.owner() == eigenLayrReputedMultisig, "delegation owner not set correctly");
-        require(slasher.owner() == eigenLayrReputedMultisig, "slasher owner not set correctly");
-        require(eigenPodManager.owner() == eigenLayrReputedMultisig, "delegation owner not set correctly");
+        require(investmentManager.owner() == eigenLayerReputedMultisig, "investmentManager owner not set correctly");
+        require(delegation.owner() == eigenLayerReputedMultisig, "delegation owner not set correctly");
+        require(slasher.owner() == eigenLayerReputedMultisig, "slasher owner not set correctly");
+        require(eigenPodManager.owner() == eigenLayerReputedMultisig, "delegation owner not set correctly");
 
     }
     function checkPauserInitializations(
         address pauser,
         address unpauser
     ) internal view {
-        require(address(delegation.pauserRegistry()) == address(eigenLayrPauserReg), "delegation's pauser registry not set correctly");
-        require(address(investmentManager.pauserRegistry()) == address(eigenLayrPauserReg), "investmentManager's pauser registry not set correctly");
-        require(address(slasher.pauserRegistry()) == address(eigenLayrPauserReg), "slasher's pauser registry not set correctly");
+        require(address(delegation.pauserRegistry()) == address(eigenLayerPauserReg), "delegation's pauser registry not set correctly");
+        require(address(investmentManager.pauserRegistry()) == address(eigenLayerPauserReg), "investmentManager's pauser registry not set correctly");
+        require(address(slasher.pauserRegistry()) == address(eigenLayerPauserReg), "slasher's pauser registry not set correctly");
 
-        require(eigenLayrPauserReg.pauser() == pauser, "pauser not set correctly");
-        require(eigenLayrPauserReg.unpauser() == unpauser, "pauser not set correctly");
+        require(eigenLayerPauserReg.pauser() == pauser, "pauser not set correctly");
+        require(eigenLayerPauserReg.unpauser() == unpauser, "pauser not set correctly");
     }
 }
 

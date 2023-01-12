@@ -42,16 +42,16 @@ uint256 LOW_LEVEL_GAS_BUDGET
 
 Gas budget provided in calls to DelegationTerms contracts
 
-### eigenLayrDelegation
+### eigenLayerDelegation
 
 ```solidity
-contract IEigenLayrDelegation eigenLayrDelegation
+contract IEigenLayerDelegation eigenLayerDelegation
 ```
 
-The global EigenLayr Delegation contract, which is primarily used by
+The global EigenLayer Delegation contract, which is primarily used by
 stakers to delegate their stake to operators who serve as middleware nodes.
 
-_For more details, see EigenLayrDelegation.sol._
+_For more details, see EigenLayerDelegation.sol._
 
 ### serviceManager
 
@@ -208,7 +208,7 @@ when applied to a function, ensures that the function is only callable by the ow
 ### constructor
 
 ```solidity
-constructor(contract IEigenLayrDelegation _eigenLayrDelegation, contract IServiceManager _serviceManager, contract IQuorumRegistry _registry, contract IERC20 _paymentToken, contract IERC20 _collateralToken) internal
+constructor(contract IEigenLayerDelegation _eigenLayerDelegation, contract IServiceManager _serviceManager, contract IQuorumRegistry _registry, contract IERC20 _paymentToken, contract IERC20 _collateralToken) internal
 ```
 
 ### initialize

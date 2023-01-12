@@ -50,10 +50,10 @@ function collateralToken() external view returns (contract IERC20)
 
 Collateral token used for placing collateral on challenges & payment commits
 
-### eigenLayrDelegation
+### eigenLayerDelegation
 
 ```solidity
-function eigenLayrDelegation() external view returns (contract IEigenLayrDelegation)
+function eigenLayerDelegation() external view returns (contract IEigenLayerDelegation)
 ```
 
 The Delegation contract of EigenLayer.

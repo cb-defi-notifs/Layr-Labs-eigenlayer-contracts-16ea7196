@@ -1,6 +1,6 @@
 # Solidity API
 
-## EigenLayrDelegationStorage
+## EigenLayerDelegationStorage
 
 This storage contract is separate from the logic to simplify the upgrade process.
 
@@ -42,7 +42,7 @@ EIP-712 Domain separator
 contract IInvestmentManager investmentManager
 ```
 
-The InvestmentManager contract for EigenLayr
+The InvestmentManager contract for EigenLayer
 
 ### slasher
 
@@ -50,7 +50,7 @@ The InvestmentManager contract for EigenLayr
 contract ISlasher slasher
 ```
 
-The Slasher contract for EigenLayr
+The Slasher contract for EigenLayer
 
 ### operatorShares
 
