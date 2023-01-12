@@ -6,6 +6,7 @@ import "../permissions/Pausable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
+import "forge-std/Test.sol";
 
 /**
  * @title Base implementation of `IInvestmentStrategy` interface, designed to be inherited from by more complex strategies.
@@ -14,7 +15,7 @@ import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
  * Implements minimal versions of the IInvestmentStrategy functions, this contract is designed to be inherited by
  * more complex investment strategies, which can then override its functions as necessary.
  */
-contract InvestmentStrategyBase is Initializable, Pausable, IInvestmentStrategy {
+contract InvestmentStrategyBase is Initializable, Pausable, IInvestmentStrategy, Test {
     using SafeERC20 for IERC20;
 
     uint8 internal constant PAUSED_DEPOSITS = 0;
@@ -115,7 +116,10 @@ contract InvestmentStrategyBase is Initializable, Pausable, IInvestmentStrategy 
         } else {
             amountToSend = (_tokenBalance() * amountShares) / priorTotalShares;
         }
+
+        emit log_named_uint("token balane before withdraw", token.balanceOf(msg.sender));
         underlyingToken.safeTransfer(depositor, amountToSend);
+        emit log_named_uint("token balane after withdraw", token.balanceOf(msg.sender));
     }
 
     /**

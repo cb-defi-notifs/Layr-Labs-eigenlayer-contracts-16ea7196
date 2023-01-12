@@ -11,7 +11,7 @@ import "./InvestmentManagerStorage.sol";
 import "../interfaces/IServiceManager.sol";
 import "../interfaces/IEigenPodManager.sol";
 
-// import "forge-std/Test.sol";
+import "forge-std/Test.sol";
 
 /**
  * @title The primary entry- and exit-point for funds into and out of EigenLayr.
@@ -322,6 +322,7 @@ contract InvestmentManager is
                 withdrawalStartBlock: uint32(block.number),
                 delegatedAddress: delegatedAddress
             });
+
         }
 
         // calculate the withdrawal root
@@ -412,7 +413,6 @@ contract InvestmentManager is
                 }
             }
         }
-
         emit WithdrawalCompleted(queuedWithdrawal.depositor, msg.sender, withdrawalRoot);
     }
 

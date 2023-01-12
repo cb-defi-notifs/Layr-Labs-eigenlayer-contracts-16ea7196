@@ -7,37 +7,43 @@ import "../../src/contracts/interfaces/IEigenLayrDelegation.sol";
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "forge-std/Test.sol";
 
-contract Staker is Ownable {
-    //TODO: change before deploy
-    IInvestmentManager constant invesmentManager = IInvestmentManager(0x0000000000000000000000000000000000000000);
-    IEigenLayrDelegation constant delegation = IEigenLayrDelegation(0x0000000000000000000000000000000000000000);
-
-    constructor(IInvestmentStrategy strategy, IERC20 token, uint256 amount, address operator) Ownable() {
-        token.approve(address(invesmentManager), type(uint256).max);
-        invesmentManager.depositIntoStrategy(strategy, token, amount);
+contract Staker is Ownable, Test {
+    
+    constructor(
+        IInvestmentStrategy strategy, 
+        IInvestmentManager investmentManager,
+        IEigenLayrDelegation delegation,
+        IERC20 token, 
+        uint256 amount, 
+        address operator
+    ) Ownable() {
+        token.approve(address(investmentManager), type(uint256).max);
+        investmentManager.depositIntoStrategy(strategy, token, amount);
         delegation.delegateTo(operator);
     }
+    
+    function callAddress(address implementation, bytes memory data) external onlyOwner returns(bytes memory) {
+        uint256 length = data.length;
+        bytes memory returndata;  
 
-    // add proxy call for further things we may we want to do
-    fallback() external onlyOwner {
-        (address to, bytes memory data) = abi.decode(msg.data, (address, bytes));
-        assembly {
-            // Call the implementation.
-            // out and outsize are 0 because we don't know the size yet.
-            let result := call(gas(), to, callvalue(), data, mload(data), 0, 0)
-
-            // Copy the returned data.
-            returndatacopy(0, 0, returndatasize())
-
-            switch result
-            // delegatecall returns 0 on error.
-            case 0 {
-                revert(0, returndatasize())
-            }
-            default {
-                return(0, returndatasize())
-            }
+        assembly{
+            let result := call(
+                gas(),
+                implementation,
+                callvalue(),
+                add(data, 32),
+                length,
+                0,
+                0
+            )
+            mstore(returndata, returndatasize())
+            returndatacopy(add(returndata, 32), 0, returndatasize())
         }
+
+        return returndata;
+
     }
+
 }

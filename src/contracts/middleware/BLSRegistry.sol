@@ -111,6 +111,7 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
      * @param operators the operators to add to the whitelist
      */
     function addWhitelist(address[] calldata operators) external {
+
         require(whitelister == msg.sender, "BLSRegistry.addWhitelist: not whitelister");
         for (uint i = 0; i < operators.length; i++) {
             whitelisted[operators[i]] = true;
@@ -150,6 +151,7 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
         if(isWhitelist) {
             require(whitelisted[operator], "BLSRegistry._registerOperator: not whitelisted");
         }
+
         // validate the registration of `operator` and find their `OperatorStake`
         OperatorStake memory _operatorStake = _registrationStakeEvaluation(operator, operatorType);
 
