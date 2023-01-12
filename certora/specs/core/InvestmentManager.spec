@@ -21,11 +21,8 @@ methods {
 	withdraw(address,address,uint256) => DISPATCHER(true)
 
 	// external calls to EigenPodManager
-	withdrawBeaconChainETH(address,address,uint256) => DISPATCHER(true)
-	
-    // external calls to EigenPod
-	withdrawBeaconChainETH(address,uint256) => DISPATCHER(true)
-    
+	withdrawRestakedBeaconChainETH(address,address,uint256) => DISPATCHER(true)
+	    
     // external calls to IDelegationTerms
     onDelegationWithdrawn(address,address[],uint256[]) => CONSTANT
     onDelegationReceived(address,address[],uint256[]) => CONSTANT
@@ -40,7 +37,20 @@ methods {
 
 	//// Normal Functions
 	investorStratsLength(address) returns (uint256) envfree
+    investorStrats(address, uint256) returns (address) envfree
+    investorStratShares(address, address) returns (uint256) envfree
 }
 
-invariant investorStratsLengthLessThanMax(address staker)
+invariant investorStratsLengthLessThanOrEqualToMax(address staker)
 	investorStratsLength(staker) <= 32
+
+// TODO: this rule is currently failing, but is likely salvageable. presumably needs a stricter condition.
+// Seems like perhaps this is failing due to dispatcher hitting HAVOC inside of the safeTransfer of the Base Strategy?
+
+// if a strategy is in the staker's array of strategies, then the staker should have nonzero shares in that strategy
+invariant strategiesInArrayHaveNonzeroShares(address staker, uint256 index)
+    (index < investorStratsLength(staker)) => (investorStratShares(staker, investorStrats(staker, index)) > 0)
+
+// if a strategy is *not* in staker's array of strategies, then the staker should have precisely zero shares in that strategy
+invariant strategiesNotInArrayHaveZeroShares(address staker, uint256 index)
+    (index >= investorStratsLength(staker)) => (investorStratShares(staker, investorStrats(staker, index)) == 0)
