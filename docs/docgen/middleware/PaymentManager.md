@@ -4,7 +4,7 @@
 
 This contract is used for doing interactive payment challenges.
 The contract is marked as abstract since it does not implement the `respondToPaymentChallengeFinal`
-function -- see DataLayrPaymentManager for an example
+function -- see DataLayerPaymentManager for an example
 
 ### PAUSED_NEW_PAYMENT_COMMIT
 

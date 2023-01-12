@@ -90,6 +90,14 @@ operator =>
      )
  ]
 
+### MiddlewareTimesAdded
+
+```solidity
+event MiddlewareTimesAdded(address operator, uint256 index, struct ISlasher.MiddlewareTimes middlewareTimes)
+```
+
+Emitted when a middleware times is added to `operator`'s array.
+
 ### OptedIntoSlashing
 
 ```solidity
@@ -106,13 +114,13 @@ event SlashingAbilityRevoked(address operator, address contractAddress, uint32 b
 
 Emitted when `contractAddress` signals that it will no longer be able to slash `operator` after the UTC timestamp `bondedUntil.
 
-### OperatorSlashed
+### OperatorFrozen
 
 ```solidity
-event OperatorSlashed(address slashedOperator, address slashingContract)
+event OperatorFrozen(address slashedOperator, address slashingContract)
 ```
 
-Emitted when `slashingContract` 'slashes' (technically, 'freezes') the `slashedOperator`.
+Emitted when `slashingContract` 'freezes' the `slashedOperator`.
 
 _The `slashingContract` must have permission to slash the `slashedOperator`, i.e. `canSlash(slasherOperator, slashingContract)` must return 'true'._
 

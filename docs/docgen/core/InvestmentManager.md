@@ -29,10 +29,50 @@ uint8 PAUSED_DEPOSITS
 uint8 PAUSED_WITHDRAWALS
 ```
 
+### ERC1271_MAGICVALUE
+
+```solidity
+bytes4 ERC1271_MAGICVALUE
+```
+
+### Deposit
+
+```solidity
+event Deposit(address depositor, contract IERC20 token, contract IInvestmentStrategy strategy, uint256 shares)
+```
+
+Emitted when a new deposit occurs on behalf of `depositor`.
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| depositor | address | Is the staker who is depositing funds into EigenLayer. |
+| token | contract IERC20 | Is the token that `depositor` deposited. |
+| strategy | contract IInvestmentStrategy | Is the investment strategy that `depositor` has deposited into. |
+| shares | uint256 | Is the number of shares `depositor` has in `strategy`. |
+
+### ShareWithdrawalQueued
+
+```solidity
+event ShareWithdrawalQueued(address depositor, uint96 nonce, contract IInvestmentStrategy strategy, uint256 shares)
+```
+
+Emitted when a new withdrawal occurs on behalf of `depositor`.
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| depositor | address | Is the staker who is queuing a withdrawal from EigenLayer. |
+| nonce | uint96 | Is the withdrawal's unique identifier (to the depositor). |
+| strategy | contract IInvestmentStrategy | Is the investment strategy that `depositor` has queued to withdraw from. |
+| shares | uint256 | Is the number of shares `depositor` has queued to withdraw. |
+
 ### WithdrawalQueued
 
 ```solidity
-event WithdrawalQueued(address depositor, address withdrawer, address delegatedAddress, bytes32 withdrawalRoot)
+event WithdrawalQueued(address depositor, uint96 nonce, address withdrawer, address delegatedAddress, bytes32 withdrawalRoot)
 ```
 
 Emitted when a new withdrawal is queued by `depositor`.
@@ -42,6 +82,7 @@ Emitted when a new withdrawal is queued by `depositor`.
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | depositor | address | Is the staker who is withdrawing funds from EigenLayer. |
+| nonce | uint96 | Is the withdrawal's unique identifier (to the depositor). |
 | withdrawer | address | Is the party specified by `staker` who will be able to complete the queued withdrawal and receive the withdrawn funds. |
 | delegatedAddress | address | Is the party who the `staker` was delegated to at the time of creating the queued withdrawal |
 | withdrawalRoot | bytes32 | Is a hash of the input data for the withdrawal. |
@@ -166,7 +207,7 @@ Cannot be called by an address that is 'frozen' (this function will revert if th
 ### depositIntoStrategyOnBehalfOf
 
 ```solidity
-function depositIntoStrategyOnBehalfOf(contract IInvestmentStrategy strategy, contract IERC20 token, uint256 amount, address staker, uint256 expiry, bytes32 r, bytes32 vs) external returns (uint256 shares)
+function depositIntoStrategyOnBehalfOf(contract IInvestmentStrategy strategy, contract IERC20 token, uint256 amount, address staker, uint256 expiry, bytes signature) external returns (uint256 shares)
 ```
 
 Used for investing an asset into the specified strategy with the resultant shared created to `staker`,
@@ -186,8 +227,7 @@ Cannot be called on behalf of a staker that is 'frozen' (this function will reve
 | amount | uint256 | is the amount of token to be invested in the strategy by the depositor |
 | staker | address | the staker that the assets will be deposited on behalf of |
 | expiry | uint256 | the timestamp at which the signature expires |
-| r | bytes32 | and @param vs are the elements of the ECDSA signature |
-| vs | bytes32 |  |
+| signature | bytes | is a valid signature from the `staker`. either an ECDSA signature if the `staker` is an EOA, or data to forward following EIP-1271 if the `staker` is a contract |
 
 ### undelegate
 
@@ -201,7 +241,7 @@ Called by a staker to undelegate entirely from EigenLayer. The staker must first
 ### queueWithdrawal
 
 ```solidity
-function queueWithdrawal(uint256[] strategyIndexes, contract IInvestmentStrategy[] strategies, contract IERC20[] tokens, uint256[] shares, address withdrawer, bool undelegateIfPossible) external returns (bytes32)
+function queueWithdrawal(uint256[] strategyIndexes, struct IInvestmentManager.StratsTokensShares sts, address withdrawer, bool undelegateIfPossible) external returns (bytes32)
 ```
 
 Called by a staker to queue a withdraw in the given token and shareAmount from each of the respective given strategies.
@@ -226,9 +266,7 @@ the enshrined 'beaconChainETH' strategy technically represent non-fungible posit
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | strategyIndexes | uint256[] | is a list of the indices in `investorStrats[msg.sender]` that correspond to the strategies for which `msg.sender` is withdrawing 100% of their shares |
-| strategies | contract IInvestmentStrategy[] |  |
-| tokens | contract IERC20[] |  |
-| shares | uint256[] |  |
+| sts | struct IInvestmentManager.StratsTokensShares |  |
 | withdrawer | address |  |
 | undelegateIfPossible | bool |  |
 

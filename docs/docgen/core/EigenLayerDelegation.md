@@ -14,6 +14,12 @@ This is the contract for delegation in EigenLayer. The main functionalities of t
 uint8 PAUSED_NEW_DELEGATION
 ```
 
+### ERC1271_MAGICVALUE
+
+```solidity
+bytes4 ERC1271_MAGICVALUE
+```
+
 ### onlyInvestmentManager
 
 ```solidity
@@ -80,12 +86,14 @@ function delegateTo(address operator) external
 ### delegateToBySignature
 
 ```solidity
-function delegateToBySignature(address staker, address operator, uint256 expiry, bytes32 r, bytes32 vs) external
+function delegateToBySignature(address staker, address operator, uint256 expiry, bytes signature) external
 ```
 
 Delegates from `staker` to `operator`.
 
-_requires that r, vs are a valid ECSDA signature from `staker` indicating their intention for this action_
+_requires that:
+1) if `staker` is an EOA, then `signature` is valid ECSDA signature from `staker`, indicating their intention for this action
+2) if `staker` is a contract, then `signature` must will be checked according to EIP-1271_
 
 ### undelegate
 
