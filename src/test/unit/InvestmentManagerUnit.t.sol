@@ -7,6 +7,7 @@ import "../../contracts/core/InvestmentManager.sol";
 import "../mocks/DelegationMock.sol";
 import "../mocks/SlasherMock.sol";
 import "../EigenLayrTestHelper.t.sol";
+import "../mocks/ERC20Mock.sol";
 
 
 contract UnitTests is EigenLayrTestHelper {
@@ -15,27 +16,33 @@ contract UnitTests is EigenLayrTestHelper {
     DelegationMock delegationMock;
     SlasherMock slasherMock;
 
+    InvestmentStrategyBase dummyStrat;
+
     uint256 GWEI_TO_WEI = 1e9;
 
     function setUp() override virtual public{
         EigenLayrDeployer.setUp();
 
-        investmentManagerMock = new InvestmentManager(delegationMock, eigenPodManager, slasherMock);
+        
         slasherMock = new SlasherMock();
         delegationMock = new DelegationMock();
-        IERC20 dummyToken = new ERC20PresetFixedSupply(
+        investmentManagerMock = new InvestmentManager(delegationMock, eigenPodManager, slasherMock);
+        IERC20 dummyToken = new ERC20Mock(
             "dummy",
-            "DUMMY",
-            REQUIRED_BALANCE_WEI,
-            address(investmentManagerMock)
+            "DUMMY"
+        );
+        InvestmentStrategyBase dummyStratImplementation = new InvestmentStrategyBase(investmentManagerMock);
+        dummyStrat = InvestmentStrategyBase(
+            address(
+                new TransparentUpgradeableProxy(
+                    address(dummyStratImplementation),
+                    address(eigenLayerProxyAdmin),
+                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, dummyToken, eigenLayrPauserReg)
+                )
+            )
         );
 
-        
-        InvestmentStrategyBase dummyStrat = new InvestmentStrategyBase(investmentManagerMock);
-        dummyToken.approve(address(investmentManagerMock), type(uint256).max);
-        dummyToken.approve(address(dummyStrat), type(uint256).max);
-        investmentManager.depositIntoStrategy(dummyStrat, dummyToken, REQUIRED_BALANCE_WEI);
-
+        investmentManagerMock.depositIntoStrategy(dummyStrat, dummyToken, REQUIRED_BALANCE_WEI);
 
     }
 
@@ -78,7 +85,7 @@ contract UnitTests is EigenLayrTestHelper {
         investmentManagerMock.queueWithdrawal(strategyIndexes, sts, address(this), undelegateIfPossible);
 
         {
-            strategyArray[0] = wethStrat;
+            strategyArray[0] = dummyStrat;
             shareAmounts[0] = 1;
             strategyIndexes[0] = 0;
             strategyArray[1] = investmentManager.beaconChainETHStrategy();
