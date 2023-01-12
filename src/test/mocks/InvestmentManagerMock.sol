@@ -27,13 +27,13 @@ contract InvestmentManagerMock is
     IEigenPodManager public eigenPodManager;
     ISlasher public slasher;
 
-    // constructor(IEigenLayerDelegation _delegation, IEigenPodManager _eigenPodManager, ISlasher _slasher)
-    // {
-    //    delegation = _delegation;
-    //    slasher = _slasher;
-    //    eigenPodManager = _eigenPodManager;
+    constructor(IEigenLayerDelegation _delegation, IEigenPodManager _eigenPodManager, ISlasher _slasher)
+    {
+       delegation = _delegation;
+       slasher = _slasher;
+       eigenPodManager = _eigenPodManager;
 
-    // }
+    }
 
     function depositIntoStrategy(IInvestmentStrategy strategy, IERC20 token, uint256 amount)
         external

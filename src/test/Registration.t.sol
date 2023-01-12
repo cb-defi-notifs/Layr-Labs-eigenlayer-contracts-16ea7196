@@ -44,7 +44,7 @@ contract RegistrationTests is EigenLayerTestHelper {
 
         investmentManagerMock = new InvestmentManagerMock(delegation, eigenPodManager, slasher);
 
-        dlsm = new ServiceManagerMock(investmentManagerMock);
+        dlsm = new ServiceManagerMock(slasher);
 
         dlReg = BLSRegistry(
             address(new TransparentUpgradeableProxy(address(emptyContract), address(dataLayrProxyAdmin), ""))

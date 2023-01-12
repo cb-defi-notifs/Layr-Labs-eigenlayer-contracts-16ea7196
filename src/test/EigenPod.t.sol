@@ -135,7 +135,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
             address(eigenPodManagerImplementation),
             abi.encodeWithSelector(EigenPodManager.initialize.selector, beaconChainOracle, initialOwner)
         );
-        generalServiceManager1 = new ServiceManagerMock(investmentManager);
+        generalServiceManager1 = new ServiceManagerMock(slasher);
 
         generalReg1 = new MiddlewareRegistryMock(
              generalServiceManager1,

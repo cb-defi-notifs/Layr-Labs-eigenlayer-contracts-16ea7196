@@ -25,14 +25,14 @@ contract WithdrawalTests is DelegationTests {
     ServiceManagerMock public generalServiceManager2;
 
     function initializeGeneralMiddlewares() public {
-        generalServiceManager1 = new ServiceManagerMock(investmentManager);
+        generalServiceManager1 = new ServiceManagerMock(slasher);
 
         generalReg1 = new MiddlewareRegistryMock(
              generalServiceManager1,
              investmentManager
         );
         
-        generalServiceManager2 = new ServiceManagerMock(investmentManager);
+        generalServiceManager2 = new ServiceManagerMock(slasher);
 
         generalReg2 = new MiddlewareRegistryMock(
              generalServiceManager2,
