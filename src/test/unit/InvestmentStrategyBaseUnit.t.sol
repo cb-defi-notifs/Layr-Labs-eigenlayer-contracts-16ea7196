@@ -3,24 +3,36 @@ pragma solidity ^0.8.9;
 
 import "forge-std/Test.sol";
 
-import "../../contracts/core/InvestmentManager.sol";
+import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
+
+import "../mocks/ERC20Mock.sol";
+import "../mocks/InvestmentManagerMock.sol";
+
+
+
+
+
+
+import "../../contracts/strategies/InvestmentStrategyBase.sol";
+
+
+
+import "../EigenLayrTestHelper.t.sol";
 import "../mocks/DelegationMock.sol";
 import "../mocks/SlasherMock.sol";
-import "../EigenLayrTestHelper.t.sol";
-import "../mocks/ERC20Mock.sol";
 
 
-contract InvestmentManagerUnitTests is EigenLayrTestHelper {
+contract InvestmentStrategyBaseUnitTests {
 
-    InvestmentManager investmentManagerMock;
-    DelegationMock delegationMock;
-    SlasherMock slasherMock;
-
-    InvestmentStrategyBase dummyStrat;
+    InvestmentStrategyBase public investmentStrategy;
+    InvestmentManager public investmentManagerMock;
+    IERC20 public tokenMock;
 
     uint256 GWEI_TO_WEI = 1e9;
 
-    function setUp() override virtual public{
+    function setUp() override virtual public {
+        investmentStrategy = 
+
         EigenLayrDeployer.setUp();
 
         
