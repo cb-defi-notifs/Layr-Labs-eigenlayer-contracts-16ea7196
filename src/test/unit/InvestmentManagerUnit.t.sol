@@ -20,10 +20,22 @@ contract UnitTests is EigenLayrTestHelper {
     function setUp() override virtual public{
         EigenLayrDeployer.setUp();
 
+        investmentManagerMock = new InvestmentManager(delegationMock, eigenPodManager, slasherMock);
         slasherMock = new SlasherMock();
         delegationMock = new DelegationMock();
+        IERC20 dummyToken = new ERC20PresetFixedSupply(
+            "dummy",
+            "DUMMY",
+            REQUIRED_BALANCE_WEI,
+            address(investmentManagerMock)
+        );
 
-        investmentManagerMock = new InvestmentManager(delegationMock, eigenPodManager, slasherMock);
+        
+        InvestmentStrategyBase dummyStrat = new InvestmentStrategyBase(investmentManagerMock);
+        dummyToken.approve(address(investmentManagerMock), type(uint256).max);
+        dummyToken.approve(address(dummyStrat), type(uint256).max);
+        investmentManager.depositIntoStrategy(dummyStrat, dummyToken, REQUIRED_BALANCE_WEI);
+
 
     }
 
@@ -62,6 +74,18 @@ contract UnitTests is EigenLayrTestHelper {
         }
 
         IInvestmentManager.StratsTokensShares memory sts = IInvestmentManager.StratsTokensShares(strategyArray, tokensArray, shareAmounts);
+        cheats.expectRevert(bytes("InvestmentManager.queueWithdrawal: cannot queue a withdrawal including Beacon Chain ETH and other tokens"));
+        investmentManagerMock.queueWithdrawal(strategyIndexes, sts, address(this), undelegateIfPossible);
+
+        {
+            strategyArray[0] = wethStrat;
+            shareAmounts[0] = 1;
+            strategyIndexes[0] = 0;
+            strategyArray[1] = investmentManager.beaconChainETHStrategy();
+            shareAmounts[1] = REQUIRED_BALANCE_WEI;
+            strategyIndexes[1] = 1;
+        }
+        sts = IInvestmentManager.StratsTokensShares(strategyArray, tokensArray, shareAmounts);
         cheats.expectRevert(bytes("InvestmentManager.queueWithdrawal: cannot queue a withdrawal including Beacon Chain ETH and other tokens"));
         investmentManagerMock.queueWithdrawal(strategyIndexes, sts, address(this), undelegateIfPossible);
     }
