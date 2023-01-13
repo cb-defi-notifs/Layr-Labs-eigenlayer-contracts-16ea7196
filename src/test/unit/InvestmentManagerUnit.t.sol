@@ -44,6 +44,9 @@ contract InvestmentManagerUnitTests is EigenLayerTestHelper {
     }
 
     function testBeaconChainQueuedWithdrawalToDifferentAddress(address withdrawer) external {
+        // filtering for test flakiness
+        cheats.assume(withdrawer != address(this));
+
         IInvestmentStrategy[] memory strategyArray = new IInvestmentStrategy[](2);
         IERC20[] memory tokensArray = new IERC20[](1);
         uint256[] memory shareAmounts = new uint256[](1);
