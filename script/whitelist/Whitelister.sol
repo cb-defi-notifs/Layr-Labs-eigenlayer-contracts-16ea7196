@@ -48,7 +48,6 @@ contract Whitelister is Ownable, Test {
     function whitelist(address operator) public onlyOwner {
         // mint the staker the tokens
         stakeToken.mint(getStaker(operator), DEFAULT_AMOUNT);
-        emit log_uint(stakeToken.balanceOf(getStaker(operator)));
         // deploy the staker
         Create2.deploy(
             0,
