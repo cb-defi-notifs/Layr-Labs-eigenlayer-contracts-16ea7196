@@ -295,13 +295,13 @@ contract WhitelisterTests is EigenLayerTestHelper {
             delegatedAddress: delegatedTo
         });
 
-        emit log("*******************COMPLETE***************************");
-        emit log_named_address("delegatedAddress", delegatedTo);
-        emit log_named_uint("withdrawalStartBlock", withdrawalStartBlock);
-        emit log_named_uint("withdrawerAndNonce.Nonce", withdrawerAndNonce.nonce);
-        emit log_named_address("withdrawerAndNonce.Adress", withdrawerAndNonce.withdrawer);
-        emit log_named_address("depositor", staker);
-        emit log("***********************************************************************");
+        // emit log("*******************COMPLETE***************************");
+        // emit log_named_address("delegatedAddress", delegatedTo);
+        // emit log_named_uint("withdrawalStartBlock", withdrawalStartBlock);
+        // emit log_named_uint("withdrawerAndNonce.Nonce", withdrawerAndNonce.nonce);
+        // emit log_named_address("withdrawerAndNonce.Adress", withdrawerAndNonce.withdrawer);
+        // emit log_named_address("depositor", staker);
+        // emit log("***********************************************************************");
 
         cheats.startPrank(theMultiSig);
         whiteLister.completeQueuedWithdrawal(staker, queuedWithdrawal, middlewareTimesIndex, true);

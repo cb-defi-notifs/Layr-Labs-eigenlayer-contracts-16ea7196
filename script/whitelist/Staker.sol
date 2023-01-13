@@ -40,7 +40,6 @@ contract Staker is Ownable, Test {
             mstore(returndata, returndatasize())
             returndatacopy(add(returndata, 32), 0, returndatasize())
         }
-        emit log_bytes(returndata);
 
         return returndata;
 
