@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "../interfaces/IInvestmentManager.sol";
 import "../interfaces/IInvestmentStrategy.sol";
 import "../interfaces/IEigenPodManager.sol";
-import "../interfaces/IEigenLayrDelegation.sol";
+import "../interfaces/IEigenLayerDelegation.sol";
 import "../interfaces/ISlasher.sol";
 
 /**
@@ -29,7 +29,7 @@ abstract contract InvestmentManagerStorage is IInvestmentManager {
     uint8 internal constant MAX_INVESTOR_STRATS_LENGTH = 32;
 
     // system contracts
-    IEigenLayrDelegation public immutable delegation;
+    IEigenLayerDelegation public immutable delegation;
     IEigenPodManager public immutable eigenPodManager;
     ISlasher public immutable slasher;
 
@@ -44,7 +44,7 @@ abstract contract InvestmentManagerStorage is IInvestmentManager {
 
     IInvestmentStrategy public constant beaconChainETHStrategy = IInvestmentStrategy(0xbeaC0eeEeeeeEEeEeEEEEeeEEeEeeeEeeEEBEaC0);
 
-    constructor(IEigenLayrDelegation _delegation, IEigenPodManager _eigenPodManager, ISlasher _slasher) {
+    constructor(IEigenLayerDelegation _delegation, IEigenPodManager _eigenPodManager, ISlasher _slasher) {
         delegation = _delegation;
         eigenPodManager = _eigenPodManager;
         slasher = _slasher;

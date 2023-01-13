@@ -10,7 +10,7 @@ import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
 
 import "../interfaces/IInvestmentManager.sol";
-import "../interfaces/IEigenLayrDelegation.sol";
+import "../interfaces/IEigenLayerDelegation.sol";
 import "../interfaces/IEigenPodManager.sol";
 import "../interfaces/IETHPOSDeposit.sol";
 import "../interfaces/IEigenPod.sol";
@@ -29,7 +29,7 @@ import "../interfaces/IBeaconChainOracle.sol";
  */
 contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager {
     //TODO: change this to constant in prod
-    IETHPOSDeposit internal immutable ethPOS;
+    IETHPOSDeposit public immutable ethPOS;
     
     /// @notice Beacon proxy to which the EigenPods point
     IBeacon public immutable eigenPodBeacon;
@@ -38,7 +38,7 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager 
     IInvestmentManager public immutable investmentManager;
 
     /// @notice EigenLayer's Slasher contract
-    ISlasher internal immutable slasher;
+    ISlasher public immutable slasher;
 
     /// @notice Oracle contract that provides updates to the beacon chain's state
     IBeaconChainOracle public beaconChainOracle;
@@ -89,8 +89,6 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager 
         require(!hasPod(msg.sender), "EigenPodManager.createPod: Sender already has a pod");
         //deploy a pod if the sender doesn't have one already
         IEigenPod pod = _deployPod();
-
-        emit PodDeployed(address(pod), msg.sender);
     }
 
     /**
@@ -189,6 +187,7 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager 
                     )
                 )
             );
+        emit PodDeployed(address(pod), msg.sender);
         return pod;
     }
 

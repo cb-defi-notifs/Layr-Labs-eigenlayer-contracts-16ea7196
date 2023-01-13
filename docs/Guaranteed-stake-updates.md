@@ -4,11 +4,11 @@ EigenLayer uses a 'push' model for it's own core contracts -- when a staker queu
 
 ## Storage Model
 
-Below, a whitelisted contract referrs to a contract that is a part of a middleware that is allowed to freeze the opted in operators.
+Below, a whitelisted contract refers to a contract that is a part of a middleware that is allowed to freeze the opted in operators.
 
 For each operator, we need to store:
 
-1. A `mapping(address => mapping(address => MiddlewareDetails))`, from operator address to contract whitelisted by the operator to slash them, to details about that contract formatted as
+1. A `mapping(address => mapping(address => MiddlewareDetails))`, from operator address to contract whitelisted by the operator to slash them, to [details](https://github.com/Layr-Labs/eignlayr-contracts/blob/master/src/contracts/interfaces/ISlasher.sol) about that contract formatted as
 ```solidity
     struct MiddlewareDetails {
         // the UTC timestamp before which the contract is allowed to slash the user
@@ -35,7 +35,7 @@ Note:
 
 ## An Instructive Example
 
-Let us say an operator has opted into serving a middleware, `Middleware A`. As a result of the operator's actions, `MiddlewareA` calls `recordFirstStakeUpdate`, adding  `Middleware A` to their linked list of middlewares, recording the `block.number` as the `updateBlock` and the middleware's specified `serveUntil` time in `operatorMiddlewareTimes`.  At later times, the operator registers with a second and third middleware, `Middleware B` and `Middleware C`, respectively.  At this point, the timeline is as follows:
+Let us say an operator has opted into serving a middleware, `Middleware A`. As a result of the operator's actions, `Middleware A` calls `recordFirstStakeUpdate`, adding  `Middleware A` to their linked list of middlewares, recording the `block.number` as the `updateBlock` and the middleware's specified `serveUntil` time in `operatorMiddlewareTimes`.  At later times, the operator registers with a second and third middleware, `Middleware B` and `Middleware C`, respectively.  At this point, the timeline is as follows:
 
 ![Three Middlewares Timeline](images/three_middlewares.png?raw=true "Three Middlewares Timeline")
 

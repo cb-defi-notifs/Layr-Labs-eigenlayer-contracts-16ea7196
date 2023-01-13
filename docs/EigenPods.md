@@ -7,15 +7,15 @@ This document explains *EigenPods*, the mechanism by which EigenLayer facilitate
 
 It is important to contrast this with the restaking of liquid staking derivatives (LSDs) on EigenLayer. EigenLayer will integrate with liquid staking protocols "above the hood", meaning that withdrawal credentials will be pointed to EigenLayer at the smart contract layer rather than the consensus layer. This is because liquid staking protocols need their contracts to be in possession of the withdrawal credentials in order to not have platform risk on EigenLayer. As always, this means that value of liquid staking derivatives carries a discount due to additional smart contract risk.
 
-The architechtural design of the EigenPods system is inspired by various liquid staking protocols, particularly Rocket Pool 🚀.
+The architectural design of the EigenPods system is inspired by various liquid staking protocols, particularly Rocket Pool 🚀.
 
 ## The EigenPodManager
 
-The EigenPodManager facilitates the higher level functionality of EigenPods and their interactions with the rest of the EigenLayer smart contracts (the InvestmentManager and the InvestmentManager's owner). Stakers can call the EigenPodManager to create pods (whose addresses are determintically calculated via the Create2 OZ library) and stake on the Beacon Chain through them. The EigenPodManager also handles the cumulative paid penalties (explained later) of all EigenPods and allows the InvestmentManger's owner to redistribute them. 
+The EigenPodManager facilitates the higher level functionality of EigenPods and their interactions with the rest of the EigenLayer smart contracts (the InvestmentManager and the InvestmentManager's owner). Stakers can call the EigenPodManager to create pods (whose addresses are deterministically calculated via the Create2 OZ library) and stake on the Beacon Chain through them. The EigenPodManager also handles the cumulative paid penalties (explained later) of all EigenPods and allows the InvestmentManager's owner to redistribute them. 
 
 ## The EigenPod
 
-The EigenPod is the contract that a staker must set their Etherum validators' withdrawal credentials to. EigenPods can be created by stakers through a call to the EigenPodManger. EigenPods are deployed using the beacon proxy pattern to have flexible global upgradability for future changes to the Ethereum specification. Stakers can stake for an Etherum validator when they create their EigenPod, through further calls to their EigenPod, and through parallel deposits to the Beacon Chain deposit contract.
+The EigenPod is the contract that a staker must set their Etherum validators' withdrawal credentials to. EigenPods can be created by stakers through a call to the EigenPodManager. EigenPods are deployed using the beacon proxy pattern to have flexible global upgradability for future changes to the Ethereum specification. Stakers can stake for an Etherum validator when they create their EigenPod, through further calls to their EigenPod, and through parallel deposits to the Beacon Chain deposit contract.
 
 ### Beacon State Root Oracle
 
@@ -49,7 +49,7 @@ The balance of an EigenPod at anytime is `FULL_WITHDRAWALS + PARTIAL_WITHDRAWALS
 
 In more detail, the EigenPod owner:
 1. Proves all their full withdrawals up to the `currentBlockNumber`
-2. Calculates the block number of the next full withdrawal occuring at or after `currentBlockNumber`. Call this `expireBlockNumber`.
+2. Calculates the block number of the next full withdrawal occuring at or after `currentBlockNumber`. Call this `expireBlockNumber`.  This is the block number before which the partial withdrawal transaction must be mined (in order to avoid race conditions related to any pending withdrawals that may exist simultaneously).
 3. Pings the contract with a transaction claiming that they have proven all full withdrawals until `expireBlockNumber`. The contract will note this in storage along with `partialWithdrawals = address(this).balance - FULL_WITHDRAWALS`.
 4. If a watcher proves a full withdrawal for a validator restaked on the EigenPod that occured before `currentBlockNumber` that has not been proven before and this proof occurs within `PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS` (an EigenPod contract variable) of the partial withdrawal claim, the claim is marked as failed. This means that the claim cannot be withdrawn, but the mechanism for rewarding watchers has not been fully worked out yet. It will prbably be the case that watchers will eventually end up being paid through penalty withdrawals.
 5. If no such proof is provided within `PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS`, the staker is allow withdraw `partialWithdrawals` (first attempting to pay off penalties with the ether to withdraw) and make new partial withdrawal claims
