@@ -34,13 +34,13 @@ interface IBLSRegistry is IQuorumRegistry {
 
     function whitelister() external view returns(address);
 
-    function isWhitelist() external view returns(bool);
+    function whitelistEnabled() external view returns(bool);
 
     function whitelisted(address) external view returns(bool);
 
-    function toggleIsWhitelist(bool _isWhitelist) external;
+    function setWhitelistStatus(bool _whitelistEnabled) external;
 
-    function addWhitelist(address[] calldata) external;
+    function addToWhitelist(address[] calldata) external;
 
-    function removeWhitelist(address[] calldata operators) external;
+    function removeFromWhitelist(address[] calldata operators) external;
 }

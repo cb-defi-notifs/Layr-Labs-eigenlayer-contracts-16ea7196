@@ -69,7 +69,7 @@ contract Whitelister is Ownable, Test {
         // add operator to whitelist
         address[] memory operators = new address[](1);
         operators[0] = operator;
-        registry.addWhitelist(operators);
+        registry.addToWhitelist(operators);
     }
 
     function getStaker(address operator) public view returns (address) {
@@ -88,7 +88,7 @@ contract Whitelister is Ownable, Test {
                             operator
                         )
                     )
-                ) //bytecode
+                ) 
             );
     }
 

@@ -162,7 +162,7 @@ contract WhitelisterTests is EigenLayrTestHelper {
         Staker(staker).callAddress(address(investmentManager), data);
     }
 
-    function testNonWhitelistedOperatorRegistration(address nonWhitelister, BN254.G1Point memory pk, string memory socket ) external {
+    function testNonWhitelistedOperatorRegistration(BN254.G1Point memory pk, string memory socket ) external {
         cheats.startPrank(operator);
         IDelegationTerms dt = IDelegationTerms(address(89));
         delegation.registerAsOperator(dt);
@@ -175,8 +175,7 @@ contract WhitelisterTests is EigenLayrTestHelper {
     
 
     function testWhitelistQueueWithdrawal(
-            address operator, 
-            string calldata socket
+            address operator 
         ) 
             public  fuzzedAddress(operator)
         {
@@ -312,10 +311,10 @@ contract WhitelisterTests is EigenLayrTestHelper {
         cheats.stopPrank();
     }
     
-    function testWhitelistTransfer(address operator, address receiver, string calldata socket) public fuzzedAddress(receiver) {
+    function testWhitelistTransfer(address operator, address receiver) public fuzzedAddress(receiver) {
         address staker = whiteLister.getStaker(operator);
 
-        testWhitelistQueueWithdrawal(operator, socket);
+        testWhitelistQueueWithdrawal(operator);
 
         cheats.startPrank(theMultiSig);
 

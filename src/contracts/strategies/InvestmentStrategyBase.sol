@@ -15,7 +15,7 @@ import "forge-std/Test.sol";
  * Implements minimal versions of the IInvestmentStrategy functions, this contract is designed to be inherited by
  * more complex investment strategies, which can then override its functions as necessary.
  */
-contract InvestmentStrategyBase is Initializable, Pausable, IInvestmentStrategy, Test {
+contract InvestmentStrategyBase is Initializable, Pausable, IInvestmentStrategy {
     using SafeERC20 for IERC20;
 
     uint8 internal constant PAUSED_DEPOSITS = 0;
@@ -117,9 +117,7 @@ contract InvestmentStrategyBase is Initializable, Pausable, IInvestmentStrategy,
             amountToSend = (_tokenBalance() * amountShares) / priorTotalShares;
         }
 
-        emit log_named_uint("token balane before withdraw", token.balanceOf(msg.sender));
         underlyingToken.safeTransfer(depositor, amountToSend);
-        emit log_named_uint("token balane after withdraw", token.balanceOf(msg.sender));
     }
 
     /**
