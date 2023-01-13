@@ -32,7 +32,6 @@ contract RegistrationTests is EigenLayerTestHelper {
 
     function setUp() public virtual override {
         EigenLayerDeployer.setUp();
-
         initializeMiddlewares();
     }
 
