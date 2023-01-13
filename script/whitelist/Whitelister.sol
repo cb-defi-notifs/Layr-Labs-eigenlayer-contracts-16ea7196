@@ -12,9 +12,8 @@ import "./ERC20PresetMinterPauser.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Create2.sol";
 
-import "forge-std/Test.sol";
 
-contract Whitelister is Ownable, Test {
+contract Whitelister is Ownable {
     //address constant investmentManager = 0x0000000000000000000000000000000000000000;
     //TODO: change before deploy
     IInvestmentManager immutable investmentManager;

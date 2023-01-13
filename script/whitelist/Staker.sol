@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "forge-std/Test.sol";
 
-contract Staker is Ownable, Test {
+contract Staker is Ownable {
     
     constructor(
         IInvestmentStrategy strategy, 
