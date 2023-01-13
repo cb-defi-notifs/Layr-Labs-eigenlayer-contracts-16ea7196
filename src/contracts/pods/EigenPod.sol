@@ -12,7 +12,7 @@ import "../interfaces/IETHPOSDeposit.sol";
 import "../interfaces/IEigenPodManager.sol";
 import "../interfaces/IEigenPod.sol";
 
-import "forge-std/Test.sol";
+// import "forge-std/Test.sol";
 
 /**
  * @title The implementation contract used for restaking beacon chain ETH on EigenLayer 
@@ -28,7 +28,7 @@ import "forge-std/Test.sol";
  *   to account balances and penalties in terms of gwei in the EigenPod contract and convert to wei when making
  *   calls to other contracts
  */
-contract EigenPod is IEigenPod, Initializable, ReentrancyGuard, Test {
+contract EigenPod is IEigenPod, Initializable, ReentrancyGuard {
     using BytesLib for bytes;
 
     uint256 internal constant GWEI_TO_WEI = 1e9;
@@ -343,14 +343,16 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard, Test {
 
         require(
             claim.status == PARTIAL_WITHDRAWAL_CLAIM_STATUS.PENDING,
-            "EigenPod.redeemLatestPartialWithdrawal: partial withdrawal not eligible for redemption"
+            "EigenPod.redeemLatestPartialWithdrawal: partial withdrawal either redeemed or failed making it ineligible for redemption"
         );
         require(
             uint32(block.number) > claim.fraudproofPeriodEndBlockNumber,
             "EigenPod.redeemLatestPartialWithdrawal: can only redeem partial withdrawals after fraudproof period"
         );
+
         // mark the claim's status as redeemed
         partialWithdrawalClaims[lastClaimIndex].status = PARTIAL_WITHDRAWAL_CLAIM_STATUS.REDEEMED;
+
         // pay penalties if possible
         if (penaltiesDueToOvercommittingGwei != 0) {
             uint64 penaltiesDueToOvercommittingGweiMemory = penaltiesDueToOvercommittingGwei;

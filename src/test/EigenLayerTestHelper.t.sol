@@ -2,10 +2,10 @@
 pragma solidity ^0.8.9;
 
 import "../contracts/libraries/BytesLib.sol";
-import "../test/EigenLayrDeployer.t.sol";
+import "../test/EigenLayerDeployer.t.sol";
 
 
-contract EigenLayrTestHelper is EigenLayrDeployer {
+contract EigenLayerTestHelper is EigenLayerDeployer {
     using BytesLib for bytes;
 
     uint8 durationToInit = 2;
@@ -56,8 +56,8 @@ contract EigenLayrTestHelper is EigenLayrDeployer {
         return (amountEthStaked, amountEigenStaked);
     }
 
-    // simply tries to register 'sender' as an operator, setting their 'DelegationTerms' contract in EigenLayrDelegation to 'dt'
-    // verifies that the storage of EigenLayrDelegation contract is updated appropriately
+    // simply tries to register 'sender' as an operator, setting their 'DelegationTerms' contract in EigenLayerDelegation to 'dt'
+    // verifies that the storage of EigenLayerDelegation contract is updated appropriately
     function _testRegisterAsOperator(address sender, IDelegationTerms dt) internal {
         cheats.startPrank(sender);
         delegation.registerAsOperator(dt);
@@ -252,8 +252,8 @@ contract EigenLayrTestHelper is EigenLayrDeployer {
                 address(
                     new TransparentUpgradeableProxy(
                         address(baseStrategyImplementation),
-                        address(eigenLayrProxyAdmin),
-                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, underlyingToken, eigenLayrPauserReg)
+                        address(eigenLayerProxyAdmin),
+                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, underlyingToken, eigenLayerPauserReg)
                     )
                 )
             );
@@ -331,10 +331,8 @@ contract EigenLayrTestHelper is EigenLayrDeployer {
         }
 
         //queue the withdrawal
-        cheats.startPrank(staker);
         // TODO: check with 'undelegateIfPossible' = false, rather than just true
-        withdrawalRoot = investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawer, true);
-        cheats.stopPrank();
+        withdrawalRoot = _testQueueWithdrawal(staker, strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawer, true);
         return (withdrawalRoot, queuedWithdrawal);
     }
 
@@ -503,6 +501,37 @@ contract EigenLayrTestHelper is EigenLayrDeployer {
             );
         }
         cheats.stopPrank();
+    }
+
+    //*******INTERNAL FUNCTIONS*********//
+    function _testQueueWithdrawal(
+        address depositor,
+        uint256[] memory strategyIndexes,
+        IInvestmentStrategy[] memory strategyArray,
+        IERC20[] memory tokensArray,
+        uint256[] memory shareAmounts,
+        address withdrawer,
+        bool undelegateIfPossible
+    )
+        internal
+        returns (bytes32)
+    {
+        IInvestmentManager.StratsTokensShares memory sts = IInvestmentManager.StratsTokensShares({
+            strategies: strategyArray,
+            tokens: tokensArray,
+            shares: shareAmounts
+        }); 
+        cheats.startPrank(depositor);
+
+        bytes32 withdrawalRoot = investmentManager.queueWithdrawal(
+            strategyIndexes,
+            sts,
+            withdrawer,
+            // TODO: make this an input
+            undelegateIfPossible
+        );
+        cheats.stopPrank();
+        return withdrawalRoot;
     }
 }
 

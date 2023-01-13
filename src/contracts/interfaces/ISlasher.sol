@@ -2,7 +2,7 @@
 pragma solidity ^0.8.9;
 
 /**
- * @title Interface for the primary 'slashing' contract for EigenLayr.
+ * @title Interface for the primary 'slashing' contract for EigenLayer.
  * @author Layr Labs, Inc.
  * @notice See the `Slasher` contract itself for implementation details.
  */

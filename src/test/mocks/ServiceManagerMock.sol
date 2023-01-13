@@ -41,8 +41,8 @@ contract ServiceManagerMock is IServiceManager, DSTest {
     }
 
     /// @notice The Delegation contract of EigenLayer.
-    function eigenLayrDelegation() external pure returns (IEigenLayrDelegation) {
-        return IEigenLayrDelegation(address(0));
+    function eigenLayerDelegation() external pure returns (IEigenLayerDelegation) {
+        return IEigenLayerDelegation(address(0));
     }
 
     /// @notice Returns the `latestTime` until which operators must serve.

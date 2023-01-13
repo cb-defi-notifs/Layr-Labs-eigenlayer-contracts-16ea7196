@@ -61,6 +61,8 @@ contract BLSPublicKeyCompendium is IBLSPublicKeyCompendium, DSTest {
         // getting pubkey hash
         bytes32 pubkeyHash = BN254.hashG1Point(pubkeyG1);
 
+        require(pubkeyHash != ZERO_PK_HASH, "BLSPublicKeyCompendium.registerBLSPublicKey: operator attempting to register the zero public key");
+
         require(
             operatorToPubkeyHash[msg.sender] == bytes32(0),
             "BLSPublicKeyCompendium.registerBLSPublicKey: operator already registered pubkey"

@@ -2,25 +2,30 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/interfaces/IERC1271.sol";
+import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "./EigenLayrDelegationStorage.sol";
+import "./EigenLayerDelegationStorage.sol";
 import "../permissions/Pausable.sol";
 import "./Slasher.sol";
 
 /**
- * @title The primary delegation contract for EigenLayr.
+ * @title The primary delegation contract for EigenLayer.
  * @author Layr Labs, Inc.
- * @notice  This is the contract for delegation in EigenLayr. The main functionalities of this contract are
- * - enabling anyone to register as an operator in EigenLayr
+ * @notice  This is the contract for delegation in EigenLayer. The main functionalities of this contract are
+ * - enabling anyone to register as an operator in EigenLayer
  * - allowing new operators to provide a DelegationTerms-type contract, which may mediate their interactions with stakers who delegate to them
  * - enabling any staker to delegate its stake to the operator of its choice
  * - enabling a staker to undelegate its assets from an operator (performed as part of the withdrawal process, initiated through the InvestmentManager)
  */
-contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDelegationStorage, Pausable {
+contract EigenLayerDelegation is Initializable, OwnableUpgradeable, EigenLayerDelegationStorage, Pausable {
+    // index for flag that pauses new delegations when set
     uint8 internal constant PAUSED_NEW_DELEGATION = 0;
+    // bytes4(keccak256("isValidSignature(bytes32,bytes)")
+    bytes4 constant internal ERC1271_MAGICVALUE = 0x1626ba7e;
 
     /// @notice Simple permission for functions that are only callable by the InvestmentManager contract.
     modifier onlyInvestmentManager() {
@@ -30,7 +35,7 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
 
     // INITIALIZING FUNCTIONS
     constructor(IInvestmentManager _investmentManager, ISlasher _slasher) 
-        EigenLayrDelegationStorage(_investmentManager, _slasher)
+        EigenLayerDelegationStorage(_investmentManager, _slasher)
     {
         _disableInitializers();
     }
@@ -46,7 +51,7 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
         initializer
     {
         _initializePauser(_pauserRegistry, UNPAUSE_ALL);
-        DOMAIN_SEPARATOR = keccak256(abi.encode(DOMAIN_TYPEHASH, bytes("EigenLayr"), block.chainid, address(this)));
+        DOMAIN_SEPARATOR = keccak256(abi.encode(DOMAIN_TYPEHASH, bytes("EigenLayer"), block.chainid, address(this)));
         _transferOwnership(initialOwner);
     }
 
@@ -61,7 +66,7 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
     function registerAsOperator(IDelegationTerms dt) external {
         require(
             address(delegationTerms[msg.sender]) == address(0),
-            "EigenLayrDelegation.registerAsOperator: operator has already registered"
+            "EigenLayerDelegation.registerAsOperator: operator has already registered"
         );
         // store the address of the delegation contract that the operator is providing.
         delegationTerms[msg.sender] = dt;
@@ -78,20 +83,37 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
 
     /**
      * @notice Delegates from `staker` to `operator`.
-     * @dev requires that r, vs are a valid ECSDA signature from `staker` indicating their intention for this action
+     * @dev requires that:
+     * 1) if `staker` is an EOA, then `signature` is valid ECSDA signature from `staker`, indicating their intention for this action
+     * 2) if `staker` is a contract, then `signature` must will be checked according to EIP-1271
      */
-    function delegateToBySignature(address staker, address operator, uint256 expiry, bytes32 r, bytes32 vs)
+    function delegateToBySignature(address staker, address operator, uint256 expiry, bytes memory signature)
         external
     {
-        require(expiry == 0 || expiry >= block.timestamp, "delegation signature expired");
+        require(expiry >= block.timestamp, "delegation signature expired");
+
         // calculate struct hash, then increment `staker`'s nonce
-        bytes32 structHash = keccak256(abi.encode(DELEGATION_TYPEHASH, staker, operator, nonces[staker]++, expiry));
+        uint256 nonce = nonces[staker];
+        bytes32 structHash = keccak256(abi.encode(DELEGATION_TYPEHASH, staker, operator, nonce, expiry));
+        unchecked {
+            nonces[staker] = nonce + 1;
+        }
         bytes32 digestHash = keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, structHash));
-        //check validity of signature
 
-        address recoveredAddress = ECDSA.recover(digestHash, r, vs);
+        /**
+         * check validity of signature:
+         * 1) if `staker` is an EOA, then `signature` must be a valid ECSDA signature from `staker`,
+         * indicating their intention for this action
+         * 2) if `staker` is a contract, then `signature` must will be checked according to EIP-1271
+         */
+        if (Address.isContract(staker)) {
+            require(IERC1271(staker).isValidSignature(digestHash, signature) == ERC1271_MAGICVALUE,
+                "EigenLayerDelegation.delegateToBySignature: ERC1271 signature verification failed");
+        } else {
+            require(ECDSA.recover(digestHash, signature) == staker,
+                "EigenLayerDelegation.delegateToBySignature: sig not from staker");
+        }
 
-        require(recoveredAddress == staker, "EigenLayrDelegation.delegateToBySignature: sig not from staker");
         _delegate(staker, operator);
     }
 
@@ -101,12 +123,12 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
      * @dev Should only ever be called in the event that the `staker` has no active deposits in EigenLayer.
      */
     function undelegate(address staker) external onlyInvestmentManager {
-        require(!isOperator(staker), "EigenLayrDelegation.undelegate: operators cannot undelegate from themselves");
+        require(!isOperator(staker), "EigenLayerDelegation.undelegate: operators cannot undelegate from themselves");
         delegatedTo[staker] = address(0);
     }
 
     /**
-     * @notice Increases the `staker`'s delegated shares in `strategy` by `shares, typically called when the staker has further deposits into EigenLayr
+     * @notice Increases the `staker`'s delegated shares in `strategy` by `shares, typically called when the staker has further deposits into EigenLayer
      * @dev Callable only by the InvestmentManager
      */
     function increaseDelegatedShares(address staker, IInvestmentStrategy strategy, uint256 shares)
@@ -133,7 +155,7 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
     }
 
     /**
-     * @notice Decreases the `staker`'s delegated shares in each entry of `strategies` by its respective `shares[i]`, typically called when the staker withdraws from EigenLayr
+     * @notice Decreases the `staker`'s delegated shares in each entry of `strategies` by its respective `shares[i]`, typically called when the staker withdraws from EigenLayer
      * @dev Callable only by the InvestmentManager
      */
     function decreaseDelegatedShares(
@@ -270,12 +292,12 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
     function _delegate(address staker, address operator) internal onlyWhenNotPaused(PAUSED_NEW_DELEGATION) {
         IDelegationTerms dt = delegationTerms[operator];
         require(
-            address(dt) != address(0), "EigenLayrDelegation._delegate: operator has not yet registered as a delegate"
+            address(dt) != address(0), "EigenLayerDelegation._delegate: operator has not yet registered as a delegate"
         );
 
-        require(isNotDelegated(staker), "EigenLayrDelegation._delegate: staker has existing delegation");
+        require(isNotDelegated(staker), "EigenLayerDelegation._delegate: staker has existing delegation");
         // checks that operator has not been frozen
-        require(!slasher.isFrozen(operator), "EigenLayrDelegation._delegate: cannot delegate to a frozen operator");
+        require(!slasher.isFrozen(operator), "EigenLayerDelegation._delegate: cannot delegate to a frozen operator");
 
         // record delegation relation between the staker and operator
         delegatedTo[staker] = operator;

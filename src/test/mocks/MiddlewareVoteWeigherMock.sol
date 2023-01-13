@@ -9,11 +9,11 @@ contract MiddlewareVoteWeigherMock is RegistryBase {
     uint8 _NUMBER_OF_QUORUMS = 2;
 
     constructor(
-        IEigenLayrDelegation _delegation,
+        IEigenLayerDelegation _delegation,
         IInvestmentManager _investmentManager,
         IServiceManager _serviceManager
     )
-    RegistryBase(_delegation, _investmentManager, _serviceManager, _NUMBER_OF_QUORUMS)
+    RegistryBase(_investmentManager, _serviceManager, _NUMBER_OF_QUORUMS)
     {}
 
     function initialize(

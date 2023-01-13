@@ -66,11 +66,10 @@ abstract contract RegistryBase is VoteWeigherBase, IQuorumRegistry {
      * @notice Irrevocably sets the (immutable) `delegation` & `investmentManager` addresses, and `NUMBER_OF_QUORUMS` variable.
      */
     constructor(
-        IEigenLayrDelegation _delegation,
         IInvestmentManager _investmentManager,
         IServiceManager _serviceManager,
         uint8 _NUMBER_OF_QUORUMS
-    ) VoteWeigherBase(_delegation, _investmentManager, _serviceManager, _NUMBER_OF_QUORUMS)
+    ) VoteWeigherBase(_investmentManager, _serviceManager, _NUMBER_OF_QUORUMS)
     // solhint-disable-next-line no-empty-blocks
     {}
 
@@ -617,7 +616,7 @@ abstract contract RegistryBase is VoteWeigherBase, IQuorumRegistry {
      * @notice Finds the updated stake for `operator`, stores it and records the update.
      * @dev **DOES NOT UPDATE `totalStake` IN ANY WAY** -- `totalStake` updates must be done elsewhere.
      */
-    function _updateOperatorStake(address operator, bytes32 pubkeyHash, OperatorStake memory currentOperatorStake)
+    function _updateOperatorStake(address operator, bytes32 pubkeyHash, OperatorStake memory currentOperatorStake, uint256 insertAfter)
         internal
         returns (OperatorStake memory updatedOperatorStake)
     {
@@ -633,11 +632,13 @@ abstract contract RegistryBase is VoteWeigherBase, IQuorumRegistry {
         if (updatedOperatorStake.secondQuorumStake < minimumStakeSecondQuorum) {
             updatedOperatorStake.secondQuorumStake = uint96(0);
         }
-        //set nextUpdateBlockNumber in prev stakes
+        // set nextUpdateBlockNumber in prev stakes
         pubkeyHashToStakeHistory[pubkeyHash][pubkeyHashToStakeHistory[pubkeyHash].length - 1].nextUpdateBlockNumber =
             uint32(block.number);
         // push new stake to storage
         pubkeyHashToStakeHistory[pubkeyHash].push(updatedOperatorStake);
+        // record stake update in the slasher
+        serviceManager.recordStakeUpdate(operator, uint32(block.number), serviceManager.latestTime(), insertAfter);
 
         emit StakeUpdate(
             operator,

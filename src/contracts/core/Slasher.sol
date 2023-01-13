@@ -2,7 +2,7 @@
 pragma solidity ^0.8.9;
 
 import "../interfaces/ISlasher.sol";
-import "../interfaces/IEigenLayrDelegation.sol";
+import "../interfaces/IEigenLayerDelegation.sol";
 import "../interfaces/IInvestmentManager.sol";
 import "../libraries/StructuredLinkedList.sol";
 import "../permissions/Pausable.sol";
@@ -12,7 +12,7 @@ import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 // import "forge-std/Test.sol";
 
 /**
- * @title The primary 'slashing' contract for EigenLayr.
+ * @title The primary 'slashing' contract for EigenLayer.
  * @author Layr Labs, Inc.
  * @notice This contract specifies details on slashing. The functionalities are:
  * - adding contracts who have permission to perform slashing,
@@ -29,10 +29,10 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
     uint8 internal constant PAUSED_FIRST_STAKE_UPDATE = 1;
     uint8 internal constant PAUSED_NEW_FREEZING = 2;
 
-    /// @notice The central InvestmentManager contract of EigenLayr
+    /// @notice The central InvestmentManager contract of EigenLayer
     IInvestmentManager public immutable investmentManager;
-    /// @notice The EigenLayrDelegation contract of EigenLayr
-    IEigenLayrDelegation public immutable delegation;
+    /// @notice The EigenLayerDelegation contract of EigenLayer
+    IEigenLayerDelegation public immutable delegation;
     // operator => whitelisted contract with slashing permissions => (the time before which the contract is allowed to slash the user, block it was last updated)
     mapping(address => mapping(address => MiddlewareDetails)) internal _whitelistedContractDetails;
     // staker => if their funds are 'frozen' and potentially subject to slashing or not
@@ -57,6 +57,9 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
      */
     mapping(address => MiddlewareTimes[]) public operatorToMiddlewareTimes;
 
+    /// @notice Emitted when a middleware times is added to `operator`'s array.
+    event MiddlewareTimesAdded(address operator, uint256 index, uint32 stalestUpdateBlock, uint32 latestServeUntil);
+
     /// @notice Emitted when `operator` begins to allow `contractAddress` to slash them.
     event OptedIntoSlashing(address indexed operator, address indexed contractAddress);
 
@@ -64,15 +67,15 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
     event SlashingAbilityRevoked(address indexed operator, address indexed contractAddress, uint32 bondedUntil);
 
     /**
-     * @notice Emitted when `slashingContract` 'slashes' (technically, 'freezes') the `slashedOperator`.
+     * @notice Emitted when `slashingContract` 'freezes' the `slashedOperator`.
      * @dev The `slashingContract` must have permission to slash the `slashedOperator`, i.e. `canSlash(slasherOperator, slashingContract)` must return 'true'.
      */
-    event OperatorSlashed(address indexed slashedOperator, address indexed slashingContract);
+    event OperatorFrozen(address indexed slashedOperator, address indexed slashingContract);
 
     /// @notice Emitted when `previouslySlashedAddress` is 'unfrozen', allowing them to again move deposited funds within EigenLayer.
     event FrozenStatusReset(address indexed previouslySlashedAddress);
 
-    constructor(IInvestmentManager _investmentManager, IEigenLayrDelegation _delegation) {
+    constructor(IInvestmentManager _investmentManager, IEigenLayerDelegation _delegation) {
         investmentManager = _investmentManager;
         delegation = _delegation;
         _disableInitializers();
@@ -327,6 +330,12 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
         return node;
     }
 
+    /// @notice gets the node previous to the given node in the operators middleware update linked list
+    /// @dev used in offchain libs for updating stakes
+    function getPreviousWhitelistedContractByUpdate(address operator, uint256 node) public view returns (bool, uint256) {
+        return operatorToWhitelistedContractsByUpdate[operator].getPreviousNode(node);
+    }
+
     // INTERNAL FUNCTIONS
 
     function _optIntoSlashing(address operator, address contractAddress) internal {
@@ -346,7 +355,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
     function _freezeOperator(address toBeFrozen, address slashingContract) internal {
         if (!frozenStatus[toBeFrozen]) {
             frozenStatus[toBeFrozen] = true;
-            emit OperatorSlashed(toBeFrozen, slashingContract);
+            emit OperatorFrozen(toBeFrozen, slashingContract);
         }
     }
 
@@ -415,6 +424,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
         // if `next` has new information, then push it
         if (pushToMiddlewareTimes) {
             operatorToMiddlewareTimes[operator].push(next);
+            emit MiddlewareTimesAdded(operator, operatorToMiddlewareTimes[operator].length - 1, next.stalestUpdateBlock, next.latestServeUntil);
         }
     }
 

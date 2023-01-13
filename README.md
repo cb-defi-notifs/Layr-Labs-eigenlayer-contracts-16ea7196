@@ -24,11 +24,17 @@ Flow Docs
 
 ### Installation
 
-`foundry up`
+`foundryup`
 
 This repository uses Foundry as a smart contract development toolchain.
 
 See the [Foundry Docs](https://book.getfoundry.sh/) for more info on installation and usage.
+
+### Natspec Documentation
+
+You will notice that we also have hardhat installed in this repo. This is only used to generate natspec [docgen](https://github.com/OpenZeppelin/solidity-docgen). This is our workaround until foundry [finishes implementing](https://github.com/foundry-rs/foundry/issues/1675) the `forge doc` command.
+
+To generate the docs, run `npx hardhat docgen` (you may need to run `npm install` first). The output is located in `docs/docgen`
 
 ### Run Tests
 

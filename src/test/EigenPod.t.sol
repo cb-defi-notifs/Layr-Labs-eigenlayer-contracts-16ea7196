@@ -5,7 +5,7 @@ import "../contracts/interfaces/IEigenPod.sol";
 import "../contracts/interfaces/IBLSPublicKeyCompendium.sol";
 import "../contracts/middleware/BLSPublicKeyCompendium.sol";
 import "./utils/BeaconChainUtils.sol";
-import "./EigenLayrDeployer.t.sol";
+import "./EigenLayerDeployer.t.sol";
 import "./mocks/MiddlewareRegistryMock.sol";
 import "./mocks/ServiceManagerMock.sol";
 
@@ -26,12 +26,12 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     address podOwner = address(42000094993494);
 
     Vm cheats = Vm(HEVM_ADDRESS);
-    EigenLayrDelegation public delegation;
+    EigenLayerDelegation public delegation;
     IInvestmentManager public investmentManager;
     Slasher public slasher;
     PauserRegistry public pauserReg;
 
-    ProxyAdmin public eigenLayrProxyAdmin;
+    ProxyAdmin public eigenLayerProxyAdmin;
     IBLSPublicKeyCompendium public blsPkCompendium;
     IEigenPodManager public eigenPodManager;
     IEigenPod public podImplementation;
@@ -63,7 +63,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     //performs basic deployment before each test
     function setUp() public {
         // deploy proxy admin for ability to upgrade proxy contracts
-        eigenLayrProxyAdmin = new ProxyAdmin();
+        eigenLayerProxyAdmin = new ProxyAdmin();
 
         // deploy pauser registry
         pauserReg = new PauserRegistry(pauser, unpauser);
@@ -75,14 +75,14 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
          * not yet deployed, we give these proxies an empty contract as the initial implementation, to act as if they have no code.
          */
         EmptyContract emptyContract = new EmptyContract();
-        delegation = EigenLayrDelegation(
-            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
+        delegation = EigenLayerDelegation(
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayerProxyAdmin), ""))
         );
         investmentManager = InvestmentManager(
-            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayerProxyAdmin), ""))
         );
         slasher = Slasher(
-            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayerProxyAdmin), ""))
         );
 
         beaconChainOracle = new BeaconChainOracleMock();
@@ -99,11 +99,11 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
 
         // this contract is deployed later to keep its address the same (for these tests)
         eigenPodManager = EigenPodManager(
-            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayerProxyAdmin), ""))
         );
 
         // Second, deploy the *implementation* contracts, using the *proxy contracts* as inputs
-        EigenLayrDelegation delegationImplementation = new EigenLayrDelegation(investmentManager, slasher);
+        EigenLayerDelegation delegationImplementation = new EigenLayerDelegation(investmentManager, slasher);
         InvestmentManager investmentManagerImplementation = new InvestmentManager(delegation, eigenPodManager, slasher);
         Slasher slasherImplementation = new Slasher(investmentManager, delegation);
         EigenPodManager eigenPodManagerImplementation = new EigenPodManager(ethPOSDeposit, eigenPodBeacon, investmentManager, slasher);
@@ -115,22 +115,22 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
 
         address initialOwner = address(this);
         // Third, upgrade the proxy contracts to use the correct implementation contracts and initialize them.
-        eigenLayrProxyAdmin.upgradeAndCall(
+        eigenLayerProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(delegation))),
             address(delegationImplementation),
-            abi.encodeWithSelector(EigenLayrDelegation.initialize.selector, pauserReg, initialOwner)
+            abi.encodeWithSelector(EigenLayerDelegation.initialize.selector, pauserReg, initialOwner)
         );
-        eigenLayrProxyAdmin.upgradeAndCall(
+        eigenLayerProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(investmentManager))),
             address(investmentManagerImplementation),
             abi.encodeWithSelector(InvestmentManager.initialize.selector, pauserReg, initialOwner)
         );
-        eigenLayrProxyAdmin.upgradeAndCall(
+        eigenLayerProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(slasher))),
             address(slasherImplementation),
             abi.encodeWithSelector(Slasher.initialize.selector, pauserReg, initialOwner)
         );
-        eigenLayrProxyAdmin.upgradeAndCall(
+        eigenLayerProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(eigenPodManager))),
             address(eigenPodManagerImplementation),
             abi.encodeWithSelector(EigenPodManager.initialize.selector, beaconChainOracle, initialOwner)
@@ -145,7 +145,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         cheats.deal(address(podOwner), stakeAmount);     
 
         fuzzedAddressMapping[address(0)] = true;
-        fuzzedAddressMapping[address(eigenLayrProxyAdmin)] = true;
+        fuzzedAddressMapping[address(eigenLayerProxyAdmin)] = true;
         fuzzedAddressMapping[address(investmentManager)] = true;
         fuzzedAddressMapping[address(eigenPodManager)] = true;
         fuzzedAddressMapping[address(delegation)] = true;
@@ -601,7 +601,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         IEigenPod pod = testFraudulentPartialWithdrawal(partialWithdrawalAmountGwei);
 
         cheats.prank(podOwner);
-        cheats.expectRevert(bytes("EigenPod.redeemLatestPartialWithdrawal: partial withdrawal not eligible for redemption"));
+        cheats.expectRevert(bytes("EigenPod.redeemLatestPartialWithdrawal: partial withdrawal either redeemed or failed making it ineligible for redemption"));
         pod.redeemLatestPartialWithdrawal(podOwner);
     }
 
@@ -690,6 +690,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     //                     always accounts for the parital withdrawal
 
     function testEigenPodsQueuedWithdrawal(address operator) public fuzzedAddress(operator){
+        cheats.assume(operator != podOwner);
         //make initial deposit
         testDeployAndVerifyNewEigenPod();
 
@@ -734,9 +735,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         cheats.warp(uint32(block.timestamp) + 1 days);
         cheats.roll(uint32(block.timestamp) + 1 days);
 
-        cheats.startPrank(podOwner);
-        investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, podOwner, undelegateIfPossible);
-        cheats.stopPrank();
+        _testQueueWithdrawal(podOwner, strategyIndexes, strategyArray, tokensArray, shareAmounts, undelegateIfPossible);
         uint32 queuedWithdrawalStartBlock = uint32(block.number);
 
         //*************************DELEGATION/Stake Update STUFF******************************//
@@ -778,8 +777,8 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         require(podOwner.balance - podOwnerBalanceBefore == shareAmounts[0], "podOwner balance not updated correcty");
     } 
 
-    // simply tries to register 'sender' as a delegate, setting their 'DelegationTerms' contract in EigenLayrDelegation to 'dt'
-    // verifies that the storage of EigenLayrDelegation contract is updated appropriately
+    // simply tries to register 'sender' as a delegate, setting their 'DelegationTerms' contract in EigenLayerDelegation to 'dt'
+    // verifies that the storage of EigenLayerDelegation contract is updated appropriately
     function _testRegisterAsOperator(address sender, IDelegationTerms dt) internal {
         cheats.startPrank(sender);
 
@@ -963,6 +962,33 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         // bytes32 validatorIndexBytes = bytes32(uint256(validatorIndex));
         bytes memory proofs = abi.encodePacked(validatorMerkleProof, beaconStateMerkleProofForValidators);
         pod.verifyOvercommittedStake(validatorIndex, proofs, validatorContainerFields, 0);
+    }
+
+    function _testQueueWithdrawal(
+        address depositor,
+        uint256[] memory strategyIndexes,
+        IInvestmentStrategy[] memory strategyArray,
+        IERC20[] memory tokensArray,
+        uint256[] memory shareAmounts,
+        bool undelegateIfPossible
+    )
+        internal
+        returns (bytes32)
+    {
+        IInvestmentManager.StratsTokensShares memory sts = IInvestmentManager.StratsTokensShares(strategyArray, tokensArray, shareAmounts);
+        cheats.startPrank(depositor);
+
+        //make a call with depositor aka podOwner also as withdrawer.
+        bytes32 withdrawalRoot = investmentManager.queueWithdrawal(
+            strategyIndexes,
+            sts,
+            depositor,
+            // TODO: make this an input
+            undelegateIfPossible
+        );
+
+        cheats.stopPrank();
+        return withdrawalRoot;
     }
 
  }

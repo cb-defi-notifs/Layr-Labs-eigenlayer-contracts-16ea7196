@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "../interfaces/IServiceManager.sol";
 import "../interfaces/IQuorumRegistry.sol";
-import "../interfaces/IEigenLayrDelegation.sol";
+import "../interfaces/IEigenLayerDelegation.sol";
 import "../interfaces/IPaymentManager.sol";
 import "../permissions/Pausable.sol";
 
@@ -17,7 +17,7 @@ import "../permissions/Pausable.sol";
  * @author Layr Labs, Inc.
  * @notice This contract is used for doing interactive payment challenges.
  * @notice The contract is marked as abstract since it does not implement the `respondToPaymentChallengeFinal`
- * function -- see DataLayrPaymentManager for an example
+ * function -- see DataLayerPaymentManager for an example
  */
 //
 abstract contract PaymentManager is Initializable, IPaymentManager, Pausable {
@@ -38,11 +38,11 @@ abstract contract PaymentManager is Initializable, IPaymentManager, Pausable {
     uint256 internal constant LOW_LEVEL_GAS_BUDGET = 1e5;
 
     /**
-     * @notice The global EigenLayr Delegation contract, which is primarily used by
+     * @notice The global EigenLayer Delegation contract, which is primarily used by
      * stakers to delegate their stake to operators who serve as middleware nodes.
-     * @dev For more details, see EigenLayrDelegation.sol.
+     * @dev For more details, see EigenLayerDelegation.sol.
      */
-    IEigenLayrDelegation public immutable eigenLayrDelegation;
+    IEigenLayerDelegation public immutable eigenLayerDelegation;
 
     /// @notice The ServiceManager contract for this middleware, where tasks are created / initiated.
     IServiceManager public immutable serviceManager;
@@ -116,13 +116,13 @@ abstract contract PaymentManager is Initializable, IPaymentManager, Pausable {
     }
 
     constructor(
-        IEigenLayrDelegation _eigenLayrDelegation,
+        IEigenLayerDelegation _eigenLayerDelegation,
         IServiceManager _serviceManager,
         IQuorumRegistry _registry,
         IERC20 _paymentToken,
         IERC20 _collateralToken
     ) {
-        eigenLayrDelegation = _eigenLayrDelegation;
+        eigenLayerDelegation = _eigenLayerDelegation;
         serviceManager = _serviceManager;
         registry = _registry;
         paymentToken = _paymentToken;
@@ -252,7 +252,7 @@ abstract contract PaymentManager is Initializable, IPaymentManager, Pausable {
 
         // look up payment amount and delegation terms address for the `msg.sender`
         uint256 amount = operatorToPayment[msg.sender].amount;
-        IDelegationTerms dt = eigenLayrDelegation.delegationTerms(msg.sender);
+        IDelegationTerms dt = eigenLayerDelegation.delegationTerms(msg.sender);
 
         // transfer the amount due in the payment claim of the operator to its delegation terms contract, where the delegators can withdraw their rewards.
         paymentToken.safeTransfer(address(dt), amount);

@@ -1,9 +1,9 @@
-# EigenLayr Smart Contract Tests
-This document provides some context for EigenLayr's automated tests, design philsophy for them, and broad tracking of goals.
+# EigenLayer Smart Contract Tests
+This document provides some context for EigenLayer's automated tests, design philsophy for them, and broad tracking of goals.
 Existing tests are broken into a few suites.
-Several suites -- namely 'Investment', 'Delegation', and 'DataLayr' -- depend on a shared setup and use quite a few shared/modular functions; this shared setup/functionality is contained in the 'Deployer.t.sol' file.
+Several suites -- namely 'Investment', 'Delegation', and 'DataLayer' -- depend on a shared setup and use quite a few shared/modular functions; this shared setup/functionality is contained in the 'Deployer.t.sol' file.
 Other existing suites have more limited dependencies and currently cover:
--'Disclosure' -- covers forced disclosure of data in DataLayr
+-'Disclosure' -- covers forced disclosure of data in DataLayer
 -'NFGT' -- covers basic testing of experimental NFGT token
 
 ## High Level Goals

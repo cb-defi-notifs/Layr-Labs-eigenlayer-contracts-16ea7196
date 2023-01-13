@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
+import "@openzeppelin/contracts/interfaces/IERC1271.sol";
+import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
 import "@openzeppelin-upgrades/contracts/security/ReentrancyGuardUpgradeable.sol";
@@ -14,7 +16,7 @@ import "../interfaces/IEigenPodManager.sol";
 import "forge-std/Test.sol";
 
 /**
- * @title The primary entry- and exit-point for funds into and out of EigenLayr.
+ * @title The primary entry- and exit-point for funds into and out of EigenLayer.
  * @author Layr Labs, Inc.
  * @notice This contract is for managing investments in different strategies. The main
  * functionalities are:
@@ -22,7 +24,7 @@ import "forge-std/Test.sol";
  * - enabling deposit of assets into specified investment strategy(s)
  * - enabling removal of assets from specified investment strategy(s)
  * - recording deposit of ETH into settlement layer
- * - recording deposit of Eigen for securing EigenLayr
+ * - recording deposit of Eigen for securing EigenLayer
  * - slashing of assets for permissioned strategies
  */
 contract InvestmentManager is
@@ -31,24 +33,52 @@ contract InvestmentManager is
     ReentrancyGuardUpgradeable,
     InvestmentManagerStorage,
     Pausable
-    // ,Test
+    ,Test
 {
     using SafeERC20 for IERC20;
 
     uint256 constant GWEI_TO_WEI = 1e9;
 
+    // index for flag that pauses deposits when set
     uint8 internal constant PAUSED_DEPOSITS = 0;
+    // index for flag that pauses withdrawals when set
     uint8 internal constant PAUSED_WITHDRAWALS = 1;
+
+    // bytes4(keccak256("isValidSignature(bytes32,bytes)")
+    bytes4 constant internal ERC1271_MAGICVALUE = 0x1626ba7e;
+
+    /**
+     * @notice Emitted when a new deposit occurs on behalf of `depositor`.
+     * @param depositor Is the staker who is depositing funds into EigenLayer.
+     * @param strategy Is the investment strategy that `depositor` has deposited into.
+     * @param token Is the token that `depositor` deposited.
+     * @param shares Is the number of shares `depositor` has in `strategy`.
+     */
+    event Deposit(
+        address depositor, IERC20 token, IInvestmentStrategy strategy, uint256 shares
+    );
+
+    /**
+     * @notice Emitted when a new withdrawal occurs on behalf of `depositor`.
+     * @param depositor Is the staker who is queuing a withdrawal from EigenLayer.
+     * @param nonce Is the withdrawal's unique identifier (to the depositor).
+     * @param strategy Is the investment strategy that `depositor` has queued to withdraw from.
+     * @param shares Is the number of shares `depositor` has queued to withdraw.
+     */
+    event ShareWithdrawalQueued(
+        address depositor, uint96 nonce, IInvestmentStrategy strategy, uint256 shares
+    );
 
     /**
      * @notice Emitted when a new withdrawal is queued by `depositor`.
      * @param depositor Is the staker who is withdrawing funds from EigenLayer.
+     * @param nonce Is the withdrawal's unique identifier (to the depositor).
      * @param withdrawer Is the party specified by `staker` who will be able to complete the queued withdrawal and receive the withdrawn funds.
      * @param delegatedAddress Is the party who the `staker` was delegated to at the time of creating the queued withdrawal
      * @param withdrawalRoot Is a hash of the input data for the withdrawal.
      */
     event WithdrawalQueued(
-        address indexed depositor, address indexed withdrawer, address indexed delegatedAddress, bytes32 withdrawalRoot
+        address depositor, uint96 nonce, address withdrawer, address delegatedAddress, bytes32 withdrawalRoot
     );
 
     /// @notice Emitted when a queued withdrawal is completed
@@ -78,11 +108,11 @@ contract InvestmentManager is
     }
 
     /**
-     * @param _delegation The delegation contract of EigenLayr.
-     * @param _slasher The primary slashing contract of EigenLayr.
+     * @param _delegation The delegation contract of EigenLayer.
+     * @param _slasher The primary slashing contract of EigenLayer.
      * @param _eigenPodManager The contract that keeps track of EigenPod stakes for restaking beacon chain ether.
      */
-    constructor(IEigenLayrDelegation _delegation, IEigenPodManager _eigenPodManager, ISlasher _slasher)
+    constructor(IEigenLayerDelegation _delegation, IEigenPodManager _eigenPodManager, ISlasher _slasher)
         InvestmentManagerStorage(_delegation, _eigenPodManager, _slasher)
     {
         _disableInitializers();
@@ -101,7 +131,7 @@ contract InvestmentManager is
         initializer
     {
         //TODO: abstract this logic into an inherited contract for Delegation and Investment manager and have a conversation about meta transactions in general
-        DOMAIN_SEPARATOR = keccak256(abi.encode(DOMAIN_TYPEHASH, bytes("EigenLayr"), block.chainid, address(this)));
+        DOMAIN_SEPARATOR = keccak256(abi.encode(DOMAIN_TYPEHASH, bytes("EigenLayer"), block.chainid, address(this)));
         _initializePauser(_pauserRegistry, UNPAUSE_ALL);
         _transferOwnership(initialOwner);
     }
@@ -174,7 +204,8 @@ contract InvestmentManager is
      * @param amount is the amount of token to be invested in the strategy by the depositor
      * @param staker the staker that the assets will be deposited on behalf of
      * @param expiry the timestamp at which the signature expires
-     * @param r and @param vs are the elements of the ECDSA signature
+     * @param signature is a valid signature from the `staker`. either an ECDSA signature if the `staker` is an EOA, or data to forward
+     * following EIP-1271 if the `staker` is a contract
      * @dev The `msg.sender` must have previously approved this contract to transfer at least `amount` of `token` on their behalf.
      * @dev A signature is required for this function to eliminate the possibility of griefing attacks, specifically those
      * targetting stakers who may be attempting to undelegate.
@@ -186,8 +217,7 @@ contract InvestmentManager is
         uint256 amount,
         address staker,
         uint256 expiry,
-        bytes32 r,
-        bytes32 vs
+        bytes memory signature
     )
         external
         onlyWhenNotPaused(PAUSED_DEPOSITS)
@@ -196,15 +226,31 @@ contract InvestmentManager is
         returns (uint256 shares)
     {
         require(
-            expiry == 0 || expiry >= block.timestamp,
+            expiry >= block.timestamp,
             "InvestmentManager.depositIntoStrategyOnBehalfOf: delegation signature expired"
         );
         // calculate struct hash, then increment `staker`'s nonce
-        bytes32 structHash = keccak256(abi.encode(DEPOSIT_TYPEHASH, strategy, token, amount, nonces[staker]++, expiry));
+        uint256 nonce = nonces[staker];
+        bytes32 structHash = keccak256(abi.encode(DEPOSIT_TYPEHASH, strategy, token, amount, nonce, expiry));
+        unchecked {
+            nonces[staker] = nonce + 1;
+        }
         bytes32 digestHash = keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, structHash));
-        // check validity of signature
-        address recoveredAddress = ECDSA.recover(digestHash, r, vs);
-        require(recoveredAddress == staker, "InvestmentManager.depositIntoStrategyOnBehalfOf: sig not from staker");
+
+
+        /**
+         * check validity of signature:
+         * 1) if `staker` is an EOA, then `signature` must be a valid ECSDA signature from `staker`,
+         * indicating their intention for this action
+         * 2) if `staker` is a contract, then `signature` must will be checked according to EIP-1271
+         */
+        if (Address.isContract(staker)) {
+            require(IERC1271(staker).isValidSignature(digestHash, signature) == ERC1271_MAGICVALUE,
+                "InvestmentManager.depositIntoStrategyOnBehalfOf: ERC1271 signature verification failed");
+        } else {
+            require(ECDSA.recover(digestHash, signature) == staker,
+                "InvestmentManager.depositIntoStrategyOnBehalfOf: sig not from staker");
+        }
 
         shares = _depositIntoStrategy(staker, strategy, token, amount);
     }
@@ -238,9 +284,7 @@ contract InvestmentManager is
      */
     function queueWithdrawal(
         uint256[] calldata strategyIndexes,
-        IInvestmentStrategy[] calldata strategies,
-        IERC20[] calldata tokens,
-        uint256[] calldata shares,
+        StratsTokensShares calldata sts,
         address withdrawer,
         bool undelegateIfPossible
     )
@@ -253,43 +297,38 @@ contract InvestmentManager is
     {
         require(!paused(PAUSED_WITHDRAWALS), "Pausable: index is paused");
 
-        {
-            /**
-             * Ensure that if the withdrawal includes beacon chain ETH, the specified 'withdrawer' is not different than the caller.
-             * This is because shares in the enshrined `beaconChainETHStrategy` ultimately represent tokens in **non-fungible** EigenPods,
-             * while other share in all other strategies represent purely fungible positions.
-             */
-            for (uint256 i = 0; i < strategies.length;) {
-                if (strategies[i] == beaconChainETHStrategy) {
-
-                    require(withdrawer == msg.sender,
-                        "InvestmentManager.queueWithdrawal: cannot queue a withdrawal of Beacon Chain ETH to a different address");
-                    require(strategies.length == 1,
-                        "InvestmentManager.queueWithdrawal: cannot queue a withdrawal including Beacon Chain ETH and other tokens");
-                    require(shares[i] % GWEI_TO_WEI == 0,
-                        "InvestmentManager.queueWithdrawal: cannot queue a withdrawal of Beacon Chain ETH for an non-whole amount of gwei");
-                }
-
-                //increment the loop
-                unchecked {
-                    ++i;
-                }
-            }
-        }
-
         // modify delegated shares accordingly, if applicable
-        delegation.decreaseDelegatedShares(msg.sender, strategies, shares);
+        delegation.decreaseDelegatedShares(msg.sender, sts.strategies, sts.shares);
+
+        uint96 nonce = uint96(numWithdrawalsQueued[msg.sender]);
+        
 
         uint256 strategyIndexIndex;
 
-        for (uint256 i = 0; i < strategies.length;) {
+        /**
+         * Ensure that if the withdrawal includes beacon chain ETH, the specified 'withdrawer' is not different than the caller.
+         * This is because shares in the enshrined `beaconChainETHStrategy` ultimately represent tokens in **non-fungible** EigenPods,
+         * while other share in all other strategies represent purely fungible positions.
+         */
+        for (uint256 i = 0; i < sts.strategies.length;) {
+            if (sts.strategies[i] == beaconChainETHStrategy) {
+                require(withdrawer == msg.sender,
+                    "InvestmentManager.queueWithdrawal: cannot queue a withdrawal of Beacon Chain ETH to a different address");
+                require(sts.strategies.length == 1,
+                    "InvestmentManager.queueWithdrawal: cannot queue a withdrawal including Beacon Chain ETH and other tokens");
+                require(sts.shares[i] % GWEI_TO_WEI == 0,
+                    "InvestmentManager.queueWithdrawal: cannot queue a withdrawal of Beacon Chain ETH for an non-whole amount of gwei");
+            }      
+
             // the internal function will return 'true' in the event the strategy was
             // removed from the depositor's array of strategies -- i.e. investorStrats[depositor]
-            if (_removeShares(msg.sender, strategyIndexes[strategyIndexIndex], strategies[i], shares[i])) {
+            if (_removeShares(msg.sender, strategyIndexes[strategyIndexIndex], sts.strategies[i], sts.shares[i])) {
                 unchecked {
                     ++strategyIndexIndex;
                 }
             }
+
+            emit ShareWithdrawalQueued(msg.sender, nonce, sts.strategies[i], sts.shares[i]);
 
             //increment the loop
             unchecked {
@@ -305,18 +344,18 @@ contract InvestmentManager is
         {
             WithdrawerAndNonce memory withdrawerAndNonce = WithdrawerAndNonce({
                 withdrawer: withdrawer,
-                nonce: uint96(numWithdrawalsQueued[msg.sender])
+                nonce: nonce
             });
             // increment the numWithdrawalsQueued of the sender
             unchecked {
-                ++numWithdrawalsQueued[msg.sender];
+                numWithdrawalsQueued[msg.sender] = nonce + 1;
             }
 
             // copy arguments into struct and pull delegation info
             queuedWithdrawal = QueuedWithdrawal({
-                strategies: strategies,
-                tokens: tokens,
-                shares: shares,
+                strategies: sts.strategies,
+                tokens: sts.tokens,
+                shares: sts.shares,
                 depositor: msg.sender,
                 withdrawerAndNonce: withdrawerAndNonce,
                 withdrawalStartBlock: uint32(block.number),
@@ -340,7 +379,7 @@ contract InvestmentManager is
             _undelegate(msg.sender);
         }
 
-        emit WithdrawalQueued(msg.sender, withdrawer, delegatedAddress, withdrawalRoot);
+        emit WithdrawalQueued(msg.sender, nonce, withdrawer, delegatedAddress, withdrawalRoot);
 
         return withdrawalRoot;
     }
@@ -554,6 +593,8 @@ contract InvestmentManager is
         // add the returned shares to the depositor's existing shares for this strategy
         _addShares(depositor, strategy, shares);
 
+        emit Deposit(depositor, token, strategy, shares);
+
         return shares;
     }
 
@@ -571,7 +612,7 @@ contract InvestmentManager is
 
         //check that the user has sufficient shares
         uint256 userShares = investorStratShares[depositor][strategy];
-
+        
         require(shareAmount <= userShares, "InvestmentManager._removeShares: shareAmount too high");
         //unchecked arithmetic since we just checked this above
         unchecked {
@@ -619,7 +660,6 @@ contract InvestmentManager is
                 }
             }
         }
-
         // pop off the last entry in the list of strategies
         investorStrats[depositor].pop();
     }
