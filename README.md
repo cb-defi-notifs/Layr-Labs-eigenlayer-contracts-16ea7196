@@ -18,6 +18,7 @@ Flow Docs
 * [EigenLayer Withdrawal Flow](docs/EigenLayer-withdrawal-flow.md)
 * [EigenLayer Deposit Flow](docs/EigenLayer-deposit-flow.md)
 * [EigenLayer Delegation Flow](docs/EigenLayer-delegation-flow.md)
+* [Middleware Registration Flow for Operators](docs/Middleware-registration-operator-flow.md)
 
 <a name="installation"/></a>
 ## Installation and Running Tests / Analyzers
