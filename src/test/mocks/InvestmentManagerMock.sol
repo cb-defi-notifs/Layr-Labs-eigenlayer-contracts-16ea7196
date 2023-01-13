@@ -31,7 +31,6 @@ contract InvestmentManagerMock is
        delegation = _delegation;
        slasher = _slasher;
        eigenPodManager = _eigenPodManager;
-
     }
 
     function depositIntoStrategy(IInvestmentStrategy strategy, IERC20 token, uint256 amount)
@@ -117,4 +116,3 @@ contract InvestmentManagerMock is
     /// @notice returns the enshrined beaconChainETH Strategy
     function beaconChainETHStrategy() external view returns (IInvestmentStrategy){}
 }
-

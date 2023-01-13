@@ -13,7 +13,7 @@ import "./InvestmentManagerStorage.sol";
 import "../interfaces/IServiceManager.sol";
 import "../interfaces/IEigenPodManager.sol";
 
-import "forge-std/Test.sol";
+//import "forge-std/Test.sol";
 
 /**
  * @title The primary entry- and exit-point for funds into and out of EigenLayer.
@@ -33,7 +33,7 @@ contract InvestmentManager is
     ReentrancyGuardUpgradeable,
     InvestmentManagerStorage,
     Pausable
-    ,Test
+    // ,Test
 {
     using SafeERC20 for IERC20;
 
@@ -296,7 +296,7 @@ contract InvestmentManager is
         returns (bytes32)
     {
         require(!paused(PAUSED_WITHDRAWALS), "Pausable: index is paused");
-
+    
         // modify delegated shares accordingly, if applicable
         delegation.decreaseDelegatedShares(msg.sender, sts.strategies, sts.shares);
 
@@ -318,7 +318,7 @@ contract InvestmentManager is
                     "InvestmentManager.queueWithdrawal: cannot queue a withdrawal including Beacon Chain ETH and other tokens");
                 require(sts.shares[i] % GWEI_TO_WEI == 0,
                     "InvestmentManager.queueWithdrawal: cannot queue a withdrawal of Beacon Chain ETH for an non-whole amount of gwei");
-            }      
+            }   
 
             // the internal function will return 'true' in the event the strategy was
             // removed from the depositor's array of strategies -- i.e. investorStrats[depositor]
@@ -361,6 +361,7 @@ contract InvestmentManager is
                 withdrawalStartBlock: uint32(block.number),
                 delegatedAddress: delegatedAddress
             });
+
         }
 
         // calculate the withdrawal root
@@ -451,7 +452,6 @@ contract InvestmentManager is
                 }
             }
         }
-
         emit WithdrawalCompleted(queuedWithdrawal.depositor, msg.sender, withdrawalRoot);
     }
 

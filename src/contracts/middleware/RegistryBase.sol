@@ -7,8 +7,6 @@ import "../interfaces/IQuorumRegistry.sol";
 import "../libraries/BytesLib.sol";
 import "./VoteWeigherBase.sol";
 
-import "forge-std/Test.sol";
-
 /**
  * @title An abstract Registry-type contract that is signature scheme agnostic.
  * @author Layr Labs, Inc.
