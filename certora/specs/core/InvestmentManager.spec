@@ -1,7 +1,7 @@
 
 methods {
     //// External Calls
-	// external calls to EigenLayrDelegation 
+	// external calls to EigenLayerDelegation 
     undelegate(address) => DISPATCHER(true)
     isDelegated(address) returns (bool) => DISPATCHER(true)
     delegatedTo(address) returns (address) => DISPATCHER(true)
@@ -33,7 +33,8 @@ methods {
 	
     //// Harnessed Functions
     // Harnessed calls
-    // Harmessed getters
+    // Harnessed getters
+    strategy_is_in_stakers_array(address, address) returns (bool) envfree
 
 	//// Normal Functions
 	investorStratsLength(address) returns (uint256) envfree
@@ -44,12 +45,18 @@ methods {
 invariant investorStratsLengthLessThanOrEqualToMax(address staker)
 	investorStratsLength(staker) <= 32
 
-// TODO: this rule is currently failing, but is likely salvageable. presumably needs a stricter condition.
-// Seems like perhaps this is failing due to dispatcher hitting HAVOC inside of the safeTransfer of the Base Strategy?
+// Seems like perhaps `strategiesInArrayHaveNonzeroShares` and `strategiesInArrayHaveNonzeroSharesAttemptTwo`
+// are failing due to dispatcher hitting HAVOC inside of the safeTransfer of the Base Strategy (or similar, multi-level-deep calls)
+// seeing failures in `queueWithdrawal`, `recordOvercommittedBeaconChainETH`, `completeQueuedWithdrawal`, `slashShares`, and `slashQueuedWithdrawal`
 
+// TODO: this rule is currently failing, but is likely salvageable. presumably needs a stricter condition.
 // if a strategy is in the staker's array of strategies, then the staker should have nonzero shares in that strategy
 invariant strategiesInArrayHaveNonzeroShares(address staker, uint256 index)
     (index < investorStratsLength(staker)) => (investorStratShares(staker, investorStrats(staker, index)) > 0)
+
+// if a strategy is in the staker's array of strategies, then the staker should have nonzero shares in that strategy
+invariant strategiesInArrayHaveNonzeroSharesAttemptTwo(address staker, address strategy)
+    strategy_is_in_stakers_array(staker, strategy) <=> (investorStratShares(staker, strategy) > 0)
 
 // if a strategy is *not* in staker's array of strategies, then the staker should have precisely zero shares in that strategy
 invariant strategiesNotInArrayHaveZeroShares(address staker, uint256 index)

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "../munged/core/EigenLayrDelegation.sol";
+import "../munged/core/EigenLayerDelegation.sol";
 
-contract EigenLayrDelegationHarness is EigenLayrDelegation {
+contract EigenLayerDelegationHarness is EigenLayerDelegation {
 
-    constructor(IInvestmentManager _investmentManager, ISlasher _slasher) EigenLayrDelegation(_investmentManager, _slasher) {}
+    constructor(IInvestmentManager _investmentManager, ISlasher _slasher) EigenLayerDelegation(_investmentManager, _slasher) {}
 
 
     /// Harnessed functions

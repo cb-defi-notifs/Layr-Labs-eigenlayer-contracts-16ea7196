@@ -1,7 +1,7 @@
 
 methods {
     //// External Calls
-	// external calls to EigenLayrDelegation 
+	// external calls to EigenLayerDelegation 
     undelegate(address) => DISPATCHER(true)
     isDelegated(address) returns (bool) => DISPATCHER(true)
     delegatedTo(address) returns (address) => DISPATCHER(true)

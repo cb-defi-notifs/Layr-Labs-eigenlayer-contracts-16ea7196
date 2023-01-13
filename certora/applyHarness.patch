@@ -1,8 +1,7 @@
-Binary files ../s.DS_Store and .DS_Store differ
-diff -druN ../score/EigenLayrDelegation.sol core/EigenLayrDelegation.sol
---- ../score/EigenLayrDelegation.sol	2023-01-06 14:39:35
-+++ core/EigenLayrDelegation.sol	2023-01-09 14:13:40
-@@ -138,10 +138,10 @@
+diff -druN ../score/EigenLayerDelegation.sol core/EigenLayerDelegation.sol
+--- ../score/EigenLayerDelegation.sol	2023-01-13 14:12:34
++++ core/EigenLayerDelegation.sol	2023-01-13 14:24:43
+@@ -160,10 +160,10 @@
       */
      function decreaseDelegatedShares(
          address staker,
@@ -16,10 +15,373 @@ diff -druN ../score/EigenLayrDelegation.sol core/EigenLayrDelegation.sol
          onlyInvestmentManager
      {
          if (isDelegated(staker)) {
+diff -druN ../score/EigenLayerDelegation.sol.orig core/EigenLayerDelegation.sol.orig
+--- ../score/EigenLayerDelegation.sol.orig	1969-12-31 16:00:00
++++ core/EigenLayerDelegation.sol.orig	2023-01-13 14:24:43
+@@ -0,0 +1,338 @@
++// SPDX-License-Identifier: UNLICENSED
++pragma solidity ^0.8.9;
++
++import "@openzeppeltoken/ERC20/IERC20.sol";
++import "@openzeppelinterfaces/IERC1271.sol";
++import "@openzeppelutils/Address.sol";
++import "@openzeppelaccess/Ownable.sol";
++import "@openzeppelin-upgradaccess/OwnableUpgradeable.sol";
++import "@openzeppelin-upgradproxy/utils/Initializable.sol";
++import "@openzeppelutils/cryptography/ECDSA.sol";
++import "./EigenLayerDelegationStorage.sol";
++import "../permissions/Pausable.sol";
++import "./Slasher.sol";
++
++/**
++ * @title The primary delegation contract for EigenLayer.
++ * @author Layr Labs, Inc.
++ * @notice  This is the contract for delegation in EigenLayer. The main functionalities of this contract are
++ * - enabling anyone to register as an operator in EigenLayer
++ * - allowing new operators to provide a DelegationTerms-type contract, which may mediate their interactions with stakers who delegate to them
++ * - enabling any staker to delegate its stake to the operator of its choice
++ * - enabling a staker to undelegate its assets from an operator (performed as part of the withdrawal process, initiated through the InvestmentManager)
++ */
++contract EigenLayerDelegation is Initializable, OwnableUpgradeable, EigenLayerDelegationStorage, Pausable {
++    // index for flag that pauses new delegations when set
++    uint8 internal constant PAUSED_NEW_DELEGATION = 0;
++    // bytes4(keccak256("isValidSignature(bytes32,bytes)")
++    bytes4 constant internal ERC1271_MAGICVALUE = 0x1626ba7e;
++
++    /// @notice Simple permission for functions that are only callable by the InvestmentManager contract.
++    modifier onlyInvestmentManager() {
++        require(msg.sender == address(investmentManager), "onlyInvestmentManager");
++        _;
++    }
++
++    // INITIALIZING FUNCTIONS
++    constructor(IInvestmentManager _investmentManager, ISlasher _slasher) 
++        EigenLayerDelegationStorage(_investmentManager, _slasher)
++    {
++        _disableInitializers();
++    }
++
++    /// @dev Emitted when a low-level call to `delegationTerms.onDelegationReceived` fails, returning `returnData`
++    event OnDelegationReceivedCallFailure(IDelegationTerms indexed delegationTerms, bytes32 returnData);
++
++    /// @dev Emitted when a low-level call to `delegationTerms.onDelegationWithdrawn` fails, returning `returnData`
++    event OnDelegationWithdrawnCallFailure(IDelegationTerms indexed delegationTerms, bytes32 returnData);
++
++    function initialize(IPauserRegistry _pauserRegistry, address initialOwner)
++        external
++        initializer
++    {
++        _initializePauser(_pauserRegistry, UNPAUSE_ALL);
++        DOMAIN_SEPARATOR = keccak256(abi.encode(DOMAIN_TYPEHASH, bytes("EigenLayer"), block.chainid, address(this)));
++        _transferOwnership(initialOwner);
++    }
++
++    // EXTERNAL FUNCTIONS
++    /**
++     * @notice This will be called by an operator to register itself as an operator that stakers can choose to delegate to.
++     * @param dt is the `DelegationTerms` contract that the operator has for those who delegate to them.
++     * @dev An operator can set `dt` equal to their own address (or another EOA address), in the event that they want to split payments
++     * in a more 'trustful' manner.
++     * @dev In the present design, once set, there is no way for an operator to ever modify the address of their DelegationTerms contract.
++     */
++    function registerAsOperator(IDelegationTerms dt) external {
++        require(
++            address(delegationTerms[msg.sender]) == address(0),
++            "EigenLayerDelegation.registerAsOperator: operator has already registered"
++        );
++        // store the address of the delegation contract that the operator is providing.
++        delegationTerms[msg.sender] = dt;
++        _delegate(msg.sender, msg.sender);
++    }
++
++    /**
++     *  @notice This will be called by a staker to delegate its assets to some operator.
++     *  @param operator is the operator to whom staker (msg.sender) is delegating its assets
++     */
++    function delegateTo(address operator) external {
++        _delegate(msg.sender, operator);
++    }
++
++    /**
++     * @notice Delegates from `staker` to `operator`.
++     * @dev requires that:
++     * 1) if `staker` is an EOA, then `signature` is valid ECSDA signature from `staker`, indicating their intention for this action
++     * 2) if `staker` is a contract, then `signature` must will be checked according to EIP-1271
++     */
++    function delegateToBySignature(address staker, address operator, uint256 expiry, bytes memory signature)
++        external
++    {
++        require(expiry >= block.timestamp, "delegation signature expired");
++
++        // calculate struct hash, then increment `staker`'s nonce
++        uint256 nonce = nonces[staker];
++        bytes32 structHash = keccak256(abi.encode(DELEGATION_TYPEHASH, staker, operator, nonce, expiry));
++        unchecked {
++            nonces[staker] = nonce + 1;
++        }
++        bytes32 digestHash = keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, structHash));
++
++        /**
++         * check validity of signature:
++         * 1) if `staker` is an EOA, then `signature` must be a valid ECSDA signature from `staker`,
++         * indicating their intention for this action
++         * 2) if `staker` is a contract, then `signature` must will be checked according to EIP-1271
++         */
++        if (Address.isContract(staker)) {
++            require(IERC1271(staker).isValidSignature(digestHash, signature) == ERC1271_MAGICVALUE,
++                "EigenLayerDelegation.delegateToBySignature: ERC1271 signature verification failed");
++        } else {
++            require(ECDSA.recover(digestHash, signature) == staker,
++                "EigenLayerDelegation.delegateToBySignature: sig not from staker");
++        }
++
++        _delegate(staker, operator);
++    }
++
++    /**
++     * @notice Undelegates `staker` from the operator who they are delegated to.
++     * @notice Callable only by the InvestmentManager
++     * @dev Should only ever be called in the event that the `staker` has no active deposits in EigenLayer.
++     */
++    function undelegate(address staker) external onlyInvestmentManager {
++        require(!isOperator(staker), "EigenLayerDelegation.undelegate: operators cannot undelegate from themselves");
++        delegatedTo[staker] = address(0);
++    }
++
++    /**
++     * @notice Increases the `staker`'s delegated shares in `strategy` by `shares, typically called when the staker has further deposits into EigenLayer
++     * @dev Callable only by the InvestmentManager
++     */
++    function increaseDelegatedShares(address staker, IInvestmentStrategy strategy, uint256 shares)
++        external
++        onlyInvestmentManager
++    {
++        //if the staker is delegated to an operator
++        if (isDelegated(staker)) {
++            address operator = delegatedTo[staker];
++
++            // add strategy shares to delegate's shares
++            operatorShares[operator][strategy] += shares;
++
++            //Calls into operator's delegationTerms contract to update weights of individual staker
++            IInvestmentStrategy[] memory investorStrats = new IInvestmentStrategy[](1);
++            uint256[] memory investorShares = new uint[](1);
++            investorStrats[0] = strategy;
++            investorShares[0] = shares;
++
++            // call into hook in delegationTerms contract
++            IDelegationTerms dt = delegationTerms[operator];
++            _delegationReceivedHook(dt, staker, investorStrats, investorShares);
++        }
++    }
++
++    /**
++     * @notice Decreases the `staker`'s delegated shares in each entry of `strategies` by its respective `shares[i]`, typically called when the staker withdraws from EigenLayer
++     * @dev Callable only by the InvestmentManager
++     */
++    function decreaseDelegatedShares(
++        address staker,
++        IInvestmentStrategy[] calldata strategies,
++        uint256[] calldata shares
++    )
++        external
++        onlyInvestmentManager
++    {
++        if (isDelegated(staker)) {
++            address operator = delegatedTo[staker];
++
++            // subtract strategy shares from delegate's shares
++            uint256 stratsLength = strategies.length;
++            for (uint256 i = 0; i < stratsLength;) {
++                operatorShares[operator][strategies[i]] -= shares[i];
++                unchecked {
++                    ++i;
++                }
++            }
++
++            // call into hook in delegationTerms contract
++            IDelegationTerms dt = delegationTerms[operator];
++            _delegationWithdrawnHook(dt, staker, strategies, shares);
++        }
++    }
++
++    // INTERNAL FUNCTIONS
++
++    /** 
++     * @notice Makes a low-level call to `dt.onDelegationReceived(staker, strategies, shares)`, ignoring reverts and with a gas budget 
++     * equal to `LOW_LEVEL_GAS_BUDGET` (a constant defined in this contract).
++     * @dev *If* the low-level call fails, then this function emits the event `OnDelegationReceivedCallFailure(dt, returnData)`, where
++     * `returnData` is *only the first 32 bytes* returned by the call to `dt`.
++     */
++    function _delegationReceivedHook(
++        IDelegationTerms dt,
++        address staker,
++        IInvestmentStrategy[] memory strategies,
++        uint256[] memory shares
++    )
++        internal
++    {
++        /**
++         * We use low-level call functionality here to ensure that an operator cannot maliciously make this function fail in order to prevent undelegation.
++         * In particular, in-line assembly is also used to prevent the copying of uncapped return data which is also a potential DoS vector.
++         */
++        // format calldata
++        bytes memory lowLevelCalldata = abi.encodeWithSelector(IDelegationTerms.onDelegationReceived.selector, staker, strategies, shares);
++        // Prepare memory for low-level call return data. We accept a max return data length of 32 bytes
++        bool success;
++        bytes32[1] memory returnData;
++        // actually make the call
++        assembly {
++            success := call(
++                // gas provided to this context
++                LOW_LEVEL_GAS_BUDGET,
++                // address to call
++                dt,
++                // value in wei for call
++                0,
++                // memory location to copy for calldata
++                lowLevelCalldata,
++                // length of memory to copy for calldata
++                mload(lowLevelCalldata),
++                // memory location to copy return data
++                returnData,
++                // byte size of return data to copy to memory
++                32
++            )
++        }
++        // if the call fails, we emit a special event rather than reverting
++        if (!success) {
++            emit OnDelegationReceivedCallFailure(dt, returnData[0]);
++        }
++    }
++
++    /** 
++     * @notice Makes a low-level call to `dt.onDelegationWithdrawn(staker, strategies, shares)`, ignoring reverts and with a gas budget 
++     * equal to `LOW_LEVEL_GAS_BUDGET` (a constant defined in this contract).
++     * @dev *If* the low-level call fails, then this function emits the event `OnDelegationReceivedCallFailure(dt, returnData)`, where
++     * `returnData` is *only the first 32 bytes* returned by the call to `dt`.
++     */
++    function _delegationWithdrawnHook(
++        IDelegationTerms dt,
++        address staker,
++        IInvestmentStrategy[] memory strategies,
++        uint256[] memory shares
++    )
++        internal
++    {
++        /**
++         * We use low-level call functionality here to ensure that an operator cannot maliciously make this function fail in order to prevent undelegation.
++         * In particular, in-line assembly is also used to prevent the copying of uncapped return data which is also a potential DoS vector.
++         */
++        // format calldata
++        bytes memory lowLevelCalldata = abi.encodeWithSelector(IDelegationTerms.onDelegationWithdrawn.selector, staker, strategies, shares);
++        // Prepare memory for low-level call return data. We accept a max return data length of 32 bytes
++        bool success;
++        bytes32[1] memory returnData;
++        // actually make the call
++        assembly {
++            success := call(
++                // gas provided to this context
++                LOW_LEVEL_GAS_BUDGET,
++                // address to call
++                dt,
++                // value in wei for call
++                0,
++                // memory location to copy for calldata
++                lowLevelCalldata,
++                // length of memory to copy for calldata
++                mload(lowLevelCalldata),
++                // memory location to copy return data
++                returnData,
++                // byte size of return data to copy to memory
++                32
++            )
++        }
++        // if the call fails, we emit a special event rather than reverting
++        if (!success) {
++            emit OnDelegationWithdrawnCallFailure(dt, returnData[0]);
++        }
++    }
++
++    /**
++     * @notice Internal function implementing the delegation *from* `staker` *to* `operator`.
++     * @param staker The address to delegate *from* -- this address is delegating control of its own assets.
++     * @param operator The address to delegate *to* -- this address is being given power to place the `staker`'s assets at risk on services
++     * @dev Ensures that the operator has registered as a delegate (`address(dt) != address(0)`), verifies that `staker` is not already
++     * delegated, and records the new delegation.
++     */ 
++    function _delegate(address staker, address operator) internal onlyWhenNotPaused(PAUSED_NEW_DELEGATION) {
++        IDelegationTerms dt = delegationTerms[operator];
++        require(
++            address(dt) != address(0), "EigenLayerDelegation._delegate: operator has not yet registered as a delegate"
++        );
++
++        require(isNotDelegated(staker), "EigenLayerDelegation._delegate: staker has existing delegation");
++        // checks that operator has not been frozen
++        require(!slasher.isFrozen(operator), "EigenLayerDelegation._delegate: cannot delegate to a frozen operator");
++
++        // record delegation relation between the staker and operator
++        delegatedTo[staker] = operator;
++
++        // retrieve list of strategies and their shares from investment manager
++        (IInvestmentStrategy[] memory strategies, uint256[] memory shares) = investmentManager.getDeposits(staker);
++
++        // add strategy shares to delegate's shares
++        uint256 stratsLength = strategies.length;
++        for (uint256 i = 0; i < stratsLength;) {
++            // update the share amounts for each of the operator's strategies
++            operatorShares[operator][strategies[i]] += shares[i];
++            unchecked {
++                ++i;
++            }
++        }
++
++        // call into hook in delegationTerms contract
++        _delegationReceivedHook(dt, staker, strategies, shares);
++    }
++
++    // VIEW FUNCTIONS
++
++    /// @notice Returns 'true' if `staker` *is* actively delegated, and 'false' otherwise.
++    function isDelegated(address staker) public view returns (bool) {
++        return (delegatedTo[staker] != address(0));
++    }
++
++    /// @notice Returns 'true' if `staker` is *not* actively delegated, and 'false' otherwise.
++    function isNotDelegated(address staker) public view returns (bool) {
++        return (delegatedTo[staker] == address(0));
++    }
++
++    /// @notice Returns if an operator can be delegated to, i.e. it has called `registerAsOperator`.
++    function isOperator(address operator) public view returns (bool) {
++        return (address(delegationTerms[operator]) != address(0));
++    }
++}
+diff -druN ../score/InvestmentManager.sol core/InvestmentManager.sol
+--- ../score/InvestmentManager.sol	2023-01-13 14:12:34
++++ core/InvestmentManager.sol	2023-01-13 14:25:10
+@@ -13,7 +13,7 @@
+ import "../interfaces/IServiceManager.sol";
+ import "../interfaces/IEigenPodManager.sol";
+ 
+-import "forge-std/Test.sol";
++// import "forge-std/Test.sol";
+ 
+ /**
+  * @title The primary entry- and exit-point for funds into and out of EigenLayer.
+@@ -33,7 +33,7 @@
+     ReentrancyGuardUpgradeable,
+     InvestmentManagerStorage,
+     Pausable
+-    ,Test
++    // ,Test
+ {
+     using SafeERC20 for IERC20;
+ 
 diff -druN ../score/Slasher.sol core/Slasher.sol
---- ../score/Slasher.sol	2023-01-10 16:24:19
-+++ core/Slasher.sol	2023-01-09 14:13:40
-@@ -142,8 +142,10 @@
+--- ../score/Slasher.sol	2023-01-13 14:12:34
++++ core/Slasher.sol	2023-01-13 14:24:43
+@@ -145,8 +145,10 @@
          onlyCanSlash(operator) 
      {
  
@@ -31,3 +393,522 @@ diff -druN ../score/Slasher.sol core/Slasher.sol
  
          // Push the middleware to the end of the update list. This will fail if the caller *is* already in the list.
          require(operatorToWhitelistedContractsByUpdate[operator].pushBack(_addressToUint(msg.sender)), 
+diff -druN ../score/Slasher.sol.orig core/Slasher.sol.orig
+--- ../score/Slasher.sol.orig	1969-12-31 16:00:00
++++ core/Slasher.sol.orig	2023-01-13 14:24:43
+@@ -0,0 +1,515 @@
++// SPDX-License-Identifier: UNLICENSED
++pragma solidity ^0.8.9;
++
++import "../interfaces/ISlasher.sol";
++import "../interfaces/IEigenLayerDelegation.sol";
++import "../interfaces/IInvestmentManager.sol";
++import "../libraries/StructuredLinkedList.sol";
++import "../permissions/Pausable.sol";
++import "@openzeppelin-upgradaccess/OwnableUpgradeable.sol";
++import "@openzeppelin-upgradproxy/utils/Initializable.sol";
++
++// import "forge-std/Test.sol";
++
++/**
++ * @title The primary 'slashing' contract for EigenLayer.
++ * @author Layr Labs, Inc.
++ * @notice This contract specifies details on slashing. The functionalities are:
++ * - adding contracts who have permission to perform slashing,
++ * - revoking permission for slashing from specified contracts,
++ * - tracking historic stake updates to ensure that withdrawals can only be completed once no middlewares have slashing rights
++ * over the funds being withdrawn
++ */
++contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
++    using StructuredLinkedList for StructuredLinkedList.List;
++
++    uint256 private constant HEAD = 0;
++
++    uint8 internal constant PAUSED_OPT_INTO_SLASHING = 0;
++    uint8 internal constant PAUSED_FIRST_STAKE_UPDATE = 1;
++    uint8 internal constant PAUSED_NEW_FREEZING = 2;
++
++    /// @notice The central InvestmentManager contract of EigenLayer
++    IInvestmentManager public immutable investmentManager;
++    /// @notice The EigenLayerDelegation contract of EigenLayer
++    IEigenLayerDelegation public immutable delegation;
++    // operator => whitelisted contract with slashing permissions => (the time before which the contract is allowed to slash the user, block it was last updated)
++    mapping(address => mapping(address => MiddlewareDetails)) internal _whitelistedContractDetails;
++    // staker => if their funds are 'frozen' and potentially subject to slashing or not
++    mapping(address => bool) internal frozenStatus;
++
++    uint32 internal constant MAX_BONDED_UNTIL = type(uint32).max;
++
++    /**
++     * operator => a linked list of the addresses of the whitelisted middleware with permission to slash the operator, i.e. which  
++     * the operator is serving. Sorted by the block at which they were last updated (content of updates below) in ascending order.
++     * This means the 'HEAD' (i.e. start) of the linked list will have the stalest 'updateBlock' value.
++     */
++    mapping(address => StructuredLinkedList.List) public operatorToWhitelistedContractsByUpdate;
++    /**
++     * operator => 
++     *  [
++     *      (
++     *          the least recent update block of all of the middlewares it's serving/served, 
++     *          latest time the the stake bonded at that update needed to serve until
++     *      )
++     *  ]
++     */
++    mapping(address => MiddlewareTimes[]) public operatorToMiddlewareTimes;
++
++    /// @notice Emitted when a middleware times is added to `operator`'s array.
++    event MiddlewareTimesAdded(address operator, uint256 index, uint32 stalestUpdateBlock, uint32 latestServeUntil);
++
++    /// @notice Emitted when `operator` begins to allow `contractAddress` to slash them.
++    event OptedIntoSlashing(address indexed operator, address indexed contractAddress);
++
++    /// @notice Emitted when `contractAddress` signals that it will no longer be able to slash `operator` after the UTC timestamp `bondedUntil.
++    event SlashingAbilityRevoked(address indexed operator, address indexed contractAddress, uint32 bondedUntil);
++
++    /**
++     * @notice Emitted when `slashingContract` 'freezes' the `slashedOperator`.
++     * @dev The `slashingContract` must have permission to slash the `slashedOperator`, i.e. `canSlash(slasherOperator, slashingContract)` must return 'true'.
++     */
++    event OperatorFrozen(address indexed slashedOperator, address indexed slashingContract);
++
++    /// @notice Emitted when `previouslySlashedAddress` is 'unfrozen', allowing them to again move deposited funds within EigenLayer.
++    event FrozenStatusReset(address indexed previouslySlashedAddress);
++
++    constructor(IInvestmentManager _investmentManager, IEigenLayerDelegation _delegation) {
++        investmentManager = _investmentManager;
++        delegation = _delegation;
++        _disableInitializers();
++    }
++
++    /// @notice Ensures that the caller is allowed to slash the operator.
++    modifier onlyCanSlash(address operator) {
++        require(canSlash(operator, msg.sender), "Slasher.onlyCanSlash: only slashing contracts");
++        _;
++    }
++
++    // EXTERNAL FUNCTIONS
++    function initialize(
++        IPauserRegistry _pauserRegistry,
++        address initialOwner
++    ) external initializer {
++        _initializePauser(_pauserRegistry, UNPAUSE_ALL);
++        _transferOwnership(initialOwner);
++    }
++
++    /**
++     * @notice Gives the `contractAddress` permission to slash the funds of the caller.
++     * @dev Typically, this function must be called prior to registering for a middleware.
++     */
++    function optIntoSlashing(address contractAddress) external onlyWhenNotPaused(PAUSED_OPT_INTO_SLASHING) {
++        require(delegation.isOperator(msg.sender), "Slasher.optIntoSlashing: msg.sender is not a registered operator");
++        _optIntoSlashing(msg.sender, contractAddress);
++    }
++
++    /**
++     * @notice Used for 'slashing' a certain operator.
++     * @param toBeFrozen The operator to be frozen.
++     * @dev Technically the operator is 'frozen' (hence the name of this function), and then subject to slashing pending a decision by a human-in-the-loop.
++     * @dev The operator must have previously given the caller (which should be a contract) the ability to slash them, through a call to `optIntoSlashing`.
++     */
++    function freezeOperator(address toBeFrozen) external onlyWhenNotPaused(PAUSED_NEW_FREEZING) {
++        require(
++            canSlash(toBeFrozen, msg.sender),
++            "Slasher.freezeOperator: msg.sender does not have permission to slash this operator"
++        );
++        _freezeOperator(toBeFrozen, msg.sender);
++    }
++
++    /**
++     * @notice Removes the 'frozen' status from each of the `frozenAddresses`
++     * @dev Callable only by the contract owner (i.e. governance).
++     */
++    function resetFrozenStatus(address[] calldata frozenAddresses) external onlyOwner {
++        for (uint256 i = 0; i < frozenAddresses.length;) {
++            _resetFrozenStatus(frozenAddresses[i]);
++            unchecked {
++                ++i;
++            }
++        }
++    }
++
++    /**
++     * @notice this function is a called by middlewares during an operator's registration to make sure the operator's stake at registration 
++     *         is slashable until serveUntil
++     * @param operator the operator whose stake update is being recorded
++     * @param serveUntil the timestamp until which the operator's stake at the current block is slashable
++     * @dev adds the middleware's slashing contract to the operator's linked list
++     */
++    function recordFirstStakeUpdate(address operator, uint32 serveUntil) 
++        external 
++        onlyWhenNotPaused(PAUSED_FIRST_STAKE_UPDATE)
++        onlyCanSlash(operator) 
++    {
++
++        // update the 'stalest' stakes update time + latest 'serveUntil' time of the `operator`
++        _recordUpdateAndAddToMiddlewareTimes(operator, uint32(block.number), serveUntil);
++
++        // Push the middleware to the end of the update list. This will fail if the caller *is* already in the list.
++        require(operatorToWhitelistedContractsByUpdate[operator].pushBack(_addressToUint(msg.sender)), 
++            "Slasher.recordFirstStakeUpdate: Appending middleware unsuccessful");
++    }
++
++    /**
++     * @notice this function is a called by middlewares during a stake update for an operator (perhaps to free pending withdrawals)
++     *         to make sure the operator's stake at updateBlock is slashable until serveUntil
++     * @param operator the operator whose stake update is being recorded
++     * @param updateBlock the block for which the stake update is being recorded
++     * @param serveUntil the timestamp until which the operator's stake at updateBlock is slashable
++     * @param insertAfter the element of the operators linked list that the currently updating middleware should be inserted after
++     * @dev insertAfter should be calculated offchain before making the transaction that calls this. this is subject to race conditions, 
++     *      but it is anticipated to be rare and not detrimental.
++     */
++    function recordStakeUpdate(address operator, uint32 updateBlock, uint32 serveUntil, uint256 insertAfter) 
++        external 
++        onlyCanSlash(operator) 
++    {
++        // sanity check on input
++        require(updateBlock <= block.number, "Slasher.recordStakeUpdate: cannot provide update for future block");
++        // update the 'stalest' stakes update time + latest 'serveUntil' time of the `operator`
++        _recordUpdateAndAddToMiddlewareTimes(operator, updateBlock, serveUntil);
++
++        /**
++         * Move the middleware to its correct update position, determined by `updateBlock` and indicated via `insertAfter`.
++         * If the the middleware is the only one in the list, then no need to mutate the list
++         */
++        if (operatorToWhitelistedContractsByUpdate[operator].sizeOf() != 1) {
++            // Remove the caller (middleware) from the list. This will fail if the caller is *not* already in the list.
++            require(operatorToWhitelistedContractsByUpdate[operator].remove(_addressToUint(msg.sender)) != 0, 
++                "Slasher.recordStakeUpdate: Removing middleware unsuccessful");
++            // Run routine for updating the `operator`'s linked list of middlewares
++            _updateMiddlewareList(operator, updateBlock, insertAfter);
++        }
++    }
++
++    /**
++     * @notice this function is a called by middlewares during an operator's deregistration to make sure the operator's stake at deregistration 
++     *         is slashable until serveUntil
++     * @param operator the operator whose stake update is being recorded
++     * @param serveUntil the timestamp until which the operator's stake at the current block is slashable
++     * @dev removes the middleware's slashing contract to the operator's linked list and revokes the middleware's (i.e. caller's) ability to
++     * slash `operator` once `serveUntil` is reached
++     */
++    function recordLastStakeUpdateAndRevokeSlashingAbility(address operator, uint32 serveUntil) external onlyCanSlash(operator) {
++        // update the 'stalest' stakes update time + latest 'serveUntil' time of the `operator`
++        _recordUpdateAndAddToMiddlewareTimes(operator, uint32(block.number), serveUntil);
++        // remove the middleware from the list
++        require(operatorToWhitelistedContractsByUpdate[operator].remove(_addressToUint(msg.sender)) != 0,
++             "Slasher.recordLastStakeUpdateAndRevokeSlashingAbility: Removing middleware unsuccessful");
++        // revoke the middleware's ability to slash `operator` after `serverUntil`
++        _revokeSlashingAbility(operator, msg.sender, serveUntil);
++    }
++
++    // VIEW FUNCTIONS
++
++    /// @notice Returns the UTC timestamp until which `serviceContract` is allowed to slash the `operator`.
++    function bondedUntil(address operator, address serviceContract) external view returns (uint32) {
++        return _whitelistedContractDetails[operator][serviceContract].bondedUntil;
++    }
++
++    /// @notice Returns the block at which the `serviceContract` last updated its view of the `operator`'s stake
++    function latestUpdateBlock(address operator, address serviceContract) external view returns (uint32) {
++        return _whitelistedContractDetails[operator][serviceContract].latestUpdateBlock;
++    }
++
++    /*
++    * @notice Returns `_whitelistedContractDetails[operator][serviceContract]`.
++    * @dev A getter function like this appears to be necessary for returning a struct from storage
++    */
++    function whitelistedContractDetails(address operator, address serviceContract) external view returns (MiddlewareDetails memory) {
++        return _whitelistedContractDetails[operator][serviceContract];
++    }
++
++
++    /**
++     * @notice Used to determine whether `staker` is actively 'frozen'. If a staker is frozen, then they are potentially subject to
++     * slashing of their funds, and cannot cannot deposit or withdraw from the investmentManager until the slashing process is completed
++     * and the staker's status is reset (to 'unfrozen').
++     * @return Returns 'true' if `staker` themselves has their status set to frozen, OR if the staker is delegated
++     * to an operator who has their status set to frozen. Otherwise returns 'false'.
++     */
++    function isFrozen(address staker) external view returns (bool) {
++        if (frozenStatus[staker]) {
++            return true;
++        } else if (delegation.isDelegated(staker)) {
++            address operatorAddress = delegation.delegatedTo(staker);
++            return (frozenStatus[operatorAddress]);
++        } else {
++            return false;
++        }
++    }
++
++    /// @notice Returns true if `slashingContract` is currently allowed to slash `toBeSlashed`.
++    function canSlash(address toBeSlashed, address slashingContract) public view returns (bool) {
++        if (block.timestamp < _whitelistedContractDetails[toBeSlashed][slashingContract].bondedUntil) {
++            return true;
++        } else {
++            return false;
++        }
++    }
++
++    /**
++     * @notice Returns 'true' if `operator` can currently complete a withdrawal started at the `withdrawalStartBlock`, with `middlewareTimesIndex` used
++     * to specify the index of a `MiddlewareTimes` struct in the operator's list (i.e. an index in `operatorToMiddlewareTimes[operator]`). The specified
++     * struct is consulted as proof of the `operator`'s ability (or lack thereof) to complete the withdrawal.
++     * This function will return 'false' if the operator cannot currently complete a withdrawal started at the `withdrawalStartBlock`, *or* in the event
++     * that an incorrect `middlewareTimesIndex` is supplied, even if one or more correct inputs exist.
++     * @param operator Either the operator who queued the withdrawal themselves, or if the withdrawing party is a staker who delegated to an operator,
++     * this address is the operator *who the staker was delegated to* at the time of the `withdrawalStartBlock`.
++     * @param withdrawalStartBlock The block number at which the withdrawal was initiated.
++     * @param middlewareTimesIndex Indicates an index in `operatorToMiddlewareTimes[operator]` to consult as proof of the `operator`'s ability to withdraw
++     * @dev The correct `middlewareTimesIndex` input should be computable off-chain.
++     */
++    function canWithdraw(address operator, uint32 withdrawalStartBlock, uint256 middlewareTimesIndex) external view returns (bool) {
++        // if the operator has never registered for a middleware, just return 'true'
++        if (operatorToMiddlewareTimes[operator].length == 0) {
++            return true;
++        }
++
++        // pull the MiddlewareTimes struct at the `middlewareTimesIndex`th position in `operatorToMiddlewareTimes[operator]`
++        MiddlewareTimes memory update = operatorToMiddlewareTimes[operator][middlewareTimesIndex];
++        
++        /**
++         * Make sure the stalest update block at the time of the update is strictly after `withdrawalStartBlock` and ensure that the current time
++         * is after the `latestServeUntil` of the update. This assures us that this that all middlewares were updated after the withdrawal began, and
++         * that the stake is no longer slashable.
++         */
++        return(
++            withdrawalStartBlock < update.stalestUpdateBlock 
++            &&
++            uint32(block.timestamp) > update.latestServeUntil
++        );
++    }
++
++    /// @notice Getter function for fetching `operatorToMiddlewareTimes[operator][index].stalestUpdateBlock`.
++    function getMiddlewareTimesIndexBlock(address operator, uint32 index) external view returns (uint32){
++        return operatorToMiddlewareTimes[operator][index].stalestUpdateBlock;
++    }
++
++    /// @notice Getter function for fetching `operatorToMiddlewareTimes[operator][index].latestServeUntil`.
++    function getMiddlewareTimesIndexServeUntil(address operator, uint32 index) external view returns (uint32) {
++        return operatorToMiddlewareTimes[operator][index].latestServeUntil;
++    }
++
++    /**
++     * @notice A search routine for finding the correct input value of `insertAfter` to `recordStakeUpdate` / `_updateMiddlewareList`.
++     * @dev Used within this contract only as a fallback in the case when an incorrect value of `insertAfter` is supplied as an input to `_updateMiddlewareList`.
++     * @dev The return value should *either* be 'HEAD' (i.e. zero) in the event that the node being inserted in the linked list has an `updateBlock`
++     * that is less than the HEAD of the list, *or* the return value should specify the last `node` in the linked list for which
++     * `_whitelistedContractDetails[operator][node].latestUpdateBlock <= updateBlock`,
++     * i.e. the node such that the *next* node either doesn't exist,
++     * OR
++     * `_whitelistedContractDetails[operator][nextNode].latestUpdateBlock > updateBlock`.
++     */
++    function getCorrectValueForInsertAfter(address operator, uint32 updateBlock) public view returns (uint256) {
++        uint256 node = operatorToWhitelistedContractsByUpdate[operator].getHead();
++        /**
++         * Special case:
++         * If the node being inserted in the linked list has an `updateBlock` that is less than the HEAD of the list, then we set `insertAfter = HEAD`.
++         * In _updateMiddlewareList(), the new node will be pushed to the front (HEAD) of the list.
++         */
++        if (_whitelistedContractDetails[operator][_uintToAddress(node)].latestUpdateBlock > updateBlock) {
++            return HEAD;
++        }
++        /**
++         * `node` being zero (i.e. equal to 'HEAD') indicates an empty/non-existent node, i.e. reaching the end of the linked list.
++         * Since the linked list is ordered in ascending order of update blocks, we simply start from the head of the list and step through until
++         * we find a the *last* `node` for which `_whitelistedContractDetails[operator][node] <= updateBlock`, or
++         * otherwise reach the end of the list.
++         */
++        (, uint256 nextNode) = operatorToWhitelistedContractsByUpdate[operator].getNextNode(node);
++        while ((nextNode != HEAD) && (_whitelistedContractDetails[operator][_uintToAddress(node)].latestUpdateBlock <= updateBlock)) {
++            (, nextNode) = operatorToWhitelistedContractsByUpdate[operator].getNextNode(node);
++            node = nextNode;
++        }
++        return node;
++    }
++
++    /// @notice gets the node previous to the given node in the operators middleware update linked list
++    /// @dev used in offchain libs for updating stakes
++    function getPreviousWhitelistedContractByUpdate(address operator, uint256 node) public view returns (bool, uint256) {
++        return operatorToWhitelistedContractsByUpdate[operator].getPreviousNode(node);
++    }
++
++    // INTERNAL FUNCTIONS
++
++    function _optIntoSlashing(address operator, address contractAddress) internal {
++        //allow the contract to slash anytime before a time VERY far in the future
++        _whitelistedContractDetails[operator][contractAddress].bondedUntil = MAX_BONDED_UNTIL;
++        emit OptedIntoSlashing(operator, contractAddress);
++    }
++
++    function _revokeSlashingAbility(address operator, address contractAddress, uint32 serveUntil) internal {
++        if (_whitelistedContractDetails[operator][contractAddress].bondedUntil == MAX_BONDED_UNTIL) {
++            // contractAddress can now only slash operator before `serveUntil`
++            _whitelistedContractDetails[operator][contractAddress].bondedUntil = serveUntil;
++            emit SlashingAbilityRevoked(operator, contractAddress, serveUntil);
++        }
++    }
++
++    function _freezeOperator(address toBeFrozen, address slashingContract) internal {
++        if (!frozenStatus[toBeFrozen]) {
++            frozenStatus[toBeFrozen] = true;
++            emit OperatorFrozen(toBeFrozen, slashingContract);
++        }
++    }
++
++    function _resetFrozenStatus(address previouslySlashedAddress) internal {
++        if (frozenStatus[previouslySlashedAddress]) {
++            frozenStatus[previouslySlashedAddress] = false;
++            emit FrozenStatusReset(previouslySlashedAddress);
++        }
++    }
++
++    /**
++     * @notice records the most recent updateBlock for the currently updating middleware and appends an entry to the operator's list of 
++     *         MiddlewareTimes if relavent information has updated
++     * @param operator the entity whose stake update is being recorded
++     * @param updateBlock the block number for which the currently updating middleware is updating the serveUntil for
++     * @param serveUntil the timestamp until which the operator's stake at updateBlock is slashable
++     * @dev this function is only called during externally called stake updates by middleware contracts that can slash operator
++     */
++    function _recordUpdateAndAddToMiddlewareTimes(address operator, uint32 updateBlock, uint32 serveUntil) internal {
++        // reject any stale update, i.e. one from before that of the most recent recorded update for the currently updating middleware
++        require(_whitelistedContractDetails[operator][msg.sender].latestUpdateBlock <= updateBlock, 
++                "Slasher._recordUpdateAndAddToMiddlewareTimes: can't push a previous update");
++        _whitelistedContractDetails[operator][msg.sender].latestUpdateBlock = updateBlock;
++        // get the latest recorded MiddlewareTimes, if the operator's list of MiddlwareTimes is non empty
++        MiddlewareTimes memory curr;
++        if (operatorToMiddlewareTimes[operator].length != 0) {
++            curr = operatorToMiddlewareTimes[operator][operatorToMiddlewareTimes[operator].length - 1];
++        }
++        MiddlewareTimes memory next = curr;
++        bool pushToMiddlewareTimes;
++        // if the serve until is later than the latest recorded one, update it
++        if (serveUntil > curr.latestServeUntil) {
++            next.latestServeUntil = serveUntil;
++            // mark that we need push next to middleware times array because it contains new information
++            pushToMiddlewareTimes = true;
++        } 
++        
++        // If this is the very first middleware added to the operator's list of middleware, then we add an entry to operatorToMiddlewareTimes
++        if (operatorToWhitelistedContractsByUpdate[operator].size == 0) {
++            pushToMiddlewareTimes = true;
++            next.stalestUpdateBlock = updateBlock;
++        }
++        // If the middleware is the first in the list, we will update the `stalestUpdateBlock` field in MiddlwareTimes
++        else if (operatorToWhitelistedContractsByUpdate[operator].getHead() == _addressToUint(msg.sender)) {
++            // if the updated middleware was the earliest update, set it to the 2nd earliest update's update time
++            (bool hasNext, uint256 nextNode) = operatorToWhitelistedContractsByUpdate[operator].getNextNode(_addressToUint(msg.sender));
++
++            if(hasNext) {
++                // get the next middleware's most latest update block
++                uint32 nextMiddlewaresLeastRecentUpdateBlock = _whitelistedContractDetails[operator][_uintToAddress(nextNode)].latestUpdateBlock;
++                if(nextMiddlewaresLeastRecentUpdateBlock < updateBlock) {
++                    // if there is a next node, then set the stalestUpdateBlock to its recorded value
++                    next.stalestUpdateBlock = nextMiddlewaresLeastRecentUpdateBlock;
++                } else {
++                    //otherwise updateBlock is the least recent update as well
++                    next.stalestUpdateBlock = updateBlock;
++                }
++            } else {
++                // otherwise this is the only middleware so right now is the stalestUpdateBlock
++                next.stalestUpdateBlock = updateBlock;
++            }
++            // mark that we need push next to middleware times array because it contains new information
++            pushToMiddlewareTimes = true;
++        }
++        
++        // if `next` has new information, then push it
++        if (pushToMiddlewareTimes) {
++            operatorToMiddlewareTimes[operator].push(next);
++            emit MiddlewareTimesAdded(operator, operatorToMiddlewareTimes[operator].length - 1, next.stalestUpdateBlock, next.latestServeUntil);
++        }
++    }
++
++    /// @notice A routine for updating the `operator`'s linked list of middlewares, inside `recordStakeUpdate`.
++    function _updateMiddlewareList(address operator, uint32 updateBlock, uint256 insertAfter) internal {
++        /**
++         * boolean used to track if the `insertAfter input to this function is incorrect. If it is, then `runFallbackRoutine` will
++         * be flipped to 'true', and we will use `getCorrectValueForInsertAfter` to find the correct input. This routine helps solve
++         * a race condition where the proper value of `insertAfter` changes while a transaction is pending.
++         */
++       
++        bool runFallbackRoutine = false;
++        // If this condition is met, then the `updateBlock` input should be after `insertAfter`'s latest updateBlock
++        if (insertAfter != HEAD) {
++            // Check that `insertAfter` exists. If not, we will use the fallback routine to find the correct value for `insertAfter`.
++            if (!operatorToWhitelistedContractsByUpdate[operator].nodeExists(insertAfter)) {
++                runFallbackRoutine = true;
++            }
++
++            /**
++             * Make sure `insertAfter` specifies a node for which the most recent updateBlock was *at or before* updateBlock.
++             * Again, if not,  we will use the fallback routine to find the correct value for `insertAfter`.
++             */
++            if ((!runFallbackRoutine) && (_whitelistedContractDetails[operator][_uintToAddress(insertAfter)].latestUpdateBlock > updateBlock)) {
++                runFallbackRoutine = true;
++            }
++
++            // if we have not marked `runFallbackRoutine` as 'true' yet, then that means the `insertAfter` input was correct so far
++            if (!runFallbackRoutine) {
++                // Get `insertAfter`'s successor. `hasNext` will be false if `insertAfter` is the last node in the list
++                (bool hasNext, uint256 nextNode) = operatorToWhitelistedContractsByUpdate[operator].getNextNode(insertAfter);
++                if (hasNext) {
++                    /**
++                     * Make sure the element after `insertAfter`'s most recent updateBlock was *strictly after* `updateBlock`.
++                     * Again, if not,  we will use the fallback routine to find the correct value for `insertAfter`.
++                     */
++                    if (_whitelistedContractDetails[operator][_uintToAddress(nextNode)].latestUpdateBlock <= updateBlock) {
++                        runFallbackRoutine = true;
++                    }
++                }
++            }
++
++            // if we have not marked `runFallbackRoutine` as 'true' yet, then that means the `insertAfter` input was correct on all counts
++            if (!runFallbackRoutine) {
++                /** 
++                 * Insert the caller (middleware) after `insertAfter`.
++                 * This will fail if `msg.sender` is already in the list, which they shouldn't be because they were removed from the list above.
++                 */
++                require(operatorToWhitelistedContractsByUpdate[operator].insertAfter(insertAfter, _addressToUint(msg.sender)),
++                    "Slasher.recordStakeUpdate: Inserting middleware unsuccessful");
++            // in this case (runFallbackRoutine == true), we run a search routine to find the correct input value of `insertAfter` and then rerun this function
++            } else {
++                insertAfter = getCorrectValueForInsertAfter(operator, updateBlock);
++                _updateMiddlewareList(operator, updateBlock, insertAfter);
++            }
++        // In this case (insertAfter == HEAD), the `updateBlock` input should be before every other middleware's latest updateBlock.
++        } else {
++            /**
++             * Check that `updateBlock` is before any other middleware's latest updateBlock.
++             * If not, use the fallback routine to find the correct value for `insertAfter`.
++             */
++            if (_whitelistedContractDetails[operator][
++                _uintToAddress(operatorToWhitelistedContractsByUpdate[operator].getHead()) ].latestUpdateBlock <= updateBlock)
++            {
++                runFallbackRoutine = true;
++            }
++            // if we have not marked `runFallbackRoutine` as 'true' yet, then that means the `insertAfter` input was correct on all counts
++            if (!runFallbackRoutine) {
++                /**
++                 * Insert the middleware at the start (i.e. HEAD) of the list.
++                 * This will fail if `msg.sender` is already in the list, which they shouldn't be because they were removed from the list above.
++                 */
++                require(operatorToWhitelistedContractsByUpdate[operator].pushFront(_addressToUint(msg.sender)), 
++                    "Slasher.recordStakeUpdate: Preppending middleware unsuccessful");
++            // in this case (runFallbackRoutine == true), we run a search routine to find the correct input value of `insertAfter` and then rerun this function
++            } else {
++                insertAfter = getCorrectValueForInsertAfter(operator, updateBlock);
++                _updateMiddlewareList(operator, updateBlock, insertAfter);
++            }
++        }
++    }
++
++    function _addressToUint(address addr) internal pure returns(uint256) {
++        return uint256(uint160(addr));
++    }
++
++    function _uintToAddress(uint256 x) internal pure returns(address) {
++        return address(uint160(x));
++    }    
++}
