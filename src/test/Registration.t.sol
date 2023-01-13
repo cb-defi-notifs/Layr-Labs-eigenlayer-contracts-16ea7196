@@ -39,6 +39,7 @@ contract RegistrationTests is EigenLayerTestHelper {
 
     function initializeMiddlewares() public {
         dataLayrProxyAdmin = new ProxyAdmin();
+        fuzzedAddressMapping[address(dataLayrProxyAdmin)] = true;
 
         pubkeyCompendium = new BLSPublicKeyCompendiumMock();
 

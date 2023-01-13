@@ -87,8 +87,8 @@ contract EigenLayerDeployer is Operators {
     address acct_0 = cheats.addr(uint256(priv_key_0));
     address acct_1 = cheats.addr(uint256(priv_key_1));
     address _challenger = address(0x6966904396bF2f8b173350bCcec5007A52669873);
-
     address public eigenLayerReputedMultisig = address(this);
+    // addresses excluded from fuzzing due to abnormal behavior. TODO: @Sidu28 define this better and give it a clearer name
     mapping (address => bool) fuzzedAddressMapping;
 
 
