@@ -97,7 +97,68 @@ contract InvestmentStrategyBaseUnitTests is Test {
 
     function testDepositFailsWhenDepositsPaused() public {
         cheats.startPrank(pauser);
+        investmentStrategy.pause(type(uint256).max);
+        cheats.stopPrank();
 
+        uint256 amountToDeposit = 1e18;
+        underlyingToken.transfer(address(investmentStrategy), amountToDeposit);
+
+        cheats.expectRevert(bytes("Pausable: index is paused"));
+        cheats.startPrank(address(investmentManager));
+        investmentStrategy.deposit(underlyingToken, amountToDeposit);
+        cheats.stopPrank();
     }
 
+    function testDepositFailsWhenCallingFromNotInvestmentManager(address caller) public {
+        cheats.assume(caller != address(investmentStrategy.investmentManager()) && caller != address(proxyAdmin));
+
+        uint256 amountToDeposit = 1e18;
+        underlyingToken.transfer(address(investmentStrategy), amountToDeposit);
+
+        cheats.expectRevert(bytes("InvestmentStrategyBase.onlyInvestmentManager"));
+        cheats.startPrank(caller);
+        investmentStrategy.deposit(underlyingToken, amountToDeposit);
+        cheats.stopPrank();
+    }
+
+    function testWithdrawWithPriorTotalSharesAndAmountSharesEqual(uint256 amountToDeposit) public {
+        testDepositWithZeroPriorBalanceAndZeroPriorShares(amountToDeposit);
+
+        uint256 sharesToWithdraw = investmentStrategy.totalShares();
+        uint256 strategyBalanceBefore = underlyingToken.balanceOf(address(investmentStrategy));
+
+        uint256 tokenBalanceBefore = underlyingToken.balanceOf(address(this));
+        cheats.startPrank(address(investmentManager));
+        investmentStrategy.withdraw(address(this), underlyingToken, sharesToWithdraw);
+        cheats.stopPrank();
+
+        uint256 tokenBalanceAfter = underlyingToken.balanceOf(address(this));
+        uint256 totalSharesAfter = investmentStrategy.totalShares();
+
+        require(totalSharesAfter == 0, "shares did not decrease appropriately");
+        require(tokenBalanceAfter - tokenBalanceBefore == strategyBalanceBefore, "tokenBalanceAfter - tokenBalanceBefore != strategyBalanceBefore");
+    }
+
+    function testWithdrawWithPriorTotalSharesAndAmountSharesNotEqual(uint256 amountToDeposit, uint256 sharesToWithdraw) public {
+        testDepositWithZeroPriorBalanceAndZeroPriorShares(amountToDeposit);
+
+        uint256 totalSharesBefore = investmentStrategy.totalShares();
+        uint256 strategyBalanceBefore = underlyingToken.balanceOf(address(investmentStrategy));
+
+        // since we are checking not equal in this test
+        cheats.assume(sharesToWithdraw < totalSharesBefore);
+
+        uint256 tokenBalanceBefore = underlyingToken.balanceOf(address(this));
+
+        cheats.startPrank(address(investmentManager));
+        investmentStrategy.withdraw(address(this), underlyingToken, sharesToWithdraw);
+        cheats.stopPrank();
+
+        uint256 tokenBalanceAfter = underlyingToken.balanceOf(address(this));
+        uint256 totalSharesAfter = investmentStrategy.totalShares();
+
+        require(totalSharesBefore - totalSharesAfter == sharesToWithdraw, "shares did not decrease appropriately");
+        require(tokenBalanceAfter - tokenBalanceBefore == (strategyBalanceBefore * sharesToWithdraw) / totalSharesBefore,
+            "token balance did not increase appropriately");
+    }
 }
