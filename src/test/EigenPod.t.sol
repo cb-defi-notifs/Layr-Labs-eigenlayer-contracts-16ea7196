@@ -845,11 +845,11 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
             investmentManager.getDeposits(staker);
     }
 
-    function _testDeployAndVerifyNewEigenPod(address _podOwner, bytes memory signature, bytes32 depositDataRoot, bool /*isContract*/, uint40 validatorIndex) internal returns (IEigenPod){
+    function _testDeployAndVerifyNewEigenPod(address _podOwner, bytes memory _signature, bytes32 _depositDataRoot, bool /*isContract*/, uint40 validatorIndex) internal returns (IEigenPod){
         (beaconStateRoot, beaconStateMerkleProofForValidators, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) = getInitialDepositProof(validatorIndex);
 
         cheats.startPrank(_podOwner);
-        eigenPodManager.stake{value: stakeAmount}(pubkey, signature, depositDataRoot);
+        eigenPodManager.stake{value: stakeAmount}(pubkey, _signature, _depositDataRoot);
         cheats.stopPrank();
 
         beaconChainOracle.setBeaconChainStateRoot(beaconStateRoot);
