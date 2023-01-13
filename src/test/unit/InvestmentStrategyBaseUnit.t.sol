@@ -1,45 +1,64 @@
 // //SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "forge-std/Test.sol";
 
-import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import "@openzeppelin/contracts/token/ERC20/presets/ERC20PresetFixedSupply.sol";
-
-import "../mocks/ERC20Mock.sol";
-import "../mocks/InvestmentManagerMock.sol";
-
-
-
-
-
+import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
+import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 import "../../contracts/strategies/InvestmentStrategyBase.sol";
+import "../../contracts/permissions/PauserRegistry.sol";
 
+// import "../mocks/InvestmentManagerMock.sol";
 
+import "forge-std/Test.sol";
 
-import "../EigenLayerTestHelper.t.sol";
-import "../mocks/DelegationMock.sol";
-import "../mocks/SlasherMock.sol";
+contract InvestmentStrategyBaseUnitTests is Test {
 
+    Vm cheats = Vm(HEVM_ADDRESS);
 
-contract InvestmentStrategyBaseUnitTests {
-
-    IInvestmentManager public investmentManagerMock;
+    ProxyAdmin public proxyAdmin;
+    PauserRegistry public pauserRegistry;
+    // IInvestmentManager public investmentManagerMock;
+    IInvestmentManager public investmentManagerMock = IInvestmentManager(address(this));
     IERC20 public tokenMock;
     InvestmentStrategyBase public investmentStrategy;
 
-    uint256 GWEI_TO_WEI = 1e9;
+    address public pauser = address(555);
+    address public unpauser = address(999);
 
     function setUp() virtual public {
-        investmentManagerMock = new InvestmentManagerMock(
-            IEigenLayerDelegation(address(this)),
-            IEigenPodManager(address(this)),
-            ISlasher(address(this))
+        proxyAdmin = new ProxyAdmin();
+
+        pauserRegistry = new PauserRegistry(pauser, unpauser);
+
+        // investmentManagerMock = new InvestmentManagerMock(
+        //     IEigenLayerDelegation(address(this)),
+        //     IEigenPodManager(address(this)),
+        //     ISlasher(address(this))
+        // );
+
+        uint256 initialSupply = 1e24;
+        address owner = address(this);
+        tokenMock = new ERC20PresetFixedSupply("Test Token", "TEST", initialSupply, owner);
+
+        // InvestmentStrategyBase investmentStrategyImplementation = new InvestmentStrategyBase(investmentManagerMock);
+        InvestmentStrategyBase investmentStrategyImplementation = new InvestmentStrategyBase(investmentManagerMock);
+
+        investmentStrategy = InvestmentStrategyBase(
+            address(
+                new TransparentUpgradeableProxy(
+                    address(investmentStrategyImplementation),
+                    address(proxyAdmin),
+                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, tokenMock, pauserRegistry)
+                )
+            )
         );
-
-        
-
-        // investmentStrategy = 
     }
+
+    function testCannotReinitialize() public {
+        cheats.expectRevert(bytes("Initializable: contract is already initialized"));
+        investmentStrategy.initialize(tokenMock, pauserRegistry);
+    }
+
 }
