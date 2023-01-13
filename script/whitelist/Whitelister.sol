@@ -106,7 +106,7 @@ contract Whitelister is Ownable, Test {
                 amount
         );
 
-        return callAddress(staker, address(investmentManager), data);
+        return Staker(staker).callAddress(address(investmentManager), data);
     }
 
     function queueWithdrawal(
@@ -127,7 +127,7 @@ contract Whitelister is Ownable, Test {
                 withdrawer,
                 undelegateIfPossible
             );
-        return callAddress(staker, address(investmentManager), data);
+        return Staker(staker).callAddress(address(investmentManager), data);
     }
 
     function completeQueuedWithdrawal(
@@ -143,7 +143,7 @@ contract Whitelister is Ownable, Test {
                 receiveAsTokens
         );
 
-        return callAddress(staker, address(investmentManager), data);
+        return Staker(staker).callAddress(address(investmentManager), data);
     }
 
     function transfer(
@@ -154,14 +154,17 @@ contract Whitelister is Ownable, Test {
     ) public onlyOwner returns (bytes memory) {
         bytes memory data = abi.encodeWithSelector(IERC20.transfer.selector, to, amount);
 
-        return callAddress(staker, token, data);
+        return Staker(staker).callAddress(token, data);
     }
 
     function callAddress(
-        address staker,
-        address implementation,
+        address to,
         bytes memory data
-    ) public onlyOwner returns (bytes memory) {
-        return Staker(staker).callAddress(implementation, data);
+    ) public onlyOwner payable returns (bytes memory) {
+        (bool ok, bytes memory res) = payable(to).call{value: msg.value}(data);
+        if (!ok) {
+            revert(string(res));
+        }
+        return res;
     }
 }
