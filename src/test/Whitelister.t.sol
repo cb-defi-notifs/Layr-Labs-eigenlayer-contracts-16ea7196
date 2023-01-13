@@ -42,8 +42,7 @@ contract WhitelisterTests is EigenLayerTestHelper {
     BLSPublicKeyCompendiumMock dummyCompendium;
     MiddlewareRegistryMock dummyReg;
 
-    address withdrawer = address(345);
-    address theMultiSig = address(420);
+    
     
 
     modifier fuzzedAmounts(uint256 ethAmount, uint256 eigenAmount){

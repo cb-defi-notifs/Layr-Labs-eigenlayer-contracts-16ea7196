@@ -73,7 +73,7 @@ contract RegistrationTests is EigenLayerTestHelper {
         dataLayrProxyAdmin.upgradeAndCall(
                 TransparentUpgradeableProxy(payable(address(dlReg))),
                 address(dlRegImplementation),
-                abi.encodeWithSelector(BLSRegistry.initialize.selector, _quorumBips, ethStratsAndMultipliers, eigenStratsAndMultipliers)
+                abi.encodeWithSelector(BLSRegistry.initialize.selector, address(this), false, _quorumBips, ethStratsAndMultipliers, eigenStratsAndMultipliers)
             );
 
     }
