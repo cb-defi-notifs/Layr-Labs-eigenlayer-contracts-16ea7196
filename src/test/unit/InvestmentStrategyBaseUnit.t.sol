@@ -1,7 +1,6 @@
 // //SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-
 import "@openzeppelin/contracts/token/ERC20/presets/ERC20PresetFixedSupply.sol";
 import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
@@ -10,6 +9,7 @@ import "../../contracts/strategies/InvestmentStrategyBase.sol";
 import "../../contracts/permissions/PauserRegistry.sol";
 
 import "../mocks/InvestmentManagerMock.sol";
+import "../mocks/ERC20_SetTransferReverting_Mock.sol";
 
 import "forge-std/Test.sol";
 
@@ -21,10 +21,14 @@ contract InvestmentStrategyBaseUnitTests is Test {
     PauserRegistry public pauserRegistry;
     IInvestmentManager public investmentManager;
     IERC20 public underlyingToken;
+    InvestmentStrategyBase public investmentStrategyImplementation;
     InvestmentStrategyBase public investmentStrategy;
 
     address public pauser = address(555);
     address public unpauser = address(999);
+
+    uint256 initialSupply = 1e24;
+    address initialOwner = address(this);
 
     function setUp() virtual public {
         proxyAdmin = new ProxyAdmin();
@@ -37,11 +41,9 @@ contract InvestmentStrategyBaseUnitTests is Test {
             ISlasher(address(this))
         );
 
-        uint256 initialSupply = 1e24;
-        address owner = address(this);
-        underlyingToken = new ERC20PresetFixedSupply("Test Token", "TEST", initialSupply, owner);
+        underlyingToken = new ERC20PresetFixedSupply("Test Token", "TEST", initialSupply, initialOwner);
 
-        InvestmentStrategyBase investmentStrategyImplementation = new InvestmentStrategyBase(investmentManager);
+        investmentStrategyImplementation = new InvestmentStrategyBase(investmentManager);
 
         investmentStrategy = InvestmentStrategyBase(
             address(
@@ -96,8 +98,9 @@ contract InvestmentStrategyBaseUnitTests is Test {
     }
 
     function testDepositFailsWhenDepositsPaused() public {
+        // pause deposits
         cheats.startPrank(pauser);
-        investmentStrategy.pause(type(uint256).max);
+        investmentStrategy.pause(1);
         cheats.stopPrank();
 
         uint256 amountToDeposit = 1e18;
@@ -118,6 +121,17 @@ contract InvestmentStrategyBaseUnitTests is Test {
         cheats.expectRevert(bytes("InvestmentStrategyBase.onlyInvestmentManager"));
         cheats.startPrank(caller);
         investmentStrategy.deposit(underlyingToken, amountToDeposit);
+        cheats.stopPrank();
+    }
+
+    function testDepositFailsWhenNotUsingUnderlyingToken(address notUnderlyingToken) public {
+        cheats.assume(notUnderlyingToken != address(underlyingToken));
+
+        uint256 amountToDeposit = 1e18;
+
+        cheats.expectRevert(bytes("InvestmentStrategyBase.deposit: Can only deposit underlyingToken"));
+        cheats.startPrank(address(investmentManager));
+        investmentStrategy.deposit(IERC20(notUnderlyingToken), amountToDeposit);
         cheats.stopPrank();
     }
 
@@ -161,4 +175,86 @@ contract InvestmentStrategyBaseUnitTests is Test {
         require(tokenBalanceAfter - tokenBalanceBefore == (strategyBalanceBefore * sharesToWithdraw) / totalSharesBefore,
             "token balance did not increase appropriately");
     }
+
+    function testWithdrawFailsWhenWithdrawalsPaused(uint256 amountToDeposit) public {
+        testDepositWithZeroPriorBalanceAndZeroPriorShares(amountToDeposit);
+
+        // pause withdrawals
+        cheats.startPrank(pauser);
+        investmentStrategy.pause(2);
+        cheats.stopPrank();
+
+        uint256 amountToWithdraw = 1e18;
+
+        cheats.expectRevert(bytes("Pausable: index is paused"));
+        cheats.startPrank(address(investmentManager));
+        investmentStrategy.withdraw(address(this), underlyingToken, amountToWithdraw);
+        cheats.stopPrank();
+    }
+
+    function testWithdrawalFailsWhenCallingFromNotInvestmentManager(address caller) public {
+        cheats.assume(caller != address(investmentStrategy.investmentManager()) && caller != address(proxyAdmin));
+
+        uint256 amountToDeposit = 1e18;
+        testDepositWithZeroPriorBalanceAndZeroPriorShares(amountToDeposit);
+
+        uint256 amountToWithdraw = 1e18;
+
+        cheats.expectRevert(bytes("InvestmentStrategyBase.onlyInvestmentManager"));
+        cheats.startPrank(caller);
+        investmentStrategy.withdraw(address(this), underlyingToken, amountToWithdraw);
+        cheats.stopPrank();
+    }
+
+    function testWithdrawalFailsWhenNotUsingUnderlyingToken(address notUnderlyingToken) public {
+        cheats.assume(notUnderlyingToken != address(underlyingToken));
+
+        uint256 amountToWithdraw = 1e18;
+
+        cheats.expectRevert(bytes("InvestmentStrategyBase.withdraw: Can only withdraw the strategy token"));
+        cheats.startPrank(address(investmentManager));
+        investmentStrategy.withdraw(address(this), IERC20(notUnderlyingToken), amountToWithdraw);
+        cheats.stopPrank();
+    }
+
+    function testWithdrawFailsWhenSharesGreaterThanTotalShares(uint256 amountToDeposit, uint256 sharesToWithdraw) public {
+        testDepositWithZeroPriorBalanceAndZeroPriorShares(amountToDeposit);
+
+        uint256 totalSharesBefore = investmentStrategy.totalShares();
+
+        // since we are checking strictly greater than in this test
+        cheats.assume(sharesToWithdraw > totalSharesBefore);
+
+        cheats.expectRevert(bytes("InvestmentStrategyBase.withdraw: amountShares must be less than or equal to totalShares"));
+        cheats.startPrank(address(investmentManager));
+        investmentStrategy.withdraw(address(this), underlyingToken, sharesToWithdraw);
+        cheats.stopPrank();
+    }
+
+    function testWithdrawalFailsWhenTokenTransferFails() public {
+        underlyingToken = new ERC20_SetTransferReverting_Mock(initialSupply, initialOwner);
+
+        investmentStrategy = InvestmentStrategyBase(
+            address(
+                new TransparentUpgradeableProxy(
+                    address(investmentStrategyImplementation),
+                    address(proxyAdmin),
+                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, underlyingToken, pauserRegistry)
+                )
+            )
+        );
+
+        uint256 amountToDeposit = 1e18;
+        testDepositWithZeroPriorBalanceAndZeroPriorShares(amountToDeposit);
+
+        uint256 amountToWithdraw = 1e18;
+        ERC20_SetTransferReverting_Mock(address(underlyingToken)).setTransfersRevert(true);
+
+        cheats.expectRevert();
+        cheats.startPrank(address(investmentManager));
+        investmentStrategy.withdraw(address(this), underlyingToken, amountToWithdraw);
+        cheats.stopPrank();
+    }
+
+
 }
