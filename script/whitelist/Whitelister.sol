@@ -3,7 +3,7 @@ pragma solidity ^0.8.9;
 
 import "../../src/contracts/interfaces/IInvestmentManager.sol";
 import "../../src/contracts/interfaces/IInvestmentStrategy.sol";
-import "../../src/contracts/interfaces/IEigenLayrDelegation.sol";
+import "../../src/contracts/interfaces/IEigenLayerDelegation.sol";
 import "../../src/contracts/interfaces/IBLSRegistry.sol";
 import "./Staker.sol";
 
@@ -20,7 +20,7 @@ contract Whitelister is Ownable, Test {
     IInvestmentManager immutable investmentManager;
     ERC20PresetMinterPauser immutable stakeToken;
     IInvestmentStrategy immutable stakeStrategy;
-    IEigenLayrDelegation delegation;
+    IEigenLayerDelegation delegation;
 
     IBLSRegistry immutable registry;
 
@@ -32,7 +32,7 @@ contract Whitelister is Ownable, Test {
     //TODO: Give up mint/admin/pauser permssions of whitelistToken for deployer
     constructor(
         IInvestmentManager _investmentManager,
-        IEigenLayrDelegation _delegation,
+        IEigenLayerDelegation _delegation,
         ERC20PresetMinterPauser _token,
         IInvestmentStrategy _strategy,
         IBLSRegistry _registry

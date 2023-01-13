@@ -3,7 +3,7 @@ pragma solidity ^0.8.9;
 
 import "../../src/contracts/interfaces/IInvestmentManager.sol";
 import "../../src/contracts/interfaces/IInvestmentStrategy.sol";
-import "../../src/contracts/interfaces/IEigenLayrDelegation.sol";
+import "../../src/contracts/interfaces/IEigenLayerDelegation.sol";
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -14,7 +14,7 @@ contract Staker is Ownable, Test {
     constructor(
         IInvestmentStrategy strategy, 
         IInvestmentManager investmentManager,
-        IEigenLayrDelegation delegation,
+        IEigenLayerDelegation delegation,
         IERC20 token, 
         uint256 amount, 
         address operator

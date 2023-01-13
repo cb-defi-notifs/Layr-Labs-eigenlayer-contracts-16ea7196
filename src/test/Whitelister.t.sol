@@ -3,7 +3,7 @@ pragma solidity ^0.8.9;
 
 import "../../src/contracts/interfaces/IInvestmentManager.sol";
 import "../../src/contracts/interfaces/IInvestmentStrategy.sol";
-import "../../src/contracts/interfaces/IEigenLayrDelegation.sol";
+import "../../src/contracts/interfaces/IEigenLayerDelegation.sol";
 import "../../src/contracts/strategies/InvestmentStrategyBase.sol";
 import "../../src/contracts/middleware/BLSRegistry.sol";
 
@@ -22,12 +22,12 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Create2.sol";
 
-import "./EigenLayrTestHelper.t.sol";
+import "./EigenLayerTestHelper.t.sol";
 import "./Delegation.t.sol";
 
 import "forge-std/Test.sol";
 
-contract WhitelisterTests is EigenLayrTestHelper {
+contract WhitelisterTests is EigenLayerTestHelper {
 
     ERC20PresetMinterPauser dummyToken;
     IInvestmentStrategy dummyStrat;
@@ -62,14 +62,14 @@ contract WhitelisterTests is EigenLayrTestHelper {
     }
 
     function setUp() public virtual override{
-        EigenLayrDeployer.setUp();
+        EigenLayerDeployer.setUp();
 
 
         emptyContract = new EmptyContract();
 
         dummyCompendium = new BLSPublicKeyCompendiumMock();
         blsRegistry = BLSRegistry(
-            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayerProxyAdmin), ""))
         );
 
         dummyToken = new ERC20PresetMinterPauser("dummy staked ETH", "dsETH");
@@ -78,8 +78,8 @@ contract WhitelisterTests is EigenLayrTestHelper {
             address(
                 new TransparentUpgradeableProxy(
                         address(dummyStratImplementation),
-                        address(eigenLayrProxyAdmin),
-                        abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, dummyToken, eigenLayrPauserReg)
+                        address(eigenLayerProxyAdmin),
+                        abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, dummyToken, eigenLayerPauserReg)
                     )
                 )
         );
@@ -115,7 +115,7 @@ contract WhitelisterTests is EigenLayrTestHelper {
             eigenStratsAndMultipliers[0].strategy = eigenStrat;
             eigenStratsAndMultipliers[0].multiplier = 1e18;
 
-        eigenLayrProxyAdmin.upgradeAndCall(
+        eigenLayerProxyAdmin.upgradeAndCall(
                 TransparentUpgradeableProxy(payable(address(blsRegistry))),
                 address(blsRegistryImplementation),
                 abi.encodeWithSelector(BLSRegistry.initialize.selector, address(whiteLister), true, _quorumBips, ethStratsAndMultipliers, eigenStratsAndMultipliers)
