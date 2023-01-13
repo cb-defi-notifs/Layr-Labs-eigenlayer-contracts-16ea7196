@@ -36,7 +36,7 @@ contract DelegationMock is IEigenLayerDelegation, Test {
 
     function isDelegated(address staker) external view returns (bool){return true;}
 
-    function isNotDelegated(address staker) external returns (bool){}
+    function isNotDelegated(address staker) external view returns (bool){}
 
     function isOperator(address operator) external view returns (bool){}
 
