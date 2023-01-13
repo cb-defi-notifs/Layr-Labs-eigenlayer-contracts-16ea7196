@@ -295,8 +295,9 @@ contract InvestmentManager is
         nonReentrant
         returns (bytes32)
     {
+        emit log("inside uueued");
         require(!paused(PAUSED_WITHDRAWALS), "Pausable: index is paused");
-
+    
         // modify delegated shares accordingly, if applicable
         delegation.decreaseDelegatedShares(msg.sender, sts.strategies, sts.shares);
 
@@ -310,6 +311,7 @@ contract InvestmentManager is
          * This is because shares in the enshrined `beaconChainETHStrategy` ultimately represent tokens in **non-fungible** EigenPods,
          * while other share in all other strategies represent purely fungible positions.
          */
+        emit log("here");
         for (uint256 i = 0; i < sts.strategies.length;) {
             if (sts.strategies[i] == beaconChainETHStrategy) {
                 require(withdrawer == msg.sender,
@@ -318,7 +320,8 @@ contract InvestmentManager is
                     "InvestmentManager.queueWithdrawal: cannot queue a withdrawal including Beacon Chain ETH and other tokens");
                 require(sts.shares[i] % GWEI_TO_WEI == 0,
                     "InvestmentManager.queueWithdrawal: cannot queue a withdrawal of Beacon Chain ETH for an non-whole amount of gwei");
-            }      
+            }   
+            emit log("here2");
 
             // the internal function will return 'true' in the event the strategy was
             // removed from the depositor's array of strategies -- i.e. investorStrats[depositor]
@@ -335,6 +338,7 @@ contract InvestmentManager is
                 ++i;
             }
         }
+        emit log("here3");
 
         // fetch the address that the `msg.sender` is delegated to
         address delegatedAddress = delegation.delegatedTo(msg.sender);
@@ -361,6 +365,14 @@ contract InvestmentManager is
                 withdrawalStartBlock: uint32(block.number),
                 delegatedAddress: delegatedAddress
             });
+
+            emit log("***********************************************************************");
+            emit log_named_address("delegatedAddress", delegatedAddress);
+            emit log_named_uint("withdrawalStartBlock", uint32(block.number));
+            emit log_named_uint("withdrawerAndNonce.Nonce", withdrawerAndNonce.nonce);
+            emit log_named_address("withdrawerAndNonce.Adress", withdrawerAndNonce.withdrawer);
+            emit log_named_address("depositor",  msg.sender);
+            emit log("***********************************************************************");
 
         }
 

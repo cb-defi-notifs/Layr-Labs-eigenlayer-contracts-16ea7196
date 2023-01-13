@@ -43,7 +43,6 @@ contract WhitelisterTests is EigenLayerTestHelper {
     MiddlewareRegistryMock dummyReg;
 
     
-    
 
     modifier fuzzedAmounts(uint256 ethAmount, uint256 eigenAmount){
         cheats.assume(ethAmount >= 0 && ethAmount <= 1e18);
@@ -261,14 +260,13 @@ contract WhitelisterTests is EigenLayerTestHelper {
     )
         internal
     {
+        IInvestmentManager.StratsTokensShares memory sts;
+        sts =  IInvestmentManager.StratsTokensShares(strategyArray, tokensArray, shareAmounts);
         cheats.startPrank(theMultiSig);
-
         whiteLister.queueWithdrawal(
             staker,
             strategyIndexes,
-            strategyArray,
-            tokensArray,
-            shareAmounts,
+            sts,
             staker,
             true
         );
@@ -297,13 +295,13 @@ contract WhitelisterTests is EigenLayerTestHelper {
             delegatedAddress: delegatedTo
         });
 
-        // emit log("***********************************************************************");
-        // emit log_named_address("delegatedAddress", delegatedTo);
-        // emit log_named_uint("withdrawalStartBlock", withdrawalStartBlock);
-        // emit log_named_uint("withdrawerAndNonce.Nonce", withdrawerAndNonce.nonce);
-        // emit log_named_address("withdrawerAndNonce.Adress", withdrawerAndNonce.withdrawer);
-        // emit log_named_address("depositor", staker);
-        // emit log("***********************************************************************");
+        emit log("*******************COMPLETE***************************");
+        emit log_named_address("delegatedAddress", delegatedTo);
+        emit log_named_uint("withdrawalStartBlock", withdrawalStartBlock);
+        emit log_named_uint("withdrawerAndNonce.Nonce", withdrawerAndNonce.nonce);
+        emit log_named_address("withdrawerAndNonce.Adress", withdrawerAndNonce.withdrawer);
+        emit log_named_address("depositor", staker);
+        emit log("***********************************************************************");
 
         cheats.startPrank(theMultiSig);
         whiteLister.completeQueuedWithdrawal(staker, queuedWithdrawal, middlewareTimesIndex, true);

@@ -111,18 +111,14 @@ contract Whitelister is Ownable, Test {
     function queueWithdrawal(
         address staker,
         uint256[] calldata strategyIndexes,
-        IInvestmentStrategy[] calldata strategies,
-        IERC20[] calldata tokens,
-        uint256[] calldata shares,
+        IInvestmentManager.StratsTokensShares calldata sts,
         address withdrawer,
         bool undelegateIfPossible
     ) public onlyOwner returns (bytes memory) {
         bytes memory data = abi.encodeWithSelector(
                 IInvestmentManager.queueWithdrawal.selector,
                 strategyIndexes,
-                strategies,
-                tokens,
-                shares,
+                sts,
                 withdrawer,
                 undelegateIfPossible
             );

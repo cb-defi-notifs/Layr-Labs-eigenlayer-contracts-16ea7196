@@ -27,7 +27,6 @@ contract Staker is Ownable, Test {
     function callAddress(address implementation, bytes memory data) external onlyOwner returns(bytes memory) {
         uint256 length = data.length;
         bytes memory returndata;  
-
         assembly{
             let result := call(
                 gas(),
@@ -41,6 +40,7 @@ contract Staker is Ownable, Test {
             mstore(returndata, returndatasize())
             returndatacopy(add(returndata, 32), 0, returndatasize())
         }
+        emit log_bytes(returndata);
 
         return returndata;
 
