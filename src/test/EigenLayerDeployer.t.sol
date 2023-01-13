@@ -4,7 +4,6 @@ pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/token/ERC20/presets/ERC20PresetFixedSupply.sol";
 import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
-import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/proxy/beacon/IBeacon.sol";
 import "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 
@@ -35,19 +34,19 @@ import "./mocks/ETHDepositMock.sol";
 
  import "forge-std/Test.sol";
 
-contract EigenLayrDeployer is Operators {
+contract EigenLayerDeployer is Operators {
     using BytesLib for bytes;
 
     Vm cheats = Vm(HEVM_ADDRESS);
 
     // EigenLayer contracts
     ProxyAdmin public eigenLayerProxyAdmin;
-    PauserRegistry public eigenLayrPauserReg;
+    PauserRegistry public eigenLayerPauserReg;
 
     Slasher public slasher;
     EigenLayerDelegation public delegation;
     InvestmentManager public investmentManager;
-    IEigenPodManager public eigenPodManager;
+    EigenPodManager public eigenPodManager;
     IEigenPod public pod;
     IETHPOSDeposit public ethPOSDeposit;
     IBeacon public eigenPodBeacon;
@@ -89,7 +88,7 @@ contract EigenLayrDeployer is Operators {
     address acct_1 = cheats.addr(uint256(priv_key_1));
     address _challenger = address(0x6966904396bF2f8b173350bCcec5007A52669873);
 
-    address public eigenLayrReputedMultisig = address(this);
+    address public eigenLayerReputedMultisig = address(this);
     mapping (address => bool) fuzzedAddressMapping;
 
 
@@ -105,7 +104,7 @@ contract EigenLayrDeployer is Operators {
 
     //performs basic deployment before each test
     function setUp() public virtual {
-        _deployEigenLayrContracts();
+        _deployEigenLayerContracts();
 
         fuzzedAddressMapping[address(0)] = true;
         fuzzedAddressMapping[address(eigenLayerProxyAdmin)] = true;
@@ -115,12 +114,12 @@ contract EigenLayrDeployer is Operators {
         fuzzedAddressMapping[address(slasher)] = true;
     }
 
-    function _deployEigenLayrContracts() internal {
+    function _deployEigenLayerContracts() internal {
         // deploy proxy admin for ability to upgrade proxy contracts
         eigenLayerProxyAdmin = new ProxyAdmin();
 
         //deploy pauser registry
-        eigenLayrPauserReg = new PauserRegistry(pauser, unpauser);
+        eigenLayerPauserReg = new PauserRegistry(pauser, unpauser);
 
         /**
          * First, deploy upgradeable proxy contracts that **will point** to the implementations. Since the implementation contracts are
@@ -154,27 +153,29 @@ contract EigenLayrDeployer is Operators {
         Slasher slasherImplementation = new Slasher(investmentManager, delegation);
         EigenPodManager eigenPodManagerImplementation = new EigenPodManager(ethPOSDeposit, eigenPodBeacon, investmentManager, slasher);
 
+        
+
 
         // Third, upgrade the proxy contracts to use the correct implementation contracts and initialize them.
         eigenLayerProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(delegation))),
             address(delegationImplementation),
-            abi.encodeWithSelector(EigenLayerDelegation.initialize.selector, eigenLayrPauserReg, eigenLayrReputedMultisig)
+            abi.encodeWithSelector(EigenLayerDelegation.initialize.selector, eigenLayerPauserReg, eigenLayerReputedMultisig)
         );
         eigenLayerProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(investmentManager))),
             address(investmentManagerImplementation),
-            abi.encodeWithSelector(InvestmentManager.initialize.selector, eigenLayrPauserReg, eigenLayrReputedMultisig)
+            abi.encodeWithSelector(InvestmentManager.initialize.selector, eigenLayerPauserReg, eigenLayerReputedMultisig)
         );
         eigenLayerProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(slasher))),
             address(slasherImplementation),
-            abi.encodeWithSelector(Slasher.initialize.selector, eigenLayrPauserReg, eigenLayrReputedMultisig)
+            abi.encodeWithSelector(Slasher.initialize.selector, eigenLayerPauserReg, eigenLayerReputedMultisig)
         );
         eigenLayerProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(eigenPodManager))),
             address(eigenPodManagerImplementation),
-            abi.encodeWithSelector(EigenPodManager.initialize.selector, beaconChainOracle, eigenLayrReputedMultisig)
+            abi.encodeWithSelector(EigenPodManager.initialize.selector, beaconChainOracle, eigenLayerReputedMultisig)
         );
 
 
@@ -193,7 +194,7 @@ contract EigenLayrDeployer is Operators {
                 new TransparentUpgradeableProxy(
                     address(baseStrategyImplementation),
                     address(eigenLayerProxyAdmin),
-                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, weth, eigenLayrPauserReg)
+                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, weth, eigenLayerPauserReg)
                 )
             )
         );
@@ -211,11 +212,12 @@ contract EigenLayrDeployer is Operators {
                 new TransparentUpgradeableProxy(
                     address(baseStrategyImplementation),
                     address(eigenLayerProxyAdmin),
-                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, eigenToken, eigenLayrPauserReg)
+                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, eigenToken, eigenLayerPauserReg)
                 )
             )
         );
 
         stakers = [acct_0, acct_1];
     }
+    
 }

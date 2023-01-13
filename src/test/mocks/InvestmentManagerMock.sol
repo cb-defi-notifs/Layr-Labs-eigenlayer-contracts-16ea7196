@@ -5,11 +5,11 @@ import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
 import "@openzeppelin-upgrades/contracts/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "../../contracts/permissions/Pausable.sol";
 import "../../contracts/core/InvestmentManagerStorage.sol";
 import "../../contracts/interfaces/IServiceManager.sol";
 import "../../contracts/interfaces/IEigenPodManager.sol";
+import "../../contracts/interfaces/IEigenLayerDelegation.sol";
 
 // import "forge-std/Test.sol";
 
@@ -22,11 +22,11 @@ contract InvestmentManagerMock is
     // ,Test
 {
 
-    IEigenLayrDelegation public immutable delegation;
+    IEigenLayerDelegation public immutable delegation;
     IEigenPodManager public immutable eigenPodManager;
     ISlasher public immutable slasher;
 
-    constructor(IEigenLayrDelegation _delegation, IEigenPodManager _eigenPodManager, ISlasher _slasher)
+    constructor(IEigenLayerDelegation _delegation, IEigenPodManager _eigenPodManager, ISlasher _slasher)
     {
        delegation = _delegation;
        slasher = _slasher;
@@ -51,8 +51,7 @@ contract InvestmentManagerMock is
         uint256 amount,
         address staker,
         uint256 expiry,
-        bytes32 r,
-        bytes32 vs
+        bytes memory signature
     )
         external
         returns (uint256 shares){}
@@ -72,9 +71,7 @@ contract InvestmentManagerMock is
 
     function queueWithdrawal(
         uint256[] calldata strategyIndexes,
-        IInvestmentStrategy[] calldata strategies,
-        IERC20[] calldata tokens,
-        uint256[] calldata shareAmounts,
+        StratsTokensShares calldata sts,
         address withdrawer,
         bool undelegateIfPossible
     )

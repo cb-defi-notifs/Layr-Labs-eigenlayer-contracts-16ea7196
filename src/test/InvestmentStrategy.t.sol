@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "./EigenLayrTestHelper.t.sol";
+import "./EigenLayerTestHelper.t.sol";
 import "../contracts/core/InvestmentManagerStorage.sol";
 
-contract InvestmentStrategyTests is EigenLayrTestHelper {
+contract InvestmentStrategyTests is EigenLayerTestHelper {
     /// @notice This function tests to ensure that a delegation contract
     ///         cannot be intitialized multiple times
     function testCannotInitMultipleTimesDelegation() public cannotReinit {
-        wethStrat.initialize(weth, eigenLayrPauserReg);
+        wethStrat.initialize(weth, eigenLayerPauserReg);
     }
 
     ///@notice This function tests to ensure that only the investmentManager

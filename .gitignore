@@ -9,11 +9,12 @@ contract.addresses
 deployedAddresses
 
 #Hardhat files
-cache
+cache_hardhat
 artifacts
 *.lock
 #Foundry files
 out
+cache
 
 *.DS_Store
 

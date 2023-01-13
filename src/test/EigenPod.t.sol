@@ -5,7 +5,7 @@ import "../contracts/interfaces/IEigenPod.sol";
 import "../contracts/interfaces/IBLSPublicKeyCompendium.sol";
 import "../contracts/middleware/BLSPublicKeyCompendium.sol";
 import "./utils/BeaconChainUtils.sol";
-import "./EigenLayrDeployer.t.sol";
+import "./EigenLayerDeployer.t.sol";
 import "./mocks/MiddlewareRegistryMock.sol";
 import "./mocks/ServiceManagerMock.sol";
 
@@ -690,6 +690,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     //                     always accounts for the parital withdrawal
 
     function testEigenPodsQueuedWithdrawal(address operator) public fuzzedAddress(operator){
+        cheats.assume(operator != podOwner);
         //make initial deposit
         testDeployAndVerifyNewEigenPod();
 
@@ -734,9 +735,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         cheats.warp(uint32(block.timestamp) + 1 days);
         cheats.roll(uint32(block.timestamp) + 1 days);
 
-        cheats.startPrank(podOwner);
-        investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, podOwner, undelegateIfPossible);
-        cheats.stopPrank();
+        _testQueueWithdrawal(podOwner, strategyIndexes, strategyArray, tokensArray, shareAmounts, undelegateIfPossible);
         uint32 queuedWithdrawalStartBlock = uint32(block.number);
 
         //*************************DELEGATION/Stake Update STUFF******************************//
@@ -778,8 +777,8 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         require(podOwner.balance - podOwnerBalanceBefore == shareAmounts[0], "podOwner balance not updated correcty");
     } 
 
-    // simply tries to register 'sender' as a delegate, setting their 'DelegationTerms' contract in EigenLayrDelegation to 'dt'
-    // verifies that the storage of EigenLayrDelegation contract is updated appropriately
+    // simply tries to register 'sender' as a delegate, setting their 'DelegationTerms' contract in EigenLayerDelegation to 'dt'
+    // verifies that the storage of EigenLayerDelegation contract is updated appropriately
     function _testRegisterAsOperator(address sender, IDelegationTerms dt) internal {
         cheats.startPrank(sender);
 
@@ -963,6 +962,33 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         // bytes32 validatorIndexBytes = bytes32(uint256(validatorIndex));
         bytes memory proofs = abi.encodePacked(validatorMerkleProof, beaconStateMerkleProofForValidators);
         pod.verifyOvercommittedStake(validatorIndex, proofs, validatorContainerFields, 0);
+    }
+
+    function _testQueueWithdrawal(
+        address depositor,
+        uint256[] memory strategyIndexes,
+        IInvestmentStrategy[] memory strategyArray,
+        IERC20[] memory tokensArray,
+        uint256[] memory shareAmounts,
+        bool undelegateIfPossible
+    )
+        internal
+        returns (bytes32)
+    {
+        IInvestmentManager.StratsTokensShares memory sts = IInvestmentManager.StratsTokensShares(strategyArray, tokensArray, shareAmounts);
+        cheats.startPrank(depositor);
+
+        //make a call with depositor aka podOwner also as withdrawer.
+        bytes32 withdrawalRoot = investmentManager.queueWithdrawal(
+            strategyIndexes,
+            sts,
+            depositor,
+            // TODO: make this an input
+            undelegateIfPossible
+        );
+
+        cheats.stopPrank();
+        return withdrawalRoot;
     }
 
  }
