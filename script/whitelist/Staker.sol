@@ -41,6 +41,7 @@ contract Staker is Ownable, Test {
             returndatacopy(add(returndata, 32), 0, returndatasize())
         }
 
+
         return returndata;
 
     }
