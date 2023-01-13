@@ -27,10 +27,7 @@ contract InvestmentManagerUnitTests is EigenLayerTestHelper {
         slasherMock = new SlasherMock();
         delegationMock = new DelegationMock();
         investmentManagerMock = new InvestmentManager(delegationMock, eigenPodManager, slasherMock);
-        IERC20 dummyToken = new ERC20Mock(
-            "dummy",
-            "DUMMY"
-        );
+        IERC20 dummyToken = new ERC20Mock();
         InvestmentStrategyBase dummyStratImplementation = new InvestmentStrategyBase(investmentManagerMock);
         dummyStrat = InvestmentStrategyBase(
             address(
