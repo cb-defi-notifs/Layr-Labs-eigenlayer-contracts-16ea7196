@@ -62,7 +62,6 @@ contract WhitelisterTests is EigenLayerTestHelper {
     function setUp() public virtual override{
         EigenLayerDeployer.setUp();
 
-
         emptyContract = new EmptyContract();
 
         dummyCompendium = new BLSPublicKeyCompendiumMock();
@@ -124,6 +123,8 @@ contract WhitelisterTests is EigenLayerTestHelper {
              investmentManager
         );
 
+        fuzzedAddressMapping[address(whiteLister)] = true;
+
     }
 
     function testWhitelistingOperator(address operator) public fuzzedAddress(operator){
@@ -151,7 +152,7 @@ contract WhitelisterTests is EigenLayerTestHelper {
         cheats.stopPrank();
     }
 
-    function testCallStakerFromNonWhitelisterAddress(address nonWhitelister, bytes memory data) external {
+    function testCallStakerFromNonWhitelisterAddress(address nonWhitelister, bytes memory data) external fuzzedAddress(nonWhitelister){
         testWhitelistingOperator(operator);
         address staker = whiteLister.getStaker(operator);
 
