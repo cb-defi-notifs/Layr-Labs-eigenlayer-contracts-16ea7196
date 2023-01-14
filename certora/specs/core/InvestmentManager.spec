@@ -35,6 +35,7 @@ methods {
     // Harnessed calls
     // Harnessed getters
     strategy_is_in_stakers_array(address, address) returns (bool) envfree
+    num_times_strategy_is_in_stakers_array(address, address) returns (uint256) envfree
 
 	//// Normal Functions
 	investorStratsLength(address) returns (uint256) envfree
@@ -48,6 +49,9 @@ invariant investorStratsLengthLessThanOrEqualToMax(address staker)
 // Seems like perhaps `strategiesInArrayHaveNonzeroShares` and `strategiesInArrayHaveNonzeroSharesAttemptTwo`
 // are failing due to dispatcher hitting HAVOC inside of the safeTransfer of the Base Strategy (or similar, multi-level-deep calls)
 // seeing failures in `queueWithdrawal`, `recordOvercommittedBeaconChainETH`, `completeQueuedWithdrawal`, `slashShares`, and `slashQueuedWithdrawal`
+
+invariant noDuplicatesInArray(address staker, address strategy)
+    num_times_strategy_is_in_stakers_array(staker, strategy) <= 1
 
 // TODO: this rule is currently failing, but is likely salvageable. presumably needs a stricter condition.
 // if a strategy is in the staker's array of strategies, then the staker should have nonzero shares in that strategy

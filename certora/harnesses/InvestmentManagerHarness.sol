@@ -17,4 +17,15 @@ contract InvestmentManagerHarness is InvestmentManager {
         }
         return false;
     }
+
+    function num_times_strategy_is_in_stakers_array(address staker, IInvestmentStrategy strategy) public view returns (uint256) {
+        uint256 length = investorStrats[staker].length;
+        uint256 res = 0;
+        for (uint256 i = 0; i < length; ++i) {
+            if (investorStrats[staker][i] == strategy) {
+                res += 1;
+            }
+        }
+        return res;
+    }
 }
