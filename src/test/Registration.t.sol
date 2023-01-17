@@ -32,19 +32,19 @@ contract RegistrationTests is EigenLayerTestHelper {
 
     function setUp() public virtual override {
         EigenLayerDeployer.setUp();
-
         initializeMiddlewares();
     }
 
 
     function initializeMiddlewares() public {
         dataLayrProxyAdmin = new ProxyAdmin();
+        fuzzedAddressMapping[address(dataLayrProxyAdmin)] = true;
 
         pubkeyCompendium = new BLSPublicKeyCompendiumMock();
 
         investmentManagerMock = new InvestmentManagerMock(delegation, eigenPodManager, slasher);
 
-        dlsm = new ServiceManagerMock(investmentManagerMock);
+        dlsm = new ServiceManagerMock(slasher);
 
         dlReg = BLSRegistry(
             address(new TransparentUpgradeableProxy(address(emptyContract), address(dataLayrProxyAdmin), ""))
@@ -74,7 +74,7 @@ contract RegistrationTests is EigenLayerTestHelper {
         dataLayrProxyAdmin.upgradeAndCall(
                 TransparentUpgradeableProxy(payable(address(dlReg))),
                 address(dlRegImplementation),
-                abi.encodeWithSelector(BLSRegistry.initialize.selector, _quorumBips, ethStratsAndMultipliers, eigenStratsAndMultipliers)
+                abi.encodeWithSelector(BLSRegistry.initialize.selector, address(this), false, _quorumBips, ethStratsAndMultipliers, eigenStratsAndMultipliers)
             );
 
     }
@@ -108,7 +108,7 @@ contract RegistrationTests is EigenLayerTestHelper {
         assertTrue(dlReg.operatorList(0) == operator, "incorrect operator added");
     }
 
-    function testDeregisterOperator(address operator, uint32 operatorIndex, string calldata socket) public fuzzedAddress(operator){
+    function testDeregisterOperator(address operator, uint32 operatorIndex, string calldata socket) public fuzzedAddress(operator) {
         cheats.assume(operatorIndex < 15);
         BN254.G1Point memory pk = getOperatorPubkeyG1(operatorIndex);
 
@@ -118,7 +118,7 @@ contract RegistrationTests is EigenLayerTestHelper {
         cheats.stopPrank();
 
         bytes32 pubkeyHash = BN254.hashG1Point(pk);
-        (uint32 toBlockNumber, uint32 index) = dlReg.pubkeyHashToIndexHistory(pubkeyHash,0);
+        (uint32 toBlockNumber, /*uint32 index*/) = dlReg.pubkeyHashToIndexHistory(pubkeyHash,0);
         assertTrue(toBlockNumber == block.number, "toBlockNumber has been set incorrectly");
     }
 

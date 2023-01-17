@@ -15,7 +15,7 @@ The EigenPodManager facilitates the higher level functionality of EigenPods and 
 
 ## The EigenPod
 
-The EigenPod is the contract that a staker must set their Etherum validators' withdrawal credentials to. EigenPods can be created by stakers through a call to the EigenPodManager. EigenPods are deployed using the beacon proxy pattern to have flexible global upgradability for future changes to the Ethereum specification. Stakers can stake for an Etherum validator when they create their EigenPod, through further calls to their EigenPod, and through parallel deposits to the Beacon Chain deposit contract.
+The EigenPod is the contract that a staker must set their Ethereum validators' withdrawal credentials to. EigenPods can be created by stakers through a call to the EigenPodManager. EigenPods are deployed using the beacon proxy pattern to have flexible global upgradability for future changes to the Ethereum specification. Stakers can stake for an Etherum validator when they create their EigenPod, through further calls to their EigenPod, and through parallel deposits to the Beacon Chain deposit contract.
 
 ### Beacon State Root Oracle
 
@@ -31,9 +31,9 @@ If a Ethereum validator restaked on an EigenPod has a balance that falls below `
 
 ### Proofs of Full Withdrawals
 
-Whenever an staker withdraws one of their validators from the beacon chain to provide liquidity, they have a few options. Stakers could keep the ETH in the EigenPod and continue staking on EigenLayer, in which case their ETH, when withdrawn to the EigenPod, will not earn any additional Ethereum staking yield, it will only earn their EigenLayer staking yield. Stakers could also queue withdrawals on EigenLayer for the virtual beacon chain ETH strategy which will be fullfilled once their staking obligations have ended and their EigenPod has enough balance to complete the withdrawal.
+Whenever a staker withdraws one of their validators from the beacon chain to provide liquidity, they have a few options. Stakers could keep the ETH in the EigenPod and continue staking on EigenLayer, in which case their ETH, when withdrawn to the EigenPod, will not earn any additional Ethereum staking yield, it will only earn their EigenLayer staking yield. Stakers could also queue withdrawals on EigenLayer for the virtual beacon chain ETH strategy which will be fullfilled once their staking obligations have ended and their EigenPod has enough balance to complete the withdrawal.
 
-In this second case, in order to withdraw their balance from the EigenPod, stakers must provide a valid proof of their full withdrawal (differentiated from partial withdrawals through a simple comparison of the amount to a threshold value named `MIN_FULL_WITHDRAWAL_AMOUNT_GWEI`) against a beacon state root. Once the proof is successfully verified, if the amount withdrawn is less than `REQUIRED_BALANCE_GWEI` the validators balance is deducted from EigenLayer and the penalties are added, similar to [fraud proofs for overcommitted balances](https://github.com/Layr-Labs/eignlayr-contracts/edit/update-eigenpod-withdrawals/docs/EigenPods.md#fraud-proofs-for-overcommitted-balances). 
+In this second case, in order to withdraw their balance from the EigenPod, stakers must provide a valid proof of their full withdrawal (differentiated from partial withdrawals through a simple comparison of the amount to a threshold value named `MIN_FULL_WITHDRAWAL_AMOUNT_GWEI`) against a beacon state root. Once the proof is successfully verified, if the amount withdrawn is less than `REQUIRED_BALANCE_GWEI` the validator's balance is deducted from EigenLayer and the penalties are added, similar to [fraud proofs for overcommitted balances](#fraud-proofs-for-overcommitted-balances). 
 
 If the withdrawn amount is greater than `REQUIRED_BALANCE_GWEI`, then the excess is marked as instantly withdrawable after the call returns. This is fine, since the amount is not restaked on EigenLayer.
 
@@ -58,7 +58,7 @@ So, overall, stakers must wait for this delay period after partial withdrawals o
 
 ### Paying Penalties
 
-During proofs of full withdrawals, EigenPods first attempt to pay off their penalties as much as they can from the withdrawn restaked (not instantly withdrawable balance) balance. IF that is not enough, they then attempt to pay off their penalties as much as they can from the withdrawn excess balance.
+During proofs of full withdrawals, EigenPods first attempt to pay off their penalties as much as they can from the withdrawn restaked (not instantly withdrawable balance) balance. If that is not enough, they then attempt to pay off their penalties as much as they can from the withdrawn excess balance.
 
 During partial withdrawal claims, before partial withdrawals are redeemed, they are used to pay off penalties to the extent they can.
 

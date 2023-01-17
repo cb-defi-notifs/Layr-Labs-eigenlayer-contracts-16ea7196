@@ -4,8 +4,6 @@ pragma solidity ^0.8.9;
 
 import "../interfaces/IPauserRegistry.sol";
 
-// import "forge-std/Test.sol";
-
 /**
  * @title Adds pausability to a contract.
  * @author Layr Labs, Inc.

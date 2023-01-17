@@ -6,6 +6,7 @@ import "../permissions/Pausable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
+import "forge-std/Test.sol";
 
 /**
  * @title Base implementation of `IInvestmentStrategy` interface, designed to be inherited from by more complex strategies.
@@ -115,6 +116,7 @@ contract InvestmentStrategyBase is Initializable, Pausable, IInvestmentStrategy 
         } else {
             amountToSend = (_tokenBalance() * amountShares) / priorTotalShares;
         }
+
         underlyingToken.safeTransfer(depositor, amountToSend);
     }
 
@@ -196,7 +198,7 @@ contract InvestmentStrategyBase is Initializable, Pausable, IInvestmentStrategy 
      * querying the `investmentManager` contract
      */
     function shares(address user) public view virtual returns (uint256) {
-        return IInvestmentManager(investmentManager).investorStratShares(user, IInvestmentStrategy(address(this)));
+        return investmentManager.investorStratShares(user, IInvestmentStrategy(address(this)));
     }
 
     /// @notice Internal function used to fetch this contract's current balance of `underlyingToken`.

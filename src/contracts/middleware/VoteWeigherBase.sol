@@ -29,7 +29,7 @@ abstract contract VoteWeigherBase is VoteWeigherBaseStorage {
         _;
     }
 
-    /// @notice Sets the (immutable) `delegation` and `investmentManager` addresses, as well as the (immutable) `NUMBER_OF_QUORUMS` variable
+    /// @notice Sets the (immutable) `investmentManager` and `serviceManager` addresses, as well as the (immutable) `NUMBER_OF_QUORUMS` variable
     constructor(
         IInvestmentManager _investmentManager,
         IServiceManager _serviceManager,

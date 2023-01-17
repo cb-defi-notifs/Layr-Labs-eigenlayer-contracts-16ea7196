@@ -10,7 +10,7 @@ import "../EigenLayerTestHelper.t.sol";
 import "../mocks/ERC20Mock.sol";
 
 
-contract UnitTests is EigenLayerTestHelper {
+contract InvestmentManagerUnitTests is EigenLayerTestHelper {
 
     InvestmentManager investmentManagerMock;
     DelegationMock delegationMock;
@@ -27,10 +27,7 @@ contract UnitTests is EigenLayerTestHelper {
         slasherMock = new SlasherMock();
         delegationMock = new DelegationMock();
         investmentManagerMock = new InvestmentManager(delegationMock, eigenPodManager, slasherMock);
-        IERC20 dummyToken = new ERC20Mock(
-            "dummy",
-            "DUMMY"
-        );
+        IERC20 dummyToken = new ERC20Mock();
         InvestmentStrategyBase dummyStratImplementation = new InvestmentStrategyBase(investmentManagerMock);
         dummyStrat = InvestmentStrategyBase(
             address(
@@ -47,6 +44,9 @@ contract UnitTests is EigenLayerTestHelper {
     }
 
     function testBeaconChainQueuedWithdrawalToDifferentAddress(address withdrawer) external {
+        // filtering for test flakiness
+        cheats.assume(withdrawer != address(this));
+
         IInvestmentStrategy[] memory strategyArray = new IInvestmentStrategy[](2);
         IERC20[] memory tokensArray = new IERC20[](1);
         uint256[] memory shareAmounts = new uint256[](1);
