@@ -163,14 +163,13 @@ rule canOnlyDelegateWithSpecificFunctions(address staker) {
         } else {
             assert (isNotDelegated(staker), "staker delegated to inappropriate address?");
         }
-    } else if (f.selector == delegateToBySignature(address, address, uint256, bytes32, bytes32).selector) {
+    } else if (f.selector == delegateToBySignature(address, address, uint256, bytes).selector) {
         address toDelegateFrom;
         address operator;
         uint256 expiry;
-        bytes32 r;
-        bytes32 vs;
-        delegateToBySignature(e, toDelegateFrom, operator, expiry, r, vs);
-        // TODO: this check could be stricter! need to filter when the block timestamp is appropriate for expiry and r, vs is a valid signature
+        bytes memory signature
+        delegateToBySignature(e, toDelegateFrom, operator, expiry, signature);
+        // TODO: this check could be stricter! need to filter when the block timestamp is appropriate for expiry and signature is valid
         assert (isNotDelegated(staker) || delegatedTo(staker) == operator, "delegateToBySignature bug?");
     } else if (f.selector == registerAsOperator(address).selector) {
         address delegationTerms;
