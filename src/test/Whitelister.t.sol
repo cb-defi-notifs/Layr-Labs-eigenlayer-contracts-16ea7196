@@ -95,7 +95,7 @@ contract WhitelisterTests is EigenLayerTestHelper {
         dummyToken.revokeRole(keccak256("PAUSER_ROLE"), address(this));  
 
 
-        dummyServiceManager  = new ServiceManagerMock(investmentManager);
+        dummyServiceManager  = new ServiceManagerMock(slasher);
         blsRegistryImplementation = new BLSRegistry(investmentManager, dummyServiceManager, 2, dummyCompendium);
 
         uint256[] memory _quorumBips = new uint256[](2);
