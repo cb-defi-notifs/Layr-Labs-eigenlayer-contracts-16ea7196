@@ -5,7 +5,9 @@ import "../../src/contracts/interfaces/IInvestmentManager.sol";
 import "../../src/contracts/interfaces/IInvestmentStrategy.sol";
 import "../../src/contracts/interfaces/IEigenLayerDelegation.sol";
 import "../../src/contracts/interfaces/IBLSRegistry.sol";
+import "../../src/contracts/interfaces/IWhitelister.sol";
 import "./Staker.sol";
+
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./ERC20PresetMinterPauser.sol";
@@ -13,7 +15,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Create2.sol";
 
 
-contract Whitelister is Ownable {
+contract Whitelister is IWhitelister, Ownable {
     //address constant investmentManager = 0x0000000000000000000000000000000000000000;
     //TODO: change before deploy
     IInvestmentManager immutable investmentManager;
