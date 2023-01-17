@@ -30,6 +30,10 @@ methods {
     // external calls to PauserRegistry
     pauser() returns (address) => DISPATCHER(true)
 	unpauser() returns (address) => DISPATCHER(true)
+
+    // external calls to ERC20
+    transfer(address, uint256) returns (bool) => DISPATCHER(true)
+    transferFrom(address, address, uint256) returns (bool) => DISPATCHER(true)
 	
     //// Harnessed Functions
     // Harnessed calls
