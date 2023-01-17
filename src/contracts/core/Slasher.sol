@@ -145,10 +145,8 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
         onlyCanSlash(operator) 
     {
 
-        // update latest update
-
+        // update the 'stalest' stakes update time + latest 'serveUntil' time of the `operator`
         _recordUpdateAndAddToMiddlewareTimes(operator, uint32(block.number), serveUntil);
-
 
         // Push the middleware to the end of the update list. This will fail if the caller *is* already in the list.
         require(operatorToWhitelistedContractsByUpdate[operator].pushBack(_addressToUint(msg.sender)), 

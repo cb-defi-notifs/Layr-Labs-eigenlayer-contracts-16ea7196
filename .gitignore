@@ -22,3 +22,7 @@ broadcast
 
 # Deployment tools
 /data
+
+# Certora Outputs
+.certora_internal/
+.certora_recent_jobs.json
