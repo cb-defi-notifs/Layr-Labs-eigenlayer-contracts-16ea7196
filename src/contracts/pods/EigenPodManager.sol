@@ -87,8 +87,8 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager 
      */
     function createPod() external {
         require(!hasPod(msg.sender), "EigenPodManager.createPod: Sender already has a pod");
-        //deploy a pod if the sender doesn't have one already
-        IEigenPod pod = _deployPod();
+        // deploy a pod if the sender doesn't have one already
+        _deployPod();
     }
 
     /**

@@ -7,38 +7,38 @@ import "../../contracts/interfaces/IEigenLayerDelegation.sol";
 
 contract DelegationMock is IEigenLayerDelegation, Test {
 
-    function registerAsOperator(IDelegationTerms dt) external{}
+    function registerAsOperator(IDelegationTerms /*dt*/) external{}
 
-    function delegateTo(address operator) external{}
-
-
-    function delegateToBySignature(address staker, address operator, uint256 expiry, bytes memory signature) external{}
+    function delegateTo(address /*operator*/) external{}
 
 
-    function undelegate(address staker) external{}
+    function delegateToBySignature(address /*staker*/, address /*operator*/, uint256 /*expiry*/, bytes memory /*signature*/) external{}
+
+
+    function undelegate(address /*staker*/) external{}
     /// @notice returns the address of the operator that `staker` is delegated to.
-    function delegatedTo(address staker) external view returns (address){}
+    function delegatedTo(address /*staker*/) external view returns (address){}
 
     /// @notice returns the DelegationTerms of the `operator`, which may mediate their interactions with stakers who delegate to them.
-    function delegationTerms(address operator) external view returns (IDelegationTerms){}
+    function delegationTerms(address /*operator*/) external view returns (IDelegationTerms){}
 
     /// @notice returns the total number of shares in `strategy` that are delegated to `operator`.
-    function operatorShares(address operator, IInvestmentStrategy strategy) external view returns (uint256){}
+    function operatorShares(address /*operator*/, IInvestmentStrategy /*strategy*/) external view returns (uint256){}
 
 
-    function increaseDelegatedShares(address staker, IInvestmentStrategy strategy, uint256 shares) external{}
+    function increaseDelegatedShares(address /*staker*/, IInvestmentStrategy /*strategy*/, uint256 /*shares*/) external{}
 
     function decreaseDelegatedShares(
-        address staker,
-        IInvestmentStrategy[] calldata strategies,
-        uint256[] calldata shares
+        address /*staker*/,
+        IInvestmentStrategy[] calldata /*strategies*/,
+        uint256[] calldata /*shares*/
     ) external{}
 
-    function isDelegated(address staker) external view returns (bool){return true;}
+    function isDelegated(address /*staker*/) external pure returns (bool){return true;}
 
-    function isNotDelegated(address staker) external returns (bool){}
+    function isNotDelegated(address /*staker*/) external returns (bool){}
 
-    function isOperator(address operator) external view returns (bool){}
+    function isOperator(address /*staker*/) external view returns (bool){}
 
 
 }

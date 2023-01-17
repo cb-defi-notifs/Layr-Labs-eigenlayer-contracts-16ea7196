@@ -3,17 +3,15 @@ pragma solidity ^0.8.9;
 
 import "forge-std/Test.sol";
 import "../../contracts/interfaces/IServiceManager.sol";
-import "../../contracts/interfaces/IInvestmentManager.sol";
 import "../../contracts/interfaces/ISlasher.sol";
 
 import "forge-std/Test.sol";
 
 contract ServiceManagerMock is IServiceManager, DSTest {
-    IInvestmentManager public immutable investmentManager;
+    ISlasher public slasher;
 
-
-    constructor(IInvestmentManager _investmentManager){
-        investmentManager = _investmentManager;
+    constructor(ISlasher _slasher){
+        slasher = _slasher;
     }
 
     /// @notice Returns the current 'taskNumber' for the middleware
@@ -23,7 +21,7 @@ contract ServiceManagerMock is IServiceManager, DSTest {
 
     /// @notice Permissioned function that causes the ServiceManager to freeze the operator on EigenLayer, through a call to the Slasher contract
     function freezeOperator(address operator) external {
-        investmentManager.slasher().freezeOperator(operator);
+        slasher.freezeOperator(operator);
     }
     
     /// @notice Permissioned function to have the ServiceManager forward a call to the slasher, recording an initial stake update (on operator registration)

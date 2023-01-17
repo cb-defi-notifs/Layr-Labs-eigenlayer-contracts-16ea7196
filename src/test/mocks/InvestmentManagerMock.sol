@@ -22,9 +22,10 @@ contract InvestmentManagerMock is
     // ,Test
 {
 
-    IEigenLayerDelegation public immutable delegation;
-    IEigenPodManager public immutable eigenPodManager;
-    ISlasher public immutable slasher;
+
+    IEigenLayerDelegation public delegation;
+    IEigenPodManager public eigenPodManager;
+    ISlasher public slasher;
 
     constructor(IEigenLayerDelegation _delegation, IEigenPodManager _eigenPodManager, ISlasher _slasher)
     {

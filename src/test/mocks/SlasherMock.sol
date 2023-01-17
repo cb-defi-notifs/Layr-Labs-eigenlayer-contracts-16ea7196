@@ -19,7 +19,7 @@ contract SlasherMock is ISlasher, Test {
 
     function recordLastStakeUpdateAndRevokeSlashingAbility(address operator, uint32 serveUntil) external{}
 
-    function isFrozen(address staker) external view returns (bool){ 
+    function isFrozen(address /*staker*/) external pure returns (bool){ 
         return false; 
     }
 

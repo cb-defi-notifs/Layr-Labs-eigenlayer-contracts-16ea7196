@@ -198,7 +198,7 @@ contract InvestmentStrategyBase is Initializable, Pausable, IInvestmentStrategy 
      * querying the `investmentManager` contract
      */
     function shares(address user) public view virtual returns (uint256) {
-        return IInvestmentManager(investmentManager).investorStratShares(user, IInvestmentStrategy(address(this)));
+        return investmentManager.investorStratShares(user, IInvestmentStrategy(address(this)));
     }
 
     /// @notice Internal function used to fetch this contract's current balance of `underlyingToken`.
