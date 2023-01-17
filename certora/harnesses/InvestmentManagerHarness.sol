@@ -28,4 +28,23 @@ contract InvestmentManagerHarness is InvestmentManager {
         }
         return res;
     }
+
+    // checks that investorStrats[staker] contains no duplicates and that all strategies in array have nonzero shares
+    function array_exhibits_properties(address staker) public view returns (bool) {
+        uint256 length = investorStrats[staker].length;
+        uint256 res = 0;
+        // loop for each strategy in array
+        for (uint256 i = 0; i < length; ++i) {
+            IInvestmentStrategy strategy = investorStrats[staker][i];
+            // check that staker's shares in strategy are nonzero
+            if (investorStratShares[staker][strategy] == 0) {
+                return false;
+            }
+            // check that strategy is not duplicated in array
+            if (num_times_strategy_is_in_stakers_array(staker, strategy) != 1) {
+                return false;
+            }
+        }
+        return true;
+    }
 }
