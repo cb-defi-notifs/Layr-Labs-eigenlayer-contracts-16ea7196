@@ -3,6 +3,8 @@
 
 While delegating to an operator is designed to be a simple process from the staker's perspective, a lot happens "under the hood".
 
+## Operator Registration
+
 In order to be delegated *to*, an operator must have first called `EigenLayerDelegation.registerAsOperator`. If a staker tries to delegate to someone who has not previously registered as an operator, their transaction will fail.
 
 When an operator registers in EigenLayer, the following flow of calls between contracts occurs:
@@ -11,6 +13,8 @@ When an operator registers in EigenLayer, the following flow of calls between co
 
 1. The would-be operator calls `EigenLayerDelegation.registerAsOperator`, providing either a `DelegationTerms`-type contract or an EOA as input. The EigenLayerDelegation contract stores the `DelegationTerms`-type contract provided by the operator, which may act as an intermediary to help facilitate the relationship between the operator and any stakers who delegate to them.
 All of the remaining steps (2-4) proceed as outlined in the delegation process below; the EigenLayerDelegation contract treats things as if the operator has delegated to themselves.
+
+## Staker Delegation
 
 For a staker to delegate to an operator, the staker must either:
 1. Call `EigenLayerDelegation.delegateTo` directly
