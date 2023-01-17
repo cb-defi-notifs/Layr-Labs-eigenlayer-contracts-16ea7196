@@ -167,7 +167,7 @@ rule canOnlyDelegateWithSpecificFunctions(address staker) {
         address toDelegateFrom;
         address operator;
         uint256 expiry;
-        bytes memory signature
+        bytes signature;
         delegateToBySignature(e, toDelegateFrom, operator, expiry, signature);
         // TODO: this check could be stricter! need to filter when the block timestamp is appropriate for expiry and signature is valid
         assert (isNotDelegated(staker) || delegatedTo(staker) == operator, "delegateToBySignature bug?");
