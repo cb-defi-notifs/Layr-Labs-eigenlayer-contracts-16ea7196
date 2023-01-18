@@ -15,7 +15,7 @@ contract Owners is Test {
     }
 
     function ownerPrefix(uint256 index) public returns(string memory) {
-        return string.concat(".operators[", string.concat(vm.toString(index), "]."));
+        return string.concat(".owners[", string.concat(vm.toString(index), "]."));
     }
 
     function getNumOperators() public returns(uint256) {
