@@ -65,13 +65,9 @@ contract EigenLayerDeployer is Script, Owners {
 
     address eigenLayerReputedMultisigAddress;
     address pauserAddress;
-    address unpauserAddress;
-    address eigenLayerProxyAdminAddress;
     
     ISafe public eigenLayerReputedMultisig;
     ISafe public pauser;
-    ISafe public unpauser;
-    ISafe public eigenLayerProxyAdminOwner;
 
     // DataLayr contracts
     ProxyAdmin public dataLayrProxyAdmin;
