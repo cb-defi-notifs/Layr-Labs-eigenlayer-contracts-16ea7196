@@ -28,9 +28,6 @@ interface IServiceManager {
     /// @notice Collateral token used for placing collateral on challenges & payment commits
     function collateralToken() external view returns (IERC20);
 
-    /// @notice The Delegation contract of EigenLayer.
-    function eigenLayerDelegation() external view returns (IEigenLayerDelegation);
-
     /// @notice Returns the `latestTime` until which operators must serve.
     function latestTime() external view returns (uint32);
 
