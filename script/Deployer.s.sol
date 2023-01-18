@@ -106,10 +106,6 @@ contract EigenLayerDeployer is Script, Owners {
     function run() external {
         vm.startBroadcast();
 
-
-        pauser = ISafe(pauserAddress);
-        unpauser = ISafe(unpauserAddress);
-
         eigenLayerReputedMultisig = ISafe(eigenLayerReputedMultisigAddress);
         pauser = ISafe(pauserAddress);
         unpauser = ISafe(unpauserAddress);
@@ -275,10 +271,10 @@ contract EigenLayerDeployer is Script, Owners {
 
     function verifyOwners()internal view {
        
-        require(investmentManager.owner() == eigenLayerReputedMultisigAddress, "investmentManager owner not set correctly");
-        require(delegation.owner() == eigenLayerReputedMultisigAddress, "delegation owner not set correctly");
-        require(slasher.owner() == eigenLayerReputedMultisigAddress, "slasher owner not set correctly");
-        require(eigenPodManager.owner() == eigenLayerReputedMultisigAddress, "delegation owner not set correctly");
+        require(investmentManager.owner() == address(eigenLayerReputedMultisig), "investmentManager owner not set correctly");
+        require(delegation.owner() == address(eigenLayerReputedMultisig), "delegation owner not set correctly");
+        require(slasher.owner() == address(eigenLayerReputedMultisig), "slasher owner not set correctly");
+        require(eigenPodManager.owner() == address(eigenLayerReputedMultisig), "delegation owner not set correctly");
 
     }
     function checkPauserInitializations() internal view {
@@ -286,7 +282,7 @@ contract EigenLayerDeployer is Script, Owners {
         require(address(investmentManager.pauserRegistry()) == address(eigenLayerPauserReg), "investmentManager's pauser registry not set correctly");
         require(address(slasher.pauserRegistry()) == address(eigenLayerPauserReg), "slasher's pauser registry not set correctly");
 
-        require(eigenLayerPauserReg.pauser() == pauserAddress, "pauser not set correctly");
+        require(eigenLayerPauserReg.pauser() == address(pauser), "pauser not set correctly");
         require(eigenLayerPauserReg.unpauser() == unpauserAddress, "pauser not set correctly");
     }
 }
