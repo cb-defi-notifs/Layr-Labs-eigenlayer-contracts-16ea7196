@@ -108,7 +108,6 @@ contract EigenLayerDeployer is Script, Owners {
 
         eigenLayerReputedMultisig = ISafe(eigenLayerReputedMultisigAddress);
         pauser = ISafe(pauserAddress);
-        unpauser = ISafe(unpauserAddress);
         setUpSafes();
         
 
