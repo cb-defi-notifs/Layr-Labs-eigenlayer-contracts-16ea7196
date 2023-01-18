@@ -7,9 +7,13 @@ import "../../contracts/interfaces/ISlasher.sol";
 
 contract SlasherMock is ISlasher, Test {
 
+    mapping(address => bool) public isFrozen;
+
     function optIntoSlashing(address contractAddress) external{}
 
-    function freezeOperator(address toBeFrozen) external{}
+    function freezeOperator(address toBeFrozen) external {
+        isFrozen[toBeFrozen] = true;
+    }
     
     function resetFrozenStatus(address[] calldata frozenAddresses) external{}
 
@@ -18,10 +22,6 @@ contract SlasherMock is ISlasher, Test {
     function recordStakeUpdate(address operator, uint32 updateBlock, uint32 serveUntil, uint256 insertAfter) external{}
 
     function recordLastStakeUpdateAndRevokeSlashingAbility(address operator, uint32 serveUntil) external{}
-
-    function isFrozen(address /*staker*/) external pure returns (bool){ 
-        return false; 
-    }
 
     /// @notice Returns true if `slashingContract` is currently allowed to slash `toBeSlashed`.
     function canSlash(address toBeSlashed, address slashingContract) external view returns (bool){}

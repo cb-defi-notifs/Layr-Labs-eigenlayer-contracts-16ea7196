@@ -26,6 +26,7 @@ contract InvestmentManagerUnitTests is Test {
     ProxyAdmin public proxyAdmin;
     PauserRegistry public pauserRegistry;
 
+    InvestmentManager public investmentManagerImplementation;
     InvestmentManager public investmentManager;
     DelegationMock public delegationMock;
     SlasherMock public slasherMock;
@@ -33,10 +34,16 @@ contract InvestmentManagerUnitTests is Test {
 
     InvestmentStrategyBase public dummyStrat;
 
+    IInvestmentStrategy public beaconChainETHStrategy;
+
+    IERC20 public dummyToken;
+
     uint256 GWEI_TO_WEI = 1e9;
 
     address public pauser = address(555);
     address public unpauser = address(999);
+
+    address initialOwner = address(this);
 
     function setUp() virtual public {
         proxyAdmin = new ProxyAdmin();
@@ -46,8 +53,17 @@ contract InvestmentManagerUnitTests is Test {
         slasherMock = new SlasherMock();
         delegationMock = new DelegationMock();
         eigenPodManagerMock = new EigenPodManagerMock();
-        investmentManager = new InvestmentManager(delegationMock, eigenPodManagerMock, slasherMock);
-        IERC20 dummyToken = new ERC20Mock();
+        investmentManagerImplementation = new InvestmentManager(delegationMock, eigenPodManagerMock, slasherMock);
+        investmentManager = InvestmentManager(
+            address(
+                new TransparentUpgradeableProxy(
+                    address(investmentManagerImplementation),
+                    address(proxyAdmin),
+                    abi.encodeWithSelector(InvestmentManager.initialize.selector, pauserRegistry, initialOwner)
+                )
+            )
+        );
+        dummyToken = new ERC20Mock();
         InvestmentStrategyBase dummyStratImplementation = new InvestmentStrategyBase(investmentManager);
         dummyStrat = InvestmentStrategyBase(
             address(
@@ -60,8 +76,56 @@ contract InvestmentManagerUnitTests is Test {
         );
 
         investmentManager.depositIntoStrategy(dummyStrat, dummyToken, REQUIRED_BALANCE_WEI);
+        beaconChainETHStrategy = investmentManager.beaconChainETHStrategy();
 
     }
+
+    function testCannotReinitialize() public {
+        cheats.expectRevert(bytes("Initializable: contract is already initialized"));
+        investmentManager.initialize(pauserRegistry, initialOwner);
+    }
+
+    function testDepositBeaconChainETHSuccessfully(uint256 amount) public {
+        // fitler out zero case since it will revert with "InvestmentManager._addShares: shares should not be zero!"
+        cheats.assume(amount != 0);
+        uint256 sharesBefore = investmentManager.investorStratShares(address(this), beaconChainETHStrategy);
+
+        cheats.startPrank(address(eigenPodManagerMock));
+        investmentManager.depositBeaconChainETH(address(this), amount);
+        cheats.stopPrank();
+
+        uint256 sharesAfter = investmentManager.investorStratShares(address(this), beaconChainETHStrategy);
+        require(sharesAfter == sharesBefore + amount, "sharesAfter != sharesBefore + amount");
+    }
+
+    function testDepositBeaconChainETHFailsWhenDepositsPaused() public {
+        uint256 amount = 1e18;
+        address staker = address(this);
+
+        // pause deposits
+        cheats.startPrank(pauser);
+        investmentManager.pause(1);
+        cheats.stopPrank();
+
+        cheats.expectRevert(bytes("Pausable: index is paused"));
+        cheats.startPrank(address(eigenPodManagerMock));
+        investmentManager.depositBeaconChainETH(staker, amount);
+        cheats.stopPrank();
+    }
+
+    function testDepositBeaconChainETHFailsWhenStakerFrozen() public {
+        uint256 amount = 1e18;
+        address staker = address(this);
+
+        // slash this contract (the staker)
+        slasherMock.freezeOperator(staker);
+
+        cheats.expectRevert(bytes("InvestmentManager.onlyNotFrozen: staker has been frozen and may be subject to slashing"));
+        cheats.startPrank(address(eigenPodManagerMock));
+        investmentManager.depositBeaconChainETH(staker, amount);
+        cheats.stopPrank();
+    }
+
 
     function testBeaconChainQueuedWithdrawalToDifferentAddress(address withdrawer) external {
         // filtering for test flakiness
