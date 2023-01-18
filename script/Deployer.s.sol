@@ -283,7 +283,7 @@ contract EigenLayerDeployer is Script, Owners {
         require(address(slasher.pauserRegistry()) == address(eigenLayerPauserReg), "slasher's pauser registry not set correctly");
 
         require(eigenLayerPauserReg.pauser() == address(pauser), "pauser not set correctly");
-        require(eigenLayerPauserReg.unpauser() == unpauserAddress, "pauser not set correctly");
+        require(eigenLayerPauserReg.unpauser() == address(unpauser), "pauser not set correctly");
     }
 }
 
