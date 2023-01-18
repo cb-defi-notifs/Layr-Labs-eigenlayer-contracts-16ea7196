@@ -11,7 +11,7 @@ import "../libraries/Endian.sol";
 import "../interfaces/IETHPOSDeposit.sol";
 import "../interfaces/IEigenPodManager.sol";
 import "../interfaces/IEigenPod.sol";
-import "forge-std/Test.sol";
+//import "forge-std/Test.sol";
 
 /**
  * @title The implementation contract used for restaking beacon chain ETH on EigenLayer 
@@ -27,7 +27,7 @@ import "forge-std/Test.sol";
  *   to account balances and penalties in terms of gwei in the EigenPod contract and convert to wei when making
  *   calls to other contracts
  */
-contract EigenPod is IEigenPod, Initializable, ReentrancyGuard, Test {
+contract EigenPod is IEigenPod, Initializable, ReentrancyGuard {
     using BytesLib for bytes;
 
     uint256 internal constant GWEI_TO_WEI = 1e9;
@@ -151,7 +151,6 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard, Test {
         );
 
         require(validatorStatus[validatorIndex] == VALIDATOR_STATUS.INACTIVE, "EigenPod.verifyCorrectWithdrawalCredentials: Validator not inactive");
-        emit log_named_bytes32("_podWithdrawalCredentials", _podWithdrawalCredentials().toBytes32(0));
         require(validatorFields[BeaconChainProofs.VALIDATOR_WITHDRAWAL_CREDENTIALS_INDEX] == _podWithdrawalCredentials().toBytes32(0),
             "EigenPod.verifyCorrectWithdrawalCredentials: Proof is not for this EigenPod");
         // convert the balance field from 8 bytes of little endian to uint64 big endian 💪

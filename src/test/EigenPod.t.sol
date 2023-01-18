@@ -62,7 +62,6 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
 
     //performs basic deployment before each test
     function setUp() public {
-        cheats.assume(address(eigenPodManager) != podManagerAddress);
         // deploy proxy admin for ability to upgrade proxy contracts
         eigenLayerProxyAdmin = new ProxyAdmin();
 
