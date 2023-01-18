@@ -66,10 +66,12 @@ contract EigenLayerDeployer is Script, Owners {
     address eigenLayerReputedMultisigAddress;
     address pauserAddress;
     address unpauserAddress;
+    address eigenLayerProxyAdminAddress;
     
     ISafe public eigenLayerReputedMultisig;
     ISafe public pauser;
     ISafe public unpauser;
+    ISafe public eigenLayerProxyAdminOwner;
 
     // DataLayr contracts
     ProxyAdmin public dataLayrProxyAdmin;
@@ -109,11 +111,16 @@ contract EigenLayerDeployer is Script, Owners {
         unpauser = ISafe(unpauserAddress);
 
         eigenLayerReputedMultisig = ISafe(eigenLayerReputedMultisigAddress);
+        pauser = ISafe(pauserAddress);
+        unpauser = ISafe(unpauserAddress);
+        eigenLayerProxyAdminOwner = ISafe(eigenLayerProxyAdminAddress);
         setUpSafes();
         
 
         // deploy proxy admin for ability to upgrade proxy contracts
         eigenLayerProxyAdmin = new ProxyAdmin();
+
+        eigenLayerProxyAdmin.transferOwnership(address(eigenLayerProxyAdminOwner));
 
         //deploy pauser registry
         eigenLayerPauserReg = new PauserRegistry(address(pauser), address(unpauser));
@@ -260,6 +267,10 @@ contract EigenLayerDeployer is Script, Owners {
         address payable paymentReceiver = payable(address(0));
 
         eigenLayerReputedMultisig.setup(_owners, _threshold, to, data, fallbackHandler, paymentToken, payment, paymentReceiver);
+        pauser.setup(_owners, _threshold, to, data, fallbackHandler, paymentToken, payment, paymentReceiver);
+        _threshold = 6;
+        unpauser.setup(_owners, _threshold, to, data, fallbackHandler, paymentToken, payment, paymentReceiver);
+        eigenLayerProxyAdminOwner.setup(_owners, _threshold, to, data, fallbackHandler, paymentToken, payment, paymentReceiver);
     }
 
     function verifyOwners()internal view {
