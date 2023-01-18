@@ -184,13 +184,13 @@ contract BeaconChainProofUtils{
         beaconStateMerkleProofForValidators[3] = 0xa15b3ec86b16a35669d70a224974edd14f90bcd590d26103251b1aee9e583b3c;
         beaconStateMerkleProofForValidators[4] = 0x264671f54aebf1caeade95ee97316b9b8b5f2f888b1c00a58e9d336997060ab5;
         
-        beaconStateRoot = 0xd3e0a14d0c42d0df3bfdf58ae637c39dd473b6417c513ba51ea2a482bb4a16ed;
+        beaconStateRoot = 0x1363c3bf9bcb86443f5058cc73787b78e8bb84d09cb1e09d582dfe2c68fcd17d;
 
          bytes32 validatorTreeRoot;
          bytes32 validatorRoot;
         if(validatorIndex == 0){
             validatorContainerFields[0] = 0x5e2c2b702b0af22301f7ae52886da3827ea100b3d2a52222e6a10ea82e718a7f;
-            validatorContainerFields[1] = 0x01000000000000000000000093939caed8a5a52e4dda47b64579ce1a5c8549dc;
+            validatorContainerFields[1] = 0x010000000000000000000000f092f742f1292c8eb7f2b96c377055205758d73e;
             validatorContainerFields[2] = 0x00a0acb903000000000000000000000000000000000000000000000000000000;
             validatorContainerFields[3] = 0x0100000000000000000000000000000000000000000000000000000000000000;
             validatorContainerFields[4] = 0x0200000000000000000000000000000000000000000000000000000000000000;
@@ -198,7 +198,7 @@ contract BeaconChainProofUtils{
             validatorContainerFields[6] = 0x0600000000000000000000000000000000000000000000000000000000000000;
             validatorContainerFields[7] = 0x0900000000000000000000000000000000000000000000000000000000000000;
             
-            validatorMerkleProof[0] = 0xe36ac8adc957eed2f4b757ee5989dfb8106c451200fb69a6260c567e7278f3b6;
+            validatorMerkleProof[0] = 0xfec110743a19a7e7386260befa3dd92f10bfd52ccc86f72f4d8921f044b5d350;
             validatorMerkleProof[1] = 0xf5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b;
             validatorMerkleProof[2] = 0xdb56114e00fdd4c1f85c892bf35ac9a89289aaecb1ebd0a96cde606a748b5d71;
             validatorMerkleProof[3] = 0xc78009fdf07fc56a11f122370658a353aaa542ed63e44c4bc15ff4cd105ab33c;
@@ -242,15 +242,15 @@ contract BeaconChainProofUtils{
             
             
             //hash tree root of list of validators
-            validatorTreeRoot = 0xbf7805a8d3bf9c9c313b62aa7c05398d0d5ef53e353fca7037e59bfa6d9fe441;
+            validatorTreeRoot = 0x43d4fac28021d66fcb9af4dc2335984d71fe9d25f4acf3f79c0e10d2e8bc578a;
             
             //hash tree root of individual validator container
-            validatorRoot = 0xd76c62693b5606cb03975ef772de1e215b61a42d93d816bca036795247949010;
+            validatorRoot = 0x8447a7f4bcd14058b6000e513885d9df2d54e443ca0b939567fa5fae12ce6c00;
         }
 
         if (validatorIndex == 1){
             validatorContainerFields[0] = 0x5e2c2b702b0af22301f7ae52886da3827ea100b3d2a52222e6a10ea82e718a7f;
-            validatorContainerFields[1] = 0x01000000000000000000000093939caed8a5a52e4dda47b64579ce1a5c8549dc;
+            validatorContainerFields[1] = 0x010000000000000000000000f092f742f1292c8eb7f2b96c377055205758d73e;
             validatorContainerFields[2] = 0x00a0acb903000000000000000000000000000000000000000000000000000000;
             validatorContainerFields[3] = 0x0100000000000000000000000000000000000000000000000000000000000000;
             validatorContainerFields[4] = 0x0000000000000000000000000000000000000000000000000000000000000000;
@@ -258,7 +258,7 @@ contract BeaconChainProofUtils{
             validatorContainerFields[6] = 0x0600000000000000000000000000000000000000000000000000000000000000;
             validatorContainerFields[7] = 0x0900000000000000000000000000000000000000000000000000000000000000;
             
-            validatorMerkleProof[0] = 0xd76c62693b5606cb03975ef772de1e215b61a42d93d816bca036795247949010;
+            validatorMerkleProof[0] = 0x8447a7f4bcd14058b6000e513885d9df2d54e443ca0b939567fa5fae12ce6c00;
             validatorMerkleProof[1] = 0xf5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b;
             validatorMerkleProof[2] = 0xdb56114e00fdd4c1f85c892bf35ac9a89289aaecb1ebd0a96cde606a748b5d71;
             validatorMerkleProof[3] = 0xc78009fdf07fc56a11f122370658a353aaa542ed63e44c4bc15ff4cd105ab33c;
@@ -302,10 +302,10 @@ contract BeaconChainProofUtils{
             
             
             //hash tree root of list of validators
-            validatorTreeRoot = 0xbf7805a8d3bf9c9c313b62aa7c05398d0d5ef53e353fca7037e59bfa6d9fe441;
+            validatorTreeRoot = 0x43d4fac28021d66fcb9af4dc2335984d71fe9d25f4acf3f79c0e10d2e8bc578a;
             
             //hash tree root of individual validator container
-            validatorRoot = 0xe36ac8adc957eed2f4b757ee5989dfb8106c451200fb69a6260c567e7278f3b6;
+            validatorRoot = 0xfec110743a19a7e7386260befa3dd92f10bfd52ccc86f72f4d8921f044b5d350;
         }
 
         return (beaconStateRoot, beaconStateMerkleProofForValidators, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot);
@@ -319,7 +319,7 @@ contract BeaconChainProofUtils{
         withdrawalContainerFields.push(0x0000000000000000000000000000000000000000000000000000000000000000);
         withdrawalContainerFields.push(0x00fa954f07000000000000000000000000000000000000000000000000000000);
         
-        beaconStateRoot = 0x41abbc134575ff7d3f69e2b944f35366e448729f52932d785568cf2a75af9127;
+        beaconStateRoot = 0x4b35cc3e7c68248c1e55cf90416552dde82d3da3ca650523c2ed011980abde74;
         blockNumberRoot = 0x0100000000000000000000000000000000000000000000000000000000000000;
         
         executionPayloadHeaderRoot = 0xe0b9dc07dc5921c0220612c160ff0142ffaa3f9cc38f752bd7ade38beb082d21;
@@ -328,7 +328,7 @@ contract BeaconChainProofUtils{
         executionPayloadHeaderProof.push(0x8a023a9e4affbb255a6b48ae85cc4a7d1a1b9e8e6809fe9e48535c01c1fc071a);
         executionPayloadHeaderProof.push(0xdb56114e00fdd4c1f85c892bf35ac9a89289aaecb1ebd0a96cde606a748b5d71);
         executionPayloadHeaderProof.push(0x2e9e44d45a41f0e0da340441f66894d25a002b0e18361bc156963eab8a62c597);
-        executionPayloadHeaderProof.push(0x828490a3bd4de4b730540849b5b5974f86af18b0711dcc69cdf1a0ca0df16ed3);
+        executionPayloadHeaderProof.push(0xeffc9ab236309916b77d1919ac6bf7ce9973035546949984052e68470a35fe5d);
         executionPayloadHeaderProof.push(0x0000000000000000000000000000000000000000000000000000000000000000);
         executionPayloadHeaderProof.push(0xf5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b);
         executionPayloadHeaderProof.push(0xdb56114e00fdd4c1f85c892bf35ac9a89289aaecb1ebd0a96cde606a748b5d71);
@@ -343,9 +343,9 @@ contract BeaconChainProofUtils{
         executionPayloadHeaderProof.push(0x6cf04127db05441cd833107a52be852868890e4317e6a02ab47683aa75964220);
         executionPayloadHeaderProof.push(0xb7d05f875f140027ef5118a2247bbb84ce8f2f0f1123623085daf7960c329f5f);
         executionPayloadHeaderProof.push(0xa75b0948052d091c3cb41f390e76fc7cb987b787bf4063c563e09266a357dea1);
-        executionPayloadHeaderProof.push(0xac8bcfe8919014340a31b81e1b8cc5efecc8df04f0303fdce86903d24a7aa67a);
+        executionPayloadHeaderProof.push(0xe4be3d581b3dc43606116f81bddabcf98da22dd29ab8881c6bc6f7000e97039d);
         executionPayloadHeaderProof.push(0x5a374976a34347c1b56054efcf4f2029c6ec8d34b55385d608475a533a2cce37);
-        executionPayloadHeaderProof.push(0x497b79d19c79fea8029e9c91e3d41c8122a16393b6ff5e5a8e75b9bb26de5e9e);
+        executionPayloadHeaderProof.push(0x38588723b5b8385b5560358a53567fe670953212f1b28ff8a3768cf695b76b5d);
         executionPayloadHeaderProof.push(0x264671f54aebf1caeade95ee97316b9b8b5f2f888b1c00a58e9d336997060ab5);
         
         blockNumberProof.push(0x0200000000000000000000000000000000000000000000000000000000000000);

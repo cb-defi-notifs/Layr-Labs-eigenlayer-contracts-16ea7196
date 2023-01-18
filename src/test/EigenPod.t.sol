@@ -102,7 +102,6 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         eigenPodManager = EigenPodManager(
             address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayerProxyAdmin), ""))
         );
-        emit log_named_address("eigenPodManager", address(eigenPodManager));
 
         // Second, deploy the *implementation* contracts, using the *proxy contracts* as inputs
         EigenLayerDelegation delegationImplementation = new EigenLayerDelegation(investmentManager, slasher);
@@ -112,8 +111,6 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
 
         //ensuring that the address of eigenpodmanager doesn't change
         bytes memory code = address(eigenPodManager).code;
-        emit log_named_address("podManagerAddress", podManagerAddress);
-        emit log_named_address("eigenPodManager", address(eigenPodManager));
         cheats.etch(podManagerAddress, code);
         eigenPodManager = IEigenPodManager(podManagerAddress);
 
