@@ -39,6 +39,8 @@ contract InvestmentManagerUnitTests is Test {
 
     IERC20 public dummyToken;
 
+    Reenterer public reenterer;
+
     uint256 GWEI_TO_WEI = 1e9;
 
     address public pauser = address(555);
@@ -76,7 +78,6 @@ contract InvestmentManagerUnitTests is Test {
             )
         );
 
-        investmentManager.depositIntoStrategy(dummyStrat, dummyToken, REQUIRED_BALANCE_WEI);
         beaconChainETHStrategy = investmentManager.beaconChainETHStrategy();
 
     }
@@ -87,11 +88,11 @@ contract InvestmentManagerUnitTests is Test {
     }
 
     function testDepositBeaconChainETHSuccessfully(address staker, uint256 amount) public {
-        // fitler out zero case since it will revert with "InvestmentManager._addShares: shares should not be zero!"
+        // filter out zero case since it will revert with "InvestmentManager._addShares: shares should not be zero!"
         cheats.assume(amount != 0);
         uint256 sharesBefore = investmentManager.investorStratShares(staker, beaconChainETHStrategy);
 
-        cheats.startPrank(address(eigenPodManagerMock));
+        cheats.startPrank(address(investmentManager.eigenPodManager()));
         investmentManager.depositBeaconChainETH(staker, amount);
         cheats.stopPrank();
 
@@ -129,7 +130,7 @@ contract InvestmentManagerUnitTests is Test {
         uint256 amount = 1e18;
         address staker = address(this);
 
-        // slash this contract (the staker)
+        // slash the staker
         slasherMock.freezeOperator(staker);
 
         cheats.expectRevert(bytes("InvestmentManager.onlyNotFrozen: staker has been frozen and may be subject to slashing"));
@@ -142,19 +143,7 @@ contract InvestmentManagerUnitTests is Test {
         uint256 amount = 1e18;
         address staker = address(this);
 
-        // prepare InvestmentManager with EigenPodManager and Delegation replaced with a Reenterer contract
-        Reenterer reenterer = new Reenterer();
-        // investmentManagerImplementation = new InvestmentManager(delegationMock, IEigenPodManager(address(reenterer)), slasherMock);
-        investmentManagerImplementation = new InvestmentManager(IEigenLayerDelegation(address(reenterer)), IEigenPodManager(address(reenterer)), slasherMock);
-        investmentManager = InvestmentManager(
-            address(
-                new TransparentUpgradeableProxy(
-                    address(investmentManagerImplementation),
-                    address(proxyAdmin),
-                    abi.encodeWithSelector(InvestmentManager.initialize.selector, pauserRegistry, initialOwner)
-                )
-            )
-        );
+        _beaconChainReentrancyTestsSetup();
 
         address targetToUse = address(investmentManager);
         uint256 msgValueToUse = 0;
@@ -184,6 +173,326 @@ contract InvestmentManagerUnitTests is Test {
         require(sharesAfter == sharesBefore - amount_2, "sharesAfter != sharesBefore - amount");
     }
 
+    function testRecordOvercommittedBeaconChainETHFailsWhenNotCalledByEigenPodManager(address improperCaller) public {
+        cheats.assume(improperCaller != address(eigenPodManagerMock));
+        uint256 amount = 1e18;
+        address staker = address(this);
+        uint256 beaconChainETHStrategyIndex = 0;
+
+        testDepositBeaconChainETHSuccessfully(staker, amount);
+
+        cheats.expectRevert(bytes("InvestmentManager.onlyEigenPodManager: not the eigenPodManager"));
+        cheats.startPrank(address(improperCaller));
+        investmentManager.recordOvercommittedBeaconChainETH(staker, beaconChainETHStrategyIndex, amount);
+        cheats.stopPrank();
+    }
+
+    function testRecordOvercommittedBeaconChainETHFailsWhenReentering() public {
+        uint256 amount = 1e18;
+        address staker = address(this);
+        uint256 beaconChainETHStrategyIndex = 0;
+
+        _beaconChainReentrancyTestsSetup();
+
+        testDepositBeaconChainETHSuccessfully(staker, amount);        
+
+        address targetToUse = address(investmentManager);
+        uint256 msgValueToUse = 0;
+        bytes memory calldataToUse = abi.encodeWithSelector(InvestmentManager.recordOvercommittedBeaconChainETH.selector, staker, beaconChainETHStrategyIndex, amount);
+        reenterer.prepare(targetToUse, msgValueToUse, calldataToUse, bytes("ReentrancyGuard: reentrant call"));
+
+        cheats.startPrank(address(reenterer));
+        investmentManager.recordOvercommittedBeaconChainETH(staker, beaconChainETHStrategyIndex, amount);
+        cheats.stopPrank();
+    }
+
+    function testDepositIntoStrategySuccessfully(address staker, uint256 amount) public {
+        IInvestmentStrategy strategy = dummyStrat;
+        IERC20 token = dummyToken;
+
+        // filter out zero case since it will revert with "InvestmentManager._addShares: shares should not be zero!"
+        cheats.assume(amount != 0);
+        // filter out zero address because the mock ERC20 we are using will revert on using it
+        cheats.assume(staker != address(0));
+        // sanity check / filter
+        cheats.assume(amount <= token.balanceOf(address(this)));
+
+        uint256 sharesBefore = investmentManager.investorStratShares(staker, strategy);
+
+        cheats.startPrank(staker);
+        uint256 shares = investmentManager.depositIntoStrategy(strategy, token, amount);
+        cheats.stopPrank();
+
+        uint256 sharesAfter = investmentManager.investorStratShares(staker, strategy);
+
+        require(sharesAfter == sharesBefore + shares, "sharesAfter != sharesBefore + shares");
+    }
+
+    function testDepositIntoStrategyFailsWhenDepositsPaused() public {
+        uint256 amount = 1e18;
+
+        // pause deposits
+        cheats.startPrank(pauser);
+        investmentManager.pause(1);
+        cheats.stopPrank();
+
+        cheats.expectRevert(bytes("Pausable: index is paused"));
+        investmentManager.depositIntoStrategy(dummyStrat, dummyToken, amount);
+    }
+
+    function testDepositIntoStrategyFailsWhenStakerFrozen() public {
+        uint256 amount = 1e18;
+        address staker = address(this);
+
+        // slash the staker
+        slasherMock.freezeOperator(staker);
+
+        cheats.expectRevert(bytes("InvestmentManager.onlyNotFrozen: staker has been frozen and may be subject to slashing"));
+        investmentManager.depositIntoStrategy(dummyStrat, dummyToken, amount);
+    }
+
+    function testDepositIntoStrategyFailsWhenReentering() public {
+        uint256 amount = 1e18;
+
+        reenterer = new Reenterer();
+
+        reenterer.prepareReturnData(abi.encode(amount));
+
+        address targetToUse = address(investmentManager);
+        uint256 msgValueToUse = 0;
+        bytes memory calldataToUse = abi.encodeWithSelector(InvestmentManager.depositIntoStrategy.selector, address(reenterer), dummyToken, amount);
+        reenterer.prepare(targetToUse, msgValueToUse, calldataToUse, bytes("ReentrancyGuard: reentrant call"));
+
+        investmentManager.depositIntoStrategy(IInvestmentStrategy(address(reenterer)), dummyToken, amount);
+    }
+
+    function testDepositIntoStrategyOnBehalfOfSuccessfully(uint256 amount) public {
+        uint256 privateKey = 111111;
+        address staker = cheats.addr(111111);
+        IInvestmentStrategy strategy = dummyStrat;
+        IERC20 token = dummyToken;
+
+        // filter out zero case since it will revert with "InvestmentManager._addShares: shares should not be zero!"
+        cheats.assume(amount != 0);
+        // sanity check / filter
+        cheats.assume(amount <= token.balanceOf(address(this)));
+
+        uint256 nonceBefore = investmentManager.nonces(staker);
+        uint256 expiry = type(uint256).max;
+        bytes memory signature;
+
+        {
+            bytes32 structHash = keccak256(abi.encode(investmentManager.DEPOSIT_TYPEHASH(), strategy, token, amount, nonceBefore, expiry));
+            bytes32 digestHash = keccak256(abi.encodePacked("\x19\x01", investmentManager.DOMAIN_SEPARATOR(), structHash));
+
+            (uint8 v, bytes32 r, bytes32 s) = cheats.sign(privateKey, digestHash);
+
+            signature = abi.encodePacked(r, s, v);
+        }
+
+        uint256 sharesBefore = investmentManager.investorStratShares(staker, strategy);
+
+        uint256 shares = investmentManager.depositIntoStrategyOnBehalfOf(strategy, token, amount, staker, expiry, signature);
+
+        uint256 sharesAfter = investmentManager.investorStratShares(staker, strategy);
+        uint256 nonceAfter = investmentManager.nonces(staker);
+
+        require(sharesAfter == sharesBefore + shares, "sharesAfter != sharesBefore + shares");
+        require(nonceAfter == nonceBefore + 1, "nonceAfter != nonceBefore + 1");
+    }
+
+    function testDepositIntoStrategyOnBehalfOfFailsWhenDepositsPaused() public {
+        uint256 privateKey = 111111;
+        address staker = cheats.addr(111111);
+        IInvestmentStrategy strategy = dummyStrat;
+        IERC20 token = dummyToken;
+        uint256 amount = 1e18;
+
+        uint256 nonceBefore = investmentManager.nonces(staker);
+        uint256 expiry = type(uint256).max;
+        bytes memory signature;
+
+        {
+            bytes32 structHash = keccak256(abi.encode(investmentManager.DEPOSIT_TYPEHASH(), strategy, token, amount, nonceBefore, expiry));
+            bytes32 digestHash = keccak256(abi.encodePacked("\x19\x01", investmentManager.DOMAIN_SEPARATOR(), structHash));
+
+            (uint8 v, bytes32 r, bytes32 s) = cheats.sign(privateKey, digestHash);
+
+            signature = abi.encodePacked(r, s, v);
+        }
+
+        uint256 sharesBefore = investmentManager.investorStratShares(staker, strategy);
+
+        // pause deposits
+        cheats.startPrank(pauser);
+        investmentManager.pause(1);
+        cheats.stopPrank();
+
+        cheats.expectRevert(bytes("Pausable: index is paused"));
+        investmentManager.depositIntoStrategyOnBehalfOf(strategy, token, amount, staker, expiry, signature);
+
+        uint256 sharesAfter = investmentManager.investorStratShares(staker, strategy);
+        uint256 nonceAfter = investmentManager.nonces(staker);
+
+        require(sharesAfter == sharesBefore, "sharesAfter != sharesBefore");
+        require(nonceAfter == nonceBefore, "nonceAfter != nonceBefore");
+    }
+
+    function testDepositIntoStrategyOnBehalfOfFailsWhenStakerFrozen() public {
+        uint256 privateKey = 111111;
+        address staker = cheats.addr(111111);
+        IInvestmentStrategy strategy = dummyStrat;
+        IERC20 token = dummyToken;
+        uint256 amount = 1e18;
+
+        uint256 nonceBefore = investmentManager.nonces(staker);
+        uint256 expiry = type(uint256).max;
+        bytes memory signature;
+
+        {
+            bytes32 structHash = keccak256(abi.encode(investmentManager.DEPOSIT_TYPEHASH(), strategy, token, amount, nonceBefore, expiry));
+            bytes32 digestHash = keccak256(abi.encodePacked("\x19\x01", investmentManager.DOMAIN_SEPARATOR(), structHash));
+
+            (uint8 v, bytes32 r, bytes32 s) = cheats.sign(privateKey, digestHash);
+
+            signature = abi.encodePacked(r, s, v);
+        }
+
+        uint256 sharesBefore = investmentManager.investorStratShares(staker, strategy);
+
+        // slash the staker
+        slasherMock.freezeOperator(staker);
+
+        cheats.expectRevert(bytes("InvestmentManager.onlyNotFrozen: staker has been frozen and may be subject to slashing"));
+        investmentManager.depositIntoStrategyOnBehalfOf(strategy, token, amount, staker, expiry, signature);
+
+        uint256 sharesAfter = investmentManager.investorStratShares(staker, strategy);
+        uint256 nonceAfter = investmentManager.nonces(staker);
+
+        require(sharesAfter == sharesBefore, "sharesAfter != sharesBefore");
+        require(nonceAfter == nonceBefore, "nonceAfter != nonceBefore");
+    }
+
+    function testDepositIntoStrategyOnBehalfOfFailsWhenReentering() public {
+        reenterer = new Reenterer();
+
+        uint256 privateKey = 111111;
+        address staker = cheats.addr(111111);
+        IInvestmentStrategy strategy = IInvestmentStrategy(address(reenterer));
+        IERC20 token = dummyToken;
+        uint256 amount = 1e18;
+
+        uint256 nonceBefore = investmentManager.nonces(staker);
+        uint256 expiry = type(uint256).max;
+        bytes memory signature;
+
+        {
+            bytes32 structHash = keccak256(abi.encode(investmentManager.DEPOSIT_TYPEHASH(), strategy, token, amount, nonceBefore, expiry));
+            bytes32 digestHash = keccak256(abi.encodePacked("\x19\x01", investmentManager.DOMAIN_SEPARATOR(), structHash));
+
+            (uint8 v, bytes32 r, bytes32 s) = cheats.sign(privateKey, digestHash);
+
+            signature = abi.encodePacked(r, s, v);
+        }
+
+        uint256 sharesBefore = investmentManager.investorStratShares(staker, strategy);
+
+        uint256 shareAmountToReturn = amount;
+        reenterer.prepareReturnData(abi.encode(shareAmountToReturn));
+
+        {
+            address targetToUse = address(investmentManager);
+            uint256 msgValueToUse = 0;
+            bytes memory calldataToUse = abi.encodeWithSelector(InvestmentManager.depositIntoStrategy.selector, address(reenterer), dummyToken, amount);
+            reenterer.prepare(targetToUse, msgValueToUse, calldataToUse, bytes("ReentrancyGuard: reentrant call"));
+        }
+
+        investmentManager.depositIntoStrategyOnBehalfOf(strategy, token, amount, staker, expiry, signature);
+
+        uint256 sharesAfter = investmentManager.investorStratShares(staker, strategy);
+        uint256 nonceAfter = investmentManager.nonces(staker);
+
+        require(sharesAfter == sharesBefore + shareAmountToReturn, "sharesAfter != sharesBefore + shareAmountToReturn");
+        require(nonceAfter == nonceBefore + 1, "nonceAfter != nonceBefore + 1");
+    }
+
+    function testDepositIntoStrategyOnBehalfOfFailsWhenSignatureExpired() public {
+        uint256 privateKey = 111111;
+        address staker = cheats.addr(111111);
+        IInvestmentStrategy strategy = dummyStrat;
+        IERC20 token = dummyToken;
+        uint256 amount = 1e18;
+
+        uint256 nonceBefore = investmentManager.nonces(staker);
+        uint256 expiry = 5555;
+        // warp to 1 second after expiry
+        cheats.warp(expiry + 1);
+        bytes memory signature;
+
+        {
+            bytes32 structHash = keccak256(abi.encode(investmentManager.DEPOSIT_TYPEHASH(), strategy, token, amount, nonceBefore, expiry));
+            bytes32 digestHash = keccak256(abi.encodePacked("\x19\x01", investmentManager.DOMAIN_SEPARATOR(), structHash));
+
+            (uint8 v, bytes32 r, bytes32 s) = cheats.sign(privateKey, digestHash);
+
+            signature = abi.encodePacked(r, s, v);
+        }
+
+        uint256 sharesBefore = investmentManager.investorStratShares(staker, strategy);
+
+        cheats.expectRevert(bytes("InvestmentManager.depositIntoStrategyOnBehalfOf: signature expired"));
+        investmentManager.depositIntoStrategyOnBehalfOf(strategy, token, amount, staker, expiry, signature);
+
+        uint256 sharesAfter = investmentManager.investorStratShares(staker, strategy);
+        uint256 nonceAfter = investmentManager.nonces(staker);
+
+        require(sharesAfter == sharesBefore, "sharesAfter != sharesBefore");
+        require(nonceAfter == nonceBefore, "nonceAfter != nonceBefore");
+    }
+
+    function testDepositIntoStrategyOnBehalfOfFailsWhenSignatureInvalid() public {
+        uint256 privateKey = 111111;
+        address staker = cheats.addr(111111);
+        IInvestmentStrategy strategy = dummyStrat;
+        IERC20 token = dummyToken;
+        uint256 amount = 1e18;
+
+        uint256 nonceBefore = investmentManager.nonces(staker);
+        uint256 expiry = 5555;
+        bytes memory signature;
+
+        {
+            bytes32 structHash = keccak256(abi.encode(investmentManager.DEPOSIT_TYPEHASH(), strategy, token, amount, nonceBefore, expiry));
+            bytes32 digestHash = keccak256(abi.encodePacked("\x19\x01", investmentManager.DOMAIN_SEPARATOR(), structHash));
+
+            (uint8 v, bytes32 r, bytes32 s) = cheats.sign(privateKey, digestHash);
+
+            signature = abi.encodePacked(r, s, v);
+        }
+
+        uint256 sharesBefore = investmentManager.investorStratShares(staker, strategy);
+
+        cheats.expectRevert(bytes("InvestmentManager.depositIntoStrategyOnBehalfOf: signature not from staker"));
+        // call with `notStaker` as input instead of `staker` address
+        address notStaker = address(3333);
+        investmentManager.depositIntoStrategyOnBehalfOf(strategy, token, amount, notStaker, expiry, signature);
+
+        uint256 sharesAfter = investmentManager.investorStratShares(staker, strategy);
+        uint256 nonceAfter = investmentManager.nonces(staker);
+
+        require(sharesAfter == sharesBefore, "sharesAfter != sharesBefore");
+        require(nonceAfter == nonceBefore, "nonceAfter != nonceBefore");
+    }
+
+    function testUndelegate() public {
+        investmentManager.undelegate();
+    }
+
+
+
+
+
+
     function testBeaconChainQueuedWithdrawalToDifferentAddress(address withdrawer) external {
         // filtering for test flakiness
         cheats.assume(withdrawer != address(this));
@@ -206,6 +515,8 @@ contract InvestmentManagerUnitTests is Test {
     }
 
     function testQueuedWithdrawalsMultipleStrategiesWithBeaconChain() external {
+        testDepositIntoStrategySuccessfully(address(this), REQUIRED_BALANCE_WEI);
+
         IInvestmentStrategy[] memory strategyArray = new IInvestmentStrategy[](2);
         IERC20[] memory tokensArray = new IERC20[](2);
         uint256[] memory shareAmounts = new uint256[](2);
@@ -255,6 +566,22 @@ contract InvestmentManagerUnitTests is Test {
         IInvestmentManager.StratsTokensShares memory sts = IInvestmentManager.StratsTokensShares(strategyArray, tokensArray, shareAmounts);
         cheats.expectRevert(bytes("InvestmentManager.queueWithdrawal: cannot queue a withdrawal of Beacon Chain ETH for an non-whole amount of gwei"));
         investmentManager.queueWithdrawal(strategyIndexes, sts, address(this), undelegateIfPossible);
+    }
+
+    function _beaconChainReentrancyTestsSetup() internal {
+        // prepare InvestmentManager with EigenPodManager and Delegation replaced with a Reenterer contract
+        reenterer = new Reenterer();
+        // investmentManagerImplementation = new InvestmentManager(delegationMock, IEigenPodManager(address(reenterer)), slasherMock);
+        investmentManagerImplementation = new InvestmentManager(IEigenLayerDelegation(address(reenterer)), IEigenPodManager(address(reenterer)), slasherMock);
+        investmentManager = InvestmentManager(
+            address(
+                new TransparentUpgradeableProxy(
+                    address(investmentManagerImplementation),
+                    address(proxyAdmin),
+                    abi.encodeWithSelector(InvestmentManager.initialize.selector, pauserRegistry, initialOwner)
+                )
+            )
+        );
     }
 
 }

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// contract is *modified* from Seaport's test files: https://github.com/ProjectOpenSea/seaport/blob/891b5d4f52b58eb7030597fbb22dca67fd86c4c8/contracts/test/Reenterer.sol
+// contract is *modified* from Seaport's test file: https://github.com/ProjectOpenSea/seaport/blob/891b5d4f52b58eb7030597fbb22dca67fd86c4c8/contracts/test/Reenterer.sol
 pragma solidity ^0.8.9;
 
 import "forge-std/Test.sol";
@@ -11,6 +11,7 @@ contract Reenterer is Test {
     uint256 public msgValue;
     bytes public callData;
     bytes public expectedRevertData;
+    bytes public dataToReturn;
 
     event Reentered(bytes returnData);
 
@@ -37,8 +38,13 @@ contract Reenterer is Test {
         expectedRevertData = expectedRevertDataToUse;
     }
 
+    // added function that allows writing to `dataToReturn`
+    function prepareReturnData(bytes memory returnDataToUse) external {
+        dataToReturn = returnDataToUse;
+    }
+
     receive() external payable {
-        // added expectRevert logic
+        // added expectrevert logic
         if (expectedRevertData.length != 0) {
             cheats.expectRevert(expectedRevertData);
         }
@@ -54,6 +60,15 @@ contract Reenterer is Test {
         }
 
         emit Reentered(returnData);
+
+        // added dataToReturn logic
+        uint256 dataToReturnLength = dataToReturn.length;
+        if (dataToReturnLength > 0) {
+            bytes memory _dataToReturn = dataToReturn;
+            assembly {
+                return(add(_dataToReturn, 32), dataToReturnLength)
+            }
+        }
     }
 
     // added fallback function that is a copy of the `receive` function
@@ -74,5 +89,14 @@ contract Reenterer is Test {
         }
 
         emit Reentered(returnData);
+
+        // added dataToReturn logic
+        uint256 dataToReturnLength = dataToReturn.length;
+        if (dataToReturnLength > 0) {
+            bytes memory _dataToReturn = dataToReturn;
+            assembly {
+                return(add(_dataToReturn, 32), dataToReturnLength)
+            }
+        }
     }
 }
