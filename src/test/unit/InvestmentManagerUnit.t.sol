@@ -1,45 +1,65 @@
 // //SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
+import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
+import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+
 import "forge-std/Test.sol";
 
 import "../../contracts/core/InvestmentManager.sol";
+import "../../contracts/strategies/InvestmentStrategyBase.sol";
+import "../../contracts/permissions/PauserRegistry.sol";
 import "../mocks/DelegationMock.sol";
 import "../mocks/SlasherMock.sol";
-import "../EigenLayerTestHelper.t.sol";
+import "../mocks/EigenPodManagerMock.sol";
+
+
 import "../mocks/ERC20Mock.sol";
 
 
-contract InvestmentManagerUnitTests is EigenLayerTestHelper {
+contract InvestmentManagerUnitTests is Test {
 
-    InvestmentManager investmentManagerMock;
-    DelegationMock delegationMock;
-    SlasherMock slasherMock;
+    Vm cheats = Vm(HEVM_ADDRESS);
 
-    InvestmentStrategyBase dummyStrat;
+    uint256 public REQUIRED_BALANCE_WEI = 31.4 ether;
+
+    ProxyAdmin public proxyAdmin;
+    PauserRegistry public pauserRegistry;
+
+    InvestmentManager public investmentManager;
+    DelegationMock public delegationMock;
+    SlasherMock public slasherMock;
+    EigenPodManagerMock public eigenPodManagerMock;
+
+    InvestmentStrategyBase public dummyStrat;
 
     uint256 GWEI_TO_WEI = 1e9;
 
-    function setUp() override virtual public{
-        EigenLayerDeployer.setUp();
+    address public pauser = address(555);
+    address public unpauser = address(999);
 
-        
+    function setUp() virtual public {
+        proxyAdmin = new ProxyAdmin();
+
+        pauserRegistry = new PauserRegistry(pauser, unpauser);
+
         slasherMock = new SlasherMock();
         delegationMock = new DelegationMock();
-        investmentManagerMock = new InvestmentManager(delegationMock, eigenPodManager, slasherMock);
+        eigenPodManagerMock = new EigenPodManagerMock();
+        investmentManager = new InvestmentManager(delegationMock, eigenPodManagerMock, slasherMock);
         IERC20 dummyToken = new ERC20Mock();
-        InvestmentStrategyBase dummyStratImplementation = new InvestmentStrategyBase(investmentManagerMock);
+        InvestmentStrategyBase dummyStratImplementation = new InvestmentStrategyBase(investmentManager);
         dummyStrat = InvestmentStrategyBase(
             address(
                 new TransparentUpgradeableProxy(
                     address(dummyStratImplementation),
-                    address(eigenLayerProxyAdmin),
-                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, dummyToken, eigenLayerPauserReg)
+                    address(proxyAdmin),
+                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, dummyToken, pauserRegistry)
                 )
             )
         );
 
-        investmentManagerMock.depositIntoStrategy(dummyStrat, dummyToken, REQUIRED_BALANCE_WEI);
+        investmentManager.depositIntoStrategy(dummyStrat, dummyToken, REQUIRED_BALANCE_WEI);
 
     }
 
@@ -61,7 +81,7 @@ contract InvestmentManagerUnitTests is EigenLayerTestHelper {
 
         IInvestmentManager.StratsTokensShares memory sts = IInvestmentManager.StratsTokensShares(strategyArray, tokensArray, shareAmounts);
         cheats.expectRevert(bytes("InvestmentManager.queueWithdrawal: cannot queue a withdrawal of Beacon Chain ETH to a different address"));
-        investmentManagerMock.queueWithdrawal(strategyIndexes, sts, withdrawer, undelegateIfPossible);
+        investmentManager.queueWithdrawal(strategyIndexes, sts, withdrawer, undelegateIfPossible);
     }
 
     function testQueuedWithdrawalsMultipleStrategiesWithBeaconChain() external {
@@ -75,14 +95,14 @@ contract InvestmentManagerUnitTests is EigenLayerTestHelper {
             strategyArray[0] = investmentManager.beaconChainETHStrategy();
             shareAmounts[0] = REQUIRED_BALANCE_WEI;
             strategyIndexes[0] = 0;
-            strategyArray[1] = new InvestmentStrategyBase(investmentManagerMock);
+            strategyArray[1] = new InvestmentStrategyBase(investmentManager);
             shareAmounts[1] = REQUIRED_BALANCE_WEI;
             strategyIndexes[1] = 1;
         }
 
         IInvestmentManager.StratsTokensShares memory sts = IInvestmentManager.StratsTokensShares(strategyArray, tokensArray, shareAmounts);
         cheats.expectRevert(bytes("InvestmentManager.queueWithdrawal: cannot queue a withdrawal including Beacon Chain ETH and other tokens"));
-        investmentManagerMock.queueWithdrawal(strategyIndexes, sts, address(this), undelegateIfPossible);
+        investmentManager.queueWithdrawal(strategyIndexes, sts, address(this), undelegateIfPossible);
 
         {
             strategyArray[0] = dummyStrat;
@@ -94,7 +114,7 @@ contract InvestmentManagerUnitTests is EigenLayerTestHelper {
         }
         sts = IInvestmentManager.StratsTokensShares(strategyArray, tokensArray, shareAmounts);
         cheats.expectRevert(bytes("InvestmentManager.queueWithdrawal: cannot queue a withdrawal including Beacon Chain ETH and other tokens"));
-        investmentManagerMock.queueWithdrawal(strategyIndexes, sts, address(this), undelegateIfPossible);
+        investmentManager.queueWithdrawal(strategyIndexes, sts, address(this), undelegateIfPossible);
     }
 
     function testQueuedWithdrawalsNonWholeAmountGwei(uint256 nonWholeAmount) external {
@@ -113,7 +133,7 @@ contract InvestmentManagerUnitTests is EigenLayerTestHelper {
 
         IInvestmentManager.StratsTokensShares memory sts = IInvestmentManager.StratsTokensShares(strategyArray, tokensArray, shareAmounts);
         cheats.expectRevert(bytes("InvestmentManager.queueWithdrawal: cannot queue a withdrawal of Beacon Chain ETH for an non-whole amount of gwei"));
-        investmentManagerMock.queueWithdrawal(strategyIndexes, sts, address(this), undelegateIfPossible);
+        investmentManager.queueWithdrawal(strategyIndexes, sts, address(this), undelegateIfPossible);
     }
 
 }
