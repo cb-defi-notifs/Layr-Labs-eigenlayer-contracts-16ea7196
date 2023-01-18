@@ -109,17 +109,16 @@ contract EigenLayerDeployer is Script, Owners {
         eigenLayerReputedMultisig = ISafe(eigenLayerReputedMultisigAddress);
         pauser = ISafe(pauserAddress);
         unpauser = ISafe(unpauserAddress);
-        eigenLayerProxyAdminOwner = ISafe(eigenLayerProxyAdminAddress);
         setUpSafes();
         
 
         // deploy proxy admin for ability to upgrade proxy contracts
         eigenLayerProxyAdmin = new ProxyAdmin();
 
-        eigenLayerProxyAdmin.transferOwnership(address(eigenLayerProxyAdminOwner));
+        eigenLayerProxyAdmin.transferOwnership(address(eigenLayerReputedMultisig));
 
         //deploy pauser registry
-        eigenLayerPauserReg = new PauserRegistry(address(pauser), address(unpauser));
+        eigenLayerPauserReg = new PauserRegistry(address(pauser), address(eigenLayerReputedMultisig));
 
         /**
          * First, deploy upgradeable proxy contracts that **will point** to the implementations. Since the implementation contracts are
@@ -262,11 +261,10 @@ contract EigenLayerDeployer is Script, Owners {
         uint256 payment = 0;
         address payable paymentReceiver = payable(address(0));
 
-        eigenLayerReputedMultisig.setup(_owners, _threshold, to, data, fallbackHandler, paymentToken, payment, paymentReceiver);
+        
         pauser.setup(_owners, _threshold, to, data, fallbackHandler, paymentToken, payment, paymentReceiver);
         _threshold = 6;
-        unpauser.setup(_owners, _threshold, to, data, fallbackHandler, paymentToken, payment, paymentReceiver);
-        eigenLayerProxyAdminOwner.setup(_owners, _threshold, to, data, fallbackHandler, paymentToken, payment, paymentReceiver);
+        eigenLayerReputedMultisig.setup(_owners, _threshold, to, data, fallbackHandler, paymentToken, payment, paymentReceiver);
     }
 
     function verifyOwners()internal view {
@@ -283,7 +281,7 @@ contract EigenLayerDeployer is Script, Owners {
         require(address(slasher.pauserRegistry()) == address(eigenLayerPauserReg), "slasher's pauser registry not set correctly");
 
         require(eigenLayerPauserReg.pauser() == address(pauser), "pauser not set correctly");
-        require(eigenLayerPauserReg.unpauser() == address(unpauser), "pauser not set correctly");
+        require(eigenLayerPauserReg.unpauser() == address(eigenLayerReputedMultisig), "pauser not set correctly");
     }
 }
 
