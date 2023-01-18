@@ -138,16 +138,14 @@ contract InvestmentManagerUnitTests is Test {
         cheats.stopPrank();
     }
 
-/*
-    // TODO: write this test properly or delete it
     function testDepositBeaconChainETHFailsWhenReentering() public {
         uint256 amount = 1e18;
         address staker = address(this);
 
         // prepare InvestmentManager with EigenPodManager and Delegation replaced with a Reenterer contract
         Reenterer reenterer = new Reenterer();
-        investmentManagerImplementation = new InvestmentManager(delegationMock, IEigenPodManager(address(reenterer)), slasherMock);
-        // investmentManagerImplementation = new InvestmentManager(IEigenLayerDelegation(address(reenterer)), IEigenPodManager(address(reenterer)), slasherMock);
+        // investmentManagerImplementation = new InvestmentManager(delegationMock, IEigenPodManager(address(reenterer)), slasherMock);
+        investmentManagerImplementation = new InvestmentManager(IEigenLayerDelegation(address(reenterer)), IEigenPodManager(address(reenterer)), slasherMock);
         investmentManager = InvestmentManager(
             address(
                 new TransparentUpgradeableProxy(
@@ -158,14 +156,16 @@ contract InvestmentManagerUnitTests is Test {
             )
         );
 
+        address targetToUse = address(investmentManager);
+        uint256 msgValueToUse = 0;
         bytes memory calldataToUse = abi.encodeWithSelector(InvestmentManager.depositBeaconChainETH.selector, staker, amount);
-        reenterer.prepare(address(investmentManager), 0, calldataToUse);
+        reenterer.prepare(targetToUse, msgValueToUse, calldataToUse, bytes("ReentrancyGuard: reentrant call"));
 
         cheats.startPrank(address(reenterer));
         investmentManager.depositBeaconChainETH(staker, amount);
         cheats.stopPrank();
     }
-*/
+
     function testRecordOvercommittedBeaconChainETHSuccessfully(uint256 amount_1, uint256 amount_2) public {
         // zero inputs will revert, and cannot reduce more than full amount
         cheats.assume(amount_2 <= amount_1 && amount_1 != 0 && amount_2 != 0);
