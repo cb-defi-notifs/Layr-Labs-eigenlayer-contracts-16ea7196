@@ -12,6 +12,7 @@ import "../../contracts/permissions/PauserRegistry.sol";
 import "../mocks/DelegationMock.sol";
 import "../mocks/SlasherMock.sol";
 import "../mocks/EigenPodManagerMock.sol";
+import "../mocks/Reenterer.sol";
 
 
 import "../mocks/ERC20Mock.sol";
@@ -85,17 +86,28 @@ contract InvestmentManagerUnitTests is Test {
         investmentManager.initialize(pauserRegistry, initialOwner);
     }
 
-    function testDepositBeaconChainETHSuccessfully(uint256 amount) public {
+    function testDepositBeaconChainETHSuccessfully(address staker, uint256 amount) public {
         // fitler out zero case since it will revert with "InvestmentManager._addShares: shares should not be zero!"
         cheats.assume(amount != 0);
-        uint256 sharesBefore = investmentManager.investorStratShares(address(this), beaconChainETHStrategy);
+        uint256 sharesBefore = investmentManager.investorStratShares(staker, beaconChainETHStrategy);
 
         cheats.startPrank(address(eigenPodManagerMock));
-        investmentManager.depositBeaconChainETH(address(this), amount);
+        investmentManager.depositBeaconChainETH(staker, amount);
         cheats.stopPrank();
 
-        uint256 sharesAfter = investmentManager.investorStratShares(address(this), beaconChainETHStrategy);
+        uint256 sharesAfter = investmentManager.investorStratShares(staker, beaconChainETHStrategy);
         require(sharesAfter == sharesBefore + amount, "sharesAfter != sharesBefore + amount");
+    }
+
+    function testDepositBeaconChainETHFailsWhenNotCalledByEigenPodManager(address improperCaller) public {
+        cheats.assume(improperCaller != address(eigenPodManagerMock));
+        uint256 amount = 1e18;
+        address staker = address(this);
+
+        cheats.expectRevert(bytes("InvestmentManager.onlyEigenPodManager: not the eigenPodManager"));
+        cheats.startPrank(address(improperCaller));
+        investmentManager.depositBeaconChainETH(staker, amount);
+        cheats.stopPrank();
     }
 
     function testDepositBeaconChainETHFailsWhenDepositsPaused() public {
@@ -126,6 +138,51 @@ contract InvestmentManagerUnitTests is Test {
         cheats.stopPrank();
     }
 
+/*
+    // TODO: write this test properly or delete it
+    function testDepositBeaconChainETHFailsWhenReentering() public {
+        uint256 amount = 1e18;
+        address staker = address(this);
+
+        // prepare InvestmentManager with EigenPodManager and Delegation replaced with a Reenterer contract
+        Reenterer reenterer = new Reenterer();
+        investmentManagerImplementation = new InvestmentManager(delegationMock, IEigenPodManager(address(reenterer)), slasherMock);
+        // investmentManagerImplementation = new InvestmentManager(IEigenLayerDelegation(address(reenterer)), IEigenPodManager(address(reenterer)), slasherMock);
+        investmentManager = InvestmentManager(
+            address(
+                new TransparentUpgradeableProxy(
+                    address(investmentManagerImplementation),
+                    address(proxyAdmin),
+                    abi.encodeWithSelector(InvestmentManager.initialize.selector, pauserRegistry, initialOwner)
+                )
+            )
+        );
+
+        bytes memory calldataToUse = abi.encodeWithSelector(InvestmentManager.depositBeaconChainETH.selector, staker, amount);
+        reenterer.prepare(address(investmentManager), 0, calldataToUse);
+
+        cheats.startPrank(address(reenterer));
+        investmentManager.depositBeaconChainETH(staker, amount);
+        cheats.stopPrank();
+    }
+*/
+    function testRecordOvercommittedBeaconChainETHSuccessfully(uint256 amount_1, uint256 amount_2) public {
+        // zero inputs will revert, and cannot reduce more than full amount
+        cheats.assume(amount_2 <= amount_1 && amount_1 != 0 && amount_2 != 0);
+
+        address overcommittedPodOwner = address(this);
+        uint256 beaconChainETHStrategyIndex = 0;
+        testDepositBeaconChainETHSuccessfully(overcommittedPodOwner, amount_1);
+
+        uint256 sharesBefore = investmentManager.investorStratShares(overcommittedPodOwner, beaconChainETHStrategy);
+
+        cheats.startPrank(address(eigenPodManagerMock));
+        investmentManager.recordOvercommittedBeaconChainETH(overcommittedPodOwner, beaconChainETHStrategyIndex, amount_2);
+        cheats.stopPrank();
+
+        uint256 sharesAfter = investmentManager.investorStratShares(overcommittedPodOwner, beaconChainETHStrategy);
+        require(sharesAfter == sharesBefore - amount_2, "sharesAfter != sharesBefore - amount");
+    }
 
     function testBeaconChainQueuedWithdrawalToDifferentAddress(address withdrawer) external {
         // filtering for test flakiness
