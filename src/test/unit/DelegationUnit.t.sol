@@ -45,4 +45,12 @@ contract InvestmentManagerUnitTests is EigenLayerTestHelper {
         delegationMock.delegateToBySignature(staker, operator, expiry, signature);
     }
 
+    function testUndelegateFromNonInvestmentManagerAddress(address undelegator) public{
+        cheats.assume(undelegator != address(investmentManagerMock));
+        cheats.expectRevert(bytes("onlyInvestmentManager"));
+        cheats.startPrank(undelegator);
+        delegationMock.undelegate(address(this));
+    }
+
+
 }
