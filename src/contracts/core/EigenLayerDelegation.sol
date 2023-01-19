@@ -90,7 +90,7 @@ contract EigenLayerDelegation is Initializable, OwnableUpgradeable, EigenLayerDe
     function delegateToBySignature(address staker, address operator, uint256 expiry, bytes memory signature)
         external
     {
-        require(expiry >= block.timestamp, "delegation signature expired");
+        require(expiry >= block.timestamp, "EigenLayerDelegation.delegateToBySignature: delegation signature expired");
 
         // calculate struct hash, then increment `staker`'s nonce
         uint256 nonce = nonces[staker];
