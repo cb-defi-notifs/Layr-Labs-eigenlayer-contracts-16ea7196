@@ -85,5 +85,12 @@ contract InvestmentManagerUnitTests is EigenLayerTestHelper {
         delegationMock.increaseDelegatedShares(operator, investmentStrategyMock, shares);
     }
 
+    function testDecreaseDelegatedSharesFromNonInvestmentManagerAddress(address operator,  IInvestmentStrategy[] memory strategies,  uint256[] memory shareAmounts) public{
+        cheats.assume(operator != address(investmentManagerMock));
+        cheats.expectRevert(bytes("onlyInvestmentManager"));
+        cheats.startPrank(operator);
+        delegationMock.decreaseDelegatedShares(operator, strategies, shareAmounts);
+    }
+
 
 }
