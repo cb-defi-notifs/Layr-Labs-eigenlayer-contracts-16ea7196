@@ -4,6 +4,7 @@ pragma solidity ^0.8.9;
 import "forge-std/Test.sol";
 
 import "../mocks/InvestmentManagerMock.sol";
+
 import "../mocks/SlasherMock.sol";
 import "../EigenLayerTestHelper.t.sol";
 import "../mocks/ERC20Mock.sol";
@@ -15,6 +16,8 @@ contract InvestmentManagerUnitTests is EigenLayerTestHelper {
     SlasherMock slasherMock;
     EigenLayerDelegation delegationMock;
     EigenLayerDelegation delegationMockImplementation;
+    InvestmentStrategyBase investmentStrategyImplementation;
+    InvestmentStrategyBase investmentStrategyMock;
 
 
     uint256 GWEI_TO_WEI = 1e9;
@@ -31,6 +34,18 @@ contract InvestmentManagerUnitTests is EigenLayerTestHelper {
         eigenLayerProxyAdmin.upgrade(TransparentUpgradeableProxy(payable(address(delegationMock))), address(delegationMockImplementation));
 
         delegationMock.initialize(eigenLayerPauserReg, address(this));
+
+        investmentStrategyImplementation = new InvestmentStrategyBase(investmentManager);
+
+        investmentStrategyMock = InvestmentStrategyBase(
+            address(
+                new TransparentUpgradeableProxy(
+                    address(investmentStrategyImplementation),
+                    address(eigenLayerProxyAdmin),
+                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, weth, eigenLayerPauserReg)
+                )
+            )
+        );
 
     }
 
@@ -61,6 +76,13 @@ contract InvestmentManagerUnitTests is EigenLayerTestHelper {
         cheats.startPrank(address(investmentManagerMock));
         delegationMock.undelegate(operator);
         cheats.stopPrank();
+    }
+
+    function testIncreaseDelegatedSharesFromNonInvestmentManagerAddress(address operator, uint256 shares) public{
+        cheats.assume(operator != address(investmentManagerMock));
+        cheats.expectRevert(bytes("onlyInvestmentManager"));
+        cheats.startPrank(operator);
+        delegationMock.increaseDelegatedShares(operator, investmentStrategyMock, shares);
     }
 
 
