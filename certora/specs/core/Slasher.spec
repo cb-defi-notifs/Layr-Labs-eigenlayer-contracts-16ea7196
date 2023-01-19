@@ -49,7 +49,7 @@ methods {
 	get_lastest_update_block_at_node(address, uint256) returns (uint256) envfree
 	get_lastest_update_block_at_head(address) returns (uint256) envfree
 	get_linked_list_entry(address operator, uint256 node, bool direction) returns (uint256) envfree
-	nodeDoesExist(address operator, uint256 node) returns (bool) envfree
+	//nodeDoesExist(address operator, uint256 node) returns (bool) envfreed
 	nodeIsWellLinked(address operator, uint256 node) returns (bool) envfree
 	
 	//// Normal Functions
@@ -57,6 +57,18 @@ methods {
 	bondedUntil(address, address) returns (uint32) envfree
 	paused(uint8) returns (bool) envfree
 }
+
+     // uses that _HEAD = 0. Similar to StructuredLinkedList.nodeExists but slightly better defined
+definition nodeDoesExist(address operator, uint256 node) returns bool =
+	(get_next_node(operator, node) == 0 && get_previous_node(operator, node) == 0) 
+		=> (get_next_node(operator, 0) == node && get_previous_node(operator, 0) == node);
+
+definition nodeIsWellLinked(address operator, uint256 node) returns bool =
+	// node is not linked to itself
+	get_previous_node(operator, node) != node && get_next_node(operator, node) != node
+	// node is the previous node's next node and the next node's previous node
+	&& get_linked_list_entry(operator, get_previous_node(operator, node), true) == node
+	&& get_linked_list_entry(operator, get_next_node(operator, node), false) == node;
 
 /*
 TODO: sort out if `isFrozen` can also be marked as envfree -- currently this is failing with the error
