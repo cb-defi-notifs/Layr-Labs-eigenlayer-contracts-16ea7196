@@ -32,4 +32,17 @@ contract Owners is Test {
         }
         return addresses;    
     }
+
+    function getReputedOwnerAddresses() public returns(address[] memory) {
+        resetOwnersConfigJson("reputedOwners.json");
+        for (uint256 i = 0; i < getNumOperators(); i++) {
+            addresses.push(getOwnerAddress(i));
+        }
+        return addresses;    
+    }
+
+    function resetOwnersConfigJson(string memory newConfig) public {
+        ownersConfigJson = vm.readFile(newConfig);
+    }
+    
 }
