@@ -104,11 +104,11 @@ contract InvestmentManagerUnitTests is EigenLayerTestHelper {
 
     function testDelegateWhenStakerHasExistingDelegation(address staker, address operator, address operator2) public{
         cheats.startPrank(operator);
-        delegationMock.registerAsOperator(IDelegationTerms(address(this)));
+        delegationMock.registerAsOperator(IDelegationTerms(address(11)));
         cheats.stopPrank();
 
         cheats.startPrank(operator2);
-        delegationMock.registerAsOperator(IDelegationTerms(address(this)));
+        delegationMock.registerAsOperator(IDelegationTerms(address(10)));
         cheats.stopPrank();
 
         cheats.startPrank(staker);
