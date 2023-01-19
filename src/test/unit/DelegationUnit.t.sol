@@ -121,4 +121,20 @@ contract InvestmentManagerUnitTests is EigenLayerTestHelper {
         delegationMock.delegateTo(operator2);
     }
 
+    function testDelegationToUnregisteredOperator(address operator) public{
+        cheats.expectRevert(bytes("EigenLayerDelegation._delegate: operator has not yet registered as a delegate"));
+        delegationMock.delegateTo(operator);
+    }
+
+    function testDelegationWhenPausedNewDelegationIsSet(address operator, address staker) public {
+        cheats.startPrank(pauser);
+        delegationMock.pause(1);
+        cheats.stopPrank();
+
+        cheats.startPrank(staker);
+        cheats.expectRevert(bytes("Pausable: index is paused"));
+        delegationMock.delegateTo(operator);
+        cheats.stopPrank();
+    }
+
 }

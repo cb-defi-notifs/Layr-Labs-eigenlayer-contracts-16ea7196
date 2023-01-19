@@ -4,6 +4,8 @@ pragma solidity ^0.8.9;
 
 import "../interfaces/IPauserRegistry.sol";
 
+import "forge-std/Test.sol";
+
 /**
  * @title Adds pausability to a contract.
  * @author Layr Labs, Inc.
@@ -12,7 +14,7 @@ import "../interfaces/IPauserRegistry.sol";
  * @dev Pausability is implemented using a uint256, which allows up to 256 different bit-flags; each bit can potentially pause different functionality.
  * Inspiration is taken from the NearBridge design here https://etherscan.io/address/0x3FEFc5A4B1c02f21cBc8D3613643ba0635b9a873#code
  */
-contract Pausable {
+contract Pausable is Test {
     /// @notice Address of the `PauserRegistry` contract that this contract defers to for determining access control (for pausing).
     IPauserRegistry public pauserRegistry;
 
@@ -94,8 +96,9 @@ contract Pausable {
     }
 
     /// @notice Returns 'true' if the `indexed`th bit of `_paused` is 1, and 'false' otherwise
-    function paused(uint8 index) public view virtual returns (bool) {
+    function paused(uint8 index) public virtual returns (bool) {
         uint256 mask = 1 << index;
+        
         return ((_paused & mask) == mask);
     }
 }
