@@ -92,5 +92,33 @@ contract InvestmentManagerUnitTests is EigenLayerTestHelper {
         delegationMock.decreaseDelegatedShares(operator, strategies, shareAmounts);
     }
 
+    function testDelegateWhenOperatorIsFrozen(address operator) public{
+        cheats.startPrank(operator);
+        delegationMock.registerAsOperator(IDelegationTerms(address(this)));
+        cheats.stopPrank();
+
+        slasherMock.setOperatorStatus(operator, true);
+        cheats.expectRevert(bytes("EigenLayerDelegation._delegate: cannot delegate to a frozen operator"));
+        delegationMock.delegateTo(operator);
+    }
+
+    function testDelegateWhenStakerHasExistingDelegation(address staker, address operator, address operator2) public{
+        cheats.startPrank(operator);
+        delegationMock.registerAsOperator(IDelegationTerms(address(this)));
+        cheats.stopPrank();
+
+        cheats.startPrank(operator2);
+        delegationMock.registerAsOperator(IDelegationTerms(address(this)));
+        cheats.stopPrank();
+
+        cheats.startPrank(staker);
+        delegationMock.delegateTo(operator);
+        cheats.stopPrank();
+
+        delegationMock.delegateTo(operator);
+
+        cheats.expectRevert(bytes("EigenLayerDelegation._delegate: staker has existing delegation"));
+        delegationMock.delegateTo(operator2);
+    }
 
 }
