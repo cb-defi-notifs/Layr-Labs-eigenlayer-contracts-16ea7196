@@ -52,5 +52,16 @@ contract InvestmentManagerUnitTests is EigenLayerTestHelper {
         delegationMock.undelegate(address(this));
     }
 
+    function testUndelegateByOperatorFromThemselves(address operator) public{
+        cheats.startPrank(operator);
+        delegationMock.registerAsOperator(IDelegationTerms(address(this)));
+        cheats.stopPrank();
+        cheats.expectRevert(bytes("EigenLayerDelegation.undelegate: operators cannot undelegate from themselves"));
+        
+        cheats.startPrank(address(investmentManagerMock));
+        delegationMock.undelegate(operator);
+        cheats.stopPrank();
+    }
+
 
 }
