@@ -6,18 +6,21 @@ import "../../contracts/interfaces/IEigenLayerDelegation.sol";
 
 
 contract DelegationMock is IEigenLayerDelegation, Test {
+    mapping (address => address) public delegatedTo;
 
     function registerAsOperator(IDelegationTerms /*dt*/) external {}
 
-    function delegateTo(address /*operator*/) external {}
+    function delegateTo(address operator) external {
+        delegatedTo[msg.sender] = operator;
+    }
 
 
     function delegateToBySignature(address /*staker*/, address /*operator*/, uint256 /*expiry*/, bytes memory /*signature*/) external {}
 
 
-    function undelegate(address /*staker*/) external {}
-    /// @notice returns the address of the operator that `staker` is delegated to.
-    function delegatedTo(address /*staker*/) external view returns (address) {}
+    function undelegate(address staker) external {
+        delegatedTo[staker] = address(0);
+    }
 
     /// @notice returns the DelegationTerms of the `operator`, which may mediate their interactions with stakers who delegate to them.
     function delegationTerms(address /*operator*/) external view returns (IDelegationTerms) {}
@@ -34,7 +37,9 @@ contract DelegationMock is IEigenLayerDelegation, Test {
         uint256[] calldata /*shares*/
     ) external {}
 
-    function isDelegated(address /*staker*/) external pure returns (bool) {return true;}
+    function isDelegated(address staker) external view returns (bool) {
+        return (delegatedTo[staker] != address(0));
+    }
 
     function isNotDelegated(address /*staker*/) external pure returns (bool) {}
 
