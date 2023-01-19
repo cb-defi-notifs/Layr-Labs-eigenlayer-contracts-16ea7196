@@ -7,11 +7,12 @@ import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.so
 import "@openzeppelin/contracts/proxy/beacon/IBeacon.sol";
 import "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 
-import "../src/contracts/interfaces/IEigenLayerDelegation.sol";
 import "../src/contracts/core/EigenLayerDelegation.sol";
 
+import "../src/contracts/interfaces/IEigenLayerDelegation.sol";
 import "../src/contracts/interfaces/IETHPOSDeposit.sol";
 import "../src/contracts/interfaces/IBeaconChainOracle.sol";
+import "../src/contracts/interfaces/ISafe.sol";
 
 import "../src/contracts/core/InvestmentManager.sol";
 import "../src/contracts/strategies/InvestmentStrategyBase.sol";
@@ -28,6 +29,7 @@ import "../src/contracts/libraries/BytesLib.sol";
 import "../src/test/mocks/EmptyContract.sol";
 import "../src/test/mocks/BeaconChainOracleMock.sol";
 import "../src/test/mocks/ETHDepositMock.sol";
+import "../src/test/utils/Owners.sol";
 
 import "forge-std/Test.sol";
 
@@ -41,7 +43,7 @@ import "../src/contracts/libraries/BytesLib.sol";
 
 // # To deploy and verify our contract
 // forge script script/Deployer.s.sol:EigenLayerDeployer --rpc-url $RPC_URL  --private-key $PRIVATE_KEY --broadcast -vvvv
-contract EigenLayerDeployer is Script, DSTest {
+contract EigenLayerDeployer is Script, Owners {
 
     using BytesLib for bytes;
 
@@ -60,6 +62,12 @@ contract EigenLayerDeployer is Script, DSTest {
     IETHPOSDeposit public ethPOSDeposit;
     IBeacon public eigenPodBeacon;
     IBeaconChainOracle public beaconChainOracle;
+
+    address eigenLayerReputedMultisigAddress;
+    address pauserAddress;
+    
+    ISafe public eigenLayerReputedMultisig;
+    ISafe public pauser;
 
     // DataLayr contracts
     ProxyAdmin public dataLayrProxyAdmin;
@@ -94,16 +102,18 @@ contract EigenLayerDeployer is Script, DSTest {
     function run() external {
         vm.startBroadcast();
 
-        emit log_address(address(this));
-        address pauser = msg.sender;
-        address unpauser = msg.sender;
-        address eigenLayerReputedMultisig = msg.sender;
+        eigenLayerReputedMultisig = ISafe(eigenLayerReputedMultisigAddress);
+        pauser = ISafe(pauserAddress);
+        setUpSafes();
+        
 
         // deploy proxy admin for ability to upgrade proxy contracts
         eigenLayerProxyAdmin = new ProxyAdmin();
 
+        eigenLayerProxyAdmin.transferOwnership(address(eigenLayerReputedMultisig));
+
         //deploy pauser registry
-        eigenLayerPauserReg = new PauserRegistry(pauser, unpauser);
+        eigenLayerPauserReg = new PauserRegistry(address(pauser), address(eigenLayerReputedMultisig));
 
         /**
          * First, deploy upgradeable proxy contracts that **will point** to the implementations. Since the implementation contracts are
@@ -141,22 +151,22 @@ contract EigenLayerDeployer is Script, DSTest {
         eigenLayerProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(delegation))),
             address(delegationImplementation),
-            abi.encodeWithSelector(EigenLayerDelegation.initialize.selector, eigenLayerPauserReg, eigenLayerReputedMultisig)
+            abi.encodeWithSelector(EigenLayerDelegation.initialize.selector, eigenLayerPauserReg, address(eigenLayerReputedMultisig))
         );
         eigenLayerProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(investmentManager))),
             address(investmentManagerImplementation),
-            abi.encodeWithSelector(InvestmentManager.initialize.selector, eigenLayerPauserReg, eigenLayerReputedMultisig)
+            abi.encodeWithSelector(InvestmentManager.initialize.selector, eigenLayerPauserReg, address(eigenLayerReputedMultisig))
         );
         eigenLayerProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(slasher))),
             address(slasherImplementation),
-            abi.encodeWithSelector(Slasher.initialize.selector, eigenLayerPauserReg, eigenLayerReputedMultisig)
+            abi.encodeWithSelector(Slasher.initialize.selector, eigenLayerPauserReg, address(eigenLayerReputedMultisig))
         );
         eigenLayerProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(eigenPodManager))),
             address(eigenPodManagerImplementation),
-            abi.encodeWithSelector(EigenPodManager.initialize.selector, beaconChainOracle, eigenLayerReputedMultisig)
+            abi.encodeWithSelector(EigenPodManager.initialize.selector, beaconChainOracle, address(eigenLayerReputedMultisig))
         );
 
 
@@ -200,9 +210,8 @@ contract EigenLayerDeployer is Script, DSTest {
 
         verifyContract(delegationImplementation, investmentManagerImplementation, slasherImplementation, eigenPodManagerImplementation);
         verifyContract(delegation, investmentManager, slasher, eigenPodManager);
-        verifyOwners(eigenLayerReputedMultisig);
-        checkPauserInitializations(pauser, unpauser);
-        
+        verifyOwners();
+        checkPauserInitializations();
         vm.stopBroadcast();
 
         vm.writeFile("data/investmentManager.addr", vm.toString(address(investmentManager)));
@@ -237,27 +246,37 @@ contract EigenLayerDeployer is Script, DSTest {
         require(address(eigenPodManagerContract.slasher()) == address(slasher), "eigenPodManager slasher contract address not set correctly");
 
     }
+    function setUpSafes() internal {
+        address[] memory _owners = getOwnerAddresses();
+        uint256 _threshold = 2;
+        address to = address(0);
+        bytes memory data = "";
+        address fallbackHandler = address(0);
+        address paymentToken = address(0);
+        uint256 payment = 0;
+        address payable paymentReceiver = payable(address(0));
 
-    function verifyOwners(
-        address eigenLayerReputedMultisig  
-    )internal view {
+        
+        pauser.setup(_owners, _threshold, to, data, fallbackHandler, paymentToken, payment, paymentReceiver);
+        _threshold = 6;
+        eigenLayerReputedMultisig.setup(_owners, _threshold, to, data, fallbackHandler, paymentToken, payment, paymentReceiver);
+    }
+
+    function verifyOwners()internal view {
        
-        require(investmentManager.owner() == eigenLayerReputedMultisig, "investmentManager owner not set correctly");
-        require(delegation.owner() == eigenLayerReputedMultisig, "delegation owner not set correctly");
-        require(slasher.owner() == eigenLayerReputedMultisig, "slasher owner not set correctly");
-        require(eigenPodManager.owner() == eigenLayerReputedMultisig, "delegation owner not set correctly");
+        require(investmentManager.owner() == address(eigenLayerReputedMultisig), "investmentManager owner not set correctly");
+        require(delegation.owner() == address(eigenLayerReputedMultisig), "delegation owner not set correctly");
+        require(slasher.owner() == address(eigenLayerReputedMultisig), "slasher owner not set correctly");
+        require(eigenPodManager.owner() == address(eigenLayerReputedMultisig), "delegation owner not set correctly");
 
     }
-    function checkPauserInitializations(
-        address pauser,
-        address unpauser
-    ) internal view {
+    function checkPauserInitializations() internal view {
         require(address(delegation.pauserRegistry()) == address(eigenLayerPauserReg), "delegation's pauser registry not set correctly");
         require(address(investmentManager.pauserRegistry()) == address(eigenLayerPauserReg), "investmentManager's pauser registry not set correctly");
         require(address(slasher.pauserRegistry()) == address(eigenLayerPauserReg), "slasher's pauser registry not set correctly");
 
-        require(eigenLayerPauserReg.pauser() == pauser, "pauser not set correctly");
-        require(eigenLayerPauserReg.unpauser() == unpauser, "pauser not set correctly");
+        require(eigenLayerPauserReg.pauser() == address(pauser), "pauser not set correctly");
+        require(eigenLayerPauserReg.unpauser() == address(eigenLayerReputedMultisig), "pauser not set correctly");
     }
 }
 
