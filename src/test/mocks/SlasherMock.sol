@@ -8,6 +8,13 @@ import "../../contracts/interfaces/ISlasher.sol";
 contract SlasherMock is ISlasher, Test {
 
     mapping(address => bool) public isFrozen;
+    bool public _canWithdraw = true;
+
+    function setCanWithdrawResponse(bool response) external {
+        _canWithdraw = response;
+    }
+
+
 
     function optIntoSlashing(address contractAddress) external{}
 
@@ -35,8 +42,8 @@ contract SlasherMock is ISlasher, Test {
     /// @notice A search routine for finding the correct input value of `insertAfter` to `recordStakeUpdate` / `_updateMiddlewareList`.
     function getCorrectValueForInsertAfter(address operator, uint32 updateBlock) external view returns (uint256){}
 
-    function canWithdraw(address /*operator*/, uint32 /*withdrawalStartBlock*/, uint256 /*middlewareTimesIndex*/) external pure returns(bool) {
-        return true;
+    function canWithdraw(address /*operator*/, uint32 /*withdrawalStartBlock*/, uint256 /*middlewareTimesIndex*/) external view returns(bool) {
+        return _canWithdraw;
     }
 
     /// @notice Getter function for fetching `operatorToMiddlewareTimes[operator][index].stalestUpdateBlock`.
