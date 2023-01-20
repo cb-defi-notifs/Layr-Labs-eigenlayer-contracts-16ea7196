@@ -12,6 +12,8 @@ import "./EigenLayerDelegationStorage.sol";
 import "../permissions/Pausable.sol";
 import "./Slasher.sol";
 
+import "forge-std/Test.sol";
+
 /**
  * @title The primary delegation contract for EigenLayer.
  * @author Layr Labs, Inc.
@@ -21,7 +23,7 @@ import "./Slasher.sol";
  * - enabling any staker to delegate its stake to the operator of its choice
  * - enabling a staker to undelegate its assets from an operator (performed as part of the withdrawal process, initiated through the InvestmentManager)
  */
-contract EigenLayerDelegation is Initializable, OwnableUpgradeable, EigenLayerDelegationStorage, Pausable {
+contract EigenLayerDelegation is Initializable, OwnableUpgradeable, EigenLayerDelegationStorage, Pausable, Test {
     // index for flag that pauses new delegations when set
     uint8 internal constant PAUSED_NEW_DELEGATION = 0;
     // bytes4(keccak256("isValidSignature(bytes32,bytes)")
@@ -166,6 +168,10 @@ contract EigenLayerDelegation is Initializable, OwnableUpgradeable, EigenLayerDe
         external
         onlyInvestmentManager
     {
+        emit log("hehehe");
+        if(isDelegated(staker)){
+            emit log("hehehecadadf");
+        }
         if (isDelegated(staker)) {
             address operator = delegatedTo[staker];
 
@@ -177,6 +183,7 @@ contract EigenLayerDelegation is Initializable, OwnableUpgradeable, EigenLayerDe
                     ++i;
                 }
             }
+            emit log("hehehe");
 
             // call into hook in delegationTerms contract
             IDelegationTerms dt = delegationTerms[operator];

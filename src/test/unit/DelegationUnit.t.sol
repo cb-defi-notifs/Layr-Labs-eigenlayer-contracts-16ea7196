@@ -8,13 +8,16 @@ import "../mocks/InvestmentManagerMock.sol";
 import "../mocks/SlasherMock.sol";
 import "../EigenLayerTestHelper.t.sol";
 import "../mocks/ERC20Mock.sol";
+import "../mocks/DelegationTermsMock.sol";
+import "../Delegation.t.sol";
 
 
-contract InvestmentManagerUnitTests is EigenLayerTestHelper {
+contract DelegationUnitTests is EigenLayerTestHelper {
 
     InvestmentManagerMock investmentManagerMock;
     SlasherMock slasherMock;
     EigenLayerDelegation delegationMock;
+    DelegationTermsMock delegationTermsMock;
     EigenLayerDelegation delegationMockImplementation;
     InvestmentStrategyBase investmentStrategyImplementation;
     InvestmentStrategyBase investmentStrategyMock;
@@ -22,10 +25,14 @@ contract InvestmentManagerUnitTests is EigenLayerTestHelper {
 
     uint256 GWEI_TO_WEI = 1e9;
 
+    event OnDelegationReceivedCallFailure(IDelegationTerms indexed delegationTerms, bytes32 returnData);
+
+
     function setUp() override virtual public{
         EigenLayerDeployer.setUp();
 
         slasherMock = new SlasherMock();
+        delegationTermsMock = new DelegationTermsMock();
         delegationMock = EigenLayerDelegation(address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayerProxyAdmin), "")));
         investmentManagerMock = new InvestmentManagerMock(delegationMock, eigenPodManager, slasherMock);
 
@@ -136,5 +143,41 @@ contract InvestmentManagerUnitTests is EigenLayerTestHelper {
         delegationMock.delegateTo(operator);
         cheats.stopPrank();
     }
+
+    function testRevertingDelegationReceivedHook(address operator, address staker) public fuzzedAddress(operator) fuzzedAddress(staker){
+        delegationTermsMock.setShouldRevert(true);
+        cheats.startPrank(operator);
+        delegationMock.registerAsOperator(delegationTermsMock);
+        cheats.stopPrank();
+
+        cheats.startPrank(staker);
+        cheats.expectEmit(true, false, false, false);
+        emit OnDelegationReceivedCallFailure(delegationTermsMock, 0x0000000000000000000000000000000000000000000000000000000000000000);
+        delegationMock.delegateTo(operator);
+        cheats.stopPrank();
+    }
+
+    function testRevertingDelegationWithdrawnHook(
+        address operator, 
+        address staker
+    ) public fuzzedAddress(operator) fuzzedAddress(staker){
+        delegationTermsMock.setShouldRevert(true);
+
+        cheats.startPrank(operator);
+        delegationMock.registerAsOperator(delegationTermsMock);
+        cheats.stopPrank();
+
+        cheats.startPrank(staker);
+        delegationMock.delegateTo(operator);
+        cheats.stopPrank();
+
+        (IInvestmentStrategy[] memory updatedStrategies, uint256[] memory updatedShares) =
+            investmentManager.getDeposits(staker);
+
+        cheats.startPrank(address(investmentManagerMock));
+        delegationMock.decreaseDelegatedShares(staker, updatedStrategies, updatedShares);
+    }
+
+    
 
 }
