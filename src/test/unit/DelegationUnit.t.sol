@@ -99,14 +99,17 @@ contract DelegationUnitTests is EigenLayerTestHelper {
         delegationMock.decreaseDelegatedShares(operator, strategies, shareAmounts);
     }
 
-    function testDelegateWhenOperatorIsFrozen(address operator) public{
+    function testDelegateWhenOperatorIsFrozen(address operator, address staker) public fuzzedAddress(operator) fuzzedAddress(staker){
+        
         cheats.startPrank(operator);
         delegationMock.registerAsOperator(IDelegationTerms(address(this)));
         cheats.stopPrank();
 
         slasherMock.setOperatorStatus(operator, true);
         cheats.expectRevert(bytes("EigenLayerDelegation._delegate: cannot delegate to a frozen operator"));
+        cheats.startPrank(staker);
         delegationMock.delegateTo(operator);
+        cheats.stopPrank();
     }
 
     function testDelegateWhenStakerHasExistingDelegation(address staker, address operator, address operator2) public{
@@ -144,7 +147,7 @@ contract DelegationUnitTests is EigenLayerTestHelper {
         cheats.stopPrank();
     }
 
-    function testRevertingDelegationReceivedHook(address operator, address staker) public fuzzedAddress(operator) fuzzedAddress(staker){
+    function testRevertingDelegationReceivedHook(address operator, address staker) public {
         delegationTermsMock.setShouldRevert(true);
         cheats.startPrank(operator);
         delegationMock.registerAsOperator(delegationTermsMock);
