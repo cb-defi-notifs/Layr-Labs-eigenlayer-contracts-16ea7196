@@ -494,48 +494,23 @@ contract InvestmentManagerUnitTests is Test {
         address staker = address(this);
         address withdrawer = staker;
         IInvestmentStrategy strategy = beaconChainETHStrategy;
+        IERC20 token;
 
         testDepositBeaconChainETHSuccessfully(staker, amount);
 
         bool undelegateIfPossible = false;
 
-        IInvestmentManager.StratsTokensShares memory sts;
-        {
-            IInvestmentStrategy[] memory strategyArray = new IInvestmentStrategy[](1);
-            IERC20[] memory tokensArray = new IERC20[](1);
-            uint256[] memory shareAmounts = new uint256[](1);
-            strategyArray[0] = strategy;
-            shareAmounts[0] = amount;
-            sts = IInvestmentManager.StratsTokensShares(strategyArray, tokensArray, shareAmounts);
-        }
-
-        uint256[] memory strategyIndexes = new uint256[](1);
-        strategyIndexes[0] = 0;
+        (/*IInvestmentManager.QueuedWithdrawal memory queuedWithdrawal*/, IInvestmentManager.StratsTokensShares memory sts, bytes32 withdrawalRoot) =
+            _setUpQueuedWithdrawalStructSingleStrat(staker, withdrawer, token, strategy, amount);
 
         uint256 sharesBefore = investmentManager.investorStratShares(staker, strategy);
         uint256 nonceBefore = investmentManager.numWithdrawalsQueued(staker);
 
-        IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce = IInvestmentManager.WithdrawerAndNonce({
-            withdrawer: withdrawer,
-            nonce: uint96(nonceBefore)
-        });
-        IInvestmentManager.QueuedWithdrawal memory queuedWithdrawal = 
-            IInvestmentManager.QueuedWithdrawal({
-                strategies: sts.strategies,
-                tokens: sts.tokens,
-                shares: sts.shares,
-                depositor: staker,
-                withdrawerAndNonce: withdrawerAndNonce,
-                withdrawalStartBlock: uint32(block.number),
-                delegatedAddress: investmentManager.delegation().delegatedTo(staker)
-            }
-        );
-
-        // calculate the withdrawal root
-        bytes32 withdrawalRoot = investmentManager.calculateWithdrawalRoot(queuedWithdrawal);
-
         bool withdrawalRootPendingBefore = investmentManager.withdrawalRootPending(withdrawalRoot);
         require(!withdrawalRootPendingBefore, "withdrawalRootPendingBefore is true!");
+
+        uint256[] memory strategyIndexes = new uint256[](1);
+        strategyIndexes[0] = 0;
 
         investmentManager.queueWithdrawal(strategyIndexes, sts, withdrawer, undelegateIfPossible);
 
@@ -546,6 +521,36 @@ contract InvestmentManagerUnitTests is Test {
         require(withdrawalRootPendingAfter, "withdrawalRootPendingAfter is false!");
         require(sharesAfter == sharesBefore - amount, "sharesAfter != sharesBefore - amount");
         require(nonceAfter == nonceBefore + 1, "nonceAfter != nonceBefore + 1");
+    }
+
+    function _setUpQueuedWithdrawalStructSingleStrat(address staker, address withdrawer, IERC20 token, IInvestmentStrategy strategy, uint256 shareAmount)
+        internal view returns (IInvestmentManager.QueuedWithdrawal memory queuedWithdrawal, IInvestmentManager.StratsTokensShares memory sts, bytes32 withdrawalRoot)
+    {
+        IInvestmentStrategy[] memory strategyArray = new IInvestmentStrategy[](1);
+        IERC20[] memory tokensArray = new IERC20[](1);
+        uint256[] memory shareAmounts = new uint256[](1);
+        strategyArray[0] = strategy;
+        shareAmounts[0] = shareAmount;
+        tokensArray[0] = token;
+        sts = IInvestmentManager.StratsTokensShares(strategyArray, tokensArray, shareAmounts);
+        IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce = IInvestmentManager.WithdrawerAndNonce({
+            withdrawer: withdrawer,
+            nonce: uint96(investmentManager.numWithdrawalsQueued(staker))
+        });
+        queuedWithdrawal = 
+            IInvestmentManager.QueuedWithdrawal({
+                strategies: sts.strategies,
+                tokens: sts.tokens,
+                shares: sts.shares,
+                depositor: staker,
+                withdrawerAndNonce: withdrawerAndNonce,
+                withdrawalStartBlock: uint32(block.number),
+                delegatedAddress: investmentManager.delegation().delegatedTo(staker)
+            }
+        );
+        // calculate the withdrawal root
+        withdrawalRoot = investmentManager.calculateWithdrawalRoot(queuedWithdrawal);
+        return (queuedWithdrawal, sts, withdrawalRoot);
     }
 
     function testQueueWithdrawalBeaconChainETHToDifferentAddress(address withdrawer) external {
@@ -1389,6 +1394,72 @@ contract InvestmentManagerUnitTests is Test {
         require(sharesAfter == sharesBefore, "sharesAfter != sharesBefore");
         require(balanceAfter == balanceBefore, "balanceAfter != balanceBefore");
     }
+
+    function testCompleteQueuedWithdrawalFailsWhenTryingToCompleteSameWithdrawal2X() external {
+        address staker = address(this);
+        uint256 depositAmount = 1e18;
+        uint256 withdrawalAmount = 1e18;
+        bool undelegateIfPossible = false;
+        IInvestmentStrategy strategy = dummyStrat;
+
+        testQueueWithdrawal_ToSelf_NotBeaconChainETH(depositAmount, withdrawalAmount, undelegateIfPossible);
+
+        IInvestmentManager.StratsTokensShares memory sts;
+        {
+            IInvestmentStrategy[] memory strategyArray = new IInvestmentStrategy[](1);
+            IERC20[] memory tokensArray = new IERC20[](1);
+            uint256[] memory shareAmounts = new uint256[](1);
+            strategyArray[0] = strategy;
+            shareAmounts[0] = withdrawalAmount;
+            tokensArray[0] = dummyToken;
+            sts = IInvestmentManager.StratsTokensShares(strategyArray, tokensArray, shareAmounts);
+        }
+
+        uint256[] memory strategyIndexes = new uint256[](1);
+        strategyIndexes[0] = 0;
+
+        IInvestmentManager.QueuedWithdrawal memory queuedWithdrawal;
+
+        {
+            uint256 nonce = investmentManager.numWithdrawalsQueued(staker);
+
+            IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce = IInvestmentManager.WithdrawerAndNonce({
+                withdrawer: staker,
+                nonce: (uint96(nonce) - 1)
+            });
+            queuedWithdrawal = 
+                IInvestmentManager.QueuedWithdrawal({
+                    strategies: sts.strategies,
+                    tokens: sts.tokens,
+                    shares: sts.shares,
+                    depositor: staker,
+                    withdrawerAndNonce: withdrawerAndNonce,
+                    withdrawalStartBlock: uint32(block.number),
+                    delegatedAddress: investmentManager.delegation().delegatedTo(staker)
+                }
+            );
+        }
+
+        uint256 sharesBefore = investmentManager.investorStratShares(address(this), strategy);
+        uint256 balanceBefore = dummyToken.balanceOf(address(staker));
+
+        uint256 middlewareTimesIndex = 0;
+        bool receiveAsTokens = false;
+
+        investmentManager.completeQueuedWithdrawal(queuedWithdrawal, middlewareTimesIndex, receiveAsTokens);
+
+        uint256 sharesAfter = investmentManager.investorStratShares(address(this), strategy);
+        uint256 balanceAfter = dummyToken.balanceOf(address(staker));
+
+        require(sharesAfter == sharesBefore + withdrawalAmount, "sharesAfter != sharesBefore + withdrawalAmount");
+        require(balanceAfter == balanceBefore, "balanceAfter != balanceBefore");
+
+        // try to complete same withdrawal again
+        cheats.expectRevert(bytes("InvestmentManager.completeQueuedWithdrawal: withdrawal is not pending"));
+        investmentManager.completeQueuedWithdrawal(queuedWithdrawal, middlewareTimesIndex, receiveAsTokens);
+    }
+
+
 
     // INTERNAL / HELPER FUNCTIONS
     function _beaconChainReentrancyTestsSetup() internal {
