@@ -26,6 +26,7 @@ contract DelegationUnitTests is EigenLayerTestHelper {
     uint256 GWEI_TO_WEI = 1e9;
 
     event OnDelegationReceivedCallFailure(IDelegationTerms indexed delegationTerms, bytes32 returnData);
+    event OnDelegationWithdrawnCallFailure(IDelegationTerms indexed delegationTerms, bytes32 returnData);
 
 
     function setUp() override virtual public{
@@ -164,6 +165,7 @@ contract DelegationUnitTests is EigenLayerTestHelper {
         address operator, 
         address staker
     ) public fuzzedAddress(operator) fuzzedAddress(staker){
+        cheats.assume(operator != staker);
         delegationTermsMock.setShouldRevert(true);
 
         cheats.startPrank(operator);
@@ -178,9 +180,10 @@ contract DelegationUnitTests is EigenLayerTestHelper {
             investmentManager.getDeposits(staker);
 
         cheats.startPrank(address(investmentManagerMock));
+        cheats.expectEmit(true, false, false, false);
+        emit OnDelegationWithdrawnCallFailure(delegationTermsMock, 0x0000000000000000000000000000000000000000000000000000000000000000);
         delegationMock.decreaseDelegatedShares(staker, updatedStrategies, updatedShares);
+        cheats.stopPrank();
     }
-
-    
 
 }
