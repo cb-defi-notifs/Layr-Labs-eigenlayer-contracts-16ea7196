@@ -207,6 +207,8 @@ contract InvestmentManagerUnitTests is Test {
     }
 
     function testDepositIntoStrategySuccessfully(address staker, uint256 amount) public {
+        // fuzzed input filtering
+        cheats.assume(staker != address(proxyAdmin));
         IInvestmentStrategy strategy = dummyStrat;
         IERC20 token = dummyToken;
 
@@ -1164,7 +1166,226 @@ contract InvestmentManagerUnitTests is Test {
         investmentManager.completeQueuedWithdrawal(queuedWithdrawal, middlewareTimesIndex, receiveAsTokens);
     }
 
+    function testSlashSharesNotBeaconChainETH() external {
+        uint256 amount = 1e18;
+        address staker = address(this);
+        IInvestmentStrategy strategy = dummyStrat;
+        IERC20 token = dummyToken;
 
+        testDepositIntoStrategySuccessfully(staker, amount);
+
+        IInvestmentStrategy[] memory strategyArray = new IInvestmentStrategy[](1);
+        IERC20[] memory tokensArray = new IERC20[](1);
+        uint256[] memory shareAmounts = new uint256[](1);
+        strategyArray[0] = strategy;
+        tokensArray[0] = token;
+        shareAmounts[0] = amount;
+
+        // slash the staker
+        slasherMock.freezeOperator(staker);
+
+        address slashedAddress = address(this);
+        address recipient = address(333);
+        uint256[] memory strategyIndexes = new uint256[](1);
+        strategyIndexes[0] = 0;
+
+        uint256 sharesBefore = investmentManager.investorStratShares(staker, strategy);
+        uint256 investorStratsLengthBefore = investmentManager.investorStratsLength(staker);
+        uint256 balanceBefore = dummyToken.balanceOf(recipient);
+
+        cheats.startPrank(investmentManager.owner());
+        investmentManager.slashShares(slashedAddress, recipient, strategyArray, tokensArray, strategyIndexes, shareAmounts);
+        cheats.stopPrank();
+
+        uint256 sharesAfter = investmentManager.investorStratShares(staker, strategy);
+        uint256 investorStratsLengthAfter = investmentManager.investorStratsLength(staker);
+        uint256 balanceAfter = dummyToken.balanceOf(recipient);
+
+        require(sharesAfter == sharesBefore - amount, "sharesAfter != sharesBefore - amount");
+        require(balanceAfter == balanceBefore + amount, "balanceAfter != balanceBefore + amount");
+        if (sharesAfter == 0) {
+            require(investorStratsLengthAfter == investorStratsLengthBefore - 1, "investorStratsLengthAfter != investorStratsLengthBefore - 1");
+        }
+    }
+
+    function testSlashSharesBeaconChainETH() external {
+        uint256 amount = 1e18;
+        address staker = address(this);
+        IInvestmentStrategy strategy = beaconChainETHStrategy;
+        IERC20 token;
+
+        testDepositBeaconChainETHSuccessfully(staker, amount);
+
+        IInvestmentStrategy[] memory strategyArray = new IInvestmentStrategy[](1);
+        IERC20[] memory tokensArray = new IERC20[](1);
+        uint256[] memory shareAmounts = new uint256[](1);
+        strategyArray[0] = strategy;
+        tokensArray[0] = token;
+        shareAmounts[0] = amount;
+
+        // slash the staker
+        slasherMock.freezeOperator(staker);
+
+        address slashedAddress = address(this);
+        address recipient = address(333);
+        uint256[] memory strategyIndexes = new uint256[](1);
+        strategyIndexes[0] = 0;
+
+        cheats.startPrank(investmentManager.owner());
+        investmentManager.slashShares(slashedAddress, recipient, strategyArray, tokensArray, strategyIndexes, shareAmounts);
+        cheats.stopPrank();
+    }
+
+    function testSlashSharesMixIncludingBeaconChainETH() external {
+        uint256 amount = 1e18;
+        address staker = address(this);
+        IInvestmentStrategy strategy = dummyStrat;
+        IERC20 token = dummyToken;
+
+        testDepositIntoStrategySuccessfully(staker, amount);
+        testDepositBeaconChainETHSuccessfully(staker, amount);
+
+        IInvestmentStrategy[] memory strategyArray = new IInvestmentStrategy[](2);
+        IERC20[] memory tokensArray = new IERC20[](2);
+        uint256[] memory shareAmounts = new uint256[](2);
+        strategyArray[0] = strategy;
+        tokensArray[0] = token;
+        shareAmounts[0] = amount;
+        strategyArray[1] = beaconChainETHStrategy;
+        tokensArray[1] = token;
+        shareAmounts[1] = amount;
+
+        // slash the staker
+        slasherMock.freezeOperator(staker);
+
+        address slashedAddress = address(this);
+        address recipient = address(333);
+        uint256[] memory strategyIndexes = new uint256[](2);
+        strategyIndexes[0] = 0;
+        // this index is also zero, since the other strategy will be removed!
+        strategyIndexes[1] = 0;
+
+        uint256 sharesBefore = investmentManager.investorStratShares(staker, strategy);
+        uint256 balanceBefore = dummyToken.balanceOf(recipient);
+
+        cheats.startPrank(investmentManager.owner());
+        investmentManager.slashShares(slashedAddress, recipient, strategyArray, tokensArray, strategyIndexes, shareAmounts);
+        cheats.stopPrank();
+
+        uint256 sharesAfter = investmentManager.investorStratShares(staker, strategy);
+        uint256 balanceAfter = dummyToken.balanceOf(recipient);
+
+        require(sharesAfter == sharesBefore - amount, "sharesAfter != sharesBefore - amount");
+        require(balanceAfter == balanceBefore + amount, "balanceAfter != balanceBefore + amount");
+    }
+
+    function testSlashSharesRevertsWhenCalledByNotOwner() external {
+        uint256 amount = 1e18;
+        address staker = address(this);
+        IInvestmentStrategy strategy = dummyStrat;
+        IERC20 token = dummyToken;
+
+        testDepositIntoStrategySuccessfully(staker, amount);
+
+        IInvestmentStrategy[] memory strategyArray = new IInvestmentStrategy[](1);
+        IERC20[] memory tokensArray = new IERC20[](1);
+        uint256[] memory shareAmounts = new uint256[](1);
+        strategyArray[0] = strategy;
+        tokensArray[0] = token;
+        shareAmounts[0] = amount;
+
+        // slash the staker
+        slasherMock.freezeOperator(staker);
+
+        address slashedAddress = address(this);
+        address recipient = address(333);
+        uint256[] memory strategyIndexes = new uint256[](1);
+        strategyIndexes[0] = 0;
+
+        // recipient is not the owner
+        cheats.startPrank(recipient);
+        cheats.expectRevert(bytes("Ownable: caller is not the owner"));
+        investmentManager.slashShares(slashedAddress, recipient, strategyArray, tokensArray, strategyIndexes, shareAmounts);
+        cheats.stopPrank();
+    }
+
+    function testSlashSharesRevertsWhenStakerNotFrozen() external {
+        uint256 amount = 1e18;
+        address staker = address(this);
+        IInvestmentStrategy strategy = dummyStrat;
+        IERC20 token = dummyToken;
+
+        testDepositIntoStrategySuccessfully(staker, amount);
+
+        IInvestmentStrategy[] memory strategyArray = new IInvestmentStrategy[](1);
+        IERC20[] memory tokensArray = new IERC20[](1);
+        uint256[] memory shareAmounts = new uint256[](1);
+        strategyArray[0] = strategy;
+        tokensArray[0] = token;
+        shareAmounts[0] = amount;
+
+        address slashedAddress = address(this);
+        address recipient = address(333);
+        uint256[] memory strategyIndexes = new uint256[](1);
+        strategyIndexes[0] = 0;
+
+        cheats.startPrank(investmentManager.owner());
+        cheats.expectRevert(bytes("InvestmentManager.onlyFrozen: staker has not been frozen"));
+        investmentManager.slashShares(slashedAddress, recipient, strategyArray, tokensArray, strategyIndexes, shareAmounts);
+        cheats.stopPrank();
+    }
+
+    function testSlashSharesRevertsWhenAttemptingReentrancy() external {
+        // replace dummyStrat with Reenterer contract
+        reenterer = new Reenterer();
+        dummyStrat = InvestmentStrategyBase(address(reenterer));
+
+        uint256 amount = 1e18;
+        address staker = address(this);
+        IInvestmentStrategy strategy = dummyStrat;
+        IERC20 token = dummyToken;
+
+        reenterer.prepareReturnData(abi.encode(amount));
+
+        testDepositIntoStrategySuccessfully(staker, amount);
+        testDepositBeaconChainETHSuccessfully(staker, amount);
+
+        IInvestmentStrategy[] memory strategyArray = new IInvestmentStrategy[](2);
+        IERC20[] memory tokensArray = new IERC20[](2);
+        uint256[] memory shareAmounts = new uint256[](2);
+        strategyArray[0] = strategy;
+        tokensArray[0] = token;
+        shareAmounts[0] = amount;
+        strategyArray[1] = beaconChainETHStrategy;
+        tokensArray[1] = token;
+        shareAmounts[1] = amount;
+
+        // slash the staker
+        slasherMock.freezeOperator(staker);
+
+        address slashedAddress = address(this);
+        address recipient = address(333);
+        uint256[] memory strategyIndexes = new uint256[](2);
+        strategyIndexes[0] = 0;
+        // this index is also zero, since the other strategy will be removed!
+        strategyIndexes[1] = 0;
+
+        // transfer investmentManager's ownership to the reenterer
+        cheats.startPrank(investmentManager.owner());
+        investmentManager.transferOwnership(address(reenterer));
+        cheats.stopPrank();
+
+        // prepare for reentrant call, expecting revert for reentrancy
+        address targetToUse = address(investmentManager);
+        uint256 msgValueToUse = 0;
+        bytes memory calldataToUse =
+            abi.encodeWithSelector(InvestmentManager.slashShares.selector, slashedAddress, recipient, strategyArray, tokensArray, strategyIndexes, shareAmounts);
+        reenterer.prepare(targetToUse, msgValueToUse, calldataToUse, bytes("ReentrancyGuard: reentrant call"));
+
+        cheats.startPrank(investmentManager.owner());
+        investmentManager.slashShares(slashedAddress, recipient, strategyArray, tokensArray, strategyIndexes, shareAmounts);
+        cheats.stopPrank();
+    }
 
     // INTERNAL / HELPER FUNCTIONS
     function _beaconChainReentrancyTestsSetup() internal {
@@ -1189,8 +1410,8 @@ contract InvestmentManagerUnitTests is Test {
         IERC20[] memory tokensArray = new IERC20[](1);
         uint256[] memory shareAmounts = new uint256[](1);
         strategyArray[0] = strategy;
-        shareAmounts[0] = shareAmount;
         tokensArray[0] = token;
+        shareAmounts[0] = shareAmount;
         sts = IInvestmentManager.StratsTokensShares(strategyArray, tokensArray, shareAmounts);
         IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce = IInvestmentManager.WithdrawerAndNonce({
             withdrawer: withdrawer,
