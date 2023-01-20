@@ -35,7 +35,9 @@ contract SlasherMock is ISlasher, Test {
     /// @notice A search routine for finding the correct input value of `insertAfter` to `recordStakeUpdate` / `_updateMiddlewareList`.
     function getCorrectValueForInsertAfter(address operator, uint32 updateBlock) external view returns (uint256){}
 
-    function canWithdraw(address operator, uint32 withdrawalStartBlock, uint256 middlewareTimesIndex) external returns(bool){}
+    function canWithdraw(address /*operator*/, uint32 /*withdrawalStartBlock*/, uint256 /*middlewareTimesIndex*/) external pure returns(bool) {
+        return true;
+    }
 
     /// @notice Getter function for fetching `operatorToMiddlewareTimes[operator][index].stalestUpdateBlock`.
     function getMiddlewareTimesIndexBlock(address operator, uint32 index) external view returns(uint32){}
