@@ -168,10 +168,6 @@ contract EigenLayerDelegation is Initializable, OwnableUpgradeable, EigenLayerDe
         external
         onlyInvestmentManager
     {
-        emit log("hehehe");
-        if(isDelegated(staker)){
-            emit log("hehehecadadf");
-        }
         if (isDelegated(staker)) {
             address operator = delegatedTo[staker];
 
@@ -183,7 +179,6 @@ contract EigenLayerDelegation is Initializable, OwnableUpgradeable, EigenLayerDe
                     ++i;
                 }
             }
-            emit log("hehehe");
 
             // call into hook in delegationTerms contract
             IDelegationTerms dt = delegationTerms[operator];
@@ -226,7 +221,7 @@ contract EigenLayerDelegation is Initializable, OwnableUpgradeable, EigenLayerDe
                 // value in wei for call
                 0,
                 // memory location to copy for calldata
-                lowLevelCalldata,
+                add(lowLevelCalldata, 32),
                 // length of memory to copy for calldata
                 mload(lowLevelCalldata),
                 // memory location to copy return data
@@ -274,7 +269,7 @@ contract EigenLayerDelegation is Initializable, OwnableUpgradeable, EigenLayerDe
                 // value in wei for call
                 0,
                 // memory location to copy for calldata
-                lowLevelCalldata,
+                add(lowLevelCalldata, 32),
                 // length of memory to copy for calldata
                 mload(lowLevelCalldata),
                 // memory location to copy return data

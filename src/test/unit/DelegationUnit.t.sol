@@ -68,14 +68,14 @@ contract DelegationUnitTests is EigenLayerTestHelper {
         delegationMock.delegateToBySignature(staker, operator, expiry, signature);
     }
 
-    function testUndelegateFromNonInvestmentManagerAddress(address undelegator) public{
+    function testUndelegateFromNonInvestmentManagerAddress(address undelegator) public fuzzedAddress(undelegator){
         cheats.assume(undelegator != address(investmentManagerMock));
         cheats.expectRevert(bytes("onlyInvestmentManager"));
         cheats.startPrank(undelegator);
         delegationMock.undelegate(address(this));
     }
 
-    function testUndelegateByOperatorFromThemselves(address operator) public{
+    function testUndelegateByOperatorFromThemselves(address operator) public fuzzedAddress(operator){
         cheats.startPrank(operator);
         delegationMock.registerAsOperator(IDelegationTerms(address(this)));
         cheats.stopPrank();
@@ -86,14 +86,18 @@ contract DelegationUnitTests is EigenLayerTestHelper {
         cheats.stopPrank();
     }
 
-    function testIncreaseDelegatedSharesFromNonInvestmentManagerAddress(address operator, uint256 shares) public{
+    function testIncreaseDelegatedSharesFromNonInvestmentManagerAddress(address operator, uint256 shares) public fuzzedAddress(operator){
         cheats.assume(operator != address(investmentManagerMock));
         cheats.expectRevert(bytes("onlyInvestmentManager"));
         cheats.startPrank(operator);
         delegationMock.increaseDelegatedShares(operator, investmentStrategyMock, shares);
     }
 
-    function testDecreaseDelegatedSharesFromNonInvestmentManagerAddress(address operator,  IInvestmentStrategy[] memory strategies,  uint256[] memory shareAmounts) public{
+    function testDecreaseDelegatedSharesFromNonInvestmentManagerAddress(
+        address operator,  
+        IInvestmentStrategy[] memory strategies,  
+        uint256[] memory shareAmounts
+    ) public fuzzedAddress(operator){
         cheats.assume(operator != address(investmentManagerMock));
         cheats.expectRevert(bytes("onlyInvestmentManager"));
         cheats.startPrank(operator);
@@ -114,6 +118,10 @@ contract DelegationUnitTests is EigenLayerTestHelper {
     }
 
     function testDelegateWhenStakerHasExistingDelegation(address staker, address operator, address operator2) public{
+        cheats.assume(operator != operator2);
+        cheats.assume(staker != operator);
+        cheats.assume(staker != operator2);
+
         cheats.startPrank(operator);
         delegationMock.registerAsOperator(IDelegationTerms(address(11)));
         cheats.stopPrank();
@@ -137,7 +145,7 @@ contract DelegationUnitTests is EigenLayerTestHelper {
         delegationMock.delegateTo(operator);
     }
 
-    function testDelegationWhenPausedNewDelegationIsSet(address operator, address staker) public {
+    function testDelegationWhenPausedNewDelegationIsSet(address operator, address staker) public fuzzedAddress(operator) fuzzedAddress(staker){
         cheats.startPrank(pauser);
         delegationMock.pause(1);
         cheats.stopPrank();
@@ -148,7 +156,7 @@ contract DelegationUnitTests is EigenLayerTestHelper {
         cheats.stopPrank();
     }
 
-    function testRevertingDelegationReceivedHook(address operator, address staker) public {
+    function testRevertingDelegationReceivedHook(address operator, address staker) public fuzzedAddress(operator) fuzzedAddress(staker){
         delegationTermsMock.setShouldRevert(true);
         cheats.startPrank(operator);
         delegationMock.registerAsOperator(delegationTermsMock);
