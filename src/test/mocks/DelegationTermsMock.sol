@@ -20,9 +20,13 @@ contract DelegationTermsMock is IDelegationTerms, Test {
         address delegator,
         IInvestmentStrategy[] memory investorStrats,
         uint256[] memory investorShares
-    ) external {
+    ) external returns (bytes memory){
         if (shouldRevert) {
             revert("reverting as intended");
+        }
+        else {
+            bytes32[5] memory returnData = [bytes32(0), bytes32(0), bytes32(0), bytes32(0), bytes32(0)];
+            return abi.encodePacked(returnData);
         }
     }
 
@@ -30,9 +34,13 @@ contract DelegationTermsMock is IDelegationTerms, Test {
         address delegator,
         IInvestmentStrategy[] memory investorStrats,
         uint256[] memory investorShares
-    ) external {
+    ) external returns (bytes memory){
         if (shouldRevert) {
             revert("reverting as intended");
+        }
+        else {
+            bytes32[5] memory returnData = [bytes32(0), bytes32(0), bytes32(0), bytes32(0), bytes32(0)];
+            return abi.encodePacked(returnData);
         }
 
     }
