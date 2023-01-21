@@ -96,7 +96,6 @@ contract Pausable {
     /// @notice Returns 'true' if the `indexed`th bit of `_paused` is 1, and 'false' otherwise
     function paused(uint8 index) public virtual returns (bool) {
         uint256 mask = 1 << index;
-        
         return ((_paused & mask) == mask);
     }
 }
