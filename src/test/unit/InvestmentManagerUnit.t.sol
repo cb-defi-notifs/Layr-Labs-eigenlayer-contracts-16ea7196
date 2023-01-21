@@ -13,6 +13,7 @@ import "../mocks/DelegationMock.sol";
 import "../mocks/SlasherMock.sol";
 import "../mocks/EigenPodManagerMock.sol";
 import "../mocks/Reenterer.sol";
+import "../mocks/Reverter.sol";
 
 
 import "../mocks/ERC20Mock.sol";
@@ -33,6 +34,7 @@ contract InvestmentManagerUnitTests is Test {
     SlasherMock public slasherMock;
     EigenPodManagerMock public eigenPodManagerMock;
 
+    InvestmentStrategyBase public dummyStratImplementation;
     InvestmentStrategyBase public dummyStrat;
 
     IInvestmentStrategy public beaconChainETHStrategy;
@@ -67,7 +69,7 @@ contract InvestmentManagerUnitTests is Test {
             )
         );
         dummyToken = new ERC20Mock();
-        InvestmentStrategyBase dummyStratImplementation = new InvestmentStrategyBase(investmentManager);
+        dummyStratImplementation = new InvestmentStrategyBase(investmentManager);
         dummyStrat = InvestmentStrategyBase(
             address(
                 new TransparentUpgradeableProxy(
@@ -220,14 +222,28 @@ contract InvestmentManagerUnitTests is Test {
         cheats.assume(amount <= token.balanceOf(address(this)));
 
         uint256 sharesBefore = investmentManager.investorStratShares(staker, strategy);
+        uint256 investorStratsLengthBefore = investmentManager.investorStratsLength(staker);
 
         cheats.startPrank(staker);
         uint256 shares = investmentManager.depositIntoStrategy(strategy, token, amount);
         cheats.stopPrank();
 
         uint256 sharesAfter = investmentManager.investorStratShares(staker, strategy);
+        uint256 investorStratsLengthAfter = investmentManager.investorStratsLength(staker);
 
         require(sharesAfter == sharesBefore + shares, "sharesAfter != sharesBefore + shares");
+        if (sharesBefore == 0) {
+            require(investorStratsLengthAfter == investorStratsLengthBefore + 1, "investorStratsLengthAfter != investorStratsLengthBefore + 1");
+            require(investmentManager.investorStrats(staker, investorStratsLengthAfter - 1) == strategy,
+                "investmentManager.investorStrats(staker, investorStratsLengthAfter - 1) != strategy");
+        }
+    }
+
+    function testDepositIntoStrategySuccessfullyTwice() public {
+        address staker = address(this);
+        uint256 amount = 1e18;
+        testDepositIntoStrategySuccessfully(staker, amount);
+        testDepositIntoStrategySuccessfully(staker, amount);
     }
 
     function testDepositIntoStrategyFailsWhenDepositsPaused() public {
@@ -1171,6 +1187,52 @@ contract InvestmentManagerUnitTests is Test {
         investmentManager.completeQueuedWithdrawal(queuedWithdrawal, middlewareTimesIndex, receiveAsTokens);
     }
 
+    function testSlashSharesNotBeaconChainETHFuzzed(uint64 withdrawalAmount) external {
+        address staker = address(this);
+        IInvestmentStrategy strategy = dummyStrat;
+        IERC20 token = dummyToken;
+
+        {
+            uint256 depositAmount = 1e18;
+            // filter fuzzed input
+            cheats.assume(withdrawalAmount != 0 && withdrawalAmount <= depositAmount);
+            testDepositIntoStrategySuccessfully(staker, depositAmount);
+        }
+
+        IInvestmentStrategy[] memory strategyArray = new IInvestmentStrategy[](1);
+        IERC20[] memory tokensArray = new IERC20[](1);
+        uint256[] memory shareAmounts = new uint256[](1);
+        strategyArray[0] = strategy;
+        tokensArray[0] = token;
+        shareAmounts[0] = uint256(withdrawalAmount);
+
+        // freeze the staker
+        slasherMock.freezeOperator(staker);
+
+        address slashedAddress = address(this);
+        address recipient = address(333);
+        uint256[] memory strategyIndexes = new uint256[](1);
+        strategyIndexes[0] = 0;
+
+        uint256 sharesBefore = investmentManager.investorStratShares(staker, strategy);
+        uint256 investorStratsLengthBefore = investmentManager.investorStratsLength(staker);
+        uint256 balanceBefore = dummyToken.balanceOf(recipient);
+
+        cheats.startPrank(investmentManager.owner());
+        investmentManager.slashShares(slashedAddress, recipient, strategyArray, tokensArray, strategyIndexes, shareAmounts);
+        cheats.stopPrank();
+
+        uint256 sharesAfter = investmentManager.investorStratShares(staker, strategy);
+        uint256 investorStratsLengthAfter = investmentManager.investorStratsLength(staker);
+        uint256 balanceAfter = dummyToken.balanceOf(recipient);
+
+        require(sharesAfter == sharesBefore - uint256(withdrawalAmount), "sharesAfter != sharesBefore - uint256(withdrawalAmount)");
+        require(balanceAfter == balanceBefore + uint256(withdrawalAmount), "balanceAfter != balanceBefore + uint256(withdrawalAmount)");
+        if (sharesAfter == 0) {
+            require(investorStratsLengthAfter == investorStratsLengthBefore - 1, "investorStratsLengthAfter != investorStratsLengthBefore - 1");
+        }
+    }
+
     function testSlashSharesNotBeaconChainETH() external {
         uint256 amount = 1e18;
         address staker = address(this);
@@ -1208,9 +1270,8 @@ contract InvestmentManagerUnitTests is Test {
 
         require(sharesAfter == sharesBefore - amount, "sharesAfter != sharesBefore - amount");
         require(balanceAfter == balanceBefore + amount, "balanceAfter != balanceBefore + amount");
-        if (sharesAfter == 0) {
-            require(investorStratsLengthAfter == investorStratsLengthBefore - 1, "investorStratsLengthAfter != investorStratsLengthBefore - 1");
-        }
+        require(sharesAfter == 0, "sharesAfter != 0");
+        require(investorStratsLengthAfter == investorStratsLengthBefore - 1, "investorStratsLengthAfter != investorStratsLengthBefore - 1");
     }
 
     function testSlashSharesBeaconChainETH() external {
@@ -1538,6 +1599,200 @@ contract InvestmentManagerUnitTests is Test {
         cheats.startPrank(investmentManager.owner());
         cheats.expectRevert(bytes("InvestmentManager.slashQueuedWithdrawal: withdrawal is not pending"));
         investmentManager.slashQueuedWithdrawal(recipient, queuedWithdrawal);
+        cheats.stopPrank();
+    }
+
+    function test_addSharesRevertsWhenSharesIsZero() external {
+        // replace dummyStrat with Reenterer contract
+        reenterer = new Reenterer();
+        dummyStrat = InvestmentStrategyBase(address(reenterer));
+
+        address staker = address(this);
+        IInvestmentStrategy strategy = dummyStrat;
+        IERC20 token = dummyToken;
+        uint256 amount = 1e18;
+
+        reenterer.prepareReturnData(abi.encode(uint256(0)));
+
+        cheats.startPrank(staker);
+        cheats.expectRevert(bytes("InvestmentManager._addShares: shares should not be zero!"));
+        investmentManager.depositIntoStrategy(strategy, token, amount);
+        cheats.stopPrank();
+    }
+
+    function test_addSharesRevertsWhenDepositWouldExeedMaxArrayLength() external {
+        address staker = address(this);
+        IERC20 token = dummyToken;
+        uint256 amount = 1e18;
+        IInvestmentStrategy strategy = dummyStrat;
+
+        cheats.startPrank(staker);
+        // uint256 MAX_INVESTOR_STRATS_LENGTH = investmentManager.MAX_INVESTOR_STRATS_LENGTH();
+        uint256 MAX_INVESTOR_STRATS_LENGTH = 32;
+
+        // loop that deploys a new strategy and deposits into it
+        for (uint256 i = 0; i < MAX_INVESTOR_STRATS_LENGTH; ++i) {
+            investmentManager.depositIntoStrategy(strategy, token, amount);
+            dummyStrat = InvestmentStrategyBase(
+                address(
+                    new TransparentUpgradeableProxy(
+                        address(dummyStratImplementation),
+                        address(proxyAdmin),
+                        abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, dummyToken, pauserRegistry)
+                    )
+                )
+            );
+            strategy = dummyStrat;
+        }
+
+        require(investmentManager.investorStratsLength(staker) == MAX_INVESTOR_STRATS_LENGTH, 
+            "investmentManager.investorStratsLength(staker) != MAX_INVESTOR_STRATS_LENGTH");
+
+        cheats.expectRevert(bytes("InvestmentManager._addShares: deposit would exceed MAX_INVESTOR_STRATS_LENGTH"));
+        investmentManager.depositIntoStrategy(strategy, token, amount);
+
+        cheats.stopPrank();
+    }
+
+    function test_depositIntoStrategyRevertsWhenTokenSafeTransferFromReverts() external {
+        // replace 'dummyStrat' with one that uses a reverting token
+        dummyToken = IERC20(address(new Reverter()));
+        dummyStrat = InvestmentStrategyBase(
+            address(
+                new TransparentUpgradeableProxy(
+                    address(dummyStratImplementation),
+                    address(proxyAdmin),
+                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, dummyToken, pauserRegistry)
+                )
+            )
+        );
+
+        address staker = address(this);
+        IERC20 token = dummyToken;
+        uint256 amount = 1e18;
+        IInvestmentStrategy strategy = dummyStrat;
+
+        cheats.startPrank(staker);
+        cheats.expectRevert();
+        investmentManager.depositIntoStrategy(strategy, token, amount);
+        cheats.stopPrank();
+    }
+
+    function test_depositIntoStrategyRevertsWhenTokenDoesNotExist() external {
+        // replace 'dummyStrat' with one that uses a non-existent token
+        dummyToken = IERC20(address(5678));
+        dummyStrat = InvestmentStrategyBase(
+            address(
+                new TransparentUpgradeableProxy(
+                    address(dummyStratImplementation),
+                    address(proxyAdmin),
+                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, dummyToken, pauserRegistry)
+                )
+            )
+        );
+
+        address staker = address(this);
+        IERC20 token = dummyToken;
+        uint256 amount = 1e18;
+        IInvestmentStrategy strategy = dummyStrat;
+
+        cheats.startPrank(staker);
+        cheats.expectRevert();
+        investmentManager.depositIntoStrategy(strategy, token, amount);
+        cheats.stopPrank();
+    }
+
+    function test_depositIntoStrategyRevertsWhenStrategyDepositFunctionReverts() external {
+        // replace 'dummyStrat' with one that always reverts
+        dummyStrat = InvestmentStrategyBase(
+            address(
+                new Reverter()
+            )
+        );
+
+        address staker = address(this);
+        IERC20 token = dummyToken;
+        uint256 amount = 1e18;
+        IInvestmentStrategy strategy = dummyStrat;
+
+        cheats.startPrank(staker);
+        cheats.expectRevert();
+        investmentManager.depositIntoStrategy(strategy, token, amount);
+        cheats.stopPrank();
+    }
+
+    function test_depositIntoStrategyRevertsWhenStrategyDoesNotExist() external {
+        // replace 'dummyStrat' with one that does not exist
+        dummyStrat = InvestmentStrategyBase(
+            address(5678)
+        );
+
+        address staker = address(this);
+        IERC20 token = dummyToken;
+        uint256 amount = 1e18;
+        IInvestmentStrategy strategy = dummyStrat;
+
+        cheats.startPrank(staker);
+        cheats.expectRevert();
+        investmentManager.depositIntoStrategy(strategy, token, amount);
+        cheats.stopPrank();
+    }
+
+    function test_removeSharesRevertsWhenShareAmountIsZero() external {
+        uint256 amount = 1e18;
+        address staker = address(this);
+        IInvestmentStrategy strategy = dummyStrat;
+        IERC20 token = dummyToken;
+
+        testDepositIntoStrategySuccessfully(staker, amount);
+
+        IInvestmentStrategy[] memory strategyArray = new IInvestmentStrategy[](1);
+        IERC20[] memory tokensArray = new IERC20[](1);
+        uint256[] memory shareAmounts = new uint256[](1);
+        strategyArray[0] = strategy;
+        tokensArray[0] = token;
+        shareAmounts[0] = 0;
+
+        // freeze the staker
+        slasherMock.freezeOperator(staker);
+
+        address slashedAddress = address(this);
+        address recipient = address(333);
+        uint256[] memory strategyIndexes = new uint256[](1);
+        strategyIndexes[0] = 0;
+
+        cheats.startPrank(investmentManager.owner());
+        cheats.expectRevert(bytes("InvestmentManager._removeShares: shareAmount should not be zero!"));
+        investmentManager.slashShares(slashedAddress, recipient, strategyArray, tokensArray, strategyIndexes, shareAmounts);
+        cheats.stopPrank();
+    }
+
+    function test_removeSharesRevertsWhenShareAmountIsTooLarge() external {
+        uint256 amount = 1e18;
+        address staker = address(this);
+        IInvestmentStrategy strategy = dummyStrat;
+        IERC20 token = dummyToken;
+
+        testDepositIntoStrategySuccessfully(staker, amount);
+
+        IInvestmentStrategy[] memory strategyArray = new IInvestmentStrategy[](1);
+        IERC20[] memory tokensArray = new IERC20[](1);
+        uint256[] memory shareAmounts = new uint256[](1);
+        strategyArray[0] = strategy;
+        tokensArray[0] = token;
+        shareAmounts[0] = amount + 1;
+
+        // freeze the staker
+        slasherMock.freezeOperator(staker);
+
+        address slashedAddress = address(this);
+        address recipient = address(333);
+        uint256[] memory strategyIndexes = new uint256[](1);
+        strategyIndexes[0] = 0;
+
+        cheats.startPrank(investmentManager.owner());
+        cheats.expectRevert(bytes("InvestmentManager._removeShares: shareAmount too high"));
+        investmentManager.slashShares(slashedAddress, recipient, strategyArray, tokensArray, strategyIndexes, shareAmounts);
         cheats.stopPrank();
     }
 
