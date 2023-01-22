@@ -134,10 +134,10 @@ contract DelegationUnitTests is EigenLayerTestHelper {
         delegationMock.delegateTo(operator);
         cheats.stopPrank();
 
-        delegationMock.delegateTo(operator);
-
+        cheats.startPrank(staker);
         cheats.expectRevert(bytes("EigenLayerDelegation._delegate: staker has existing delegation"));
         delegationMock.delegateTo(operator2);
+        cheats.stopPrank();
     }
 
     function testDelegationToUnregisteredOperator(address operator) public{
