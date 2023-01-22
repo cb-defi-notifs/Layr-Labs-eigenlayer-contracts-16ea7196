@@ -227,4 +227,37 @@ contract DelegationUnitTests is EigenLayerTestHelper {
         cheats.stopPrank();
     }
 
+    function testDelegationReceivedHookWithNoReturnData(address operator, address staker) public fuzzedAddress(operator) fuzzedAddress(staker){
+        cheats.assume(operator != staker);
+        cheats.startPrank(operator);
+        delegationMock.registerAsOperator(delegationTermsMock);
+        cheats.stopPrank();
+
+        cheats.startPrank(staker);
+        delegationMock.delegateTo(operator);
+        cheats.stopPrank();
+    }
+
+    function testDelegationWithdrawnHookWithNoReturnData(
+        address operator, 
+        address staker
+    ) public fuzzedAddress(operator) fuzzedAddress(staker){
+        cheats.assume(operator != staker);
+
+        cheats.startPrank(operator);
+        delegationMock.registerAsOperator(delegationTermsMock);
+        cheats.stopPrank();
+
+        cheats.startPrank(staker);
+        delegationMock.delegateTo(operator);
+        cheats.stopPrank();
+
+        (IInvestmentStrategy[] memory updatedStrategies, uint256[] memory updatedShares) =
+            investmentManager.getDeposits(staker);
+
+        cheats.startPrank(address(investmentManagerMock));
+        delegationMock.decreaseDelegatedShares(staker, updatedStrategies, updatedShares);
+        cheats.stopPrank();
+    }
+
 }
