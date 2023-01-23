@@ -13,8 +13,6 @@ import "./InvestmentManagerStorage.sol";
 import "../interfaces/IServiceManager.sol";
 import "../interfaces/IEigenPodManager.sol";
 
-//import "forge-std/Test.sol";
-
 /**
  * @title The primary entry- and exit-point for funds into and out of EigenLayer.
  * @author Layr Labs, Inc.
@@ -33,7 +31,6 @@ contract InvestmentManager is
     ReentrancyGuardUpgradeable,
     InvestmentManagerStorage,
     Pausable
-    // ,Test
 {
     using SafeERC20 for IERC20;
 
@@ -414,7 +411,6 @@ contract InvestmentManager is
             "InvestmentManager.completeQueuedWithdrawal: shares pending withdrawal are still slashable"
         );
 
-        // TODO: add testing coverage for this
         require(
             msg.sender == queuedWithdrawal.withdrawerAndNonce.withdrawer,
             "InvestmentManager.completeQueuedWithdrawal: only specified withdrawer can complete a queued withdrawal"

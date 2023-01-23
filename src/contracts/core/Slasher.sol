@@ -9,8 +9,6 @@ import "../permissions/Pausable.sol";
 import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 
-// import "forge-std/Test.sol";
-
 /**
  * @title The primary 'slashing' contract for EigenLayer.
  * @author Layr Labs, Inc.
