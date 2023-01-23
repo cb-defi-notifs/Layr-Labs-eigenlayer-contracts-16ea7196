@@ -14,6 +14,8 @@ import "forge-std/Test.sol";
  * @notice Simple, basic, "do-nothing" InvestmentStrategy that holds a single underlying token and returns it on withdrawals.
  * Implements minimal versions of the IInvestmentStrategy functions, this contract is designed to be inherited by
  * more complex investment strategies, which can then override its functions as necessary.
+ * @dev This contract is expressly *not* intended for use with 'fee-on-transfer'-type tokens.
+ * Setting the `underlyingToken` to be a fee-on-transfer token may result in improper accounting.
  */
 contract InvestmentStrategyBase is Initializable, Pausable, IInvestmentStrategy {
     using SafeERC20 for IERC20;
@@ -54,6 +56,10 @@ contract InvestmentStrategyBase is Initializable, Pausable, IInvestmentStrategy 
      * @param amount is the amount of token being deposited
      * @dev This function is only callable by the investmentManager contract. It is invoked inside of the investmentManager's
      * `depositIntoStrategy` function, and individual share balances are recorded in the investmentManager as well.
+     * @dev Note that the assumption is made that `amount` of `token` has already been transferred directly to this contract
+     * (as performed in the InvestmentManager's deposit functions). In particular, setting the `underlyingToken` of this contract
+     * to be a fee-on-transfer token will break the assumption that the amount this contract *received* of the token is equal to
+     * the amount that was input when the transfer was performed (i.e. the amount transferred 'out' of the depositor's balance).
      * @return newShares is the number of new shares issued at the current exchange ratio.
      */
     function deposit(IERC20 token, uint256 amount)
