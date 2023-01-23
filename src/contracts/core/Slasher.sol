@@ -317,7 +317,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
         /**
          * `node` being zero (i.e. equal to 'HEAD') indicates an empty/non-existent node, i.e. reaching the end of the linked list.
          * Since the linked list is ordered in ascending order of update blocks, we simply start from the head of the list and step through until
-         * we find a the *last* `node` for which `_whitelistedContractDetails[operator][node] <= updateBlock`, or
+         * we find a the *last* `node` for which `_whitelistedContractDetails[operator][node].latestUpdateBlock <= updateBlock`, or
          * otherwise reach the end of the list.
          */
         (, uint256 nextNode) = operatorToWhitelistedContractsByUpdate[operator].getNextNode(node);
