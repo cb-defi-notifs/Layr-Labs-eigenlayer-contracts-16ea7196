@@ -20,7 +20,7 @@ diff -druN ../score/EigenLayerDelegation.sol.orig core/EigenLayerDelegation.sol.
 +++ core/EigenLayerDelegation.sol.orig	2023-01-13 14:24:43
 @@ -0,0 +1,338 @@
 +// SPDX-License-Identifier: UNLICENSED
-+pragma solidity ^0.8.9;
++pragma solidity =0.8.12;
 +
 +import "@openzeppeltoken/ERC20/IERC20.sol";
 +import "@openzeppelinterfaces/IERC1271.sol";
@@ -398,7 +398,7 @@ diff -druN ../score/Slasher.sol.orig core/Slasher.sol.orig
 +++ core/Slasher.sol.orig	2023-01-13 14:24:43
 @@ -0,0 +1,515 @@
 +// SPDX-License-Identifier: UNLICENSED
-+pragma solidity ^0.8.9;
++pragma solidity =0.8.12;
 +
 +import "../interfaces/ISlasher.sol";
 +import "../interfaces/IEigenLayerDelegation.sol";

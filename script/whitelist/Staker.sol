@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity =0.8.12;
 
 import "../../src/contracts/interfaces/IInvestmentManager.sol";
 import "../../src/contracts/interfaces/IInvestmentStrategy.sol";
