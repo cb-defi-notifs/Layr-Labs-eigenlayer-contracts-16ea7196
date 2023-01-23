@@ -102,7 +102,8 @@ contract InvestmentManagerUnitTests is Test {
     }
 
     function testDepositBeaconChainETHFailsWhenNotCalledByEigenPodManager(address improperCaller) public {
-        cheats.assume(improperCaller != address(eigenPodManagerMock));
+        // filter fuzzed inputs
+        cheats.assume(improperCaller != address(eigenPodManagerMock) && improperCaller != address(proxyAdmin));
         uint256 amount = 1e18;
         address staker = address(this);
 
@@ -503,6 +504,17 @@ contract InvestmentManagerUnitTests is Test {
     }
 
     function testUndelegate() public {
+        investmentManager.undelegate();
+    }
+
+    function testUndelegateRevertsWithActiveDeposits() public {
+        address staker = address(this);
+        uint256 amount = 1e18;
+
+        testDepositIntoStrategySuccessfully(staker, amount);
+        require(investmentManager.investorStratsLength(staker) != 0, "test broken in some way, length shouldn't be 0");
+
+        cheats.expectRevert(bytes("InvestmentManager._undelegate: depositor has active deposits"));
         investmentManager.undelegate();
     }
 
@@ -1233,7 +1245,7 @@ contract InvestmentManagerUnitTests is Test {
         }
     }
 
-    function testSlashSharesNotBeaconChainETH() external {
+    function testSlashSharesNotBeaconChainETH_AllShares() external {
         uint256 amount = 1e18;
         address staker = address(this);
         IInvestmentStrategy strategy = dummyStrat;
@@ -1246,6 +1258,7 @@ contract InvestmentManagerUnitTests is Test {
         uint256[] memory shareAmounts = new uint256[](1);
         strategyArray[0] = strategy;
         tokensArray[0] = token;
+        // slash the same amount as deposited
         shareAmounts[0] = amount;
 
         // freeze the staker
@@ -1810,6 +1823,48 @@ contract InvestmentManagerUnitTests is Test {
                 )
             )
         );
+    }
+
+    function test_removeStrategyFromInvestorStratsWorksWithIncorrectIndexInput() external {
+        uint256 amount = 1e18;
+        address staker = address(this);
+        IInvestmentStrategy strategy = dummyStrat;
+        IERC20 token = dummyToken;
+
+        testDepositIntoStrategySuccessfully(staker, amount);
+        testDepositBeaconChainETHSuccessfully(staker, amount);
+
+        IInvestmentStrategy[] memory strategyArray = new IInvestmentStrategy[](1);
+        IERC20[] memory tokensArray = new IERC20[](1);
+        uint256[] memory shareAmounts = new uint256[](1);
+        strategyArray[0] = strategy;
+        tokensArray[0] = token;
+        shareAmounts[0] = amount;
+
+        // freeze the staker
+        slasherMock.freezeOperator(staker);
+
+        address slashedAddress = address(this);
+        address recipient = address(333);
+        uint256[] memory strategyIndexes = new uint256[](1);
+        strategyIndexes[0] = 1;
+
+        // check that we are actually supplying an incorrect index!
+        require(investmentManager.investorStrats(staker, strategyIndexes[0]) != strategyArray[0],
+            "we want to supply an incorrect index but have supplied a correct one");
+
+        uint256 sharesBefore = investmentManager.investorStratShares(staker, strategy);
+        uint256 balanceBefore = dummyToken.balanceOf(recipient);
+
+        cheats.startPrank(investmentManager.owner());
+        investmentManager.slashShares(slashedAddress, recipient, strategyArray, tokensArray, strategyIndexes, shareAmounts);
+        cheats.stopPrank();
+
+        uint256 sharesAfter = investmentManager.investorStratShares(staker, strategy);
+        uint256 balanceAfter = dummyToken.balanceOf(recipient);
+
+        require(sharesAfter == sharesBefore - amount, "sharesAfter != sharesBefore - amount");
+        require(balanceAfter == balanceBefore + amount, "balanceAfter != balanceBefore + amount");
     }
 
     function _setUpQueuedWithdrawalStructSingleStrat(address staker, address withdrawer, IERC20 token, IInvestmentStrategy strategy, uint256 shareAmount)
