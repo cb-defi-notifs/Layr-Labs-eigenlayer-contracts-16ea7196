@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity =0.8.12;
 
 import "./RegistryBase.sol";
 import "../interfaces/IBLSPublicKeyCompendium.sol";
 import "../interfaces/IBLSRegistry.sol";
 import "../libraries/BN254.sol";
 
-import "forge-std/Test.sol";
 /**
  * @title A Registry-type contract using aggregate BLS signatures.
  * @author Layr Labs, Inc.

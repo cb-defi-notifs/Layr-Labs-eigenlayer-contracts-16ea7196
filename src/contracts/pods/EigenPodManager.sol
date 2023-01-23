@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity =0.8.12;
 
 import "@openzeppelin/contracts/utils/Create2.sol";
 import "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
@@ -15,8 +15,6 @@ import "../interfaces/IEigenPodManager.sol";
 import "../interfaces/IETHPOSDeposit.sol";
 import "../interfaces/IEigenPod.sol";
 import "../interfaces/IBeaconChainOracle.sol";
-
-// import "forge-std/Test.sol";
 
 /**
  * @title The contract used for creating and managing EigenPods
@@ -45,6 +43,9 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager 
     
     /// @notice Pod owner to the amount of penalties they have paid that are still in this contract
     mapping(address => uint256) public podOwnerToUnwithdrawnPaidPenalties;
+
+    /// @notice Pod owner to deployed EigenPod address
+    mapping(address => IEigenPod) internal _podByOwner;
 
     /// @notice Emitted to notify the update of the beaconChainOracle address
     event BeaconOracleUpdated(address indexed newOracleAddress);
@@ -199,7 +200,10 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager 
     // VIEW FUNCTIONS
     /// @notice Returns the address of the `podOwner`'s EigenPod (whether it is deployed yet or not).
     function getPod(address podOwner) public view returns (IEigenPod) {
-        return IEigenPod(
+        IEigenPod pod = _podByOwner[podOwner];
+        // if pod does not exist already, calculate what its address *will be* once it is deployed
+        if (address(pod) == address(0)) {
+            pod = IEigenPod(
                 Create2.computeAddress(
                     bytes32(uint256(uint160(podOwner))), //salt
                     keccak256(abi.encodePacked(
@@ -207,11 +211,13 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager 
                         abi.encode(eigenPodBeacon, abi.encodeWithSelector(IEigenPod.initialize.selector, IEigenPodManager(address(this)), podOwner))
                     )) //bytecode
                 ));
+        }
+        return pod;
     }
 
     /// @notice Returns 'true' if the `podOwner` has created an EigenPod, and 'false' otherwise.
     function hasPod(address podOwner) public view returns (bool) {
-        return address(getPod(podOwner)).code.length > 0;
+        return address(_podByOwner[podOwner]) != address(0);
     }
 
     function getBeaconChainStateRoot() external view returns(bytes32){

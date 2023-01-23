@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity =0.8.12;
 
 import "../interfaces/IInvestmentManager.sol";
 import "../permissions/Pausable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
-import "forge-std/Test.sol";
 
 /**
  * @title Base implementation of `IInvestmentStrategy` interface, designed to be inherited from by more complex strategies.

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: UNLICENCED
 
-pragma solidity ^0.8.9;
+pragma solidity =0.8.12;
 
 import "./Merkle.sol";
 import "./BytesLib.sol";

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity =0.8.12;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./IEigenLayerDelegation.sol";
@@ -8,7 +8,6 @@ import "./IEigenLayerDelegation.sol";
  * @title Interface for a `ServiceManager`-type contract.
  * @author Layr Labs, Inc.
  */
-// TODO: provide more functions for this spec
 interface IServiceManager {
     /// @notice Returns the current 'taskNumber' for the middleware
     function taskNumber() external view returns (uint32);
