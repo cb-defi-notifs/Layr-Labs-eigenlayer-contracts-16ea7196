@@ -101,6 +101,11 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard {
         _;
     }
 
+    modifier onlyNotFrozen {
+        require(!eigenPodManager.slasher().isFrozen(podOwner), "EigenPod.onlyNotFrozen: pod owner is frozen");
+        _;
+    }
+
     constructor(IETHPOSDeposit _ethPOS, uint32 _PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS, uint256 _REQUIRED_BALANCE_WEI, uint64 _MIN_FULL_WITHDRAWAL_AMOUNT_GWEI) {
         ethPOS = _ethPOS;
         PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS = _PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS;
@@ -396,13 +401,13 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard {
      *         withdrawals, so the EigenPod thinks podOwner has more restakedExecutionLayerGwei and staked balance than their true amount of 'beaconChainETH' on EigenLayer
      * @param amountGwei is the amount, in gwei, to roll over
      */
-    function rollOverRollableBalance(uint64 amountGwei) external {
+    function rollOverRollableBalance(uint64 amountGwei) external onlyNotFrozen {
         // this is also checked by built-in underflow checks
         require(restakedExecutionLayerGwei >= amountGwei, "EigenPod.rollOverRollableBalance: not enough restakedExecutionLayerGwei to roll over");
         // remove rollableBalanceGwei from restakedExecutionLayerGwei and add it to instantlyWithdrawableBalanceGwei
         restakedExecutionLayerGwei -= amountGwei;
         instantlyWithdrawableBalanceGwei += amountGwei;
-        // mark amountGwei as having been rolled over
+        // mark amountGwei as having been rolled overonlyNotFrozen
         rollableBalanceGwei -= amountGwei;
         // pay penalties as much as possible to prevent podOwner from instantly withdrawing despite having any existing unpaid penalties
         _payOffPenalties();
