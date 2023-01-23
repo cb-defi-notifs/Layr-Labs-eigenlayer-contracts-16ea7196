@@ -81,6 +81,12 @@ contract InvestmentManager is
     /// @notice Emitted when a queued withdrawal is completed
     event WithdrawalCompleted(address indexed depositor, address indexed withdrawer, bytes32 withdrawalRoot);
 
+    /// @notice Emitted when a strategy is added to the approved list of strategies for deposit
+    event StrategyAddedToDepositWhitelist(IInvestmentStrategy strategy);
+
+    /// @notice Emitted when a strategy is removed from the approved list of strategies for deposit
+    event StrategyRemovedFromDepositWhitelist(IInvestmentStrategy strategy);
+
     modifier onlyNotFrozen(address staker) {
         require(
             !slasher.isFrozen(staker),
@@ -101,6 +107,11 @@ contract InvestmentManager is
 
     modifier onlyEigenPod(address podOwner, address pod) {
         require(address(eigenPodManager.getPod(podOwner)) == pod, "InvestmentManager.onlyEigenPod: not a pod");
+        _;
+    }
+
+    modifier onlyStrategiesWhitelistedForDeposit(IInvestmentStrategy strategy) {
+        require(strategyIsWhitelistedForDeposit[strategy], "InvestmentManager.onlyStrategiesWhitelistedForDeposit: strategy not whitelisted");
         _;
     }
 
@@ -543,6 +554,36 @@ contract InvestmentManager is
         }
     }
 
+    /// @notice Owner-only function that adds the provided InvestmentStrategies to the 'whitelist' of strategies that stakers can deposit into
+    function addStrategiesToDepositWhitelist(IInvestmentStrategy[] calldata strategiesToWhitelist) external onlyOwner {
+        uint256 strategiesToWhitelistLength = strategiesToWhitelist.length;
+        for (uint256 i = 0; i < strategiesToWhitelistLength;) {
+            // change storage and emit event only if strategy is not already in whitelist
+            if (!strategyIsWhitelistedForDeposit[strategiesToWhitelist[i]]) {
+                strategyIsWhitelistedForDeposit[strategiesToWhitelist[i]] = true;
+                emit StrategyAddedToDepositWhitelist(strategiesToWhitelist[i]);
+            }
+            unchecked {
+                ++i;
+            }
+        }
+    } 
+
+    /// @notice Owner-only function that removes the provided InvestmentStrategies from the 'whitelist' of strategies that stakers can deposit into
+    function removeStrategiesFromDepositWhitelist(IInvestmentStrategy[] calldata strategiesToRemoveFromWhitelist) external onlyOwner {
+        uint256 strategiesToRemoveFromWhitelistLength = strategiesToRemoveFromWhitelist.length;
+        for (uint256 i = 0; i < strategiesToRemoveFromWhitelistLength;) {
+            // change storage and emit event only if strategy is already in whitelist
+            if (strategyIsWhitelistedForDeposit[strategiesToRemoveFromWhitelist[i]]) {
+                strategyIsWhitelistedForDeposit[strategiesToRemoveFromWhitelist[i]] = false;
+                emit StrategyRemovedFromDepositWhitelist(strategiesToRemoveFromWhitelist[i]);
+            }
+            unchecked {
+                ++i;
+            }
+        }
+    } 
+
     // INTERNAL FUNCTIONS
 
     /**
@@ -578,6 +619,7 @@ contract InvestmentManager is
      */
     function _depositIntoStrategy(address depositor, IInvestmentStrategy strategy, IERC20 token, uint256 amount)
         internal
+        onlyStrategiesWhitelistedForDeposit(strategy)
         returns (uint256 shares)
     {
         // transfer tokens from the sender to the strategy

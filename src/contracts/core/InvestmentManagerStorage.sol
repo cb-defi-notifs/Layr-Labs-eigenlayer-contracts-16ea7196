@@ -33,14 +33,16 @@ abstract contract InvestmentManagerStorage is IInvestmentManager {
     IEigenPodManager public immutable eigenPodManager;
     ISlasher public immutable slasher;
 
-    // staker => InvestmentStrategy => number of shares which they currently hold
+    /// @notice Mapping: staker => InvestmentStrategy => number of shares which they currently hold
     mapping(address => mapping(IInvestmentStrategy => uint256)) public investorStratShares;
-    // staker => array of strategies in which they have nonzero shares
+    /// @notice Mapping: staker => array of strategies in which they have nonzero shares
     mapping(address => IInvestmentStrategy[]) public investorStrats;
-    // hash of withdrawal inputs, aka 'withdrawalRoot' => whether the withdrawal is pending
+    /// @notice Mapping: hash of withdrawal inputs, aka 'withdrawalRoot' => whether the withdrawal is pending
     mapping(bytes32 => bool) public withdrawalRootPending;
-    // staker => cumulative number of queued withdrawals they have ever initiated. only increments (doesn't decrement)
+    /// @notice Mapping: staker => cumulative number of queued withdrawals they have ever initiated. only increments (doesn't decrement)
     mapping(address => uint256) public numWithdrawalsQueued;
+    /// @notice Mapping: strategy => whether or not stakers are allowed to deposit into it
+    mapping(IInvestmentStrategy => bool) public strategyIsWhitelistedForDeposit;
 
     IInvestmentStrategy public constant beaconChainETHStrategy = IInvestmentStrategy(0xbeaC0eeEeeeeEEeEeEEEEeeEEeEeeeEeeEEBEaC0);
 
