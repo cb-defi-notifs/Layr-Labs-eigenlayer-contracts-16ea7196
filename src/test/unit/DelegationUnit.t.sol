@@ -117,7 +117,7 @@ contract DelegationUnitTests is EigenLayerTestHelper {
         cheats.stopPrank();
     }
 
-    function testDelegateWhenStakerHasExistingDelegation(address staker, address operator, address operator2) public{
+    function testDelegateWhenStakerHasExistingDelegation(address staker, address operator, address operator2) public fuzzedAddress(operator) fuzzedAddress(staker) {
         cheats.assume(operator != operator2);
         cheats.assume(staker != operator);
         cheats.assume(staker != operator2);
@@ -196,6 +196,8 @@ contract DelegationUnitTests is EigenLayerTestHelper {
 
     function testDelegationReceivedHookWithTooMuchReturnData(address operator, address staker) public fuzzedAddress(operator) fuzzedAddress(staker){
         cheats.assume(operator != staker);
+        delegationTermsMock.setShouldReturnData(true);
+
         cheats.startPrank(operator);
         delegationMock.registerAsOperator(delegationTermsMock);
         cheats.stopPrank();
@@ -210,6 +212,9 @@ contract DelegationUnitTests is EigenLayerTestHelper {
         address staker
     ) public fuzzedAddress(operator) fuzzedAddress(staker){
         cheats.assume(operator != staker);
+
+        delegationTermsMock.setShouldReturnData(true);
+
 
         cheats.startPrank(operator);
         delegationMock.registerAsOperator(delegationTermsMock);
@@ -229,6 +234,7 @@ contract DelegationUnitTests is EigenLayerTestHelper {
 
     function testDelegationReceivedHookWithNoReturnData(address operator, address staker) public fuzzedAddress(operator) fuzzedAddress(staker){
         cheats.assume(operator != staker);
+
         cheats.startPrank(operator);
         delegationMock.registerAsOperator(delegationTermsMock);
         cheats.stopPrank();
