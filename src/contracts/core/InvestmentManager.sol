@@ -691,10 +691,9 @@ contract InvestmentManager is
                     //replace the strategy with the last strategy in the list
                     investorStrats[depositor][j] = investorStrats[depositor][investorStrats[depositor].length - 1];
                     break;
-                } else {
-                    unchecked {
-                        ++j;
-                    }
+                }
+                unchecked {
+                    ++j;
                 }
             }
             // if we didn't find the strategy, revert
