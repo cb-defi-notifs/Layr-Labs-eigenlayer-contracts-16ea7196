@@ -322,8 +322,8 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
          */
         (, uint256 nextNode) = operatorToWhitelistedContractsByUpdate[operator].getNextNode(node);
         while ((nextNode != HEAD) && (_whitelistedContractDetails[operator][_uintToAddress(node)].latestUpdateBlock <= updateBlock)) {
-            (, nextNode) = operatorToWhitelistedContractsByUpdate[operator].getNextNode(node);
             node = nextNode;
+            (, nextNode) = operatorToWhitelistedContractsByUpdate[operator].getNextNode(node);
         }
         return node;
     }
