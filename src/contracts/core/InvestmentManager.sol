@@ -685,17 +685,20 @@ contract InvestmentManager is
         } else {
             //loop through all of the strategies, find the right one, then replace
             uint256 stratsLength = investorStrats[depositor].length;
-
-            for (uint256 j = 0; j < stratsLength;) {
+            uint256 j = 0;
+            for (; j < stratsLength;) {
                 if (investorStrats[depositor][j] == strategy) {
                     //replace the strategy with the last strategy in the list
                     investorStrats[depositor][j] = investorStrats[depositor][investorStrats[depositor].length - 1];
                     break;
-                }
-                unchecked {
-                    ++j;
+                } else {
+                    unchecked {
+                        ++j;
+                    }
                 }
             }
+            // if we didn't find the strategy, revert
+            require(j != stratsLength, "InvestmentManager._removeStrategyFromInvestorStrats: strategy not found");
         }
         // pop off the last entry in the list of strategies
         investorStrats[depositor].pop();
