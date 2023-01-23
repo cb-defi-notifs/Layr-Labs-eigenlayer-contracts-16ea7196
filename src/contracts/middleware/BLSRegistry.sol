@@ -6,7 +6,6 @@ import "../interfaces/IBLSPublicKeyCompendium.sol";
 import "../interfaces/IBLSRegistry.sol";
 import "../libraries/BN254.sol";
 
-import "forge-std/Test.sol";
 /**
  * @title A Registry-type contract using aggregate BLS signatures.
  * @author Layr Labs, Inc.

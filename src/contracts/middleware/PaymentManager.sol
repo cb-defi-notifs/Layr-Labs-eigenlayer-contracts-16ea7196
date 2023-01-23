@@ -10,8 +10,6 @@ import "../interfaces/IEigenLayerDelegation.sol";
 import "../interfaces/IPaymentManager.sol";
 import "../permissions/Pausable.sol";
 
-// import "forge-std/Test.sol";
-
 /**
  * @title Controls 'rolled-up' middleware payments.
  * @author Layr Labs, Inc.
