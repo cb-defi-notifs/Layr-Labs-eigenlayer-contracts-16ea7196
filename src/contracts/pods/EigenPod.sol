@@ -11,7 +11,7 @@ import "../libraries/Endian.sol";
 import "../interfaces/IETHPOSDeposit.sol";
 import "../interfaces/IEigenPodManager.sol";
 import "../interfaces/IEigenPod.sol";
-//import "forge-std/Test.sol";
+import "forge-std/Test.sol";
 
 /**
  * @title The implementation contract used for restaking beacon chain ETH on EigenLayer 
@@ -27,7 +27,7 @@ import "../interfaces/IEigenPod.sol";
  *   to account balances and penalties in terms of gwei in the EigenPod contract and convert to wei when making
  *   calls to other contracts
  */
-contract EigenPod is IEigenPod, Initializable, ReentrancyGuard {
+contract EigenPod is IEigenPod, Initializable, ReentrancyGuard, Test {
     using BytesLib for bytes;
 
     uint256 internal constant GWEI_TO_WEI = 1e9;
@@ -506,7 +506,8 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard {
         }
     }
 
-    function _podWithdrawalCredentials() internal view returns(bytes memory) {
+    function _podWithdrawalCredentials() internal returns(bytes memory) {
+        emit log_named_bytes("withdraawl creds", abi.encodePacked(bytes1(uint8(1)), bytes11(0), address(this)));
         return abi.encodePacked(bytes1(uint8(1)), bytes11(0), address(this));
     }
 
