@@ -63,6 +63,26 @@ contract InvestmentStrategyBaseUnitTests is Test {
         investmentStrategy.initialize(underlyingToken, pauserRegistry);
     }
 
+    function testInitialDepositCannotBeTooSmall(uint32 amountToDeposit) public {
+        cheats.assume(amountToDeposit > 0 && amountToDeposit < MIN_NONZERO_TOTAL_SHARES);
+
+        underlyingToken.transfer(address(investmentStrategy), amountToDeposit);
+
+        cheats.expectRevert(bytes("InvestmentStrategyBase.deposit: updated totalShares amount would be nonzero but below MIN_NONZERO_TOTAL_SHARES"));
+        cheats.startPrank(address(investmentManager));
+        investmentStrategy.deposit(underlyingToken, amountToDeposit);
+        cheats.stopPrank();
+    }
+
+    function testCannotReceiveZeroShares() public {
+        uint256 amountToDeposit = 0;
+
+        cheats.startPrank(address(investmentManager));
+        cheats.expectRevert(bytes("InvestmentStrategyBase.deposit: newShares cannot be zero"));
+        investmentStrategy.deposit(underlyingToken, amountToDeposit);
+        cheats.stopPrank();
+    }
+
     function testDepositWithZeroPriorBalanceAndZeroPriorShares(uint256 amountToDeposit) public {
         // sanity check / filter
         cheats.assume(amountToDeposit <= underlyingToken.balanceOf(address(this)));
@@ -181,6 +201,22 @@ contract InvestmentStrategyBaseUnitTests is Test {
         require(totalSharesBefore - totalSharesAfter == sharesToWithdraw, "shares did not decrease appropriately");
         require(tokenBalanceAfter - tokenBalanceBefore == (strategyBalanceBefore * sharesToWithdraw) / totalSharesBefore,
             "token balance did not increase appropriately");
+    }
+
+    function testWithdrawFailsWhenWouldResultInForbiddenTotalShareAmount(uint32 fuzzedInput) public {
+        uint256 amountToDeposit = 1e18;
+        testDepositWithZeroPriorBalanceAndZeroPriorShares(amountToDeposit);
+
+        uint256 totalSharesBefore = investmentStrategy.totalShares();
+
+        // filter so withdrawal will make 'totalShares' fall strictly between 0 and MIN_NONZERO_TOTAL_SHARES
+        cheats.assume(fuzzedInput > 0 && fuzzedInput < MIN_NONZERO_TOTAL_SHARES);
+        uint256 sharesToWithdraw = totalSharesBefore - fuzzedInput;
+
+        cheats.startPrank(address(investmentManager));
+        cheats.expectRevert(bytes("InvestmentStrategyBase.withdraw: updated totalShares amount would be nonzero but below MIN_NONZERO_TOTAL_SHARES"));
+        investmentStrategy.withdraw(address(this), underlyingToken, sharesToWithdraw);
+        cheats.stopPrank();
     }
 
     function testWithdrawFailsWhenWithdrawalsPaused(uint256 amountToDeposit) public {
