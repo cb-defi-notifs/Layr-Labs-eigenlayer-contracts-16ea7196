@@ -21,6 +21,11 @@ contract InvestmentStrategyBase is Initializable, Pausable, IInvestmentStrategy 
 
     uint8 internal constant PAUSED_DEPOSITS = 0;
     uint8 internal constant PAUSED_WITHDRAWALS = 1;
+    /*
+     * as long as at least *some* shares exist, this is the minimum number.
+     * i.e. `totalShares` must exist in the set {0, [MIN_NONZERO_TOTAL_SHARES, type(uint256).max]}
+    */
+    uint96 internal constant MIN_NONZERO_TOTAL_SHARES = 1e9;
 
     /// @notice EigenLayer's InvestmentManager contract
     IInvestmentManager public immutable investmentManager;
@@ -82,7 +87,14 @@ contract InvestmentStrategyBase is Initializable, Pausable, IInvestmentStrategy 
             newShares = (amount * totalShares) / priorTokenBalance;
         }
 
-        totalShares += newShares;
+        // checks to ensure correctness / avoid edge case where share rate can be massively inflated as a 'griefing' sort of attack
+        require(newShares != 0, "InvestmentStrategyBase.deposit: newShares cannot be zero");
+        uint256 updatedTotalShares = totalShares + newShares;
+        require(updatedTotalShares >= MIN_NONZERO_TOTAL_SHARES,
+            "InvestmentStrategyBase.deposit: updated totalShares amount would be nonzero but below MIN_NONZERO_TOTAL_SHARES");
+
+        // update total share amount
+        totalShares = updatedTotalShares;
         return newShares;
     }
 
@@ -101,16 +113,19 @@ contract InvestmentStrategyBase is Initializable, Pausable, IInvestmentStrategy 
         onlyInvestmentManager
     {
         require(token == underlyingToken, "InvestmentStrategyBase.withdraw: Can only withdraw the strategy token");
+        // copy `totalShares` value to memory, prior to any decrease
+        uint256 priorTotalShares = totalShares;
         require(
-            amountShares <= totalShares,
+            amountShares <= priorTotalShares,
             "InvestmentStrategyBase.withdraw: amountShares must be less than or equal to totalShares"
         );
-        // copy `totalShares` value prior to decrease
-        uint256 priorTotalShares = totalShares;
         // Decrease `totalShares` to reflect withdrawal. Unchecked arithmetic since we just checked this above.
-        unchecked {
-            totalShares -= amountShares;
-        }
+        uint256 updatedTotalShares = priorTotalShares - amountShares;
+
+        // check to avoid edge case where share rate can be massively inflated as a 'griefing' sort of attack
+        require(updatedTotalShares == 0 || updatedTotalShares >= MIN_NONZERO_TOTAL_SHARES,
+            "InvestmentStrategyBase.withdraw: updated totalShares amount would be nonzero but below MIN_NONZERO_TOTAL_SHARES");
+        totalShares = updatedTotalShares;
         /**
          * @notice calculation of amountToSend *mirrors* `sharesToUnderlying(amountShares)`, but is different since the `totalShares` has already
          * been decremented
