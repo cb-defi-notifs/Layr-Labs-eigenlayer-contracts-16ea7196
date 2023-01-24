@@ -271,7 +271,7 @@ contract InvestmentManager is
     }
 
     /**
-     * @notice Called by a staker to queue a withdraw in the given token and shareAmount from each of the respective given strategies.
+     * @notice Called by a staker to queue a withdraw the given amount of `shares` from each of the respective given `strategies`.
      * @dev Stakers will complete their withdrawal by calling the 'completeQueuedWithdrawal' function.
      * User shares are decreased in this function, but the total number of shares in each strategy remains the same.
      * The total number of shares is decremented in the 'completeQueuedWithdrawal' function instead, which is where
@@ -280,6 +280,8 @@ contract InvestmentManager is
      * to accrue gains during the enforced WITHDRAWAL_WAITING_PERIOD.
      * @param strategyIndexes is a list of the indices in `investorStrats[msg.sender]` that correspond to the strategies
      * for which `msg.sender` is withdrawing 100% of their shares
+     * @param strategies The InvestmentStrategies to withdraw from
+     * @param shares The amount of shares to withdraw from each of the respective InvestmentStrategies in the `strategies` array
      * @dev Strategies are removed from `investorStrats` by swapping the last entry with the entry to be removed, then
      * popping off the last entry in `investorStrats`. The simplest way to calculate the correct `strategyIndexes` to input
      * is to order the strategies *for which `msg.sender` is withdrawing 100% of their shares* from highest index in
@@ -304,6 +306,7 @@ contract InvestmentManager is
         returns (bytes32)
     {
         require(!paused(PAUSED_WITHDRAWALS), "Pausable: index is paused");
+        require(strategies.length == shares.length, "InvestmentManager.queueWithdrawal: input length mismatch");
     
         // modify delegated shares accordingly, if applicable
         delegation.decreaseDelegatedShares(msg.sender, strategies, shares);
@@ -394,6 +397,8 @@ contract InvestmentManager is
     /**
      * @notice Used to complete the specified `queuedWithdrawal`. The function caller must match `queuedWithdrawal.withdrawer`
      * @param queuedWithdrawal The QueuedWithdrawal to complete.
+     * @param tokens Array in which the i-th entry specifies the `token` input to the 'withdraw' function of the i-th InvestmentStrategy in the `strategies`
+     * array of the `queuedWithdrawal`. This input can be provided with zero length if `receiveAsTokens` is set to 'false' (since in that case, this input will be unusued)
      * @param middlewareTimesIndex is the index in the operator that the staker who triggered the withdrawal was delegated to's middleware times array
      * @param receiveAsTokens If true, the shares specified in the queued withdrawal will be withdrawn from the specified strategies themselves
      * and sent to the caller, through calls to `queuedWithdrawal.strategies[i].withdraw`. If false, then the shares in the specified strategies
@@ -433,6 +438,7 @@ contract InvestmentManager is
         uint256 strategiesLength = queuedWithdrawal.strategies.length;
         // if the withdrawer has flagged to receive the funds as tokens, withdraw from strategies
         if (receiveAsTokens) {
+            require(tokens.length == queuedWithdrawal.strategies.length, "InvestmentManager.completeQueuedWithdrawal: input length mismatch");
             // actually withdraw the funds
             for (uint256 i = 0; i < strategiesLength;) {
                 if (queuedWithdrawal.strategies[i] == beaconChainETHStrategy) {
@@ -485,6 +491,7 @@ contract InvestmentManager is
         onlyFrozen(slashedAddress)
         nonReentrant
     {
+        require(tokens.length == strategies.length, "InvestmentManager.slashShares: input length mismatch");
         uint256 strategyIndexIndex;
         uint256 strategiesLength = strategies.length;
         for (uint256 i = 0; i < strategiesLength;) {
@@ -525,6 +532,8 @@ contract InvestmentManager is
         onlyFrozen(queuedWithdrawal.delegatedAddress)
         nonReentrant
     {
+        require(tokens.length == queuedWithdrawal.strategies.length, "InvestmentManager.slashQueuedWithdrawal: input length mismatch");
+
         // find the withdrawalRoot
         bytes32 withdrawalRoot = calculateWithdrawalRoot(queuedWithdrawal);
 
