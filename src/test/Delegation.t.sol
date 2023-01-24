@@ -105,7 +105,7 @@ contract DelegationTests is EigenLayerTestHelper {
         _testDelegation(operator, staker, ethAmount, eigenAmount, voteWeigher);
     }
 
-    function testUndelegation(address operator, address staker, uint256 ethAmount, uint256 eigenAmount)
+    function testUndelegation(address operator, address staker, uint96 ethAmount, uint96 eigenAmount)
         public
         fuzzedAddress(operator)
         fuzzedAddress(staker)
