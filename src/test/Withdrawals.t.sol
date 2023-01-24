@@ -45,8 +45,8 @@ contract WithdrawalTests is DelegationTests {
             address operator, 
             address depositor,
             address withdrawer, 
-            uint256 ethAmount,
-            uint256 eigenAmount,
+            uint96 ethAmount,
+            uint96 eigenAmount,
             bool withdrawAsTokens,
             bool RANDAO
         ) 
@@ -56,10 +56,8 @@ contract WithdrawalTests is DelegationTests {
             fuzzedAddress(withdrawer) 
         {
             cheats.assume(depositor != operator);
-            cheats.assume(ethAmount <= 1e18); 
-            cheats.assume(eigenAmount <= 1e18); 
-            cheats.assume(ethAmount > 0); 
-            cheats.assume(eigenAmount > 0); 
+            cheats.assume(ethAmount >= 1e9 && ethAmount <= 1e18); 
+            cheats.assume(eigenAmount >= 1e9 && eigenAmount <= 1e18); 
 
             initializeGeneralMiddlewares();
 
@@ -79,8 +77,8 @@ contract WithdrawalTests is DelegationTests {
             address operator, 
             address depositor,
             address withdrawer, 
-            uint256 ethAmount,
-            uint256 eigenAmount,
+            uint96 ethAmount,
+            uint96 eigenAmount,
             bool withdrawAsTokens
         ) 
             internal 
@@ -185,8 +183,8 @@ contract WithdrawalTests is DelegationTests {
             address operator, 
             address depositor,
             address withdrawer, 
-            uint256 ethAmount,
-            uint256 eigenAmount,
+            uint96 ethAmount,
+            uint96 eigenAmount,
             bool withdrawAsTokens
         ) 
             public 
@@ -309,8 +307,8 @@ contract WithdrawalTests is DelegationTests {
             address operator, 
             address depositor, 
             address withdrawer, 
-            uint256 ethAmount, 
-            uint256 eigenAmount,
+            uint96 ethAmount, 
+            uint96 eigenAmount,
             bool withdrawAsShares
         ) 
             public
@@ -331,7 +329,7 @@ contract WithdrawalTests is DelegationTests {
     ///         cannot be undelegated from by their stakers.
     /// @param operator is the operator being delegated to.
     /// @param staker is the staker delegating stake to the operator.
-    function testSlashedOperatorWithdrawal(address operator, address staker, uint256 ethAmount, uint256 eigenAmount)
+    function testSlashedOperatorWithdrawal(address operator, address staker, uint96 ethAmount, uint96 eigenAmount)
         public
         fuzzedAddress(operator)
         fuzzedAddress(staker)

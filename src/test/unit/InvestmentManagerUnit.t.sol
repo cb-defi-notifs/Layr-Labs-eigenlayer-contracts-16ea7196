@@ -39,8 +39,14 @@ contract InvestmentManagerUnitTests is EigenLayerTestHelper {
             )
         );
 
-        investmentManagerMock.depositIntoStrategy(dummyStrat, dummyToken, REQUIRED_BALANCE_WEI);
+        // whitelist the strategy for deposit
+        cheats.startPrank(investmentManagerMock.owner());
+        IInvestmentStrategy[] memory _strategy = new IInvestmentStrategy[](1);
+        _strategy[0] = dummyStrat;
+        investmentManagerMock.addStrategiesToDepositWhitelist(_strategy);
+        cheats.stopPrank();
 
+        investmentManagerMock.depositIntoStrategy(dummyStrat, dummyToken, REQUIRED_BALANCE_WEI);
     }
 
     function testBeaconChainQueuedWithdrawalToDifferentAddress(address withdrawer) external {

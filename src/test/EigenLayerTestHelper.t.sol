@@ -110,6 +110,13 @@ contract EigenLayerTestHelper is EigenLayerDeployer {
         // deposits will revert when amountToDeposit is 0
         cheats.assume(amountToDeposit > 0);
 
+        // whitelist the strategy for deposit, in case it wasn't before
+        cheats.startPrank(investmentManager.owner());
+        IInvestmentStrategy[] memory _strategy = new IInvestmentStrategy[](1);
+        _strategy[0] = stratToDepositTo;
+        investmentManager.addStrategiesToDepositWhitelist(_strategy);
+        cheats.stopPrank();
+
         uint256 operatorSharesBefore = investmentManager.investorStratShares(sender, stratToDepositTo);
         // assumes this contract already has the underlying token!
         uint256 contractBalance = underlyingToken.balanceOf(address(this));

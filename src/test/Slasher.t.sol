@@ -17,7 +17,7 @@ contract SlasherTests is EigenLayerTestHelper {
         // hardcoded inputs
         address[2] memory accounts = [acct_0, acct_1];
         uint256[2] memory depositAmounts;
-        uint256 amountToDeposit = 1e7;
+        uint256 amountToDeposit = 1e18;
         address _operator = operator;
         strategyArray[0] = wethStrat;
         tokensArray[0] = weth;

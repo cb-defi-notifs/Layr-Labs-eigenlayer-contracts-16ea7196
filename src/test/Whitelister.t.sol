@@ -125,6 +125,12 @@ contract WhitelisterTests is EigenLayerTestHelper {
 
         fuzzedAddressMapping[address(whiteLister)] = true;
 
+        // whitelist the strategy for deposit
+        cheats.startPrank(investmentManager.owner());
+        IInvestmentStrategy[] memory _strategy = new IInvestmentStrategy[](1);
+        _strategy[0] = dummyStrat;
+        investmentManager.addStrategiesToDepositWhitelist(_strategy);
+        cheats.stopPrank();
     }
 
     function testWhitelistingOperator(address operator) public fuzzedAddress(operator){

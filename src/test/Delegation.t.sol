@@ -91,25 +91,29 @@ contract DelegationTests is EigenLayerTestHelper {
     ///         and checks that the delegate's voteWeights increase properly
     /// @param operator is the operator being delegated to.
     /// @param staker is the staker delegating stake to the operator.
-    function testDelegation(address operator, address staker, uint256 ethAmount, uint256 eigenAmount)
+    function testDelegation(address operator, address staker, uint96 ethAmount, uint96 eigenAmount)
         public
         fuzzedAddress(operator)
         fuzzedAddress(staker)
         fuzzedAmounts(ethAmount, eigenAmount)
     {
         cheats.assume(staker != operator);
+        // base strategy will revert if these amounts are too small on first deposit
+        cheats.assume(ethAmount >= 1e9);
+        cheats.assume(eigenAmount >= 1e9);
         
         _testDelegation(operator, staker, ethAmount, eigenAmount, voteWeigher);
     }
 
     /// @notice tests delegation to EigenLayer via an ECDSA signatures - meta transactions are the future bby
     /// @param operator is the operator being delegated to.
-    function testDelegateToBySignature(address operator, uint256 ethAmount, uint256 eigenAmount)
+    function testDelegateToBySignature(address operator, uint96 ethAmount, uint96 eigenAmount)
         public
         fuzzedAddress(operator)
     {
-        cheats.assume(ethAmount >= 0 && ethAmount <= 1e18);
-        cheats.assume(eigenAmount >= 0 && eigenAmount <= 1e18);
+        // if first deposit amount to base strategy is too small, it will revert. ignore that case here.
+        cheats.assume(ethAmount >= 1e9 && ethAmount <= 1e18);
+        cheats.assume(eigenAmount >= 1e9 && eigenAmount <= 1e18);
         if (!delegation.isOperator(operator)) {
             _testRegisterAsOperator(operator, IDelegationTerms(operator));
         }
@@ -141,8 +145,8 @@ contract DelegationTests is EigenLayerTestHelper {
     /// @param operator is the operator being delegated to.
     function testDelegateToByInvalidSignature(
         address operator, 
-        uint256 ethAmount, 
-        uint256 eigenAmount, 
+        uint96 ethAmount, 
+        uint96 eigenAmount, 
         uint8 v,
         bytes32 r,
         bytes32 s
@@ -151,6 +155,9 @@ contract DelegationTests is EigenLayerTestHelper {
         fuzzedAddress(operator)
         fuzzedAmounts(ethAmount, eigenAmount)
     {
+        // if first deposit amount to base strategy is too small, it will revert. ignore that case here.
+        cheats.assume(ethAmount >= 1e9);
+        cheats.assume(eigenAmount >= 1e9);
         if (!delegation.isOperator(operator)) {
             _testRegisterAsOperator(operator, IDelegationTerms(operator));
         }
