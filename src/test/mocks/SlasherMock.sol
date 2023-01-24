@@ -7,6 +7,8 @@ import "../../contracts/interfaces/ISlasher.sol";
 
 contract SlasherMock is ISlasher, Test {
 
+    mapping (address => bool) public operatorStatus;
+
     function optIntoSlashing(address contractAddress) external{}
 
     function freezeOperator(address toBeFrozen) external{}
@@ -19,8 +21,12 @@ contract SlasherMock is ISlasher, Test {
 
     function recordLastStakeUpdateAndRevokeSlashingAbility(address operator, uint32 serveUntil) external{}
 
-    function isFrozen(address /*staker*/) external pure returns (bool){ 
-        return false; 
+    function isFrozen(address staker) external view returns (bool){ 
+        return operatorStatus[staker]; 
+    }
+
+    function setOperatorStatus(address operator, bool status) external{
+        operatorStatus[operator] = status;
     }
 
     /// @notice Returns true if `slashingContract` is currently allowed to slash `toBeSlashed`.

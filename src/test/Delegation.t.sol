@@ -105,6 +105,22 @@ contract DelegationTests is EigenLayerTestHelper {
         _testDelegation(operator, staker, ethAmount, eigenAmount, voteWeigher);
     }
 
+    function testUndelegation(address operator, address staker, uint256 ethAmount, uint256 eigenAmount)
+        public
+        fuzzedAddress(operator)
+        fuzzedAddress(staker)
+        fuzzedAmounts(ethAmount, eigenAmount)
+    {
+        cheats.assume(staker != operator);
+        
+        _testDelegation(operator, staker, ethAmount, eigenAmount, voteWeigher);
+        cheats.startPrank(address(investmentManager));
+        delegation.undelegate(staker);
+        cheats.stopPrank();
+
+        require(delegation.delegatedTo(staker) == address(0), "undelegation unsuccessful");
+    }
+
     /// @notice tests delegation to EigenLayer via an ECDSA signatures - meta transactions are the future bby
     /// @param operator is the operator being delegated to.
     function testDelegateToBySignature(address operator, uint96 ethAmount, uint96 eigenAmount)

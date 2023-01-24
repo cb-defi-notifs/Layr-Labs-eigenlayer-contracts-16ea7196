@@ -283,7 +283,7 @@ abstract contract PaymentManager is Initializable, IPaymentManager, Pausable {
                 // value in wei for call
                 0,
                 // memory location to copy for calldata
-                lowLevelCalldata,
+                add(lowLevelCalldata, 32),
                 // length of memory to copy for calldata
                 mload(lowLevelCalldata),
                 // memory location to copy return data

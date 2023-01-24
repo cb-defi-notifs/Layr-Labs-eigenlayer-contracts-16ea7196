@@ -510,7 +510,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard {
         }
     }
 
-    function _podWithdrawalCredentials() internal view returns(bytes memory) {
+    function _podWithdrawalCredentials() internal returns(bytes memory) {
         return abi.encodePacked(bytes1(uint8(1)), bytes11(0), address(this));
     }
 

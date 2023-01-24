@@ -12,6 +12,8 @@ import "./EigenLayerDelegationStorage.sol";
 import "../permissions/Pausable.sol";
 import "./Slasher.sol";
 
+import "forge-std/Test.sol";
+
 /**
  * @title The primary delegation contract for EigenLayer.
  * @author Layr Labs, Inc.
@@ -90,7 +92,7 @@ contract EigenLayerDelegation is Initializable, OwnableUpgradeable, EigenLayerDe
     function delegateToBySignature(address staker, address operator, uint256 expiry, bytes memory signature)
         external
     {
-        require(expiry >= block.timestamp, "delegation signature expired");
+        require(expiry >= block.timestamp, "EigenLayerDelegation.delegateToBySignature: delegation signature expired");
 
         // calculate struct hash, then increment `staker`'s nonce
         uint256 nonce = nonces[staker];
@@ -219,7 +221,7 @@ contract EigenLayerDelegation is Initializable, OwnableUpgradeable, EigenLayerDe
                 // value in wei for call
                 0,
                 // memory location to copy for calldata
-                lowLevelCalldata,
+                add(lowLevelCalldata, 32),
                 // length of memory to copy for calldata
                 mload(lowLevelCalldata),
                 // memory location to copy return data
@@ -267,7 +269,7 @@ contract EigenLayerDelegation is Initializable, OwnableUpgradeable, EigenLayerDe
                 // value in wei for call
                 0,
                 // memory location to copy for calldata
-                lowLevelCalldata,
+                add(lowLevelCalldata, 32),
                 // length of memory to copy for calldata
                 mload(lowLevelCalldata),
                 // memory location to copy return data

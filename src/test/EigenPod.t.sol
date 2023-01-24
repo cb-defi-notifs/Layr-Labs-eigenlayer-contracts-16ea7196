@@ -44,6 +44,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     address pauser = address(69);
     address unpauser = address(489);
     address podManagerAddress = 0x212224D2F2d262cd093eE13240ca4873fcCBbA3C;
+    address podAddress = address(123);
     uint256 stakeAmount = 32e18;
     mapping (address => bool) fuzzedAddressMapping;
     bytes signature;

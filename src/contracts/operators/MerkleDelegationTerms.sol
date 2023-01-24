@@ -138,7 +138,7 @@ contract MerkleDelegationTerms is Ownable, IDelegationTerms {
         address,
         IInvestmentStrategy[] memory,
         uint256[] memory
-    ) external pure 
+    ) external pure returns(bytes memory)
     // solhint-disable-next-line no-empty-blocks
     {}
 
@@ -147,7 +147,7 @@ contract MerkleDelegationTerms is Ownable, IDelegationTerms {
         address,
         IInvestmentStrategy[] memory,
         uint256[] memory
-    ) external pure 
+    ) external pure returns(bytes memory)
     // solhint-disable-next-line no-empty-blocks
     {}
 }
