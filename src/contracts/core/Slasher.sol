@@ -180,6 +180,11 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
                 "Slasher.recordStakeUpdate: Removing middleware unsuccessful");
             // Run routine for updating the `operator`'s linked list of middlewares
             _updateMiddlewareList(operator, updateBlock, insertAfter);
+        // if there is precisely one middleware in the list, then ensure that the caller is indeed singular list entrant
+        } else {
+            require(operatorToWhitelistedContractsByUpdate[operator].getHead() == _addressToUint(msg.sender),
+                "Slasher.recordStakeUpdate: Callter is not the list entrant"
+                );
         }
     }
 
