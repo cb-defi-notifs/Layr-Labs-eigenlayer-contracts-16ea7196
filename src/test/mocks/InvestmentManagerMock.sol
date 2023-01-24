@@ -116,4 +116,8 @@ contract InvestmentManagerMock is
 
     /// @notice returns the enshrined beaconChainETH Strategy
     function beaconChainETHStrategy() external view returns (IInvestmentStrategy){}
+
+    function addStrategiesToDepositWhitelist(IInvestmentStrategy[] calldata /*strategiesToWhitelist*/) external pure {}
+
+    function removeStrategiesFromDepositWhitelist(IInvestmentStrategy[] calldata /*strategiesToRemoveFromWhitelist*/) external pure {}    
 }

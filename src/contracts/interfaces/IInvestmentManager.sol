@@ -194,6 +194,12 @@ interface IInvestmentManager {
         pure
         returns (bytes32);
 
+    /// @notice Owner-only function that adds the provided InvestmentStrategies to the 'whitelist' of strategies that stakers can deposit into
+    function addStrategiesToDepositWhitelist(IInvestmentStrategy[] calldata strategiesToWhitelist) external;
+
+    /// @notice Owner-only function that removes the provided InvestmentStrategies from the 'whitelist' of strategies that stakers can deposit into
+    function removeStrategiesFromDepositWhitelist(IInvestmentStrategy[] calldata strategiesToRemoveFromWhitelist) external;
+
     /// @notice Returns the single, central Delegation contract of EigenLayer
     function delegation() external view returns (IEigenLayerDelegation);
 
