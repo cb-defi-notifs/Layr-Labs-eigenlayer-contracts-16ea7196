@@ -112,7 +112,10 @@ contract DelegationTests is EigenLayerTestHelper {
         fuzzedAmounts(ethAmount, eigenAmount)
     {
         cheats.assume(staker != operator);
-        
+        // base strategy will revert if these amounts are too small on first deposit
+        cheats.assume(ethAmount >= 1e9);
+        cheats.assume(eigenAmount >= 1e9);
+
         _testDelegation(operator, staker, ethAmount, eigenAmount, voteWeigher);
         cheats.startPrank(address(investmentManager));
         delegation.undelegate(staker);
