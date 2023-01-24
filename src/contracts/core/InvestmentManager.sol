@@ -307,6 +307,7 @@ contract InvestmentManager is
     {
         require(!paused(PAUSED_WITHDRAWALS), "Pausable: index is paused");
         require(strategies.length == shares.length, "InvestmentManager.queueWithdrawal: input length mismatch");
+        require(withdrawer != address(0), "InvestmentManager.queueWithdrawal: cannot withdraw to zero address");
     
         // modify delegated shares accordingly, if applicable
         delegation.decreaseDelegatedShares(msg.sender, strategies, shares);
@@ -616,7 +617,8 @@ contract InvestmentManager is
      * to the `depositor`'s list of strategies, if it is not in the list already.
      */
     function _addShares(address depositor, IInvestmentStrategy strategy, uint256 shares) internal {
-        // sanity check on `shares` input
+        // sanity checks on inputs
+        require(depositor != address(0), "InvestmentManager._addShares: depositor cannot be zero address");
         require(shares != 0, "InvestmentManager._addShares: shares should not be zero!");
 
         // if they dont have existing shares of this strategy, add it to their strats
@@ -668,7 +670,8 @@ contract InvestmentManager is
         internal
         returns (bool)
     {
-        // sanity check on `shareAmount` input
+        // sanity checks on inputs
+        require(depositor != address(0), "InvestmentManager._removeShares: depositor cannot be zero address");
         require(shareAmount != 0, "InvestmentManager._removeShares: shareAmount should not be zero!");
 
         //check that the user has sufficient shares

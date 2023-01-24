@@ -118,6 +118,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard {
 
     /// @notice Used to initialize the pointers to contracts crucial to the pod's functionality, in beacon proxy construction from EigenPodManager
     function initialize(IEigenPodManager _eigenPodManager, address _podOwner) external initializer {
+        require(_podOwner != address(0), "EigenPod.initialize: podOwner cannot be zero address");
         eigenPodManager = _eigenPodManager;
         podOwner = _podOwner;
     }
