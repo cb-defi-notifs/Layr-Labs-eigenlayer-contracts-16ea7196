@@ -40,6 +40,12 @@ contract ERC20Mock is Context, IERC20 {
     mapping(address => mapping(address => uint256)) private _allowances;
 
     uint256 private _totalSupply;
+
+    uint256 initSupply = type(uint88).max;
+
+    constructor() {
+        _mint(msg.sender, initSupply);
+    }
     
     /**
      * @dev See {IERC20-totalSupply}.
