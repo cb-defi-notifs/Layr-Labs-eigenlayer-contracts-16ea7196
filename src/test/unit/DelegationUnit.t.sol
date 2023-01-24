@@ -110,7 +110,7 @@ contract DelegationUnitTests is EigenLayerTestHelper {
         delegationMock.registerAsOperator(IDelegationTerms(address(this)));
         cheats.stopPrank();
 
-        slasherMock.setOperatorStatus(operator, true);
+        slasherMock.setOperatorFrozenStatus(operator, true);
         cheats.expectRevert(bytes("EigenLayerDelegation._delegate: cannot delegate to a frozen operator"));
         cheats.startPrank(staker);
         delegationMock.delegateTo(operator);

@@ -7,12 +7,23 @@ import "../../contracts/interfaces/ISlasher.sol";
 
 contract SlasherMock is ISlasher, Test {
 
-    mapping (address => bool) public operatorStatus;
+    mapping(address => bool) public isFrozen;
+    bool public _canWithdraw = true;
 
+    function setCanWithdrawResponse(bool response) external {
+        _canWithdraw = response;
+    }
+
+    function setOperatorFrozenStatus(address operator, bool status) external{
+        isFrozen[operator] = status;
+    }
+
+    function freezeOperator(address toBeFrozen) external {
+        isFrozen[toBeFrozen] = true;
+    }
+    
     function optIntoSlashing(address contractAddress) external{}
 
-    function freezeOperator(address toBeFrozen) external{}
-    
     function resetFrozenStatus(address[] calldata frozenAddresses) external{}
 
     function recordFirstStakeUpdate(address operator, uint32 serveUntil) external{}
@@ -20,14 +31,6 @@ contract SlasherMock is ISlasher, Test {
     function recordStakeUpdate(address operator, uint32 updateBlock, uint32 serveUntil, uint256 insertAfter) external{}
 
     function recordLastStakeUpdateAndRevokeSlashingAbility(address operator, uint32 serveUntil) external{}
-
-    function isFrozen(address staker) external view returns (bool){ 
-        return operatorStatus[staker]; 
-    }
-
-    function setOperatorStatus(address operator, bool status) external{
-        operatorStatus[operator] = status;
-    }
 
     /// @notice Returns true if `slashingContract` is currently allowed to slash `toBeSlashed`.
     function canSlash(address toBeSlashed, address slashingContract) external view returns (bool){}
@@ -41,7 +44,9 @@ contract SlasherMock is ISlasher, Test {
     /// @notice A search routine for finding the correct input value of `insertAfter` to `recordStakeUpdate` / `_updateMiddlewareList`.
     function getCorrectValueForInsertAfter(address operator, uint32 updateBlock) external view returns (uint256){}
 
-    function canWithdraw(address operator, uint32 withdrawalStartBlock, uint256 middlewareTimesIndex) external returns(bool){}
+    function canWithdraw(address /*operator*/, uint32 /*withdrawalStartBlock*/, uint256 /*middlewareTimesIndex*/) external view returns(bool) {
+        return _canWithdraw;
+    }
 
     /// @notice Getter function for fetching `operatorToMiddlewareTimes[operator][index].stalestUpdateBlock`.
     function getMiddlewareTimesIndexBlock(address operator, uint32 index) external view returns(uint32){}

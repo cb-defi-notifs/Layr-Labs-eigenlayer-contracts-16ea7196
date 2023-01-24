@@ -234,7 +234,7 @@ contract InvestmentManager is
     {
         require(
             expiry >= block.timestamp,
-            "InvestmentManager.depositIntoStrategyOnBehalfOf: delegation signature expired"
+            "InvestmentManager.depositIntoStrategyOnBehalfOf: signature expired"
         );
         // calculate struct hash, then increment `staker`'s nonce
         uint256 nonce = nonces[staker];
@@ -256,7 +256,7 @@ contract InvestmentManager is
                 "InvestmentManager.depositIntoStrategyOnBehalfOf: ERC1271 signature verification failed");
         } else {
             require(ECDSA.recover(digestHash, signature) == staker,
-                "InvestmentManager.depositIntoStrategyOnBehalfOf: sig not from staker");
+                "InvestmentManager.depositIntoStrategyOnBehalfOf: signature not from staker");
         }
 
         shares = _depositIntoStrategy(staker, strategy, token, amount);
