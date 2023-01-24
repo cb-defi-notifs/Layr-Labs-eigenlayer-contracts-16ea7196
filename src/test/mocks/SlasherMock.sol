@@ -7,6 +7,7 @@ import "../../contracts/interfaces/ISlasher.sol";
 
 contract SlasherMock is ISlasher, Test {
 
+    mapping (address => bool) public operatorStatus;
     mapping(address => bool) public isFrozen;
     bool public _canWithdraw = true;
 
@@ -14,7 +15,9 @@ contract SlasherMock is ISlasher, Test {
         _canWithdraw = response;
     }
 
-
+    function setOperatorStatus(address operator, bool status) external{
+        operatorStatus[operator] = status;
+    }
 
     function optIntoSlashing(address contractAddress) external{}
 

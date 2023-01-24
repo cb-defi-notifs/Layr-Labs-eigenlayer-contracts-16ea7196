@@ -16,16 +16,11 @@ interface IDelegationTerms {
         address delegator,
         IInvestmentStrategy[] memory investorStrats,
         uint256[] memory investorShares
-    ) external;
-
-    // function onDelegationReceived(
-    //     address delegator,
-    //     uint256[] memory investorShares
-    // ) external;
+    ) external returns(bytes memory);
 
     function onDelegationReceived(
         address delegator,
         IInvestmentStrategy[] memory investorStrats,
         uint256[] memory investorShares
-    ) external;
+    ) external returns(bytes memory);
 }
