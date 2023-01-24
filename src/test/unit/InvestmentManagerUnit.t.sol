@@ -50,6 +50,13 @@ contract InvestmentManagerUnitTests is Test {
 
     address initialOwner = address(this);
 
+    mapping(address => bool) public addressIsExcludedFromFuzzedInputs;
+
+    modifier filterFuzzedAddressInputs(address fuzzedAddress) {
+        cheats.assume(!addressIsExcludedFromFuzzedInputs[fuzzedAddress]);
+        _;
+    }
+
     function setUp() virtual public {
         proxyAdmin = new ProxyAdmin();
 
@@ -81,6 +88,10 @@ contract InvestmentManagerUnitTests is Test {
         );
 
         beaconChainETHStrategy = investmentManager.beaconChainETHStrategy();
+
+        // excude the proxyAdmin and the eigenPodManagerMock from fuzzed inputs
+        addressIsExcludedFromFuzzedInputs[address(proxyAdmin)] = true;
+        addressIsExcludedFromFuzzedInputs[address(eigenPodManagerMock)] = true;
     }
 
     function testCannotReinitialize() public {
@@ -101,9 +112,7 @@ contract InvestmentManagerUnitTests is Test {
         require(sharesAfter == sharesBefore + amount, "sharesAfter != sharesBefore + amount");
     }
 
-    function testDepositBeaconChainETHFailsWhenNotCalledByEigenPodManager(address improperCaller) public {
-        // filter fuzzed inputs
-        cheats.assume(improperCaller != address(eigenPodManagerMock) && improperCaller != address(proxyAdmin));
+    function testDepositBeaconChainETHFailsWhenNotCalledByEigenPodManager(address improperCaller) public filterFuzzedAddressInputs(improperCaller) {
         uint256 amount = 1e18;
         address staker = address(this);
 
@@ -175,9 +184,7 @@ contract InvestmentManagerUnitTests is Test {
         require(sharesAfter == sharesBefore - amount_2, "sharesAfter != sharesBefore - amount");
     }
 
-    function testRecordOvercommittedBeaconChainETHFailsWhenNotCalledByEigenPodManager(address improperCaller) public {
-        // fuzzed input filtering
-        cheats.assume(improperCaller != address(eigenPodManagerMock) && improperCaller != address(proxyAdmin));
+    function testRecordOvercommittedBeaconChainETHFailsWhenNotCalledByEigenPodManager(address improperCaller) public filterFuzzedAddressInputs(improperCaller) {
         uint256 amount = 1e18;
         address staker = address(this);
         uint256 beaconChainETHStrategyIndex = 0;
@@ -209,9 +216,7 @@ contract InvestmentManagerUnitTests is Test {
         cheats.stopPrank();
     }
 
-    function testDepositIntoStrategySuccessfully(address staker, uint256 amount) public {
-        // fuzzed input filtering
-        cheats.assume(staker != address(proxyAdmin));
+    function testDepositIntoStrategySuccessfully(address staker, uint256 amount) public filterFuzzedAddressInputs(staker) {
         IInvestmentStrategy strategy = dummyStrat;
         IERC20 token = dummyToken;
 
@@ -1809,22 +1814,6 @@ contract InvestmentManagerUnitTests is Test {
         cheats.stopPrank();
     }
 
-    // INTERNAL / HELPER FUNCTIONS
-    function _beaconChainReentrancyTestsSetup() internal {
-        // prepare InvestmentManager with EigenPodManager and Delegation replaced with a Reenterer contract
-        reenterer = new Reenterer();
-        investmentManagerImplementation = new InvestmentManager(IEigenLayerDelegation(address(reenterer)), IEigenPodManager(address(reenterer)), slasherMock);
-        investmentManager = InvestmentManager(
-            address(
-                new TransparentUpgradeableProxy(
-                    address(investmentManagerImplementation),
-                    address(proxyAdmin),
-                    abi.encodeWithSelector(InvestmentManager.initialize.selector, pauserRegistry, initialOwner)
-                )
-            )
-        );
-    }
-
     function test_removeStrategyFromInvestorStratsWorksWithIncorrectIndexInput() external {
         uint256 amount = 1e18;
         address staker = address(this);
@@ -1865,6 +1854,22 @@ contract InvestmentManagerUnitTests is Test {
 
         require(sharesAfter == sharesBefore - amount, "sharesAfter != sharesBefore - amount");
         require(balanceAfter == balanceBefore + amount, "balanceAfter != balanceBefore + amount");
+    }
+
+    // INTERNAL / HELPER FUNCTIONS
+    function _beaconChainReentrancyTestsSetup() internal {
+        // prepare InvestmentManager with EigenPodManager and Delegation replaced with a Reenterer contract
+        reenterer = new Reenterer();
+        investmentManagerImplementation = new InvestmentManager(IEigenLayerDelegation(address(reenterer)), IEigenPodManager(address(reenterer)), slasherMock);
+        investmentManager = InvestmentManager(
+            address(
+                new TransparentUpgradeableProxy(
+                    address(investmentManagerImplementation),
+                    address(proxyAdmin),
+                    abi.encodeWithSelector(InvestmentManager.initialize.selector, pauserRegistry, initialOwner)
+                )
+            )
+        );
     }
 
     function _setUpQueuedWithdrawalStructSingleStrat(address staker, address withdrawer, IERC20 token, IInvestmentStrategy strategy, uint256 shareAmount)
