@@ -13,12 +13,12 @@ function payForService(contract IERC20 token, uint256 amount) external payable
 ### onDelegationWithdrawn
 
 ```solidity
-function onDelegationWithdrawn(address delegator, contract IInvestmentStrategy[] investorStrats, uint256[] investorShares) external
+function onDelegationWithdrawn(address delegator, contract IInvestmentStrategy[] investorStrats, uint256[] investorShares) external returns (bytes)
 ```
 
 ### onDelegationReceived
 
 ```solidity
-function onDelegationReceived(address delegator, contract IInvestmentStrategy[] investorStrats, uint256[] investorShares) external
+function onDelegationReceived(address delegator, contract IInvestmentStrategy[] investorStrats, uint256[] investorShares) external returns (bytes)
 ```
 

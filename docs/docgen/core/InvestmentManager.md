@@ -95,6 +95,22 @@ event WithdrawalCompleted(address depositor, address withdrawer, bytes32 withdra
 
 Emitted when a queued withdrawal is completed
 
+### StrategyAddedToDepositWhitelist
+
+```solidity
+event StrategyAddedToDepositWhitelist(contract IInvestmentStrategy strategy)
+```
+
+Emitted when a strategy is added to the approved list of strategies for deposit
+
+### StrategyRemovedFromDepositWhitelist
+
+```solidity
+event StrategyRemovedFromDepositWhitelist(contract IInvestmentStrategy strategy)
+```
+
+Emitted when a strategy is removed from the approved list of strategies for deposit
+
 ### onlyNotFrozen
 
 ```solidity
@@ -117,6 +133,12 @@ modifier onlyEigenPodManager()
 
 ```solidity
 modifier onlyEigenPod(address podOwner, address pod)
+```
+
+### onlyStrategiesWhitelistedForDeposit
+
+```solidity
+modifier onlyStrategiesWhitelistedForDeposit(contract IInvestmentStrategy strategy)
 ```
 
 ### constructor
@@ -241,7 +263,7 @@ Called by a staker to undelegate entirely from EigenLayer. The staker must first
 ### queueWithdrawal
 
 ```solidity
-function queueWithdrawal(uint256[] strategyIndexes, struct IInvestmentManager.StratsTokensShares sts, address withdrawer, bool undelegateIfPossible) external returns (bytes32)
+function queueWithdrawal(uint256[] strategyIndexes, contract IInvestmentStrategy[] strategies, uint256[] shares, address withdrawer, bool undelegateIfPossible) external returns (bytes32)
 ```
 
 Called by a staker to queue a withdraw in the given token and shareAmount from each of the respective given strategies.
@@ -266,14 +288,15 @@ the enshrined 'beaconChainETH' strategy technically represent non-fungible posit
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | strategyIndexes | uint256[] | is a list of the indices in `investorStrats[msg.sender]` that correspond to the strategies for which `msg.sender` is withdrawing 100% of their shares |
-| sts | struct IInvestmentManager.StratsTokensShares |  |
+| strategies | contract IInvestmentStrategy[] |  |
+| shares | uint256[] |  |
 | withdrawer | address |  |
 | undelegateIfPossible | bool |  |
 
 ### completeQueuedWithdrawal
 
 ```solidity
-function completeQueuedWithdrawal(struct IInvestmentManager.QueuedWithdrawal queuedWithdrawal, uint256 middlewareTimesIndex, bool receiveAsTokens) external
+function completeQueuedWithdrawal(struct IInvestmentManager.QueuedWithdrawal queuedWithdrawal, contract IERC20[] tokens, uint256 middlewareTimesIndex, bool receiveAsTokens) external
 ```
 
 Used to complete the specified `queuedWithdrawal`. The function caller must match `queuedWithdrawal.withdrawer`
@@ -285,6 +308,7 @@ _middlewareTimesIndex should be calculated off chain before calling this functio
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | queuedWithdrawal | struct IInvestmentManager.QueuedWithdrawal | The QueuedWithdrawal to complete. |
+| tokens | contract IERC20[] |  |
 | middlewareTimesIndex | uint256 | is the index in the operator that the staker who triggered the withdrawal was delegated to's middleware times array |
 | receiveAsTokens | bool | If true, the shares specified in the queued withdrawal will be withdrawn from the specified strategies themselves and sent to the caller, through calls to `queuedWithdrawal.strategies[i].withdraw`. If false, then the shares in the specified strategies will simply be transferred to the caller directly. |
 
@@ -315,7 +339,7 @@ is to order the strategies *for which `msg.sender` is withdrawing 100% of their 
 ### slashQueuedWithdrawal
 
 ```solidity
-function slashQueuedWithdrawal(address recipient, struct IInvestmentManager.QueuedWithdrawal queuedWithdrawal) external
+function slashQueuedWithdrawal(address recipient, struct IInvestmentManager.QueuedWithdrawal queuedWithdrawal, contract IERC20[] tokens) external
 ```
 
 Slashes an existing queued withdrawal that was created by a 'frozen' operator (or a staker delegated to one)
@@ -326,6 +350,23 @@ Slashes an existing queued withdrawal that was created by a 'frozen' operator (o
 | ---- | ---- | ----------- |
 | recipient | address | The funds in the slashed withdrawal are withdrawn as tokens to this address. |
 | queuedWithdrawal | struct IInvestmentManager.QueuedWithdrawal |  |
+| tokens | contract IERC20[] |  |
+
+### addStrategiesToDepositWhitelist
+
+```solidity
+function addStrategiesToDepositWhitelist(contract IInvestmentStrategy[] strategiesToWhitelist) external
+```
+
+Owner-only function that adds the provided InvestmentStrategies to the 'whitelist' of strategies that stakers can deposit into
+
+### removeStrategiesFromDepositWhitelist
+
+```solidity
+function removeStrategiesFromDepositWhitelist(contract IInvestmentStrategy[] strategiesToRemoveFromWhitelist) external
+```
+
+Owner-only function that removes the provided InvestmentStrategies from the 'whitelist' of strategies that stakers can deposit into
 
 ### _addShares
 

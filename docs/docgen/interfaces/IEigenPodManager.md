@@ -165,6 +165,14 @@ function investmentManager() external view returns (contract IInvestmentManager)
 
 EigenLayer's InvestmentManager contract
 
+### slasher
+
+```solidity
+function slasher() external view returns (contract ISlasher)
+```
+
+EigenLayer's Slasher contract
+
 ### hasPod
 
 ```solidity

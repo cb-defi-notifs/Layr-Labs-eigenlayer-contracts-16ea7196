@@ -6,6 +6,9 @@ Simple, basic, "do-nothing" InvestmentStrategy that holds a single underlying to
 Implements minimal versions of the IInvestmentStrategy functions, this contract is designed to be inherited by
 more complex investment strategies, which can then override its functions as necessary.
 
+_This contract is expressly *not* intended for use with 'fee-on-transfer'-type tokens.
+Setting the `underlyingToken` to be a fee-on-transfer token may result in improper accounting._
+
 ### PAUSED_DEPOSITS
 
 ```solidity
@@ -16,6 +19,12 @@ uint8 PAUSED_DEPOSITS
 
 ```solidity
 uint8 PAUSED_WITHDRAWALS
+```
+
+### MIN_NONZERO_TOTAL_SHARES
+
+```solidity
+uint96 MIN_NONZERO_TOTAL_SHARES
 ```
 
 ### investmentManager
@@ -75,7 +84,11 @@ function deposit(contract IERC20 token, uint256 amount) external virtual returns
 Used to deposit tokens into this InvestmentStrategy
 
 _This function is only callable by the investmentManager contract. It is invoked inside of the investmentManager's
-`depositIntoStrategy` function, and individual share balances are recorded in the investmentManager as well._
+`depositIntoStrategy` function, and individual share balances are recorded in the investmentManager as well.
+Note that the assumption is made that `amount` of `token` has already been transferred directly to this contract
+(as performed in the InvestmentManager's deposit functions). In particular, setting the `underlyingToken` of this contract
+to be a fee-on-transfer token will break the assumption that the amount this contract *received* of the token is equal to
+the amount that was input when the transfer was performed (i.e. the amount transferred 'out' of the depositor's balance)._
 
 #### Parameters
 

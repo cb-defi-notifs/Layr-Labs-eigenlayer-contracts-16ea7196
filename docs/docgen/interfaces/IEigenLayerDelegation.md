@@ -113,7 +113,7 @@ Returns 'true' if `staker` *is* actively delegated, and 'false' otherwise.
 ### isNotDelegated
 
 ```solidity
-function isNotDelegated(address staker) external returns (bool)
+function isNotDelegated(address staker) external view returns (bool)
 ```
 
 Returns 'true' if `staker` is *not* actively delegated, and 'false' otherwise.
