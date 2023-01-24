@@ -28,7 +28,8 @@ interface IWhitelister {
     function queueWithdrawal(
         address staker,
         uint256[] calldata strategyIndexes,
-        IInvestmentManager.StratsTokensShares calldata sts,
+        IInvestmentStrategy[] calldata strategies,
+        uint256[] calldata shares,
         address withdrawer,
         bool undelegateIfPossible
     ) external returns (bytes memory);
@@ -36,6 +37,7 @@ interface IWhitelister {
     function completeQueuedWithdrawal(
         address staker,
         IInvestmentManager.QueuedWithdrawal calldata queuedWithdrawal,
+        IERC20[] calldata tokens,
         uint256 middlewareTimesIndex,
         bool receiveAsTokens
     ) external returns (bytes memory);

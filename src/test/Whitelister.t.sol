@@ -232,7 +232,6 @@ contract WhitelisterTests is EigenLayerTestHelper {
         _testQueueWithdrawal(
             staker,
             dataForTestWithdrawal.delegatorStrategies,
-            tokensArray,
             dataForTestWithdrawal.delegatorShares,
             strategyIndexes
         );
@@ -261,19 +260,17 @@ contract WhitelisterTests is EigenLayerTestHelper {
     function _testQueueWithdrawal(
         address staker,
         IInvestmentStrategy[] memory strategyArray,
-        IERC20[] memory tokensArray,
         uint256[] memory shareAmounts,
         uint256[] memory strategyIndexes
     )
         internal
     {
-        IInvestmentManager.StratsTokensShares memory sts;
-        sts =  IInvestmentManager.StratsTokensShares(strategyArray, tokensArray, shareAmounts);
         cheats.startPrank(theMultiSig);
         whiteLister.queueWithdrawal(
             staker,
             strategyIndexes,
-            sts,
+            strategyArray,
+            shareAmounts,
             staker,
             true
         );
@@ -294,7 +291,6 @@ contract WhitelisterTests is EigenLayerTestHelper {
     {
         IInvestmentManager.QueuedWithdrawal memory queuedWithdrawal = IInvestmentManager.QueuedWithdrawal({
             strategies: strategyArray,
-            tokens: tokensArray,
             shares: shareAmounts,
             depositor: staker,
             withdrawerAndNonce: withdrawerAndNonce,
@@ -311,7 +307,7 @@ contract WhitelisterTests is EigenLayerTestHelper {
         // emit log("***********************************************************************");
 
         cheats.startPrank(theMultiSig);
-        whiteLister.completeQueuedWithdrawal(staker, queuedWithdrawal, middlewareTimesIndex, true);
+        whiteLister.completeQueuedWithdrawal(staker, queuedWithdrawal, tokensArray, middlewareTimesIndex, true);
         cheats.stopPrank();
     }
     

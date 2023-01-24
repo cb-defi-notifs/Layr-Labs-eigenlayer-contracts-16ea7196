@@ -54,7 +54,6 @@ contract InvestmentManagerUnitTests is EigenLayerTestHelper {
         cheats.assume(withdrawer != address(this));
 
         IInvestmentStrategy[] memory strategyArray = new IInvestmentStrategy[](2);
-        IERC20[] memory tokensArray = new IERC20[](1);
         uint256[] memory shareAmounts = new uint256[](1);
         uint256[] memory strategyIndexes = new uint256[](1);
         bool undelegateIfPossible = false;
@@ -65,14 +64,12 @@ contract InvestmentManagerUnitTests is EigenLayerTestHelper {
             strategyIndexes[0] = 0;
         }
 
-        IInvestmentManager.StratsTokensShares memory sts = IInvestmentManager.StratsTokensShares(strategyArray, tokensArray, shareAmounts);
         cheats.expectRevert(bytes("InvestmentManager.queueWithdrawal: cannot queue a withdrawal of Beacon Chain ETH to a different address"));
-        investmentManagerMock.queueWithdrawal(strategyIndexes, sts, withdrawer, undelegateIfPossible);
+        investmentManagerMock.queueWithdrawal(strategyIndexes, strategyArray, shareAmounts, withdrawer, undelegateIfPossible);
     }
 
     function testQueuedWithdrawalsMultipleStrategiesWithBeaconChain() external {
         IInvestmentStrategy[] memory strategyArray = new IInvestmentStrategy[](2);
-        IERC20[] memory tokensArray = new IERC20[](2);
         uint256[] memory shareAmounts = new uint256[](2);
         uint256[] memory strategyIndexes = new uint256[](2);
         bool undelegateIfPossible = false;
@@ -86,9 +83,8 @@ contract InvestmentManagerUnitTests is EigenLayerTestHelper {
             strategyIndexes[1] = 1;
         }
 
-        IInvestmentManager.StratsTokensShares memory sts = IInvestmentManager.StratsTokensShares(strategyArray, tokensArray, shareAmounts);
         cheats.expectRevert(bytes("InvestmentManager.queueWithdrawal: cannot queue a withdrawal including Beacon Chain ETH and other tokens"));
-        investmentManagerMock.queueWithdrawal(strategyIndexes, sts, address(this), undelegateIfPossible);
+        investmentManagerMock.queueWithdrawal(strategyIndexes, strategyArray, shareAmounts, address(this), undelegateIfPossible);
 
         {
             strategyArray[0] = dummyStrat;
@@ -98,15 +94,13 @@ contract InvestmentManagerUnitTests is EigenLayerTestHelper {
             shareAmounts[1] = REQUIRED_BALANCE_WEI;
             strategyIndexes[1] = 1;
         }
-        sts = IInvestmentManager.StratsTokensShares(strategyArray, tokensArray, shareAmounts);
         cheats.expectRevert(bytes("InvestmentManager.queueWithdrawal: cannot queue a withdrawal including Beacon Chain ETH and other tokens"));
-        investmentManagerMock.queueWithdrawal(strategyIndexes, sts, address(this), undelegateIfPossible);
+        investmentManagerMock.queueWithdrawal(strategyIndexes, strategyArray, shareAmounts, address(this), undelegateIfPossible);
     }
 
     function testQueuedWithdrawalsNonWholeAmountGwei(uint256 nonWholeAmount) external {
         cheats.assume(nonWholeAmount % GWEI_TO_WEI != 0);
         IInvestmentStrategy[] memory strategyArray = new IInvestmentStrategy[](1);
-        IERC20[] memory tokensArray = new IERC20[](1);
         uint256[] memory shareAmounts = new uint256[](1);
         uint256[] memory strategyIndexes = new uint256[](1);
         bool undelegateIfPossible = false;
@@ -117,9 +111,8 @@ contract InvestmentManagerUnitTests is EigenLayerTestHelper {
             strategyIndexes[0] = 0;
         }
 
-        IInvestmentManager.StratsTokensShares memory sts = IInvestmentManager.StratsTokensShares(strategyArray, tokensArray, shareAmounts);
         cheats.expectRevert(bytes("InvestmentManager.queueWithdrawal: cannot queue a withdrawal of Beacon Chain ETH for an non-whole amount of gwei"));
-        investmentManagerMock.queueWithdrawal(strategyIndexes, sts, address(this), undelegateIfPossible);
+        investmentManagerMock.queueWithdrawal(strategyIndexes, strategyArray, shareAmounts, address(this), undelegateIfPossible);
     }
 
 }

@@ -132,7 +132,6 @@ contract WithdrawalTests is DelegationTests {
             depositor,
             strategyIndexes,
             dataForTestWithdrawal.delegatorStrategies,
-            tokensArray,
             dataForTestWithdrawal.delegatorShares,
             withdrawer,
             true
@@ -248,7 +247,6 @@ contract WithdrawalTests is DelegationTests {
             depositor,
             strategyIndexes,
             dataForTestWithdrawal.delegatorStrategies,
-            tokensArray,
             dataForTestWithdrawal.delegatorShares,
             dataForTestWithdrawal.withdrawerAndNonce.withdrawer,
             true
@@ -364,6 +362,6 @@ contract WithdrawalTests is DelegationTests {
         cheats.expectRevert(
             bytes("InvestmentManager.onlyNotFrozen: staker has been frozen and may be subject to slashing")
         );
-        _testQueueWithdrawal(staker, strategyIndexes, updatedStrategies, tokensArray, updatedShares, staker, true);
+        _testQueueWithdrawal(staker, strategyIndexes, updatedStrategies, updatedShares, staker, true);
     }
 }

@@ -71,7 +71,8 @@ contract InvestmentManagerMock is
 
     function queueWithdrawal(
         uint256[] calldata strategyIndexes,
-        StratsTokensShares calldata sts,
+        IInvestmentStrategy[] calldata strategies,
+        uint256[] calldata shares,
         address withdrawer,
         bool undelegateIfPossible
     )
@@ -80,6 +81,7 @@ contract InvestmentManagerMock is
 
     function completeQueuedWithdrawal(
         QueuedWithdrawal calldata queuedWithdrawal,
+        IERC20[] calldata tokens,
         uint256 middlewareTimesIndex,
         bool receiveAsTokens
     )
@@ -102,7 +104,8 @@ contract InvestmentManagerMock is
      */
     function slashQueuedWithdrawal(
         address recipient,
-        QueuedWithdrawal calldata queuedWithdrawal
+        QueuedWithdrawal calldata queuedWithdrawal,
+        IERC20[] calldata tokens
     )
         external{}
 

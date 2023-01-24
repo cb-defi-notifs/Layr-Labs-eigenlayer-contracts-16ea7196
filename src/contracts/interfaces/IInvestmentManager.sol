@@ -12,14 +12,7 @@ import "./IServiceManager.sol";
  * @notice See the `InvestmentManager` contract itself for implementation details.
  */
 interface IInvestmentManager {
-    // struct to reduce stack
-    struct StratsTokensShares {
-        IInvestmentStrategy[] strategies;
-        IERC20[] tokens;
-        uint256[] shares;
-    }
-
-    // packed struct for queued withdrawals
+    // packed struct for queued withdrawals; helps deal with stack-too-deep errors
     struct WithdrawerAndNonce {
         address withdrawer;
         uint96 nonce;
@@ -33,7 +26,6 @@ interface IInvestmentManager {
      */
     struct QueuedWithdrawal {
         IInvestmentStrategy[] strategies;
-        IERC20[] tokens;
         uint256[] shares;
         address depositor;
         WithdrawerAndNonce withdrawerAndNonce;
@@ -133,7 +125,8 @@ interface IInvestmentManager {
      */
     function queueWithdrawal(
         uint256[] calldata strategyIndexes,
-        StratsTokensShares calldata sts,
+        IInvestmentStrategy[] calldata strategies,
+        uint256[] calldata shares,
         address withdrawer,
         bool undelegateIfPossible
     )
@@ -150,6 +143,7 @@ interface IInvestmentManager {
      */
     function completeQueuedWithdrawal(
         QueuedWithdrawal calldata queuedWithdrawal,
+        IERC20[] calldata tokens,
         uint256 middlewareTimesIndex,
         bool receiveAsTokens
     )
@@ -180,10 +174,7 @@ interface IInvestmentManager {
      * @notice Slashes an existing queued withdrawal that was created by a 'frozen' operator (or a staker delegated to one)
      * @param recipient The funds in the slashed withdrawal are withdrawn as tokens to this address.
      */
-    function slashQueuedWithdrawal(
-        address recipient,
-        QueuedWithdrawal calldata queuedWithdrawal
-    )
+    function slashQueuedWithdrawal(address recipient, QueuedWithdrawal calldata queuedWithdrawal, IERC20[] calldata tokens)
         external;
 
     /// @notice Returns the keccak256 hash of `queuedWithdrawal`.
