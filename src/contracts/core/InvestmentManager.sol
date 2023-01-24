@@ -525,8 +525,14 @@ contract InvestmentManager is
     /**
      * @notice Slashes an existing queued withdrawal that was created by a 'frozen' operator (or a staker delegated to one)
      * @param recipient The funds in the slashed withdrawal are withdrawn as tokens to this address.
+     * @param queuedWithdrawal The previously queued withdrawal to be slashed
+     * @param tokens Array in which the i-th entry specifies the `token` input to the 'withdraw' function of the i-th InvestmentStrategy in the `strategies`
+     * array of the `queuedWithdrawal`.
+     * @param indicesToSkip Optional input parameter -- indices in the `strategies` array to skip (i.e. not call the 'withdraw' function on). This input exists
+     * so that, e.g., if the slashed QueuedWithdrawal contains a malicious strategy in the `strategies` array which always reverts on calls to its 'withdraw' function,
+     * then the malicious strategy can be skipped (with the shares in effect "burned"), while the non-malicious strategies are still called as normal.
      */
-    function slashQueuedWithdrawal(address recipient, QueuedWithdrawal calldata queuedWithdrawal, IERC20[] calldata tokens)
+    function slashQueuedWithdrawal(address recipient, QueuedWithdrawal calldata queuedWithdrawal, IERC20[] calldata tokens, uint256[] calldata indicesToSkip)
         external
         onlyOwner
         onlyFrozen(queuedWithdrawal.delegatedAddress)
@@ -546,18 +552,27 @@ contract InvestmentManager is
         // reset the storage slot in mapping of queued withdrawals
         withdrawalRootPending[withdrawalRoot] = false;
 
+        // keeps track of the index in the `indicesToSkip` array
+        uint256 indicesToSkipIndex = 0;
+
         uint256 strategiesLength = queuedWithdrawal.strategies.length;
         for (uint256 i = 0; i < strategiesLength;) {
-
-            if (queuedWithdrawal.strategies[i] == beaconChainETHStrategy){
-                 //withdraw the beaconChainETH to the recipient
-                eigenPodManager.withdrawRestakedBeaconChainETH(queuedWithdrawal.depositor, recipient, queuedWithdrawal.shares[i]);
+            // check if the index i matches one of the indices specified in the `indicesToSkip` array
+            if (indicesToSkipIndex < indicesToSkip.length && indicesToSkip[indicesToSkipIndex] == i) {
+                unchecked {
+                    ++indicesToSkipIndex;
+                }
             } else {
-                // tell the strategy to send the appropriate amount of funds to the recipient
-                queuedWithdrawal.strategies[i].withdraw(recipient, tokens[i], queuedWithdrawal.shares[i]);
-            }
-            unchecked {
-                ++i;
+                if (queuedWithdrawal.strategies[i] == beaconChainETHStrategy){
+                     //withdraw the beaconChainETH to the recipient
+                    eigenPodManager.withdrawRestakedBeaconChainETH(queuedWithdrawal.depositor, recipient, queuedWithdrawal.shares[i]);
+                } else {
+                    // tell the strategy to send the appropriate amount of funds to the recipient
+                    queuedWithdrawal.strategies[i].withdraw(recipient, tokens[i], queuedWithdrawal.shares[i]);
+                }
+                unchecked {
+                    ++i;
+                }
             }
         }
     }

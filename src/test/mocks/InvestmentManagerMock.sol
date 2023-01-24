@@ -105,7 +105,8 @@ contract InvestmentManagerMock is
     function slashQueuedWithdrawal(
         address recipient,
         QueuedWithdrawal calldata queuedWithdrawal,
-        IERC20[] calldata tokens
+        IERC20[] calldata tokens,
+        uint256[] calldata indicesToSkip
     )
         external{}
 
