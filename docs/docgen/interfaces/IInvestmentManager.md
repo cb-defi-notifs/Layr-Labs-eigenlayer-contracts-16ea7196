@@ -143,7 +143,7 @@ Simple getter function that returns `investorStrats[staker].length`.
 function queueWithdrawal(uint256[] strategyIndexes, contract IInvestmentStrategy[] strategies, uint256[] shares, address withdrawer, bool undelegateIfPossible) external returns (bytes32)
 ```
 
-Called by a staker to queue a withdraw the given amount of `shares` from each of the respective given `strategies`.
+Called by a staker to queue a withdrawal of the given amount of `shares` from each of the respective given `strategies`.
 
 _Stakers will complete their withdrawal by calling the 'completeQueuedWithdrawal' function.
 User shares are decreased in this function, but the total number of shares in each strategy remains the same.
@@ -185,7 +185,7 @@ _middlewareTimesIndex should be calculated off chain before calling this functio
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | queuedWithdrawal | struct IInvestmentManager.QueuedWithdrawal | The QueuedWithdrawal to complete. |
-| tokens | contract IERC20[] | Array in which the i-th entry specifies the `token` input to the 'withdraw' function of the i-th InvestmentStrategy in the `strategies` array of the `queuedWithdrawal`. This input can be provided with zero length if `receiveAsTokens` is set to 'false' (since in that case, this input will be unusued) |
+| tokens | contract IERC20[] | Array in which the i-th entry specifies the `token` input to the 'withdraw' function of the i-th InvestmentStrategy in the `strategies` array of the `queuedWithdrawal`. This input can be provided with zero length if `receiveAsTokens` is set to 'false' (since in that case, this input will be unused) |
 | middlewareTimesIndex | uint256 | is the index in the operator that the staker who triggered the withdrawal was delegated to's middleware times array |
 | receiveAsTokens | bool | If true, the shares specified in the queued withdrawal will be withdrawn from the specified strategies themselves and sent to the caller, through calls to `queuedWithdrawal.strategies[i].withdraw`. If false, then the shares in the specified strategies will simply be transferred to the caller directly. |
 

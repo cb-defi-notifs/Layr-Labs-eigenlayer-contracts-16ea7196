@@ -407,7 +407,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard {
         // remove rollableBalanceGwei from restakedExecutionLayerGwei and add it to instantlyWithdrawableBalanceGwei
         restakedExecutionLayerGwei -= amountGwei;
         instantlyWithdrawableBalanceGwei += amountGwei;
-        // mark amountGwei as having been rolled overonlyNotFrozen
+        // mark amountGwei as having been rolled over
         rollableBalanceGwei -= amountGwei;
         // pay penalties as much as possible to prevent podOwner from instantly withdrawing despite having any existing unpaid penalties
         _payOffPenalties();

@@ -105,7 +105,7 @@ interface IInvestmentManager {
     function investorStratsLength(address staker) external view returns (uint256);
 
     /**
-     * @notice Called by a staker to queue a withdraw the given amount of `shares` from each of the respective given `strategies`.
+     * @notice Called by a staker to queue a withdrawal of the given amount of `shares` from each of the respective given `strategies`.
      * @dev Stakers will complete their withdrawal by calling the 'completeQueuedWithdrawal' function.
      * User shares are decreased in this function, but the total number of shares in each strategy remains the same.
      * The total number of shares is decremented in the 'completeQueuedWithdrawal' function instead, which is where
@@ -137,8 +137,8 @@ interface IInvestmentManager {
     /**
      * @notice Used to complete the specified `queuedWithdrawal`. The function caller must match `queuedWithdrawal.withdrawer`
      * @param queuedWithdrawal The QueuedWithdrawal to complete.
-     * @param tokens Array in which the i-th entry specifies the `token` input to the 'withdraw' function of the i-th InvestmentStrategy in the `strategies`
-     * array of the `queuedWithdrawal`. This input can be provided with zero length if `receiveAsTokens` is set to 'false' (since in that case, this input will be unusued)
+     * @param tokens Array in which the i-th entry specifies the `token` input to the 'withdraw' function of the i-th InvestmentStrategy in the `strategies` array
+     * of the `queuedWithdrawal`. This input can be provided with zero length if `receiveAsTokens` is set to 'false' (since in that case, this input will be unused)
      * @param middlewareTimesIndex is the index in the operator that the staker who triggered the withdrawal was delegated to's middleware times array
      * @param receiveAsTokens If true, the shares specified in the queued withdrawal will be withdrawn from the specified strategies themselves
      * and sent to the caller, through calls to `queuedWithdrawal.strategies[i].withdraw`. If false, then the shares in the specified strategies

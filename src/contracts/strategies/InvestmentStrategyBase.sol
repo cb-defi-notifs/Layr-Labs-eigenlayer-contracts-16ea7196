@@ -119,16 +119,18 @@ contract InvestmentStrategyBase is Initializable, Pausable, IInvestmentStrategy 
             amountShares <= priorTotalShares,
             "InvestmentStrategyBase.withdraw: amountShares must be less than or equal to totalShares"
         );
-        // Decrease `totalShares` to reflect withdrawal. Unchecked arithmetic since we just checked this above.
-        uint256 updatedTotalShares = priorTotalShares - amountShares;
 
+        // Calculate the value that `totalShares` will decrease to as a result of the withdrawal
+        uint256 updatedTotalShares = priorTotalShares - amountShares;
         // check to avoid edge case where share rate can be massively inflated as a 'griefing' sort of attack
-        require(updatedTotalShares == 0 || updatedTotalShares >= MIN_NONZERO_TOTAL_SHARES,
+        require(updatedTotalShares >= MIN_NONZERO_TOTAL_SHARES || updatedTotalShares == 0,
             "InvestmentStrategyBase.withdraw: updated totalShares amount would be nonzero but below MIN_NONZERO_TOTAL_SHARES");
+        // Actually decrease the `totalShares` value
         totalShares = updatedTotalShares;
+
         /**
          * @notice calculation of amountToSend *mirrors* `sharesToUnderlying(amountShares)`, but is different since the `totalShares` has already
-         * been decremented
+         * been decremented. Specifically, notice how we use `priorTotalShares` here instead of `totalShares`.
          */
         uint256 amountToSend;
         if (priorTotalShares == amountShares) {
