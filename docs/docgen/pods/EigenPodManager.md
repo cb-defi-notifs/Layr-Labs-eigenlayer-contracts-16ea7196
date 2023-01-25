@@ -54,6 +54,14 @@ mapping(address => uint256) podOwnerToUnwithdrawnPaidPenalties
 
 Pod owner to the amount of penalties they have paid that are still in this contract
 
+### _podByOwner
+
+```solidity
+mapping(address => contract IEigenPod) _podByOwner
+```
+
+Pod owner to deployed EigenPod address
+
 ### BeaconOracleUpdated
 
 ```solidity

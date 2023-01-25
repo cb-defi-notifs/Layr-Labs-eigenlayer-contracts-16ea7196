@@ -39,7 +39,7 @@ when applied to a function, ensures that the function is only callable by the cu
 constructor(contract IInvestmentManager _investmentManager, contract IServiceManager _serviceManager, uint8 _NUMBER_OF_QUORUMS) internal
 ```
 
-Sets the (immutable) `delegation` and `investmentManager` addresses, as well as the (immutable) `NUMBER_OF_QUORUMS` variable
+Sets the (immutable) `investmentManager` and `serviceManager` addresses, as well as the (immutable) `NUMBER_OF_QUORUMS` variable
 
 ### _initialize
 

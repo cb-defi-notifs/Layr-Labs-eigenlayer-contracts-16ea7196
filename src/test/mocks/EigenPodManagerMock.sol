@@ -6,6 +6,7 @@ import "../../contracts/interfaces/IEigenPodManager.sol";
 
 
 contract EigenPodManagerMock is IEigenPodManager, Test {
+    function slasher() external view returns(ISlasher) {}
 
     function createPod() external pure {}
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity =0.8.12;
 
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -11,7 +11,6 @@ import "../libraries/Endian.sol";
 import "../interfaces/IETHPOSDeposit.sol";
 import "../interfaces/IEigenPodManager.sol";
 import "../interfaces/IEigenPod.sol";
-import "forge-std/Test.sol";
 
 /**
  * @title The implementation contract used for restaking beacon chain ETH on EigenLayer 
@@ -27,7 +26,7 @@ import "forge-std/Test.sol";
  *   to account balances and penalties in terms of gwei in the EigenPod contract and convert to wei when making
  *   calls to other contracts
  */
-contract EigenPod is IEigenPod, Initializable, ReentrancyGuard, Test {
+contract EigenPod is IEigenPod, Initializable, ReentrancyGuard {
     using BytesLib for bytes;
 
     uint256 internal constant GWEI_TO_WEI = 1e9;
@@ -101,6 +100,11 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard, Test {
         _;
     }
 
+    modifier onlyNotFrozen {
+        require(!eigenPodManager.slasher().isFrozen(podOwner), "EigenPod.onlyNotFrozen: pod owner is frozen");
+        _;
+    }
+
     constructor(IETHPOSDeposit _ethPOS, uint32 _PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS, uint256 _REQUIRED_BALANCE_WEI, uint64 _MIN_FULL_WITHDRAWAL_AMOUNT_GWEI) {
         ethPOS = _ethPOS;
         PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS = _PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS;
@@ -114,6 +118,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard, Test {
 
     /// @notice Used to initialize the pointers to contracts crucial to the pod's functionality, in beacon proxy construction from EigenPodManager
     function initialize(IEigenPodManager _eigenPodManager, address _podOwner) external initializer {
+        require(_podOwner != address(0), "EigenPod.initialize: podOwner cannot be zero address");
         eigenPodManager = _eigenPodManager;
         podOwner = _podOwner;
     }
@@ -396,7 +401,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard, Test {
      *         withdrawals, so the EigenPod thinks podOwner has more restakedExecutionLayerGwei and staked balance than their true amount of 'beaconChainETH' on EigenLayer
      * @param amountGwei is the amount, in gwei, to roll over
      */
-    function rollOverRollableBalance(uint64 amountGwei) external {
+    function rollOverRollableBalance(uint64 amountGwei) external onlyEigenPodOwner onlyNotFrozen {
         // this is also checked by built-in underflow checks
         require(restakedExecutionLayerGwei >= amountGwei, "EigenPod.rollOverRollableBalance: not enough restakedExecutionLayerGwei to roll over");
         // remove rollableBalanceGwei from restakedExecutionLayerGwei and add it to instantlyWithdrawableBalanceGwei
@@ -506,8 +511,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard, Test {
         }
     }
 
-    function _podWithdrawalCredentials() internal returns(bytes memory) {
-        emit log_named_bytes("withdraawl creds", abi.encodePacked(bytes1(uint8(1)), bytes11(0), address(this)));
+    function _podWithdrawalCredentials() internal view returns(bytes memory) {
         return abi.encodePacked(bytes1(uint8(1)), bytes11(0), address(this));
     }
 

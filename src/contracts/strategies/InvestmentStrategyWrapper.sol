@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity =0.8.12;
 
 import "../interfaces/IInvestmentManager.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -11,6 +11,8 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
  * @notice Simple, basic, "do-nothing" InvestmentStrategy that holds a single underlying token and returns it on withdrawals.
  * Assumes shares are always 1-to-1 with the underlyingToken.
  * @dev Unlike `InvestmentStrategyBase`, this contract is *not* designed to be inherited from.
+ * @dev This contract is expressly *not* intended for use with 'fee-on-transfer'-type tokens.
+ * Setting the `underlyingToken` to be a fee-on-transfer token may result in improper accounting.
  */
 contract InvestmentStrategyWrapper is IInvestmentStrategy {
     using SafeERC20 for IERC20;
@@ -40,6 +42,10 @@ contract InvestmentStrategyWrapper is IInvestmentStrategy {
      * @param amount is the amount of token being deposited
      * @dev This function is only callable by the investmentManager contract. It is invoked inside of the investmentManager's
      * `depositIntoStrategy` function, and individual share balances are recorded in the investmentManager as well.
+     * @dev Note that the assumption is made that `amount` of `token` has already been transferred directly to this contract
+     * (as performed in the InvestmentManager's deposit functions). In particular, setting the `underlyingToken` of this contract
+     * to be a fee-on-transfer token will break the assumption that the amount this contract *received* of the token is equal to
+     * the amount that was input when the transfer was performed (i.e. the amount transferred 'out' of the depositor's balance).
      * @return newShares is the number of new shares issued at the current exchange ratio.
      */
     function deposit(IERC20 token, uint256 amount) external virtual override onlyInvestmentManager returns (uint256) {

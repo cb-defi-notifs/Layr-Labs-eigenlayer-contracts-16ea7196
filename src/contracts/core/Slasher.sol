@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity =0.8.12;
 
 import "../interfaces/ISlasher.sol";
 import "../interfaces/IEigenLayerDelegation.sol";
@@ -8,8 +8,6 @@ import "../libraries/StructuredLinkedList.sol";
 import "../permissions/Pausable.sol";
 import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
-
-// import "forge-std/Test.sol";
 
 /**
  * @title The primary 'slashing' contract for EigenLayer.
@@ -182,6 +180,10 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
                 "Slasher.recordStakeUpdate: Removing middleware unsuccessful");
             // Run routine for updating the `operator`'s linked list of middlewares
             _updateMiddlewareList(operator, updateBlock, insertAfter);
+        // if there is precisely one middleware in the list, then ensure that the caller is indeed the singular list entrant
+        } else {
+            require(operatorToWhitelistedContractsByUpdate[operator].getHead() == _addressToUint(msg.sender),
+                "Slasher.recordStakeUpdate: Callter is not the list entrant");
         }
     }
 
@@ -317,13 +319,13 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
         /**
          * `node` being zero (i.e. equal to 'HEAD') indicates an empty/non-existent node, i.e. reaching the end of the linked list.
          * Since the linked list is ordered in ascending order of update blocks, we simply start from the head of the list and step through until
-         * we find a the *last* `node` for which `_whitelistedContractDetails[operator][node] <= updateBlock`, or
+         * we find a the *last* `node` for which `_whitelistedContractDetails[operator][node].latestUpdateBlock <= updateBlock`, or
          * otherwise reach the end of the list.
          */
         (, uint256 nextNode) = operatorToWhitelistedContractsByUpdate[operator].getNextNode(node);
         while ((nextNode != HEAD) && (_whitelistedContractDetails[operator][_uintToAddress(node)].latestUpdateBlock <= updateBlock)) {
-            (, nextNode) = operatorToWhitelistedContractsByUpdate[operator].getNextNode(node);
             node = nextNode;
+            (, nextNode) = operatorToWhitelistedContractsByUpdate[operator].getNextNode(node);
         }
         return node;
     }

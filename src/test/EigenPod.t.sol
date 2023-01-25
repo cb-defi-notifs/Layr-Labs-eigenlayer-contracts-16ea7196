@@ -1,5 +1,5 @@
 // //SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity =0.8.12;
 
 import "../contracts/interfaces/IEigenPod.sol";
 import "../contracts/interfaces/IBLSPublicKeyCompendium.sol";
@@ -736,7 +736,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         cheats.warp(uint32(block.timestamp) + 1 days);
         cheats.roll(uint32(block.timestamp) + 1 days);
 
-        _testQueueWithdrawal(podOwner, strategyIndexes, strategyArray, tokensArray, shareAmounts, undelegateIfPossible);
+        _testQueueWithdrawal(podOwner, strategyIndexes, strategyArray, shareAmounts, undelegateIfPossible);
         uint32 queuedWithdrawalStartBlock = uint32(block.number);
 
         //*************************DELEGATION/Stake Update STUFF******************************//
@@ -758,7 +758,6 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         address delegatedAddress = delegation.delegatedTo(podOwner);
         IInvestmentManager.QueuedWithdrawal memory queuedWithdrawal = IInvestmentManager.QueuedWithdrawal({
             strategies: strategyArray,
-            tokens: tokensArray,
             shares: shareAmounts,
             depositor: podOwner,
             withdrawerAndNonce: withdrawerAndNonce,
@@ -771,7 +770,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         bool receiveAsTokens = true;
         cheats.startPrank(podOwner);
 
-        investmentManager.completeQueuedWithdrawal(queuedWithdrawal, middlewareTimesIndex, receiveAsTokens);
+        investmentManager.completeQueuedWithdrawal(queuedWithdrawal, tokensArray, middlewareTimesIndex, receiveAsTokens);
 
         cheats.stopPrank();
 
@@ -969,20 +968,19 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         address depositor,
         uint256[] memory strategyIndexes,
         IInvestmentStrategy[] memory strategyArray,
-        IERC20[] memory tokensArray,
         uint256[] memory shareAmounts,
         bool undelegateIfPossible
     )
         internal
         returns (bytes32)
     {
-        IInvestmentManager.StratsTokensShares memory sts = IInvestmentManager.StratsTokensShares(strategyArray, tokensArray, shareAmounts);
         cheats.startPrank(depositor);
 
         //make a call with depositor aka podOwner also as withdrawer.
         bytes32 withdrawalRoot = investmentManager.queueWithdrawal(
             strategyIndexes,
-            sts,
+            strategyArray,
+            shareAmounts,
             depositor,
             // TODO: make this an input
             undelegateIfPossible

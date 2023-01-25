@@ -4,16 +4,6 @@
 
 See the `InvestmentManager` contract itself for implementation details.
 
-### StratsTokensShares
-
-```solidity
-struct StratsTokensShares {
-  contract IInvestmentStrategy[] strategies;
-  contract IERC20[] tokens;
-  uint256[] shares;
-}
-```
-
 ### WithdrawerAndNonce
 
 ```solidity
@@ -28,7 +18,6 @@ struct WithdrawerAndNonce {
 ```solidity
 struct QueuedWithdrawal {
   contract IInvestmentStrategy[] strategies;
-  contract IERC20[] tokens;
   uint256[] shares;
   address depositor;
   struct IInvestmentManager.WithdrawerAndNonce withdrawerAndNonce;
@@ -151,10 +140,10 @@ Simple getter function that returns `investorStrats[staker].length`.
 ### queueWithdrawal
 
 ```solidity
-function queueWithdrawal(uint256[] strategyIndexes, struct IInvestmentManager.StratsTokensShares sts, address withdrawer, bool undelegateIfPossible) external returns (bytes32)
+function queueWithdrawal(uint256[] strategyIndexes, contract IInvestmentStrategy[] strategies, uint256[] shares, address withdrawer, bool undelegateIfPossible) external returns (bytes32)
 ```
 
-Called by a staker to queue a withdraw in the given token and shareAmount from each of the respective given strategies.
+Called by a staker to queue a withdrawal of the given amount of `shares` from each of the respective given `strategies`.
 
 _Stakers will complete their withdrawal by calling the 'completeQueuedWithdrawal' function.
 User shares are decreased in this function, but the total number of shares in each strategy remains the same.
@@ -176,14 +165,15 @@ the enshrined 'beaconChainETH' strategy technically represent non-fungible posit
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | strategyIndexes | uint256[] | is a list of the indices in `investorStrats[msg.sender]` that correspond to the strategies for which `msg.sender` is withdrawing 100% of their shares |
-| sts | struct IInvestmentManager.StratsTokensShares |  |
+| strategies | contract IInvestmentStrategy[] | The InvestmentStrategies to withdraw from |
+| shares | uint256[] | The amount of shares to withdraw from each of the respective InvestmentStrategies in the `strategies` array |
 | withdrawer | address |  |
 | undelegateIfPossible | bool |  |
 
 ### completeQueuedWithdrawal
 
 ```solidity
-function completeQueuedWithdrawal(struct IInvestmentManager.QueuedWithdrawal queuedWithdrawal, uint256 middlewareTimesIndex, bool receiveAsTokens) external
+function completeQueuedWithdrawal(struct IInvestmentManager.QueuedWithdrawal queuedWithdrawal, contract IERC20[] tokens, uint256 middlewareTimesIndex, bool receiveAsTokens) external
 ```
 
 Used to complete the specified `queuedWithdrawal`. The function caller must match `queuedWithdrawal.withdrawer`
@@ -195,6 +185,7 @@ _middlewareTimesIndex should be calculated off chain before calling this functio
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | queuedWithdrawal | struct IInvestmentManager.QueuedWithdrawal | The QueuedWithdrawal to complete. |
+| tokens | contract IERC20[] | Array in which the i-th entry specifies the `token` input to the 'withdraw' function of the i-th InvestmentStrategy in the `strategies` array of the `queuedWithdrawal`. This input can be provided with zero length if `receiveAsTokens` is set to 'false' (since in that case, this input will be unused) |
 | middlewareTimesIndex | uint256 | is the index in the operator that the staker who triggered the withdrawal was delegated to's middleware times array |
 | receiveAsTokens | bool | If true, the shares specified in the queued withdrawal will be withdrawn from the specified strategies themselves and sent to the caller, through calls to `queuedWithdrawal.strategies[i].withdraw`. If false, then the shares in the specified strategies will simply be transferred to the caller directly. |
 
@@ -225,7 +216,7 @@ is to order the strategies *for which `msg.sender` is withdrawing 100% of their 
 ### slashQueuedWithdrawal
 
 ```solidity
-function slashQueuedWithdrawal(address recipient, struct IInvestmentManager.QueuedWithdrawal queuedWithdrawal) external
+function slashQueuedWithdrawal(address recipient, struct IInvestmentManager.QueuedWithdrawal queuedWithdrawal, contract IERC20[] tokens, uint256[] indicesToSkip) external
 ```
 
 Slashes an existing queued withdrawal that was created by a 'frozen' operator (or a staker delegated to one)
@@ -235,7 +226,9 @@ Slashes an existing queued withdrawal that was created by a 'frozen' operator (o
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | recipient | address | The funds in the slashed withdrawal are withdrawn as tokens to this address. |
-| queuedWithdrawal | struct IInvestmentManager.QueuedWithdrawal |  |
+| queuedWithdrawal | struct IInvestmentManager.QueuedWithdrawal | The previously queued withdrawal to be slashed |
+| tokens | contract IERC20[] | Array in which the i-th entry specifies the `token` input to the 'withdraw' function of the i-th InvestmentStrategy in the `strategies` array of the `queuedWithdrawal`. |
+| indicesToSkip | uint256[] | Optional input parameter -- indices in the `strategies` array to skip (i.e. not call the 'withdraw' function on). This input exists so that, e.g., if the slashed QueuedWithdrawal contains a malicious strategy in the `strategies` array which always reverts on calls to its 'withdraw' function, then the malicious strategy can be skipped (with the shares in effect "burned"), while the non-malicious strategies are still called as normal. |
 
 ### calculateWithdrawalRoot
 
@@ -244,6 +237,22 @@ function calculateWithdrawalRoot(struct IInvestmentManager.QueuedWithdrawal queu
 ```
 
 Returns the keccak256 hash of `queuedWithdrawal`.
+
+### addStrategiesToDepositWhitelist
+
+```solidity
+function addStrategiesToDepositWhitelist(contract IInvestmentStrategy[] strategiesToWhitelist) external
+```
+
+Owner-only function that adds the provided InvestmentStrategies to the 'whitelist' of strategies that stakers can deposit into
+
+### removeStrategiesFromDepositWhitelist
+
+```solidity
+function removeStrategiesFromDepositWhitelist(contract IInvestmentStrategy[] strategiesToRemoveFromWhitelist) external
+```
+
+Owner-only function that removes the provided InvestmentStrategies from the 'whitelist' of strategies that stakers can deposit into
 
 ### delegation
 

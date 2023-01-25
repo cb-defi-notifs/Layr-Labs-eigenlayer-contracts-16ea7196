@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity =0.8.12;
 
 import "../interfaces/IInvestmentManager.sol";
 import "../permissions/Pausable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
-import "forge-std/Test.sol";
 
 /**
  * @title Base implementation of `IInvestmentStrategy` interface, designed to be inherited from by more complex strategies.
@@ -14,12 +13,19 @@ import "forge-std/Test.sol";
  * @notice Simple, basic, "do-nothing" InvestmentStrategy that holds a single underlying token and returns it on withdrawals.
  * Implements minimal versions of the IInvestmentStrategy functions, this contract is designed to be inherited by
  * more complex investment strategies, which can then override its functions as necessary.
+ * @dev This contract is expressly *not* intended for use with 'fee-on-transfer'-type tokens.
+ * Setting the `underlyingToken` to be a fee-on-transfer token may result in improper accounting.
  */
 contract InvestmentStrategyBase is Initializable, Pausable, IInvestmentStrategy {
     using SafeERC20 for IERC20;
 
     uint8 internal constant PAUSED_DEPOSITS = 0;
     uint8 internal constant PAUSED_WITHDRAWALS = 1;
+    /*
+     * as long as at least *some* shares exist, this is the minimum number.
+     * i.e. `totalShares` must exist in the set {0, [MIN_NONZERO_TOTAL_SHARES, type(uint256).max]}
+    */
+    uint96 internal constant MIN_NONZERO_TOTAL_SHARES = 1e9;
 
     /// @notice EigenLayer's InvestmentManager contract
     IInvestmentManager public immutable investmentManager;
@@ -54,6 +60,10 @@ contract InvestmentStrategyBase is Initializable, Pausable, IInvestmentStrategy 
      * @param amount is the amount of token being deposited
      * @dev This function is only callable by the investmentManager contract. It is invoked inside of the investmentManager's
      * `depositIntoStrategy` function, and individual share balances are recorded in the investmentManager as well.
+     * @dev Note that the assumption is made that `amount` of `token` has already been transferred directly to this contract
+     * (as performed in the InvestmentManager's deposit functions). In particular, setting the `underlyingToken` of this contract
+     * to be a fee-on-transfer token will break the assumption that the amount this contract *received* of the token is equal to
+     * the amount that was input when the transfer was performed (i.e. the amount transferred 'out' of the depositor's balance).
      * @return newShares is the number of new shares issued at the current exchange ratio.
      */
     function deposit(IERC20 token, uint256 amount)
@@ -77,7 +87,14 @@ contract InvestmentStrategyBase is Initializable, Pausable, IInvestmentStrategy 
             newShares = (amount * totalShares) / priorTokenBalance;
         }
 
-        totalShares += newShares;
+        // checks to ensure correctness / avoid edge case where share rate can be massively inflated as a 'griefing' sort of attack
+        require(newShares != 0, "InvestmentStrategyBase.deposit: newShares cannot be zero");
+        uint256 updatedTotalShares = totalShares + newShares;
+        require(updatedTotalShares >= MIN_NONZERO_TOTAL_SHARES,
+            "InvestmentStrategyBase.deposit: updated totalShares amount would be nonzero but below MIN_NONZERO_TOTAL_SHARES");
+
+        // update total share amount
+        totalShares = updatedTotalShares;
         return newShares;
     }
 
@@ -96,19 +113,24 @@ contract InvestmentStrategyBase is Initializable, Pausable, IInvestmentStrategy 
         onlyInvestmentManager
     {
         require(token == underlyingToken, "InvestmentStrategyBase.withdraw: Can only withdraw the strategy token");
+        // copy `totalShares` value to memory, prior to any decrease
+        uint256 priorTotalShares = totalShares;
         require(
-            amountShares <= totalShares,
+            amountShares <= priorTotalShares,
             "InvestmentStrategyBase.withdraw: amountShares must be less than or equal to totalShares"
         );
-        // copy `totalShares` value prior to decrease
-        uint256 priorTotalShares = totalShares;
-        // Decrease `totalShares` to reflect withdrawal. Unchecked arithmetic since we just checked this above.
-        unchecked {
-            totalShares -= amountShares;
-        }
+
+        // Calculate the value that `totalShares` will decrease to as a result of the withdrawal
+        uint256 updatedTotalShares = priorTotalShares - amountShares;
+        // check to avoid edge case where share rate can be massively inflated as a 'griefing' sort of attack
+        require(updatedTotalShares >= MIN_NONZERO_TOTAL_SHARES || updatedTotalShares == 0,
+            "InvestmentStrategyBase.withdraw: updated totalShares amount would be nonzero but below MIN_NONZERO_TOTAL_SHARES");
+        // Actually decrease the `totalShares` value
+        totalShares = updatedTotalShares;
+
         /**
          * @notice calculation of amountToSend *mirrors* `sharesToUnderlying(amountShares)`, but is different since the `totalShares` has already
-         * been decremented
+         * been decremented. Specifically, notice how we use `priorTotalShares` here instead of `totalShares`.
          */
         uint256 amountToSend;
         if (priorTotalShares == amountShares) {

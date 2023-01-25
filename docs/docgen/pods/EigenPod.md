@@ -183,6 +183,12 @@ modifier onlyEigenPodManager()
 modifier onlyEigenPodOwner()
 ```
 
+### onlyNotFrozen
+
+```solidity
+modifier onlyNotFrozen()
+```
+
 ### constructor
 
 ```solidity

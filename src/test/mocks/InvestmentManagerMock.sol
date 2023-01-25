@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity =0.8.12;
 
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
@@ -71,7 +71,8 @@ contract InvestmentManagerMock is
 
     function queueWithdrawal(
         uint256[] calldata strategyIndexes,
-        StratsTokensShares calldata sts,
+        IInvestmentStrategy[] calldata strategies,
+        uint256[] calldata shares,
         address withdrawer,
         bool undelegateIfPossible
     )
@@ -80,6 +81,7 @@ contract InvestmentManagerMock is
 
     function completeQueuedWithdrawal(
         QueuedWithdrawal calldata queuedWithdrawal,
+        IERC20[] calldata tokens,
         uint256 middlewareTimesIndex,
         bool receiveAsTokens
     )
@@ -102,7 +104,9 @@ contract InvestmentManagerMock is
      */
     function slashQueuedWithdrawal(
         address recipient,
-        QueuedWithdrawal calldata queuedWithdrawal
+        QueuedWithdrawal calldata queuedWithdrawal,
+        IERC20[] calldata tokens,
+        uint256[] calldata indicesToSkip
     )
         external{}
 
@@ -116,4 +120,8 @@ contract InvestmentManagerMock is
 
     /// @notice returns the enshrined beaconChainETH Strategy
     function beaconChainETHStrategy() external view returns (IInvestmentStrategy){}
+
+    function addStrategiesToDepositWhitelist(IInvestmentStrategy[] calldata /*strategiesToWhitelist*/) external pure {}
+
+    function removeStrategiesFromDepositWhitelist(IInvestmentStrategy[] calldata /*strategiesToRemoveFromWhitelist*/) external pure {}    
 }

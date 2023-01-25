@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity =0.8.12;
 
 import "../../contracts/interfaces/IBLSPublicKeyCompendium.sol";
 import "../../contracts/libraries/BN254.sol";

@@ -68,7 +68,7 @@ Returns the single, central Slasher contract of EigenLayer
 mapping(address => mapping(contract IInvestmentStrategy => uint256)) investorStratShares
 ```
 
-Returns the current shares of `user` in `strategy`
+Mapping: staker => InvestmentStrategy => number of shares which they currently hold
 
 ### investorStrats
 
@@ -76,17 +76,31 @@ Returns the current shares of `user` in `strategy`
 mapping(address => contract IInvestmentStrategy[]) investorStrats
 ```
 
+Mapping: staker => array of strategies in which they have nonzero shares
+
 ### withdrawalRootPending
 
 ```solidity
 mapping(bytes32 => bool) withdrawalRootPending
 ```
 
+Mapping: hash of withdrawal inputs, aka 'withdrawalRoot' => whether the withdrawal is pending
+
 ### numWithdrawalsQueued
 
 ```solidity
 mapping(address => uint256) numWithdrawalsQueued
 ```
+
+Mapping: staker => cumulative number of queued withdrawals they have ever initiated. only increments (doesn't decrement)
+
+### strategyIsWhitelistedForDeposit
+
+```solidity
+mapping(contract IInvestmentStrategy => bool) strategyIsWhitelistedForDeposit
+```
+
+Mapping: strategy => whether or not stakers are allowed to deposit into it
 
 ### beaconChainETHStrategy
 

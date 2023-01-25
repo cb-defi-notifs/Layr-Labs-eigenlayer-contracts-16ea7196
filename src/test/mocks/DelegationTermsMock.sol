@@ -17,38 +17,43 @@ contract DelegationTermsMock is IDelegationTerms, Test {
         shouldReturnData = _shouldReturnData;
     }
 
-    function payForService(IERC20 token, uint256 amount) external payable {
+    function payForService(IERC20 /*token*/, uint256 /*amount*/) external payable {
 
     }
 
     function onDelegationWithdrawn(
-        address delegator,
-        IInvestmentStrategy[] memory investorStrats,
-        uint256[] memory investorShares
-    ) external returns (bytes memory){
+        address /*delegator*/,
+        IInvestmentStrategy[] memory /*investorStrats*/,
+        uint256[] memory /*investorShares*/
+    ) external view returns (bytes memory) {
         if (shouldRevert) {
             revert("reverting as intended");
         }
 
-        if(shouldReturnData) {
+        if (shouldReturnData) {
             bytes32[5] memory returnData = [bytes32(0), bytes32(0), bytes32(0), bytes32(0), bytes32(0)];
             return abi.encodePacked(returnData);
         }
+
+        bytes memory emptyReturnData;
+        return emptyReturnData;
     }
 
     function onDelegationReceived(
-        address delegator,
-        IInvestmentStrategy[] memory investorStrats,
-        uint256[] memory investorShares
-    ) external returns (bytes memory){
+        address /*delegator*/,
+        IInvestmentStrategy[] memory /*investorStrats*/,
+        uint256[] memory /*investorShares*/
+    ) external view returns (bytes memory) {
         if (shouldRevert) {
             revert("reverting as intended");
         }
-        if(shouldReturnData) {
+        if (shouldReturnData) {
             bytes32[5] memory returnData = [bytes32(0), bytes32(0), bytes32(0), bytes32(0), bytes32(0)];
             return abi.encodePacked(returnData);
         }
 
+        bytes memory emptyReturnData;
+        return emptyReturnData;
     }
 
 }

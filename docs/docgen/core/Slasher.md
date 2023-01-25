@@ -93,7 +93,7 @@ operator =>
 ### MiddlewareTimesAdded
 
 ```solidity
-event MiddlewareTimesAdded(address operator, uint256 index, struct ISlasher.MiddlewareTimes middlewareTimes)
+event MiddlewareTimesAdded(address operator, uint256 index, uint32 stalestUpdateBlock, uint32 latestServeUntil)
 ```
 
 Emitted when a middleware times is added to `operator`'s array.

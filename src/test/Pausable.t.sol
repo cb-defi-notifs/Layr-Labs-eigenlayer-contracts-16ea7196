@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 
-pragma solidity ^0.8.9;
+pragma solidity =0.8.12;
 
 import "./EigenLayerTestHelper.t.sol";
 
@@ -8,6 +8,8 @@ contract PausableTests is EigenLayerTestHelper {
     ///@dev test that pausing a contract works
     function testPausingWithdrawalsFromInvestmentManager(uint256 amountToDeposit, uint256 amountToWithdraw) public {
         cheats.assume(amountToDeposit <= weth.balanceOf(address(this)));
+        // if first deposit amount to base strategy is too small, it will revert. ignore that case here.
+        cheats.assume(amountToDeposit >= 1e9);
         cheats.assume(amountToWithdraw <= amountToDeposit);
 
         address sender = getOperatorAddress(0);

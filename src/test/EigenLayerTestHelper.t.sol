@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity =0.8.12;
 
 import "../contracts/libraries/BytesLib.sol";
 import "../test/EigenLayerDeployer.t.sol";
@@ -109,6 +109,13 @@ contract EigenLayerTestHelper is EigenLayerDeployer {
     {
         // deposits will revert when amountToDeposit is 0
         cheats.assume(amountToDeposit > 0);
+
+        // whitelist the strategy for deposit, in case it wasn't before
+        cheats.startPrank(investmentManager.owner());
+        IInvestmentStrategy[] memory _strategy = new IInvestmentStrategy[](1);
+        _strategy[0] = stratToDepositTo;
+        investmentManager.addStrategiesToDepositWhitelist(_strategy);
+        cheats.stopPrank();
 
         uint256 operatorSharesBefore = investmentManager.investorStratShares(sender, stratToDepositTo);
         // assumes this contract already has the underlying token!
@@ -288,7 +295,6 @@ contract EigenLayerTestHelper is EigenLayerDeployer {
         bool registerAsOperator,
         uint256 amountToDeposit,
         IInvestmentStrategy[] memory strategyArray,
-        IERC20[] memory tokensArray,
         uint256[] memory shareAmounts,
         uint256[] memory strategyIndexes,
         address withdrawer
@@ -313,7 +319,6 @@ contract EigenLayerTestHelper is EigenLayerDeployer {
 
         queuedWithdrawal = IInvestmentManager.QueuedWithdrawal({
             strategies: strategyArray,
-            tokens: tokensArray,
             shares: shareAmounts,
             depositor: staker,
             withdrawerAndNonce: withdrawerAndNonce,
@@ -332,7 +337,7 @@ contract EigenLayerTestHelper is EigenLayerDeployer {
 
         //queue the withdrawal
         // TODO: check with 'undelegateIfPossible' = false, rather than just true
-        withdrawalRoot = _testQueueWithdrawal(staker, strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawer, true);
+        withdrawalRoot = _testQueueWithdrawal(staker, strategyIndexes, strategyArray, shareAmounts, withdrawer, true);
         return (withdrawalRoot, queuedWithdrawal);
     }
 
@@ -437,7 +442,6 @@ contract EigenLayerTestHelper is EigenLayerDeployer {
 
         IInvestmentManager.QueuedWithdrawal memory queuedWithdrawal = IInvestmentManager.QueuedWithdrawal({
             strategies: strategyArray,
-            tokens: tokensArray,
             shares: shareAmounts,
             depositor: depositor,
             withdrawerAndNonce: withdrawerAndNonce,
@@ -446,7 +450,7 @@ contract EigenLayerTestHelper is EigenLayerDeployer {
         });
 
         // complete the queued withdrawal
-        investmentManager.completeQueuedWithdrawal(queuedWithdrawal, middlewareTimesIndex, false);
+        investmentManager.completeQueuedWithdrawal(queuedWithdrawal, tokensArray, middlewareTimesIndex, false);
 
         for (uint256 i = 0; i < strategyArray.length; i++) {
             require(
@@ -480,7 +484,6 @@ contract EigenLayerTestHelper is EigenLayerDeployer {
     
         IInvestmentManager.QueuedWithdrawal memory queuedWithdrawal = IInvestmentManager.QueuedWithdrawal({
             strategies: strategyArray,
-            tokens: tokensArray,
             shares: shareAmounts,
             depositor: depositor,
             withdrawerAndNonce: withdrawerAndNonce,
@@ -488,7 +491,7 @@ contract EigenLayerTestHelper is EigenLayerDeployer {
             delegatedAddress: delegatedTo
         });
         // complete the queued withdrawal
-        investmentManager.completeQueuedWithdrawal(queuedWithdrawal, middlewareTimesIndex, true);
+        investmentManager.completeQueuedWithdrawal(queuedWithdrawal, tokensArray, middlewareTimesIndex, true);
 
         for (uint256 i = 0; i < strategyArray.length; i++) {
             //uint256 strategyTokenBalance = strategyArray[i].underlyingToken().balanceOf(address(strategyArray[i]));
@@ -508,7 +511,6 @@ contract EigenLayerTestHelper is EigenLayerDeployer {
         address depositor,
         uint256[] memory strategyIndexes,
         IInvestmentStrategy[] memory strategyArray,
-        IERC20[] memory tokensArray,
         uint256[] memory shareAmounts,
         address withdrawer,
         bool undelegateIfPossible
@@ -516,16 +518,12 @@ contract EigenLayerTestHelper is EigenLayerDeployer {
         internal
         returns (bytes32)
     {
-        IInvestmentManager.StratsTokensShares memory sts = IInvestmentManager.StratsTokensShares({
-            strategies: strategyArray,
-            tokens: tokensArray,
-            shares: shareAmounts
-        }); 
         cheats.startPrank(depositor);
 
         bytes32 withdrawalRoot = investmentManager.queueWithdrawal(
             strategyIndexes,
-            sts,
+            strategyArray,
+            shareAmounts,
             withdrawer,
             // TODO: make this an input
             undelegateIfPossible

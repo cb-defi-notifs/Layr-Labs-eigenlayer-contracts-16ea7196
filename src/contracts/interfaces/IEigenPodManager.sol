@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity =0.8.12;
 
 import "./IInvestmentManager.sol";
 import "./IEigenPod.sol";
@@ -85,6 +85,9 @@ interface IEigenPodManager {
 
     /// @notice EigenLayer's InvestmentManager contract
     function investmentManager() external view returns(IInvestmentManager);
+
+    /// @notice EigenLayer's Slasher contract
+    function slasher() external view returns(ISlasher);
 
     function hasPod(address podOwner) external view returns (bool);
 }

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity =0.8.12;
 
 import "../src/contracts/interfaces/IEigenLayerDelegation.sol";
 import "../src/contracts/core/EigenLayerDelegation.sol";

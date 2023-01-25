@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity =0.8.12;
 
 import "../../src/contracts/interfaces/IInvestmentManager.sol";
 import "../../src/contracts/interfaces/IInvestmentStrategy.sol";
@@ -125,6 +125,12 @@ contract WhitelisterTests is EigenLayerTestHelper {
 
         fuzzedAddressMapping[address(whiteLister)] = true;
 
+        // whitelist the strategy for deposit
+        cheats.startPrank(investmentManager.owner());
+        IInvestmentStrategy[] memory _strategy = new IInvestmentStrategy[](1);
+        _strategy[0] = dummyStrat;
+        investmentManager.addStrategiesToDepositWhitelist(_strategy);
+        cheats.stopPrank();
     }
 
     function testWhitelistingOperator(address operator) public fuzzedAddress(operator){
@@ -226,7 +232,6 @@ contract WhitelisterTests is EigenLayerTestHelper {
         _testQueueWithdrawal(
             staker,
             dataForTestWithdrawal.delegatorStrategies,
-            tokensArray,
             dataForTestWithdrawal.delegatorShares,
             strategyIndexes
         );
@@ -255,19 +260,17 @@ contract WhitelisterTests is EigenLayerTestHelper {
     function _testQueueWithdrawal(
         address staker,
         IInvestmentStrategy[] memory strategyArray,
-        IERC20[] memory tokensArray,
         uint256[] memory shareAmounts,
         uint256[] memory strategyIndexes
     )
         internal
     {
-        IInvestmentManager.StratsTokensShares memory sts;
-        sts =  IInvestmentManager.StratsTokensShares(strategyArray, tokensArray, shareAmounts);
         cheats.startPrank(theMultiSig);
         whiteLister.queueWithdrawal(
             staker,
             strategyIndexes,
-            sts,
+            strategyArray,
+            shareAmounts,
             staker,
             true
         );
@@ -288,7 +291,6 @@ contract WhitelisterTests is EigenLayerTestHelper {
     {
         IInvestmentManager.QueuedWithdrawal memory queuedWithdrawal = IInvestmentManager.QueuedWithdrawal({
             strategies: strategyArray,
-            tokens: tokensArray,
             shares: shareAmounts,
             depositor: staker,
             withdrawerAndNonce: withdrawerAndNonce,
@@ -305,7 +307,7 @@ contract WhitelisterTests is EigenLayerTestHelper {
         // emit log("***********************************************************************");
 
         cheats.startPrank(theMultiSig);
-        whiteLister.completeQueuedWithdrawal(staker, queuedWithdrawal, middlewareTimesIndex, true);
+        whiteLister.completeQueuedWithdrawal(staker, queuedWithdrawal, tokensArray, middlewareTimesIndex, true);
         cheats.stopPrank();
     }
     

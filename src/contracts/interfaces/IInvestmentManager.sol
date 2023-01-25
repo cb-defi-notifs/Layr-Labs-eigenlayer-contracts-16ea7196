@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity =0.8.12;
 
 import "./IInvestmentStrategy.sol";
 import "./ISlasher.sol";
@@ -12,14 +12,7 @@ import "./IServiceManager.sol";
  * @notice See the `InvestmentManager` contract itself for implementation details.
  */
 interface IInvestmentManager {
-    // struct to reduce stack
-    struct StratsTokensShares {
-        IInvestmentStrategy[] strategies;
-        IERC20[] tokens;
-        uint256[] shares;
-    }
-
-    // packed struct for queued withdrawals
+    // packed struct for queued withdrawals; helps deal with stack-too-deep errors
     struct WithdrawerAndNonce {
         address withdrawer;
         uint96 nonce;
@@ -33,7 +26,6 @@ interface IInvestmentManager {
      */
     struct QueuedWithdrawal {
         IInvestmentStrategy[] strategies;
-        IERC20[] tokens;
         uint256[] shares;
         address depositor;
         WithdrawerAndNonce withdrawerAndNonce;
@@ -113,7 +105,7 @@ interface IInvestmentManager {
     function investorStratsLength(address staker) external view returns (uint256);
 
     /**
-     * @notice Called by a staker to queue a withdraw in the given token and shareAmount from each of the respective given strategies.
+     * @notice Called by a staker to queue a withdrawal of the given amount of `shares` from each of the respective given `strategies`.
      * @dev Stakers will complete their withdrawal by calling the 'completeQueuedWithdrawal' function.
      * User shares are decreased in this function, but the total number of shares in each strategy remains the same.
      * The total number of shares is decremented in the 'completeQueuedWithdrawal' function instead, which is where
@@ -122,6 +114,8 @@ interface IInvestmentManager {
      * to accrue gains during the enforced WITHDRAWAL_WAITING_PERIOD.
      * @param strategyIndexes is a list of the indices in `investorStrats[msg.sender]` that correspond to the strategies
      * for which `msg.sender` is withdrawing 100% of their shares
+     * @param strategies The InvestmentStrategies to withdraw from
+     * @param shares The amount of shares to withdraw from each of the respective InvestmentStrategies in the `strategies` array
      * @dev Strategies are removed from `investorStrats` by swapping the last entry with the entry to be removed, then
      * popping off the last entry in `investorStrats`. The simplest way to calculate the correct `strategyIndexes` to input
      * is to order the strategies *for which `msg.sender` is withdrawing 100% of their shares* from highest index in
@@ -133,7 +127,8 @@ interface IInvestmentManager {
      */
     function queueWithdrawal(
         uint256[] calldata strategyIndexes,
-        StratsTokensShares calldata sts,
+        IInvestmentStrategy[] calldata strategies,
+        uint256[] calldata shares,
         address withdrawer,
         bool undelegateIfPossible
     )
@@ -142,6 +137,8 @@ interface IInvestmentManager {
     /**
      * @notice Used to complete the specified `queuedWithdrawal`. The function caller must match `queuedWithdrawal.withdrawer`
      * @param queuedWithdrawal The QueuedWithdrawal to complete.
+     * @param tokens Array in which the i-th entry specifies the `token` input to the 'withdraw' function of the i-th InvestmentStrategy in the `strategies` array
+     * of the `queuedWithdrawal`. This input can be provided with zero length if `receiveAsTokens` is set to 'false' (since in that case, this input will be unused)
      * @param middlewareTimesIndex is the index in the operator that the staker who triggered the withdrawal was delegated to's middleware times array
      * @param receiveAsTokens If true, the shares specified in the queued withdrawal will be withdrawn from the specified strategies themselves
      * and sent to the caller, through calls to `queuedWithdrawal.strategies[i].withdraw`. If false, then the shares in the specified strategies
@@ -150,6 +147,7 @@ interface IInvestmentManager {
      */
     function completeQueuedWithdrawal(
         QueuedWithdrawal calldata queuedWithdrawal,
+        IERC20[] calldata tokens,
         uint256 middlewareTimesIndex,
         bool receiveAsTokens
     )
@@ -179,11 +177,14 @@ interface IInvestmentManager {
     /**
      * @notice Slashes an existing queued withdrawal that was created by a 'frozen' operator (or a staker delegated to one)
      * @param recipient The funds in the slashed withdrawal are withdrawn as tokens to this address.
+     * @param queuedWithdrawal The previously queued withdrawal to be slashed
+     * @param tokens Array in which the i-th entry specifies the `token` input to the 'withdraw' function of the i-th InvestmentStrategy in the `strategies`
+     * array of the `queuedWithdrawal`.
+     * @param indicesToSkip Optional input parameter -- indices in the `strategies` array to skip (i.e. not call the 'withdraw' function on). This input exists
+     * so that, e.g., if the slashed QueuedWithdrawal contains a malicious strategy in the `strategies` array which always reverts on calls to its 'withdraw' function,
+     * then the malicious strategy can be skipped (with the shares in effect "burned"), while the non-malicious strategies are still called as normal.
      */
-    function slashQueuedWithdrawal(
-        address recipient,
-        QueuedWithdrawal calldata queuedWithdrawal
-    )
+    function slashQueuedWithdrawal(address recipient, QueuedWithdrawal calldata queuedWithdrawal, IERC20[] calldata tokens, uint256[] calldata indicesToSkip)
         external;
 
     /// @notice Returns the keccak256 hash of `queuedWithdrawal`.
@@ -193,6 +194,12 @@ interface IInvestmentManager {
         external
         pure
         returns (bytes32);
+
+    /// @notice Owner-only function that adds the provided InvestmentStrategies to the 'whitelist' of strategies that stakers can deposit into
+    function addStrategiesToDepositWhitelist(IInvestmentStrategy[] calldata strategiesToWhitelist) external;
+
+    /// @notice Owner-only function that removes the provided InvestmentStrategies from the 'whitelist' of strategies that stakers can deposit into
+    function removeStrategiesFromDepositWhitelist(IInvestmentStrategy[] calldata strategiesToRemoveFromWhitelist) external;
 
     /// @notice Returns the single, central Delegation contract of EigenLayer
     function delegation() external view returns (IEigenLayerDelegation);
