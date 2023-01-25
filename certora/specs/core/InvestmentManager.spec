@@ -51,6 +51,7 @@ methods {
 invariant investorStratsLengthLessThanOrEqualToMax(address staker)
 	investorStratsLength(staker) <= 32
 
+// verifies that strategies in the staker's array of strategies are not duplicated, and that the staker has nonzero shares in each one
 invariant arrayExhibitsProperties(address staker)
     array_exhibits_properties(staker) == true
         {
@@ -59,24 +60,7 @@ invariant arrayExhibitsProperties(address staker)
                 requireInvariant investorStratsLengthLessThanOrEqualToMax(staker);
             }
         }
-/*
-// Seems like perhaps `strategiesInArrayHaveNonzeroShares` and `strategiesInArrayHaveNonzeroSharesAttemptTwo`
-// are failing due to dispatcher hitting HAVOC inside of the safeTransfer of the Base Strategy (or similar, multi-level-deep calls)
-// seeing failures in `queueWithdrawal`, `recordOvercommittedBeaconChainETH`, `completeQueuedWithdrawal`, `slashShares`, and `slashQueuedWithdrawal`
-
-invariant noDuplicatesInArray(address staker, address strategy)
-    num_times_strategy_is_in_stakers_array(staker, strategy) <= 1
-
-// TODO: this rule is currently failing, but is likely salvageable. presumably needs a stricter condition.
-// if a strategy is in the staker's array of strategies, then the staker should have nonzero shares in that strategy
-invariant strategiesInArrayHaveNonzeroShares(address staker, uint256 index)
-    (index < investorStratsLength(staker)) => (investorStratShares(staker, investorStrats(staker, index)) > 0)
-
-// if a strategy is in the staker's array of strategies, then the staker should have nonzero shares in that strategy
-invariant strategiesInArrayHaveNonzeroSharesAttemptTwo(address staker, address strategy)
-    strategy_is_in_stakers_array(staker, strategy) <=> (investorStratShares(staker, strategy) > 0)
 
 // if a strategy is *not* in staker's array of strategies, then the staker should have precisely zero shares in that strategy
 invariant strategiesNotInArrayHaveZeroShares(address staker, uint256 index)
     (index >= investorStratsLength(staker)) => (investorStratShares(staker, investorStrats(staker, index)) == 0)
-*/
