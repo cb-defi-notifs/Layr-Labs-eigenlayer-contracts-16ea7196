@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.so
 import "forge-std/Test.sol";
 
 import "../../contracts/core/InvestmentManager.sol";
-import "../../contracts/strategies/InvestmentStrategyBase.sol";
+import "../../contracts/strategies/InvestmentStrategyWrapper.sol";
 import "../../contracts/permissions/PauserRegistry.sol";
 import "../mocks/DelegationMock.sol";
 import "../mocks/SlasherMock.sol";
@@ -34,8 +34,7 @@ contract InvestmentManagerUnitTests is Test {
     SlasherMock public slasherMock;
     EigenPodManagerMock public eigenPodManagerMock;
 
-    InvestmentStrategyBase public dummyStratImplementation;
-    InvestmentStrategyBase public dummyStrat;
+    InvestmentStrategyWrapper public dummyStrat;
 
     IInvestmentStrategy public beaconChainETHStrategy;
 
@@ -82,16 +81,7 @@ contract InvestmentManagerUnitTests is Test {
             )
         );
         dummyToken = new ERC20Mock();
-        dummyStratImplementation = new InvestmentStrategyBase(investmentManager);
-        dummyStrat = InvestmentStrategyBase(
-            address(
-                new TransparentUpgradeableProxy(
-                    address(dummyStratImplementation),
-                    address(proxyAdmin),
-                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, dummyToken, pauserRegistry)
-                )
-            )
-        );
+        dummyStrat = new InvestmentStrategyWrapper(investmentManager, dummyToken);
 
         // whitelist the strategy for deposit
         cheats.startPrank(investmentManager.owner());
@@ -293,6 +283,13 @@ contract InvestmentManagerUnitTests is Test {
 
         reenterer = new Reenterer();
 
+        // whitelist the strategy for deposit
+        cheats.startPrank(investmentManager.owner());
+        IInvestmentStrategy[] memory _strategy = new IInvestmentStrategy[](1);
+        _strategy[0] = IInvestmentStrategy(address(reenterer));
+        investmentManager.addStrategiesToDepositWhitelist(_strategy);
+        cheats.stopPrank();
+
         reenterer.prepareReturnData(abi.encode(amount));
 
         address targetToUse = address(investmentManager);
@@ -412,6 +409,13 @@ contract InvestmentManagerUnitTests is Test {
 
     function testDepositIntoStrategyOnBehalfOfFailsWhenReentering() public {
         reenterer = new Reenterer();
+
+        // whitelist the strategy for deposit
+        cheats.startPrank(investmentManager.owner());
+        IInvestmentStrategy[] memory _strategy = new IInvestmentStrategy[](1);
+        _strategy[0] = IInvestmentStrategy(address(reenterer));
+        investmentManager.addStrategiesToDepositWhitelist(_strategy);
+        cheats.stopPrank();
 
         uint256 privateKey = 111111;
         address staker = cheats.addr(111111);
@@ -604,7 +608,7 @@ contract InvestmentManagerUnitTests is Test {
             strategyArray[0] = investmentManager.beaconChainETHStrategy();
             shareAmounts[0] = REQUIRED_BALANCE_WEI;
             strategyIndexes[0] = 0;
-            strategyArray[1] = new InvestmentStrategyBase(investmentManager);
+            strategyArray[1] = new InvestmentStrategyWrapper(investmentManager, dummyToken);
             shareAmounts[1] = REQUIRED_BALANCE_WEI;
             strategyIndexes[1] = 1;
         }
@@ -1002,7 +1006,7 @@ contract InvestmentManagerUnitTests is Test {
     function testCompleteQueuedWithdrawalFailsWhenAttemptingReentrancy() external {
         // replace dummyStrat with Reenterer contract
         reenterer = new Reenterer();
-        dummyStrat = InvestmentStrategyBase(address(reenterer));
+        dummyStrat = InvestmentStrategyWrapper(address(reenterer));
 
         // whitelist the strategy for deposit
         cheats.startPrank(investmentManager.owner());
@@ -1424,7 +1428,7 @@ contract InvestmentManagerUnitTests is Test {
     function testSlashSharesRevertsWhenAttemptingReentrancy() external {
         // replace dummyStrat with Reenterer contract
         reenterer = new Reenterer();
-        dummyStrat = InvestmentStrategyBase(address(reenterer));
+        dummyStrat = InvestmentStrategyWrapper(address(reenterer));
 
         // whitelist the strategy for deposit
         cheats.startPrank(investmentManager.owner());
@@ -1576,7 +1580,7 @@ contract InvestmentManagerUnitTests is Test {
     function testSlashQueuedWithdrawalFailsWhenAttemptingReentrancy() external {
         // replace dummyStrat with Reenterer contract
         reenterer = new Reenterer();
-        dummyStrat = InvestmentStrategyBase(address(reenterer));
+        dummyStrat = InvestmentStrategyWrapper(address(reenterer));
 
         // whitelist the strategy for deposit
         cheats.startPrank(investmentManager.owner());
@@ -1639,7 +1643,14 @@ contract InvestmentManagerUnitTests is Test {
     function test_addSharesRevertsWhenSharesIsZero() external {
         // replace dummyStrat with Reenterer contract
         reenterer = new Reenterer();
-        dummyStrat = InvestmentStrategyBase(address(reenterer));
+        dummyStrat = InvestmentStrategyWrapper(address(reenterer));
+
+        // whitelist the strategy for deposit
+        cheats.startPrank(investmentManager.owner());
+        IInvestmentStrategy[] memory _strategy = new IInvestmentStrategy[](1);
+        _strategy[0] = dummyStrat;
+        investmentManager.addStrategiesToDepositWhitelist(_strategy);
+        cheats.stopPrank();
 
         address staker = address(this);
         IInvestmentStrategy strategy = dummyStrat;
@@ -1660,46 +1671,40 @@ contract InvestmentManagerUnitTests is Test {
         uint256 amount = 1e18;
         IInvestmentStrategy strategy = dummyStrat;
 
-        cheats.startPrank(staker);
         // uint256 MAX_INVESTOR_STRATS_LENGTH = investmentManager.MAX_INVESTOR_STRATS_LENGTH();
         uint256 MAX_INVESTOR_STRATS_LENGTH = 32;
 
         // loop that deploys a new strategy and deposits into it
         for (uint256 i = 0; i < MAX_INVESTOR_STRATS_LENGTH; ++i) {
+            cheats.startPrank(staker);
             investmentManager.depositIntoStrategy(strategy, token, amount);
-            dummyStrat = InvestmentStrategyBase(
-                address(
-                    new TransparentUpgradeableProxy(
-                        address(dummyStratImplementation),
-                        address(proxyAdmin),
-                        abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, dummyToken, pauserRegistry)
-                    )
-                )
-            );
+            cheats.stopPrank();
+
+            dummyStrat = new InvestmentStrategyWrapper(investmentManager, dummyToken);
             strategy = dummyStrat;
+
+            // whitelist the strategy for deposit
+            cheats.startPrank(investmentManager.owner());
+            IInvestmentStrategy[] memory _strategy = new IInvestmentStrategy[](1);
+            _strategy[0] = dummyStrat;
+            investmentManager.addStrategiesToDepositWhitelist(_strategy);
+            cheats.stopPrank();
         }
 
         require(investmentManager.investorStratsLength(staker) == MAX_INVESTOR_STRATS_LENGTH, 
             "investmentManager.investorStratsLength(staker) != MAX_INVESTOR_STRATS_LENGTH");
 
+        cheats.startPrank(staker);
         cheats.expectRevert(bytes("InvestmentManager._addShares: deposit would exceed MAX_INVESTOR_STRATS_LENGTH"));
         investmentManager.depositIntoStrategy(strategy, token, amount);
-
         cheats.stopPrank();
     }
 
     function test_depositIntoStrategyRevertsWhenTokenSafeTransferFromReverts() external {
         // replace 'dummyStrat' with one that uses a reverting token
         dummyToken = IERC20(address(new Reverter()));
-        dummyStrat = InvestmentStrategyBase(
-            address(
-                new TransparentUpgradeableProxy(
-                    address(dummyStratImplementation),
-                    address(proxyAdmin),
-                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, dummyToken, pauserRegistry)
-                )
-            )
-        );
+        dummyStrat = new InvestmentStrategyWrapper(investmentManager, dummyToken);
+
 
         address staker = address(this);
         IERC20 token = dummyToken;
@@ -1715,15 +1720,8 @@ contract InvestmentManagerUnitTests is Test {
     function test_depositIntoStrategyRevertsWhenTokenDoesNotExist() external {
         // replace 'dummyStrat' with one that uses a non-existent token
         dummyToken = IERC20(address(5678));
-        dummyStrat = InvestmentStrategyBase(
-            address(
-                new TransparentUpgradeableProxy(
-                    address(dummyStratImplementation),
-                    address(proxyAdmin),
-                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, dummyToken, pauserRegistry)
-                )
-            )
-        );
+        dummyStrat = new InvestmentStrategyWrapper(investmentManager, dummyToken);
+
 
         address staker = address(this);
         IERC20 token = dummyToken;
@@ -1738,7 +1736,7 @@ contract InvestmentManagerUnitTests is Test {
 
     function test_depositIntoStrategyRevertsWhenStrategyDepositFunctionReverts() external {
         // replace 'dummyStrat' with one that always reverts
-        dummyStrat = InvestmentStrategyBase(
+        dummyStrat = InvestmentStrategyWrapper(
             address(
                 new Reverter()
             )
@@ -1757,7 +1755,7 @@ contract InvestmentManagerUnitTests is Test {
 
     function test_depositIntoStrategyRevertsWhenStrategyDoesNotExist() external {
         // replace 'dummyStrat' with one that does not exist
-        dummyStrat = InvestmentStrategyBase(
+        dummyStrat = InvestmentStrategyWrapper(
             address(5678)
         );
 
