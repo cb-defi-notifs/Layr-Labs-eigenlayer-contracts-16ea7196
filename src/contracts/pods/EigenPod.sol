@@ -401,7 +401,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard {
      *         withdrawals, so the EigenPod thinks podOwner has more restakedExecutionLayerGwei and staked balance than their true amount of 'beaconChainETH' on EigenLayer
      * @param amountGwei is the amount, in gwei, to roll over
      */
-    function rollOverRollableBalance(uint64 amountGwei) external onlyNotFrozen {
+    function rollOverRollableBalance(uint64 amountGwei) external onlyEigenPodOwner onlyNotFrozen {
         // this is also checked by built-in underflow checks
         require(restakedExecutionLayerGwei >= amountGwei, "EigenPod.rollOverRollableBalance: not enough restakedExecutionLayerGwei to roll over");
         // remove rollableBalanceGwei from restakedExecutionLayerGwei and add it to instantlyWithdrawableBalanceGwei
