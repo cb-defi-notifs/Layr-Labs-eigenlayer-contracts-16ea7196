@@ -21,6 +21,11 @@ The EigenPod is the contract that a staker must set their Ethereum validators' w
 
 EigenPods extensively use a Beacon State Root Oracle that will bring beacon state roots into Ethereum for every [`SLOTS_PER_HISTORICAL_ROOT`](https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#time-parameters) slots (currently 8192 slots or ~27 hours) so that all intermediate state roots can be proven against the ones posted on execution layer.
 
+The following sections are all related to managing Consensus Layer (CL) and Execution Layer (EL) balances via proofs against the beacon state root brought to the EL by the oracle. The below diagram will be of great help to understanding their functioning.
+
+![EigenPods_Architecture drawio](./images/EL_eigenpods_architecture.png)
+
+
 ### Proof of Correctly Pointed Withdrawal Credentials
 
 After staking an Etherum validator with its withdrawal credentials pointed to their EigenPod, a staker must prove that the new validator exists and has its withdrawal credentials pointed to the EigenPod against a beacon state root. The EigenPod will verify the proof (along with checking for replays and other conditions) and, if the ETH validator's balance is proven to be greater than `REQUIRED_BALANCE_WEI`, then the EigenPod will call the EigenPodManager to forward a call to the InvestmentManager, crediting the staker with `REQUIRED_BALANCE_WEI` shares of the virtual beacon chain ETH strategy. `REQUIRED_BALANCE_WEI` will be set to an amount of ether that a validator could get slashed down to only due to malice or negligence. The current back-of-the-envelope calculations show that 31.4 ETH is the minimum balance an offline validator can have after a week of inactivity, so it sets a good indicator for `REQUIRED_BALANCE_WEI`. For reference, there are only about 50 validators below this balance on the Ethereum beacon chain as of 12/7/2022.
