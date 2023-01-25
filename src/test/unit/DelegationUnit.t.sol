@@ -105,6 +105,7 @@ contract DelegationUnitTests is EigenLayerTestHelper {
     }
 
     function testDelegateWhenOperatorIsFrozen(address operator, address staker) public fuzzedAddress(operator) fuzzedAddress(staker){
+        cheats.assume(operator != staker);
         
         cheats.startPrank(operator);
         delegationMock.registerAsOperator(IDelegationTerms(address(this)));
