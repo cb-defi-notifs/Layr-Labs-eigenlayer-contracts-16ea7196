@@ -92,7 +92,8 @@ contract InvestmentManagerUnitTests is Test {
 
         beaconChainETHStrategy = investmentManager.beaconChainETHStrategy();
 
-        // excude the proxyAdmin and the eigenPodManagerMock from fuzzed inputs
+        // excude the zero address, the proxyAdmin and the eigenPodManagerMock from fuzzed inputs
+        addressIsExcludedFromFuzzedInputs[address(0)] = true;
         addressIsExcludedFromFuzzedInputs[address(proxyAdmin)] = true;
         addressIsExcludedFromFuzzedInputs[address(eigenPodManagerMock)] = true;
     }
@@ -102,7 +103,7 @@ contract InvestmentManagerUnitTests is Test {
         investmentManager.initialize(pauserRegistry, initialOwner);
     }
 
-    function testDepositBeaconChainETHSuccessfully(address staker, uint256 amount) public {
+    function testDepositBeaconChainETHSuccessfully(address staker, uint256 amount) public filterFuzzedAddressInputs(staker) {
         // filter out zero case since it will revert with "InvestmentManager._addShares: shares should not be zero!"
         cheats.assume(amount != 0);
         uint256 sharesBefore = investmentManager.investorStratShares(staker, beaconChainETHStrategy);
@@ -577,7 +578,7 @@ contract InvestmentManagerUnitTests is Test {
         return (queuedWithdrawal, withdrawalRoot);
     }
 
-    function testQueueWithdrawalBeaconChainETHToDifferentAddress(address withdrawer) external {
+    function testQueueWithdrawalBeaconChainETHToDifferentAddress(address withdrawer) external filterFuzzedAddressInputs(withdrawer) {
         // filtering for test flakiness
         cheats.assume(withdrawer != address(this));
 
