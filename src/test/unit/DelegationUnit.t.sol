@@ -118,7 +118,11 @@ contract DelegationUnitTests is EigenLayerTestHelper {
         cheats.stopPrank();
     }
 
-    function testDelegateWhenStakerHasExistingDelegation(address staker, address operator, address operator2) public fuzzedAddress(operator) fuzzedAddress(staker) {
+    function testDelegateWhenStakerHasExistingDelegation(address staker, address operator, address operator2) public
+        fuzzedAddress(staker)
+        fuzzedAddress(operator)
+        fuzzedAddress(operator2)
+    {
         cheats.assume(operator != operator2);
         cheats.assume(staker != operator);
         cheats.assume(staker != operator2);
