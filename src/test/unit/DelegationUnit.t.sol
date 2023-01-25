@@ -161,7 +161,9 @@ contract DelegationUnitTests is EigenLayerTestHelper {
         cheats.stopPrank();
     }
 
-    function testRevertingDelegationReceivedHook(address operator, address staker) public fuzzedAddress(operator) fuzzedAddress(staker){
+    function testRevertingDelegationReceivedHook(address operator, address staker) public fuzzedAddress(operator) fuzzedAddress(staker) {
+        cheats.assume(operator != staker);
+
         delegationTermsMock.setShouldRevert(true);
         cheats.startPrank(operator);
         delegationMock.registerAsOperator(delegationTermsMock);
