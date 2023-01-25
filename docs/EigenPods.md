@@ -22,7 +22,8 @@ The EigenPod is the contract that a staker must set their Ethereum validators' w
 EigenPods extensively use a Beacon State Root Oracle that will bring beacon state roots into Ethereum for every [`SLOTS_PER_HISTORICAL_ROOT`](https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#time-parameters) slots (currently 8192 slots or ~27 hours) so that all intermediate state roots can be proven against the ones posted on execution layer.
 
 The following sections are all related to managing Consensus Layer (CL) and Execution Layer (EL) balances via proofs against the beacon state root brought to the EL by the oracle. The below diagram will be of great help to understanding their functioning.
-![EigenPods_Architecture drawio](https://user-images.githubusercontent.com/9342524/214472116-74ecf854-0c3e-40af-9470-2c5e31658089.png)
+
+![EigenPods_Architecture drawio](./images/EL_eigenpods_architecture.png)
 
 
 ### Proof of Correctly Pointed Withdrawal Credentials
