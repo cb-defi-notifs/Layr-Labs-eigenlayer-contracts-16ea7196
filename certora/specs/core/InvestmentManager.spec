@@ -22,6 +22,9 @@ methods {
 
 	// external calls to EigenPodManager
 	withdrawRestakedBeaconChainETH(address,address,uint256) => DISPATCHER(true)
+
+    // external calls to EigenPod (from EigenPodManager)
+    withdrawRestakedBeaconChainETH(address, uint256) => DISPATCHER(true)
 	    
     // external calls to IDelegationTerms
     onDelegationWithdrawn(address,address[],uint256[]) => CONSTANT
