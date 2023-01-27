@@ -299,13 +299,11 @@ contract InvestmentManager is
         bool undelegateIfPossible
     )
         external
-        // the `onlyWhenNotPaused` modifier is commented out and instead implemented as the first line of the function, since this solves a stack-too-deep error
-        // onlyWhenNotPaused(PAUSED_WITHDRAWALS)
+        onlyWhenNotPaused(PAUSED_WITHDRAWALS)
         onlyNotFrozen(msg.sender)
         nonReentrant
         returns (bytes32)
     {
-        require(!paused(PAUSED_WITHDRAWALS), "Pausable: index is paused");
         require(strategies.length == shares.length, "InvestmentManager.queueWithdrawal: input length mismatch");
         require(withdrawer != address(0), "InvestmentManager.queueWithdrawal: cannot withdraw to zero address");
     
@@ -314,7 +312,7 @@ contract InvestmentManager is
 
         uint96 nonce = uint96(numWithdrawalsQueued[msg.sender]);
         
-
+        // keeps track of the current index in the `strategyIndexes` array
         uint256 strategyIndexIndex;
 
         /**
