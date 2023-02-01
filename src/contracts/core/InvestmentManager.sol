@@ -87,6 +87,9 @@ contract InvestmentManager is
     /// @notice Emitted when a strategy is removed from the approved list of strategies for deposit
     event StrategyRemovedFromDepositWhitelist(IInvestmentStrategy strategy);
 
+    /// @notice Emitted when the `withdrawalDelayBlocks` variable is modified from `previousValue` to `newValue`.
+    event WithdrawalDelayBlocksSet(uint256 previousValue, uint256 newValue);
+
     modifier onlyNotFrozen(address staker) {
         require(
             !slasher.isFrozen(staker),
@@ -133,14 +136,16 @@ contract InvestmentManager is
      * and transfers contract ownership to the specified `initialOwner`.
      * @param _pauserRegistry Used for access control of pausing.
      * @param initialOwner Ownership of this contract is transferred to this address.
+     * @param _withdrawalDelayBlocks The initial value of `withdrawalDelayBlocks` to set.
      */
-    function initialize(IPauserRegistry _pauserRegistry, address initialOwner)
+    function initialize(IPauserRegistry _pauserRegistry, address initialOwner, uint256 _withdrawalDelayBlocks)
         external
         initializer
     {
         DOMAIN_SEPARATOR = keccak256(abi.encode(DOMAIN_TYPEHASH, bytes("EigenLayer"), block.chainid, address(this)));
         _initializePauser(_pauserRegistry, UNPAUSE_ALL);
         _transferOwnership(initialOwner);
+        _setWithdrawalDelayBlocks(_withdrawalDelayBlocks);
     }
 
     /**
@@ -434,6 +439,10 @@ contract InvestmentManager is
             "InvestmentManager.completeQueuedWithdrawal: shares pending withdrawal are still slashable"
         );
 
+        require(queuedWithdrawal.withdrawalStartBlock + withdrawalDelayBlocks <= block.number,
+            "InvestmentManager.completeQueuedWithdrawal: withdrawalDelayBlocks period has not yet passed"
+        );
+
         require(
             msg.sender == queuedWithdrawal.withdrawerAndNonce.withdrawer,
             "InvestmentManager.completeQueuedWithdrawal: only specified withdrawer can complete a queued withdrawal"
@@ -583,6 +592,11 @@ contract InvestmentManager is
                 }
             }
         }
+    }
+
+    /// @notice Owner-only function for modifying the value of the `withdrawalDelayBlocks` variable.
+    function setWithdrawalDelayBlocks(uint256 _withdrawalDelayBlocks) external onlyOwner {
+        _setWithdrawalDelayBlocks(_withdrawalDelayBlocks);
     }
 
     /// @notice Owner-only function that adds the provided InvestmentStrategies to the 'whitelist' of strategies that stakers can deposit into
@@ -765,6 +779,13 @@ contract InvestmentManager is
         }
         // withdraw the beaconChainETH to the recipient
         eigenPodManager.withdrawRestakedBeaconChainETH(staker, recipient, amount);
+    }
+
+    /// @notice internal function for changing the value of `withdrawalDelayBlocks`. Also performs sanity check and emits an event.
+    function _setWithdrawalDelayBlocks(uint256 _withdrawalDelayBlocks) internal {
+        require(_withdrawalDelayBlocks <= MAX_WITHDRAWAL_DELAY_BLOCKS, "InvestmentManager.setWithdrawalDelay: _withdrawalDelayBlocks too high");
+        emit WithdrawalDelayBlocksSet(withdrawalDelayBlocks, _withdrawalDelayBlocks);
+        withdrawalDelayBlocks = _withdrawalDelayBlocks;
     }
 
     // VIEW FUNCTIONS

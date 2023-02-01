@@ -33,6 +33,14 @@ abstract contract InvestmentManagerStorage is IInvestmentManager {
     IEigenPodManager public immutable eigenPodManager;
     ISlasher public immutable slasher;
 
+    /**
+     * @notice Minimum delay enforced by this contract for completing queued withdrawals. Measured in blocks, and adjustable by this contract's owner,
+     * up to a maximum of `MAX_WITHDRAWAL_DELAY_BLOCKS`. Minimum value is 0 (i.e. no delay enforced).
+     */
+    uint256 public withdrawalDelayBlocks;
+    // the number of 12-second blocks in one week (60 * 60 * 24 * 7 / 12 = 50,400)
+    uint256 public constant MAX_WITHDRAWAL_DELAY_BLOCKS = 50400;
+
     /// @notice Mapping: staker => InvestmentStrategy => number of shares which they currently hold
     mapping(address => mapping(IInvestmentStrategy => uint256)) public investorStratShares;
     /// @notice Mapping: staker => array of strategies in which they have nonzero shares
