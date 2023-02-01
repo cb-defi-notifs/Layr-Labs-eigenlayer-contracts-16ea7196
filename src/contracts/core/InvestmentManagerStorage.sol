@@ -33,6 +33,9 @@ abstract contract InvestmentManagerStorage is IInvestmentManager {
     IEigenPodManager public immutable eigenPodManager;
     ISlasher public immutable slasher;
 
+    /// @notice Permissioned role, which can be changed by the contract owner. Has the ability to edit the strategy whitelist
+    address public strategyWhitelister;
+
     /// @notice Mapping: staker => InvestmentStrategy => number of shares which they currently hold
     mapping(address => mapping(IInvestmentStrategy => uint256)) public investorStratShares;
     /// @notice Mapping: staker => array of strategies in which they have nonzero shares
