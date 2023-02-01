@@ -6,10 +6,18 @@ import "./IEigenPodManager.sol";
 import "./IBeaconChainOracle.sol";
 
 /**
- * @title Interface for solo staking pods that have their withdrawal credentials pointed to EigenLayer.
+ * @title The implementation contract used for restaking beacon chain ETH on EigenLayer 
  * @author Layr Labs, Inc.
+ * @notice The main functionalities are:
+ * - creating new ETH validators with their withdrawal credentials pointed to this contract
+ * - proving from beacon chain state roots that withdrawal credentials are pointed to this contract
+ * - proving from beacon chain state roots the balances of ETH validators with their withdrawal credentials
+ *   pointed to this contract
+ * - updating aggregate balances in the EigenPodManager
+ * - withdrawing eth when withdrawals are initiated
+ * @dev Note that all beacon chain balances are stored as gwei within the beacon chain datastructures. We choose
+ *   to account balances in terms of gwei in the EigenPod contract and convert to wei when making calls to other contracts
  */
-
 interface IEigenPod {
     enum VALIDATOR_STATUS {
         INACTIVE, // doesnt exist
@@ -41,11 +49,6 @@ interface IEigenPod {
     /// @notice The amount of eth, in gwei, that is restaked per validator
     function REQUIRED_BALANCE_GWEI() external view returns(uint64);
 
-    /// @notice The amount of eth, in wei, that is added to the penalty balance of the pod in case a validator's beacon chain balance ever falls
-    ///         below REQUIRED_BALANCE_GWEI
-    /// @dev currently this is set to REQUIRED_BALANCE_GWEI
-    function OVERCOMMITMENT_PENALTY_AMOUNT_GWEI() external view returns(uint64);
-
     /// @notice The amount of eth, in wei, that is restaked per validator
     function REQUIRED_BALANCE_WEI() external view returns(uint256);
 
@@ -66,13 +69,6 @@ interface IEigenPod {
 
     /// @notice the excess balance from full withdrawals over RESTAKED_BALANCE_PER_VALIDATOR or partial withdrawals
     function instantlyWithdrawableBalanceGwei() external view returns(uint64);
-
-    /// @notice the amount of penalties that have been paid from instantlyWithdrawableBalanceGwei or from partial withdrawals. These can be rolled
-    ///         over from restakedExecutionLayerGwei into instantlyWithdrawableBalanceGwei when all existing penalties have been paid
-    function rollableBalanceGwei() external view returns(uint64);
-
-    /// @notice the total amount of gwei outstanding (i.e. to-be-paid) penalties due to over committing to EigenLayer on behalf of this pod
-    function penaltiesDueToOvercommittingGwei() external view returns(uint64);
 
     /// @notice Used to initialize the pointers to contracts crucial to the pod's functionality, in beacon proxy construction from EigenPodManager
     function initialize(IEigenPodManager _eigenPodManager, address owner) external;
@@ -166,21 +162,4 @@ interface IEigenPod {
      * @dev Note that this function is marked as non-reentrant to prevent the recipient calling back into it
      */
     function withdrawInstantlyWithdrawableBalanceGwei(address recipient) external;
-
-    /**
-     * @notice Rebalances restakedExecutionLayerGwei in case penalties were previously paid from instantlyWithdrawableBalanceGwei or partial 
-     *         withdrawal, so the EigenPod thinks podOwner has more restakedExecutionLayerGwei and staked balance than beaconChainETH on EigenLayer
-     * @param amountGwei is the amount, in gwei, to roll over
-     */
-    function rollOverRollableBalance(uint64 amountGwei) external;
-
-    /**
-     * @notice Pays off existing penalties due to overcommitting to EigenLayer. Funds for paying penalties are deducted:
-     *         1) first, from the execution layer ETH that is restaked in EigenLayer, because 
-     *            it is the ETH that is actually supposed to be restaked
-     *         2) second, from the instantlyWithdrawableBalanceGwei, to avoid allowing instant withdrawals
-     *            from instantlyWithdrawableBalanceGwei, in case the balance of the contract is not enough 
-     *            to cover the entire penalty
-     */
-    function payOffPenalties() external;
 }

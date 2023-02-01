@@ -83,40 +83,6 @@ _Callable only by the InvestmentManager contract._
 | recipient | address | The recipient of the withdrawn ETH. |
 | amount | uint256 | The amount of ETH to withdraw. |
 
-### payPenalties
-
-```solidity
-function payPenalties(address podOwner) external payable
-```
-
-Records receiving ETH from the `PodOwner`'s EigenPod, paid in order to fullfill the EigenPod's penalties to EigenLayer
-
-_Callable only by the podOwner's EigenPod contract._
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| podOwner | address | The owner of the pod whose balance is being sent. |
-
-### withdrawPenalties
-
-```solidity
-function withdrawPenalties(address podOwner, address recipient, uint256 amount) external
-```
-
-Withdraws paid penalties of the `podOwner`'s EigenPod, to the `recipient` address
-
-_Callable only by the investmentManager.owner()._
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| podOwner | address |  |
-| recipient | address | The recipient of withdrawn ETH. |
-| amount | uint256 | The amount of ETH to withdraw. |
-
 ### updateBeaconChainOracle
 
 ```solidity

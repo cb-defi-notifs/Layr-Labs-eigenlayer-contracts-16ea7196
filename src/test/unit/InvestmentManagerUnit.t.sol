@@ -688,7 +688,9 @@ contract InvestmentManagerUnitTests is Test {
         return (queuedWithdrawal, tokensArray, withdrawalRoot);
     }
 
-    function testQueueWithdrawal_ToDifferentAddress_NotBeaconChainETH(address withdrawer, uint256 amount) external {
+    function testQueueWithdrawal_ToDifferentAddress_NotBeaconChainETH(address withdrawer, uint256 amount)
+        external filterFuzzedAddressInputs(withdrawer)
+    {
         address staker = address(this);
         _tempStrategyStorage = dummyStrat;
 

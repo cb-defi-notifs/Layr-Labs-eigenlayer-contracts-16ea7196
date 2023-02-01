@@ -18,10 +18,6 @@ contract EigenPodManagerMock is IEigenPodManager, Test {
     
     function withdrawRestakedBeaconChainETH(address /*podOwner*/, address /*recipient*/, uint256 /*amount*/) external pure {}
 
-    function payPenalties(address /*podOwner*/) external payable {}
-
-    function withdrawPenalties(address /*podOwner*/, address /*recipient*/, uint256 /*amount*/) external pure {}
-
     function updateBeaconChainOracle(IBeaconChainOracle /*newBeaconChainOracle*/) external pure {}
 
     function getPod(address /*podOwner*/) external pure returns(IEigenPod) {

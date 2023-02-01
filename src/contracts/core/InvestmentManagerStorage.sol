@@ -43,6 +43,17 @@ abstract contract InvestmentManagerStorage is IInvestmentManager {
     mapping(address => uint256) public numWithdrawalsQueued;
     /// @notice Mapping: strategy => whether or not stakers are allowed to deposit into it
     mapping(IInvestmentStrategy => bool) public strategyIsWhitelistedForDeposit;
+    /*
+     * @notice Mapping: staker => virtual 'beaconChainETH' shares that the staker 'owes' due to overcommitments of beacon chain ETH.
+     * When overcommitment is proven, `InvestmentManager.recordOvercommittedBeaconChainETH` is called. However, it is possible that the
+     * staker already queued a withdrawal for more beaconChainETH shares than the `amount` input to this function. In this edge case,
+     * the amount that cannot be decremented is added to the staker's `beaconChainETHWithdrawalDebt` -- then when the staker completes a
+     * withdrawal of beaconChainETH, the amount they are withdrawing is first decreased by their `beaconChainETHWithdrawalDebt` amount.
+     * In other words, a staker's `beaconChainETHWithdrawalDebt` must be 'paid down' before they can "actually withdraw" beaconChainETH.
+     * @dev In practice, this means not passing a call to `eigenPodManager.withdrawRestakedBeaconChainETH` until the staker's 
+     * `beaconChainETHWithdrawalDebt` has first been 'paid off'.
+    */
+    mapping(address => uint256) public beaconChainETHWithdrawalDebt;
 
     IInvestmentStrategy public constant beaconChainETHStrategy = IInvestmentStrategy(0xbeaC0eeEeeeeEEeEeEEEEeeEEeEeeeEeeEEBEaC0);
 
