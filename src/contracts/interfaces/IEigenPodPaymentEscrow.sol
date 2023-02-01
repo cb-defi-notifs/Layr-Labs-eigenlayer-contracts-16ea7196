@@ -18,6 +18,13 @@ interface IEigenPodPaymentEscrow {
     function createPayment(address recipient) external payable;
 
     /**
+     * @notice Called in order to withdraw escrowed payments made to the `recipient` that have passed the `withdrawalDelayBlocks` period.
+     * @param recipient The address to claim payments for.
+     * @param maxClaimsToMake Used to limit the maximum number of payments to loop through claiming.
+     */
+    function claimPayments(address recipient, uint256 maxClaimsToMake) external;
+
+    /**
      * @notice Called in order to withdraw escrowed payments made to the caller that have passed the `withdrawalDelayBlocks` period.
      * @param maxClaimsToMake Used to limit the maximum number of payments to loop through claiming.
      */
