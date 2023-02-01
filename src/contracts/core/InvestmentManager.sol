@@ -81,6 +81,9 @@ contract InvestmentManager is
     /// @notice Emitted when a queued withdrawal is completed
     event WithdrawalCompleted(address indexed depositor, address indexed withdrawer, bytes32 withdrawalRoot);
 
+    /// @notice Emitted when the `strategyWhitelister` is changed
+    event StrategyWhitelisterChanged(address previousAddress, address newAddress);
+
     /// @notice Emitted when a strategy is added to the approved list of strategies for deposit
     event StrategyAddedToDepositWhitelist(IInvestmentStrategy strategy);
 
@@ -107,6 +110,11 @@ contract InvestmentManager is
 
     modifier onlyEigenPod(address podOwner, address pod) {
         require(address(eigenPodManager.getPod(podOwner)) == pod, "InvestmentManager.onlyEigenPod: not a pod");
+        _;
+    }
+
+    modifier onlyStrategyWhitelister {
+        require(msg.sender == strategyWhitelister, "InvestmentManager.onlyStrategyWhitelister: not the strategyWhitelister");
         _;
     }
 
@@ -141,6 +149,7 @@ contract InvestmentManager is
         DOMAIN_SEPARATOR = keccak256(abi.encode(DOMAIN_TYPEHASH, bytes("EigenLayer"), block.chainid, address(this)));
         _initializePauser(_pauserRegistry, UNPAUSE_ALL);
         _transferOwnership(initialOwner);
+        _setStrategyWhitelister(initialOwner);
     }
 
     /**
@@ -585,8 +594,13 @@ contract InvestmentManager is
         }
     }
 
+    /// @notice Owner-only function to change the `strategyWhitelister` address.
+    function setStrategyWhitelister(address newStrategyWhitelister) external onlyOwner {
+        _setStrategyWhitelister(newStrategyWhitelister);
+    }
+
     /// @notice Owner-only function that adds the provided InvestmentStrategies to the 'whitelist' of strategies that stakers can deposit into
-    function addStrategiesToDepositWhitelist(IInvestmentStrategy[] calldata strategiesToWhitelist) external onlyOwner {
+    function addStrategiesToDepositWhitelist(IInvestmentStrategy[] calldata strategiesToWhitelist) external onlyStrategyWhitelister {
         uint256 strategiesToWhitelistLength = strategiesToWhitelist.length;
         for (uint256 i = 0; i < strategiesToWhitelistLength;) {
             // change storage and emit event only if strategy is not already in whitelist
@@ -601,7 +615,7 @@ contract InvestmentManager is
     } 
 
     /// @notice Owner-only function that removes the provided InvestmentStrategies from the 'whitelist' of strategies that stakers can deposit into
-    function removeStrategiesFromDepositWhitelist(IInvestmentStrategy[] calldata strategiesToRemoveFromWhitelist) external onlyOwner {
+    function removeStrategiesFromDepositWhitelist(IInvestmentStrategy[] calldata strategiesToRemoveFromWhitelist) external onlyStrategyWhitelister {
         uint256 strategiesToRemoveFromWhitelistLength = strategiesToRemoveFromWhitelist.length;
         for (uint256 i = 0; i < strategiesToRemoveFromWhitelistLength;) {
             // change storage and emit event only if strategy is already in whitelist
@@ -765,6 +779,12 @@ contract InvestmentManager is
         }
         // withdraw the beaconChainETH to the recipient
         eigenPodManager.withdrawRestakedBeaconChainETH(staker, recipient, amount);
+    }
+
+    /// @notice Internal function for modifying the `strategyWhitelister`. Used inside of the `setStrategyWhitelister` and `initialize` functions.
+    function _setStrategyWhitelister(address newStrategyWhitelister) internal {
+        emit StrategyWhitelisterChanged(strategyWhitelister, newStrategyWhitelister);
+        strategyWhitelister = newStrategyWhitelister;
     }
 
     // VIEW FUNCTIONS
