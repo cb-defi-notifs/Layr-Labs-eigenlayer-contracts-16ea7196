@@ -33,6 +33,9 @@ abstract contract InvestmentManagerStorage is IInvestmentManager {
     IEigenPodManager public immutable eigenPodManager;
     ISlasher public immutable slasher;
 
+    /// @notice Permissioned role, which can be changed by the contract owner. Has the ability to edit the strategy whitelist
+    address public strategyWhitelister;
+
     /**
      * @notice Minimum delay enforced by this contract for completing queued withdrawals. Measured in blocks, and adjustable by this contract's owner,
      * up to a maximum of `MAX_WITHDRAWAL_DELAY_BLOCKS`. Minimum value is 0 (i.e. no delay enforced).
