@@ -81,6 +81,9 @@ contract InvestmentManager is
     /// @notice Emitted when a queued withdrawal is completed
     event WithdrawalCompleted(address indexed depositor, address indexed withdrawer, bytes32 withdrawalRoot);
 
+    /// @notice Emitted when the `strategyWhitelister` is changed
+    event StrategyWhitelisterChanged(address previousAddress, address newAddress);
+
     /// @notice Emitted when a strategy is added to the approved list of strategies for deposit
     event StrategyAddedToDepositWhitelist(IInvestmentStrategy strategy);
 
@@ -107,6 +110,11 @@ contract InvestmentManager is
 
     modifier onlyEigenPod(address podOwner, address pod) {
         require(address(eigenPodManager.getPod(podOwner)) == pod, "InvestmentManager.onlyEigenPod: not a pod");
+        _;
+    }
+
+    modifier onlyStrategyWhitelister {
+        require(msg.sender == strategyWhitelister, "InvestmentManager.onlyStrategyWhitelister: not the strategyWhitelister");
         _;
     }
 
@@ -141,6 +149,7 @@ contract InvestmentManager is
         DOMAIN_SEPARATOR = keccak256(abi.encode(DOMAIN_TYPEHASH, bytes("EigenLayer"), block.chainid, address(this)));
         _initializePauser(_pauserRegistry, UNPAUSE_ALL);
         _transferOwnership(initialOwner);
+        _setStrategyWhitelister(initialOwner);
     }
 
     /**
@@ -162,8 +171,7 @@ contract InvestmentManager is
     }
 
     /**
-     * @notice Records an overcommitment event on behalf of a staker. The staker's beaconChainETH shares are decremented by `amount` and the 
-     * EigenPodManager will subsequently impose a penalty upon the staker.
+     * @notice Records an overcommitment event on behalf of a staker. The staker's beaconChainETH shares are decremented by `amount`.
      * @param overcommittedPodOwner is the pod owner to be slashed
      * @param beaconChainETHStrategyIndex is the index of the beaconChainETHStrategy in case it must be removed,
      * @param amount is the amount to decrement the slashedAddress's beaconChainETHStrategy shares
@@ -174,8 +182,18 @@ contract InvestmentManager is
         onlyEigenPodManager
         nonReentrant
     {
+        // get `overcommittedPodOwner`'s shares in the enshrined beacon chain ETH strategy
+        uint256 userShares = investorStratShares[overcommittedPodOwner][beaconChainETHStrategy];
+        // if the amount exceeds the user's shares, then record it as "debt", to be "paid off" when the user completes a withdrawal
+        if (amount > userShares) {
+            uint256 debt = amount - userShares;
+            beaconChainETHWithdrawalDebt[overcommittedPodOwner] += debt;
+            amount -= debt;
+        }
         // removes shares for the enshrined beacon chain ETH strategy
-        _removeShares(overcommittedPodOwner, beaconChainETHStrategyIndex, beaconChainETHStrategy, amount);
+        if (amount != 0) {
+            _removeShares(overcommittedPodOwner, beaconChainETHStrategyIndex, beaconChainETHStrategy, amount);            
+        }
         // create array wrappers for call to EigenLayerDelegation
         IInvestmentStrategy[] memory strategies = new IInvestmentStrategy[](1);
         strategies[0] = beaconChainETHStrategy;
@@ -443,7 +461,7 @@ contract InvestmentManager is
                 if (queuedWithdrawal.strategies[i] == beaconChainETHStrategy) {
 
                     // if the strategy is the beaconchaineth strat, then withdraw through the EigenPod flow
-                    eigenPodManager.withdrawRestakedBeaconChainETH(queuedWithdrawal.depositor, msg.sender, queuedWithdrawal.shares[i]);
+                    _withdrawBeaconChainETH(queuedWithdrawal.depositor, msg.sender, queuedWithdrawal.shares[i]);
                 } else {
                     // tell the strategy to send the appropriate amount of funds to the depositor
                     queuedWithdrawal.strategies[i].withdraw(
@@ -504,7 +522,7 @@ contract InvestmentManager is
 
             if (strategies[i] == beaconChainETHStrategy){
                  //withdraw the beaconChainETH to the recipient
-                eigenPodManager.withdrawRestakedBeaconChainETH(slashedAddress, recipient, shareAmounts[i]);
+                _withdrawBeaconChainETH(slashedAddress, recipient, shareAmounts[i]);
             }
             else{
                 // withdraw the shares and send funds to the recipient
@@ -564,7 +582,7 @@ contract InvestmentManager is
             } else {
                 if (queuedWithdrawal.strategies[i] == beaconChainETHStrategy){
                      //withdraw the beaconChainETH to the recipient
-                    eigenPodManager.withdrawRestakedBeaconChainETH(queuedWithdrawal.depositor, recipient, queuedWithdrawal.shares[i]);
+                    _withdrawBeaconChainETH(queuedWithdrawal.depositor, recipient, queuedWithdrawal.shares[i]);
                 } else {
                     // tell the strategy to send the appropriate amount of funds to the recipient
                     queuedWithdrawal.strategies[i].withdraw(recipient, tokens[i], queuedWithdrawal.shares[i]);
@@ -576,8 +594,13 @@ contract InvestmentManager is
         }
     }
 
+    /// @notice Owner-only function to change the `strategyWhitelister` address.
+    function setStrategyWhitelister(address newStrategyWhitelister) external onlyOwner {
+        _setStrategyWhitelister(newStrategyWhitelister);
+    }
+
     /// @notice Owner-only function that adds the provided InvestmentStrategies to the 'whitelist' of strategies that stakers can deposit into
-    function addStrategiesToDepositWhitelist(IInvestmentStrategy[] calldata strategiesToWhitelist) external onlyOwner {
+    function addStrategiesToDepositWhitelist(IInvestmentStrategy[] calldata strategiesToWhitelist) external onlyStrategyWhitelister {
         uint256 strategiesToWhitelistLength = strategiesToWhitelist.length;
         for (uint256 i = 0; i < strategiesToWhitelistLength;) {
             // change storage and emit event only if strategy is not already in whitelist
@@ -592,7 +615,7 @@ contract InvestmentManager is
     } 
 
     /// @notice Owner-only function that removes the provided InvestmentStrategies from the 'whitelist' of strategies that stakers can deposit into
-    function removeStrategiesFromDepositWhitelist(IInvestmentStrategy[] calldata strategiesToRemoveFromWhitelist) external onlyOwner {
+    function removeStrategiesFromDepositWhitelist(IInvestmentStrategy[] calldata strategiesToRemoveFromWhitelist) external onlyStrategyWhitelister {
         uint256 strategiesToRemoveFromWhitelistLength = strategiesToRemoveFromWhitelist.length;
         for (uint256 i = 0; i < strategiesToRemoveFromWhitelistLength;) {
             // change storage and emit event only if strategy is already in whitelist
@@ -735,6 +758,33 @@ contract InvestmentManager is
     function _undelegate(address depositor) internal {
         require(investorStrats[depositor].length == 0, "InvestmentManager._undelegate: depositor has active deposits");
         delegation.undelegate(depositor);
+    }
+
+    /*
+     * @notice Withdraws `amount` of virtual 'beaconChainETH' shares from `staker`, with any succesfully withdrawn funds going to `recipient`.
+     * @dev First, the amount is drawn-down by any applicable 'beaconChainETHWithdrawalDebt' that the staker has, before passing any remaining
+     * amount (if applicable) onto a call to the `eigenPodManager.withdrawRestakedBeaconChainETH` function.
+    */
+    function _withdrawBeaconChainETH(address staker, address recipient, uint256 amount) internal {
+        uint256 debt = beaconChainETHWithdrawalDebt[staker];
+        if (debt != 0) {
+            if (amount > debt) {
+                beaconChainETHWithdrawalDebt[staker] = 0;
+                amount -= debt;
+            } else {
+                beaconChainETHWithdrawalDebt[staker] = (debt - amount);
+                // rather than setting amount to 0, just return early
+                return;
+            }
+        }
+        // withdraw the beaconChainETH to the recipient
+        eigenPodManager.withdrawRestakedBeaconChainETH(staker, recipient, amount);
+    }
+
+    /// @notice Internal function for modifying the `strategyWhitelister`. Used inside of the `setStrategyWhitelister` and `initialize` functions.
+    function _setStrategyWhitelister(address newStrategyWhitelister) internal {
+        emit StrategyWhitelisterChanged(strategyWhitelister, newStrategyWhitelister);
+        strategyWhitelister = newStrategyWhitelister;
     }
 
     // VIEW FUNCTIONS

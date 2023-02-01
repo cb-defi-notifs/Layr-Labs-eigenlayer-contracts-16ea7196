@@ -41,9 +41,6 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager 
     /// @notice Oracle contract that provides updates to the beacon chain's state
     IBeaconChainOracle public beaconChainOracle;
     
-    /// @notice Pod owner to the amount of penalties they have paid that are still in this contract
-    mapping(address => uint256) public podOwnerToUnwithdrawnPaidPenalties;
-
     /// @notice Pod owner to deployed EigenPod address
     mapping(address => IEigenPod) internal _podByOwner;
 
@@ -55,9 +52,6 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager 
 
     /// @notice Emitted to notify a deposit of beacon chain ETH recorded in the investment manager
     event BeaconChainETHDeposited(address indexed podOwner, uint256 amount);
-
-    /// @notice Emitted when an EigenPod pays penalties, on behalf of its owner
-    event PenaltiesPaid(address indexed podOwner, uint256 amountPaid);
 
     modifier onlyEigenPod(address podOwner) {
         require(address(getPod(podOwner)) == msg.sender, "EigenPodManager.onlyEigenPod: not a pod");
@@ -142,29 +136,6 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager 
     }
 
     /**
-     * @notice Records receiving ETH from the `PodOwner`'s EigenPod, paid in order to fullfill the EigenPod's penalties to EigenLayer
-     * @param podOwner The owner of the pod whose balance is being sent.
-     * @dev Callable only by the podOwner's EigenPod contract.
-     */
-    function payPenalties(address podOwner) external payable onlyEigenPod(podOwner) {
-        podOwnerToUnwithdrawnPaidPenalties[podOwner] += msg.value;
-        emit PenaltiesPaid(podOwner, msg.value);
-    }
-
-    /**
-     * @notice Withdraws paid penalties of the `podOwner`'s EigenPod, to the `recipient` address
-     * @param recipient The recipient of withdrawn ETH.
-     * @param amount The amount of ETH to withdraw.
-     * @dev Callable only by the investmentManager.owner().
-     */
-    function withdrawPenalties(address podOwner, address recipient, uint256 amount) external {
-        require(msg.sender == Ownable(address(investmentManager)).owner(), "EigenPods.withdrawPenalties: only investmentManager owner");
-        podOwnerToUnwithdrawnPaidPenalties[podOwner] -= amount;
-        // transfer penalties from pod to `recipient`
-        Address.sendValue(payable(recipient), amount);
-    }
-
-    /**
      * @notice Updates the oracle contract that provides the beacon chain state root
      * @param newBeaconChainOracle is the new oracle contract being pointed to
      * @dev Callable only by the owner of this contract (i.e. governance)
@@ -172,7 +143,6 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager 
     function updateBeaconChainOracle(IBeaconChainOracle newBeaconChainOracle) external onlyOwner {
         _updateBeaconChainOracle(newBeaconChainOracle);
     }
-
 
     // INTERNAL FUNCTIONS
     function _deployPod() internal returns (IEigenPod) {

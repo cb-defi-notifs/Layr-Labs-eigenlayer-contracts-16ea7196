@@ -46,14 +46,6 @@ contract IBeaconChainOracle beaconChainOracle
 
 Oracle contract that provides updates to the beacon chain's state
 
-### podOwnerToUnwithdrawnPaidPenalties
-
-```solidity
-mapping(address => uint256) podOwnerToUnwithdrawnPaidPenalties
-```
-
-Pod owner to the amount of penalties they have paid that are still in this contract
-
 ### _podByOwner
 
 ```solidity
@@ -85,14 +77,6 @@ event BeaconChainETHDeposited(address podOwner, uint256 amount)
 ```
 
 Emitted to notify a deposit of beacon chain ETH recorded in the investment manager
-
-### PenaltiesPaid
-
-```solidity
-event PenaltiesPaid(address podOwner, uint256 amountPaid)
-```
-
-Emitted when an EigenPod pays penalties, on behalf of its owner
 
 ### onlyEigenPod
 
@@ -197,40 +181,6 @@ _Callable only by the InvestmentManager contract._
 | ---- | ---- | ----------- |
 | podOwner | address | The owner of the pod whose balance must be withdrawn. |
 | recipient | address | The recipient of the withdrawn ETH. |
-| amount | uint256 | The amount of ETH to withdraw. |
-
-### payPenalties
-
-```solidity
-function payPenalties(address podOwner) external payable
-```
-
-Records receiving ETH from the `PodOwner`'s EigenPod, paid in order to fullfill the EigenPod's penalties to EigenLayer
-
-_Callable only by the podOwner's EigenPod contract._
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| podOwner | address | The owner of the pod whose balance is being sent. |
-
-### withdrawPenalties
-
-```solidity
-function withdrawPenalties(address podOwner, address recipient, uint256 amount) external
-```
-
-Withdraws paid penalties of the `podOwner`'s EigenPod, to the `recipient` address
-
-_Callable only by the investmentManager.owner()._
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| podOwner | address |  |
-| recipient | address | The recipient of withdrawn ETH. |
 | amount | uint256 | The amount of ETH to withdraw. |
 
 ### updateBeaconChainOracle

@@ -53,21 +53,6 @@ interface IEigenPodManager {
     function withdrawRestakedBeaconChainETH(address podOwner, address recipient, uint256 amount) external;
 
     /**
-     * @notice Records receiving ETH from the `PodOwner`'s EigenPod, paid in order to fullfill the EigenPod's penalties to EigenLayer
-     * @param podOwner The owner of the pod whose balance is being sent.
-     * @dev Callable only by the podOwner's EigenPod contract.
-     */
-    function payPenalties(address podOwner) external payable;
-
-    /**
-     * @notice Withdraws paid penalties of the `podOwner`'s EigenPod, to the `recipient` address
-     * @param recipient The recipient of withdrawn ETH.
-     * @param amount The amount of ETH to withdraw.
-     * @dev Callable only by the investmentManager.owner().
-     */
-    function withdrawPenalties(address podOwner, address recipient, uint256 amount) external;
-
-    /**
      * @notice Updates the oracle contract that provides the beacon chain state root
      * @param newBeaconChainOracle is the new oracle contract being pointed to
      * @dev Callable only by the owner of this contract (i.e. governance)

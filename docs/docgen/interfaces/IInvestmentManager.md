@@ -68,10 +68,9 @@ _Only callable by EigenPod for the staker._
 function recordOvercommittedBeaconChainETH(address overcommittedPodOwner, uint256 beaconChainETHStrategyIndex, uint256 amount) external
 ```
 
-Records an overcommitment event on behalf of a staker. This allows EigenLayer to slash the overcommitted balance.
-        It decreases the delegated shares, but does not freeze the `slashedAddress` completely.
+Records an overcommitment event on behalf of a staker. The staker's beaconChainETH shares are decremented by `amount`.
 
-_Only callable by EigenPod for the overcommittedPodOwner._
+_Only callable by EigenPodManager._
 
 #### Parameters
 
@@ -79,7 +78,7 @@ _Only callable by EigenPod for the overcommittedPodOwner._
 | ---- | ---- | ----------- |
 | overcommittedPodOwner | address | is the pod owner to be slashed |
 | beaconChainETHStrategyIndex | uint256 | is the index of the beaconChainETHStrategy in case it must be removed, |
-| amount | uint256 | is the amount of token overcommitted to EigenLayer |
+| amount | uint256 | is the amount to decrement the slashedAddress's beaconChainETHStrategy shares |
 
 ### depositIntoStrategyOnBehalfOf
 
