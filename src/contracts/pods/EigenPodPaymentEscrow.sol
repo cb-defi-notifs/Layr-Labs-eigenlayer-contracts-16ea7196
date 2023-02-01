@@ -2,7 +2,6 @@
 pragma solidity =0.8.12;
 
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
-// import "@openzeppelin-upgrades/contracts/utils/AddressUpgradeable.sol";
 import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
 import "@openzeppelin-upgrades/contracts/security/ReentrancyGuardUpgradeable.sol";
 import "../interfaces/IEigenPodPaymentEscrow.sol";
@@ -26,7 +25,8 @@ contract EigenPodPaymentEscrow is Initializable, OwnableUpgradeable, ReentrancyG
     /// @notice Mapping: user => struct storing all payment info. Marked as internal with an external getter function named `userPayments`
     mapping(address => UserPayments) internal _userPayments;
 
-    function initialize(IPauserRegistry _pauserRegistry, uint256 initPausedStatus, uint256 _withdrawalDelayBlocks) external initializer {
+    function initialize(address initOwner, IPauserRegistry _pauserRegistry, uint256 initPausedStatus, uint256 _withdrawalDelayBlocks) external initializer {
+        _transferOwnership(initOwner);
         _initializePauser(_pauserRegistry, initPausedStatus);
         _setWithdrawalDelayBlocks(_withdrawalDelayBlocks);
     }
