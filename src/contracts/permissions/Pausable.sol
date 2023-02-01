@@ -2,7 +2,7 @@
 
 pragma solidity =0.8.12;
 
-import "../interfaces/IPauserRegistry.sol";
+import "../interfaces/IPausable.sol";
 
 /**
  * @title Adds pausability to a contract.
@@ -12,7 +12,7 @@ import "../interfaces/IPauserRegistry.sol";
  * @dev Pausability is implemented using a uint256, which allows up to 256 different bit-flags; each bit can potentially pause different functionality.
  * Inspiration is taken from the NearBridge design here https://etherscan.io/address/0x3FEFc5A4B1c02f21cBc8D3613643ba0635b9a873#code
  */
-contract Pausable {
+contract Pausable is IPausable {
     /// @notice Address of the `PauserRegistry` contract that this contract defers to for determining access control (for pausing).
     IPauserRegistry public pauserRegistry;
 

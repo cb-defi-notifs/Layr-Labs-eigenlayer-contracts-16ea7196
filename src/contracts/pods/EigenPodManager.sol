@@ -16,6 +16,9 @@ import "../interfaces/IETHPOSDeposit.sol";
 import "../interfaces/IEigenPod.sol";
 import "../interfaces/IBeaconChainOracle.sol";
 
+import "../permissions/Pausable.sol";
+import "./EigenPodPausingConstants.sol";
+
 /**
  * @title The contract used for creating and managing EigenPods
  * @author Layr Labs, Inc.
@@ -25,7 +28,12 @@ import "../interfaces/IBeaconChainOracle.sol";
  * - keeping track of the balances of all validators of EigenPods, and their stake in EigenLayer
  * - withdrawing eth when withdrawals are initiated
  */
-contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager {
+contract EigenPodManager is Initializable, OwnableUpgradeable, Pausable, IEigenPodManager, EigenPodPausingConstants {
+    /// @notice Index for flag that pauses creation of new EigenPods when set
+    uint8 internal constant PAUSED_NEW_EIGENPODS = 0;
+    /// @notice Index for flag that pauses the `withdrawRestakedBeaconChainETH` function when set
+    uint8 internal constant PAUSED_WITHDRAW_RESTAKED_ETH = 1;
+
     //TODO: change this to constant in prod
     IETHPOSDeposit public immutable ethPOS;
     
@@ -71,9 +79,15 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager 
         _disableInitializers();
     }
 
-    function initialize(IBeaconChainOracle _beaconChainOracle, address initialOwner) public initializer {
+    function initialize(
+        IBeaconChainOracle _beaconChainOracle,
+        address initialOwner,
+        IPauserRegistry _pauserRegistry,
+        uint256 _initPausedStatus
+    ) public initializer {
         _updateBeaconChainOracle(_beaconChainOracle);
         _transferOwnership(initialOwner);
+        _initializePauser(_pauserRegistry, _initPausedStatus);
     }
 
     /**
@@ -131,7 +145,9 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager 
      * @param amount The amount of ETH to withdraw.
      * @dev Callable only by the InvestmentManager contract.
      */
-    function withdrawRestakedBeaconChainETH(address podOwner, address recipient, uint256 amount) external onlyInvestmentManager {
+    function withdrawRestakedBeaconChainETH(address podOwner, address recipient, uint256 amount)
+        external onlyInvestmentManager onlyWhenNotPaused(PAUSED_WITHDRAW_RESTAKED_ETH)
+    {
         getPod(podOwner).withdrawRestakedBeaconChainETH(recipient, amount);
     }
 
@@ -145,7 +161,7 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager 
     }
 
     // INTERNAL FUNCTIONS
-    function _deployPod() internal returns (IEigenPod) {
+    function _deployPod() internal onlyWhenNotPaused(PAUSED_NEW_EIGENPODS) returns (IEigenPod) {
         IEigenPod pod = 
             IEigenPod(
                 Create2.deploy(
