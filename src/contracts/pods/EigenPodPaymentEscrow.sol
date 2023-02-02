@@ -102,7 +102,11 @@ contract EigenPodPaymentEscrow is Initializable, OwnableUpgradeable, ReentrancyG
     function _claimPayments(address recipient, uint256 maxNumberOfPaymentsToClaim) internal {
         uint256 amountToSend = 0;
         uint256 paymentsCompletedBefore = _userPayments[recipient].paymentsCompleted;
-        uint256 maxIndex = _userPayments[recipient].payments.length - 1;
+        uint256 length = _userPayments[recipient].payments.length;
+        if (length == 0) {
+            revert("EigenPodPaymentEscrow._claimPayments: payments length is zero");
+        }
+        uint256 maxIndex = length - 1;
         uint256 i = 0;
         while (i < maxNumberOfPaymentsToClaim && (paymentsCompletedBefore + i) < maxIndex) {
             // copy payment from storage to memory
