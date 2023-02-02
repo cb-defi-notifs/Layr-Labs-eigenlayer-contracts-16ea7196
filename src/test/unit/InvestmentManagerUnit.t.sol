@@ -1213,6 +1213,29 @@ contract InvestmentManagerUnitTests is Test {
         investmentManager.completeQueuedWithdrawal(queuedWithdrawal, tokensArray, middlewareTimesIndex, receiveAsTokens);
     }
 
+    function testCompleteQueuedWithdrawalFailsWhenWithdrawalDelayBlocksHasNotPassed() external {
+        _tempStakerStorage = address(this);
+        uint256 depositAmount = 1e18;
+        uint256 withdrawalAmount = 1e18;
+        bool undelegateIfPossible = false;
+
+        (IInvestmentManager.QueuedWithdrawal memory queuedWithdrawal, IERC20[] memory tokensArray, /*bytes32 withdrawalRoot*/) =
+            testQueueWithdrawal_ToSelf_NotBeaconChainETH(depositAmount, withdrawalAmount, undelegateIfPossible);
+
+        uint256 middlewareTimesIndex = 0;
+        bool receiveAsTokens = false;
+
+        uint256 valueToSet = 1;
+        // set the `withdrawalDelayBlocks` variable
+        cheats.startPrank(investmentManager.owner());
+        investmentManager.setWithdrawalDelayBlocks(valueToSet);
+        cheats.stopPrank();
+        require(investmentManager.withdrawalDelayBlocks() == valueToSet, "investmentManager.withdrawalDelayBlocks() != valueToSet");
+
+        cheats.expectRevert(bytes("InvestmentManager.completeQueuedWithdrawal: withdrawalDelayBlocks period has not yet passed"));
+        investmentManager.completeQueuedWithdrawal(queuedWithdrawal, tokensArray, middlewareTimesIndex, receiveAsTokens);
+    }
+
     function testSlashSharesNotBeaconChainETHFuzzed(uint64 withdrawalAmount) external {
         _tempStakerStorage = address(this);
         IInvestmentStrategy strategy = dummyStrat;
@@ -1871,6 +1894,39 @@ contract InvestmentManagerUnitTests is Test {
 
         require(sharesAfter == sharesBefore - amount, "sharesAfter != sharesBefore - amount");
         require(balanceAfter == balanceBefore + amount, "balanceAfter != balanceBefore + amount");
+    }
+
+    function testSetWithdrawalDelayBlocks(uint16 valueToSet) external {
+        // filter fuzzed inputs to allowed amounts
+        cheats.assume(valueToSet <= investmentManager.MAX_WITHDRAWAL_DELAY_BLOCKS());
+
+        // set the `withdrawalDelayBlocks` variable
+        cheats.startPrank(investmentManager.owner());
+        investmentManager.setWithdrawalDelayBlocks(valueToSet);
+        cheats.stopPrank();
+        require(investmentManager.withdrawalDelayBlocks() == valueToSet, "investmentManager.withdrawalDelayBlocks() != valueToSet");
+    }
+
+    function testSetWithdrawalDelayBlocksRevertsWhenCalledByNotOwner(address notOwner) filterFuzzedAddressInputs(notOwner) external {
+        cheats.assume(notOwner != investmentManager.owner());
+
+        uint256 valueToSet = 1;
+        // set the `withdrawalDelayBlocks` variable
+        cheats.startPrank(notOwner);
+        cheats.expectRevert(bytes("Ownable: caller is not the owner"));
+        investmentManager.setWithdrawalDelayBlocks(valueToSet);
+        cheats.stopPrank();
+    }
+
+    function testSetWithdrawalDelayBlocksRevertsWhenInputValueTooHigh(uint256 valueToSet) external {
+        // filter fuzzed inputs to disallowed amounts
+        cheats.assume(valueToSet > investmentManager.MAX_WITHDRAWAL_DELAY_BLOCKS());
+
+        // attempt to set the `withdrawalDelayBlocks` variable
+        cheats.startPrank(investmentManager.owner());
+        cheats.expectRevert(bytes("InvestmentManager.setWithdrawalDelay: _withdrawalDelayBlocks too high"));
+        investmentManager.setWithdrawalDelayBlocks(valueToSet);
+        cheats.stopPrank();
     }
 
     // INTERNAL / HELPER FUNCTIONS
