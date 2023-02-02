@@ -1236,6 +1236,41 @@ contract InvestmentManagerUnitTests is Test {
         investmentManager.completeQueuedWithdrawal(queuedWithdrawal, tokensArray, middlewareTimesIndex, receiveAsTokens);
     }
 
+    function testCompleteQueuedWithdrawalWithNonzeroWithdrawalDelayBlocks(uint16 valueToSet) external {
+        // filter fuzzed inputs to allowed *and nonzero* amounts
+        cheats.assume(valueToSet <= investmentManager.MAX_WITHDRAWAL_DELAY_BLOCKS() && valueToSet != 0);
+
+        _tempStakerStorage = address(this);
+        uint256 depositAmount = 1e18;
+        uint256 withdrawalAmount = 1e18;
+        bool undelegateIfPossible = false;
+
+        (IInvestmentManager.QueuedWithdrawal memory queuedWithdrawal, IERC20[] memory tokensArray, /*bytes32 withdrawalRoot*/) =
+            testQueueWithdrawal_ToSelf_NotBeaconChainETH(depositAmount, withdrawalAmount, undelegateIfPossible);
+
+        uint256 middlewareTimesIndex = 0;
+        bool receiveAsTokens = false;
+
+        // set the `withdrawalDelayBlocks` variable
+        cheats.startPrank(investmentManager.owner());
+        investmentManager.setWithdrawalDelayBlocks(valueToSet);
+        cheats.stopPrank();
+        require(investmentManager.withdrawalDelayBlocks() == valueToSet, "investmentManager.withdrawalDelayBlocks() != valueToSet");
+
+        cheats.expectRevert(bytes("InvestmentManager.completeQueuedWithdrawal: withdrawalDelayBlocks period has not yet passed"));
+        investmentManager.completeQueuedWithdrawal(queuedWithdrawal, tokensArray, middlewareTimesIndex, receiveAsTokens);
+
+
+        // roll block number forward to one block before the withdrawal should be completeable and attempt again
+        uint256 originalBlockNumber = block.number;
+        cheats.roll(originalBlockNumber + valueToSet - 1);
+        cheats.expectRevert(bytes("InvestmentManager.completeQueuedWithdrawal: withdrawalDelayBlocks period has not yet passed"));
+        investmentManager.completeQueuedWithdrawal(queuedWithdrawal, tokensArray, middlewareTimesIndex, receiveAsTokens);
+
+        // roll block number forward to the block at which the withdrawal should be completeable, and complete it
+        cheats.roll(originalBlockNumber + valueToSet);
+    }
+
     function testSlashSharesNotBeaconChainETHFuzzed(uint64 withdrawalAmount) external {
         _tempStakerStorage = address(this);
         IInvestmentStrategy strategy = dummyStrat;
