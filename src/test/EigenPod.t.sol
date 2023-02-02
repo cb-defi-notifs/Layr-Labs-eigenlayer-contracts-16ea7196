@@ -9,7 +9,7 @@ import "./EigenLayerDeployer.t.sol";
 import "./mocks/MiddlewareRegistryMock.sol";
 import "./mocks/ServiceManagerMock.sol";
 
-contract EigenPodTests is BeaconChainProofUtils, DSTest {
+contract EigenPodTests is BeaconChainProofUtils, EigenPodPausingConstants, DSTest {
     using BytesLib for bytes;
 
     uint256 internal constant GWEI_TO_WEI = 1e9;
@@ -181,7 +181,8 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         // make sure that wrongWithdrawalAddress is not set to actual pod address
         cheats.assume(wrongWithdrawalAddress != address(newPod));
         
-        (beaconStateRoot, beaconStateMerkleProofForValidators, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) = getInitialDepositProof(validatorIndex0);
+        (beaconStateRoot, beaconStateMerkleProofForValidators, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) =
+            getInitialDepositProof(validatorIndex0);
         beaconChainOracle.setBeaconChainStateRoot(beaconStateRoot);
 
 
@@ -198,7 +199,8 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
 
     //test that when withdrawal credentials are verified more than once, it reverts
     function testDeployNewEigenPodWithActiveValidator() public {
-        (beaconStateRoot, beaconStateMerkleProofForValidators, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) = getInitialDepositProof(validatorIndex0);
+        (beaconStateRoot, beaconStateMerkleProofForValidators, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) =
+            getInitialDepositProof(validatorIndex0);
         beaconChainOracle.setBeaconChainStateRoot(beaconStateRoot);        
 
         cheats.startPrank(podOwner);
@@ -294,7 +296,8 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         _proveFullWithdrawal(pod);
 
         assertTrue(pod.restakedExecutionLayerGwei() == pod.REQUIRED_BALANCE_GWEI(), "restakedExecutionLayerGwei not set correctly");
-        assertTrue(pod.instantlyWithdrawableBalanceGwei() - instantlyWithdrawableBalanceGweiBefore == withdrawalAmountGwei - pod.REQUIRED_BALANCE_GWEI(), "instantlyWithdrawableBalanceGwei not set correctly");
+        assertTrue(pod.instantlyWithdrawableBalanceGwei() - instantlyWithdrawableBalanceGweiBefore == withdrawalAmountGwei - pod.REQUIRED_BALANCE_GWEI(),
+            "instantlyWithdrawableBalanceGwei not set correctly");
         assertTrue(pod.validatorStatus(validatorIndex0) == IEigenPod.VALIDATOR_STATUS.WITHDRAWN, "validator status not set correctly");
     }
 
@@ -458,7 +461,8 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         IEigenPod.PartialWithdrawalClaim memory claim = pod.getPartialWithdrawalClaim(pod.getPartialWithdrawalClaimsLength() - 1);
 
         require(claim.status == IEigenPod.PARTIAL_WITHDRAWAL_CLAIM_STATUS.PENDING, "status not set to pending");
-        require(claim.partialWithdrawalAmountGwei == uint64(address(pod).balance / GWEI_TO_WEI) - restakedExectionLayerGweiBefore - instantlyWithdrawableBalanceGweiBefore, "partialWithdrawalAmount not correct");
+        require(claim.partialWithdrawalAmountGwei == uint64(address(pod).balance / GWEI_TO_WEI) - restakedExectionLayerGweiBefore - instantlyWithdrawableBalanceGweiBefore,
+            "partialWithdrawalAmount not correct");
         require(pod.getPartialWithdrawalClaimsLength() == lengthBefore + 1, "partialWithdrawalClaim not added");
         return (pod, claim);
 
@@ -651,7 +655,110 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         cheats.stopPrank();
 
         require(podOwner.balance - podOwnerBalanceBefore == shareAmounts[0], "podOwner balance not updated correcty");
-    } 
+    }
+
+    function testDeployingEigenPodRevertsWhenPaused() external {
+        // pause the contract
+        cheats.startPrank(eigenPodManager.pauserRegistry().pauser());
+        eigenPodManager.pause(2 ** PAUSED_NEW_EIGENPODS);
+        cheats.stopPrank();
+
+        cheats.startPrank(podOwner);
+        cheats.expectRevert(bytes("Pausable: index is paused"));
+        eigenPodManager.stake{value: stakeAmount}(pubkey, signature, depositDataRoot);
+        cheats.stopPrank();
+    }
+
+    function testWithdrawRestakedBeaconChainETHRevertsWhenPaused() external {
+        // pause the contract
+        cheats.startPrank(eigenPodManager.pauserRegistry().pauser());
+        eigenPodManager.pause(2 ** PAUSED_WITHDRAW_RESTAKED_ETH);
+        cheats.stopPrank();
+
+        address recipient = address(this);
+        uint256 amount = 1e18;
+        cheats.startPrank(address(eigenPodManager.investmentManager()));
+        cheats.expectRevert(bytes("Pausable: index is paused"));
+        eigenPodManager.withdrawRestakedBeaconChainETH(podOwner, recipient, amount);
+        cheats.stopPrank();
+    }
+
+    function testVerifyCorrectWithdrawalCredentialsRevertsWhenPaused() external {
+        uint40 validatorIndex = validatorIndex1;
+        IEigenPod pod = testDeployAndVerifyNewEigenPod();
+        _testVerifyNewValidator(pod, validatorIndex);
+
+        (beaconStateRoot, beaconStateMerkleProofForValidators, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) =
+            getInitialDepositProof(validatorIndex);
+        bytes memory proofs = abi.encodePacked(validatorMerkleProof, beaconStateMerkleProofForValidators);
+
+        // pause the contract
+        cheats.startPrank(eigenPodManager.pauserRegistry().pauser());
+        eigenPodManager.pause(2 ** PAUSED_EIGENPODS_VERIFY_CREDENTIALS);
+        cheats.stopPrank();
+
+        cheats.expectRevert(bytes("EigenPod.onlyWhenNotPaused: index is paused in EigenPodManager"));
+        pod.verifyCorrectWithdrawalCredentials(validatorIndex, proofs, validatorContainerFields);
+    }
+
+    function testVerifyOvercommittedStakeRevertsWhenPaused() external {
+        uint40 validatorIndex = validatorIndex0;
+        IEigenPod pod = testDeployAndVerifyNewEigenPod();
+
+        (
+            beaconStateRoot, 
+            beaconStateMerkleProofForValidators, 
+            validatorContainerFields, 
+            validatorMerkleProof, 
+            validatorTreeRoot, 
+            validatorRoot
+        ) = getSlashedDepositProof(validatorIndex);
+
+        beaconChainOracle.setBeaconChainStateRoot(beaconStateRoot);
+        
+        // bytes32 validatorIndexBytes = bytes32(uint256(validatorIndex));
+        bytes memory proofs = abi.encodePacked(validatorMerkleProof, beaconStateMerkleProofForValidators);
+
+        // pause the contract
+        cheats.startPrank(eigenPodManager.pauserRegistry().pauser());
+        eigenPodManager.pause(2 ** PAUSED_EIGENPODS_VERIFY_OVERCOMMITTED);
+        cheats.stopPrank();
+
+        cheats.expectRevert(bytes("EigenPod.onlyWhenNotPaused: index is paused in EigenPodManager"));
+        pod.verifyOvercommittedStake(validatorIndex, proofs, validatorContainerFields, 0);
+    }
+
+    function testVerifyBeaconChainFullWithdrawalRevertsWhenPaused() external {
+        // pause the contract
+        cheats.startPrank(eigenPodManager.pauserRegistry().pauser());
+        eigenPodManager.pause(2 ** PAUSED_EIGENPODS_VERIFY_WITHDRAWAL);
+        cheats.stopPrank();
+
+        IEigenPod pod = testDeployAndVerifyNewEigenPod();
+
+        (
+            beaconStateRoot, 
+            executionPayloadHeaderRoot, 
+            blockNumberRoot,
+            executionPayloadHeaderProof,
+            blockNumberProof, 
+            withdrawalMerkleProof,
+            withdrawalContainerFields
+        ) = getWithdrawalProofsWithBlockNumber();
+
+        beaconChainOracle.setBeaconChainStateRoot(beaconStateRoot);
+        BeaconChainProofs.WithdrawalAndBlockNumberProof memory proof = BeaconChainProofs.WithdrawalAndBlockNumberProof(
+                                                                    uint16(0), 
+                                                                    executionPayloadHeaderRoot, 
+                                                                    abi.encodePacked(executionPayloadHeaderProof),
+                                                                    uint8(0),
+                                                                    abi.encodePacked(withdrawalMerkleProof),
+                                                                    abi.encodePacked(blockNumberProof)
+                                                                    );
+
+        cheats.expectRevert(bytes("EigenPod.onlyWhenNotPaused: index is paused in EigenPodManager"));
+        pod.verifyBeaconChainFullWithdrawal(proof, blockNumberRoot, withdrawalContainerFields,  0);
+    }
 
     // simply tries to register 'sender' as a delegate, setting their 'DelegationTerms' contract in EigenLayerDelegation to 'dt'
     // verifies that the storage of EigenLayerDelegation contract is updated appropriately
@@ -721,8 +828,11 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
             investmentManager.getDeposits(staker);
     }
 
-    function _testDeployAndVerifyNewEigenPod(address _podOwner, bytes memory _signature, bytes32 _depositDataRoot, bool /*isContract*/, uint40 validatorIndex) internal returns (IEigenPod){
-        (beaconStateRoot, beaconStateMerkleProofForValidators, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) = getInitialDepositProof(validatorIndex);
+    function _testDeployAndVerifyNewEigenPod(address _podOwner, bytes memory _signature, bytes32 _depositDataRoot, bool /*isContract*/, uint40 validatorIndex)
+        internal returns (IEigenPod)
+    {
+        (beaconStateRoot, beaconStateMerkleProofForValidators, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) =
+            getInitialDepositProof(validatorIndex);
 
         cheats.startPrank(_podOwner);
         eigenPodManager.stake{value: stakeAmount}(pubkey, _signature, _depositDataRoot);
@@ -746,7 +856,8 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     }
 
     function _testVerifyNewValidator(IEigenPod pod, uint40 validatorIndex) internal {
-        (beaconStateRoot, beaconStateMerkleProofForValidators, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) = getInitialDepositProof(validatorIndex);
+        (beaconStateRoot, beaconStateMerkleProofForValidators, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) =
+            getInitialDepositProof(validatorIndex);
         bytes memory proofs = abi.encodePacked(validatorMerkleProof, beaconStateMerkleProofForValidators);
 
         pod.verifyCorrectWithdrawalCredentials(validatorIndex, proofs, validatorContainerFields);

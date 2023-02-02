@@ -29,11 +29,6 @@ import "./EigenPodPausingConstants.sol";
  * - withdrawing eth when withdrawals are initiated
  */
 contract EigenPodManager is Initializable, OwnableUpgradeable, Pausable, IEigenPodManager, EigenPodPausingConstants {
-    /// @notice Index for flag that pauses creation of new EigenPods when set
-    uint8 internal constant PAUSED_NEW_EIGENPODS = 0;
-    /// @notice Index for flag that pauses the `withdrawRestakedBeaconChainETH` function when set
-    uint8 internal constant PAUSED_WITHDRAW_RESTAKED_ETH = 1;
-
     //TODO: change this to constant in prod
     IETHPOSDeposit public immutable ethPOS;
     
