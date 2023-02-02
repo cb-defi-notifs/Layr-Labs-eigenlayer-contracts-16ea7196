@@ -1708,6 +1708,12 @@ contract InvestmentManagerUnitTests is Test {
         dummyToken = IERC20(address(new Reverter()));
         dummyStrat = new InvestmentStrategyWrapper(investmentManager, dummyToken);
 
+        // whitelist the strategy for deposit
+        cheats.startPrank(investmentManager.owner());
+        IInvestmentStrategy[] memory _strategy = new IInvestmentStrategy[](1);
+        _strategy[0] = dummyStrat;
+        investmentManager.addStrategiesToDepositWhitelist(_strategy);
+        cheats.stopPrank();
 
         address staker = address(this);
         IERC20 token = dummyToken;
@@ -1725,6 +1731,12 @@ contract InvestmentManagerUnitTests is Test {
         dummyToken = IERC20(address(5678));
         dummyStrat = new InvestmentStrategyWrapper(investmentManager, dummyToken);
 
+        // whitelist the strategy for deposit
+        cheats.startPrank(investmentManager.owner());
+        IInvestmentStrategy[] memory _strategy = new IInvestmentStrategy[](1);
+        _strategy[0] = dummyStrat;
+        investmentManager.addStrategiesToDepositWhitelist(_strategy);
+        cheats.stopPrank();
 
         address staker = address(this);
         IERC20 token = dummyToken;
@@ -1745,6 +1757,13 @@ contract InvestmentManagerUnitTests is Test {
             )
         );
 
+        // whitelist the strategy for deposit
+        cheats.startPrank(investmentManager.owner());
+        IInvestmentStrategy[] memory _strategy = new IInvestmentStrategy[](1);
+        _strategy[0] = dummyStrat;
+        investmentManager.addStrategiesToDepositWhitelist(_strategy);
+        cheats.stopPrank();
+
         address staker = address(this);
         IERC20 token = dummyToken;
         uint256 amount = 1e18;
@@ -1762,6 +1781,13 @@ contract InvestmentManagerUnitTests is Test {
             address(5678)
         );
 
+        // whitelist the strategy for deposit
+        cheats.startPrank(investmentManager.owner());
+        IInvestmentStrategy[] memory _strategy = new IInvestmentStrategy[](1);
+        _strategy[0] = dummyStrat;
+        investmentManager.addStrategiesToDepositWhitelist(_strategy);
+        cheats.stopPrank();
+
         address staker = address(this);
         IERC20 token = dummyToken;
         uint256 amount = 1e18;
@@ -1769,6 +1795,21 @@ contract InvestmentManagerUnitTests is Test {
 
         cheats.startPrank(staker);
         cheats.expectRevert();
+        investmentManager.depositIntoStrategy(strategy, token, amount);
+        cheats.stopPrank();
+    }
+
+    function test_depositIntoStrategyRevertsWhenStrategyNotWhitelisted() external {
+        // replace 'dummyStrat' with one that is not whitelisted
+        dummyStrat = new InvestmentStrategyWrapper(investmentManager, dummyToken);
+
+        address staker = address(this);
+        IERC20 token = dummyToken;
+        uint256 amount = 1e18;
+        IInvestmentStrategy strategy = dummyStrat;
+
+        cheats.startPrank(staker);
+        cheats.expectRevert("InvestmentManager.onlyStrategiesWhitelistedForDeposit: strategy not whitelisted");
         investmentManager.depositIntoStrategy(strategy, token, amount);
         cheats.stopPrank();
     }
@@ -1871,6 +1912,98 @@ contract InvestmentManagerUnitTests is Test {
 
         require(sharesAfter == sharesBefore - amount, "sharesAfter != sharesBefore - amount");
         require(balanceAfter == balanceBefore + amount, "balanceAfter != balanceBefore + amount");
+    }
+
+    function testSetStrategyWhitelister(address newWhitelister) external {
+        investmentManager.setStrategyWhitelister(newWhitelister);
+        require(investmentManager.strategyWhitelister() == newWhitelister, "investmentManager.strategyWhitelister() != newWhitelister");
+    }
+
+    function testSetStrategyWhitelisterRevertsWhenCalledByNotOwner(address notOwner)
+        external filterFuzzedAddressInputs(notOwner)
+    {
+        cheats.assume(notOwner != investmentManager.owner());
+        address newWhitelister = address(this);
+        cheats.startPrank(notOwner);
+        cheats.expectRevert(bytes("Ownable: caller is not the owner"));
+        investmentManager.setStrategyWhitelister(newWhitelister);
+        cheats.stopPrank();
+    }
+
+    function testAddStrategiesToDepositWhitelist(uint8 numberOfStrategiesToAdd) public returns (IInvestmentStrategy[] memory) {
+        // sanity filtering on fuzzed input
+        cheats.assume(numberOfStrategiesToAdd <= 16);
+
+        IInvestmentStrategy[] memory strategyArray = new IInvestmentStrategy[](numberOfStrategiesToAdd);
+        // loop that deploys a new strategy and adds it to the array
+        for (uint256 i = 0; i < numberOfStrategiesToAdd; ++i) {
+            IInvestmentStrategy _strategy = new InvestmentStrategyWrapper(investmentManager, dummyToken);
+            strategyArray[i] = _strategy;
+            require(!investmentManager.strategyIsWhitelistedForDeposit(_strategy), "strategy improperly whitelisted?");
+        }
+
+        cheats.startPrank(investmentManager.strategyWhitelister());
+        investmentManager.addStrategiesToDepositWhitelist(strategyArray);
+        cheats.stopPrank();
+
+        for (uint256 i = 0; i < numberOfStrategiesToAdd; ++i) {
+            require(investmentManager.strategyIsWhitelistedForDeposit(strategyArray[i]), "strategy not properly whitelisted");
+        }
+
+        return strategyArray;
+    }
+
+    function testAddStrategiesToDepositWhitelistRevertsWhenCalledByNotStrategyWhitelister(address notStrategyWhitelister)
+        external filterFuzzedAddressInputs(notStrategyWhitelister)
+    {
+        cheats.assume(notStrategyWhitelister != investmentManager.strategyWhitelister());
+        IInvestmentStrategy[] memory strategyArray = new IInvestmentStrategy[](1);
+        IInvestmentStrategy _strategy = new InvestmentStrategyWrapper(investmentManager, dummyToken);
+        strategyArray[0] = _strategy;
+
+        cheats.startPrank(notStrategyWhitelister);
+        cheats.expectRevert(bytes("InvestmentManager.onlyStrategyWhitelister: not the strategyWhitelister"));
+        investmentManager.addStrategiesToDepositWhitelist(strategyArray);
+        cheats.stopPrank();
+    }
+
+    function testRemoveStrategiesFromDepositWhitelist(uint8 numberOfStrategiesToAdd, uint8 numberOfStrategiesToRemove) external {
+        // sanity filtering on fuzzed input
+        cheats.assume(numberOfStrategiesToAdd <= 16);
+        cheats.assume(numberOfStrategiesToRemove <= 16);
+        cheats.assume(numberOfStrategiesToRemove <= numberOfStrategiesToAdd);
+
+        IInvestmentStrategy[] memory strategiesAdded = testAddStrategiesToDepositWhitelist(numberOfStrategiesToAdd);
+
+        IInvestmentStrategy[] memory strategiesToRemove = new IInvestmentStrategy[](numberOfStrategiesToRemove);
+        // loop that selectively copies from array to other array
+        for (uint256 i = 0; i < numberOfStrategiesToRemove; ++i) {
+            strategiesToRemove[i] = strategiesAdded[i];
+        }
+
+        cheats.startPrank(investmentManager.strategyWhitelister());
+        investmentManager.removeStrategiesFromDepositWhitelist(strategiesToRemove);
+        cheats.stopPrank();
+
+        for (uint256 i = 0; i < numberOfStrategiesToAdd; ++i) {
+            if (i < numberOfStrategiesToRemove) {
+                require(!investmentManager.strategyIsWhitelistedForDeposit(strategiesToRemove[i]), "strategy not properly removed from whitelist");
+            } else {
+                require(investmentManager.strategyIsWhitelistedForDeposit(strategiesAdded[i]), "strategy improperly removed from whitelist?");                
+            }
+        }
+    }
+
+    function testRemoveStrategiesFromDepositWhitelistRevertsWhenCalledByNotStrategyWhitelister(address notStrategyWhitelister)
+        external filterFuzzedAddressInputs(notStrategyWhitelister)
+    {
+        cheats.assume(notStrategyWhitelister != investmentManager.strategyWhitelister());
+        IInvestmentStrategy[] memory strategyArray = testAddStrategiesToDepositWhitelist(1);
+
+        cheats.startPrank(notStrategyWhitelister);
+        cheats.expectRevert(bytes("InvestmentManager.onlyStrategyWhitelister: not the strategyWhitelister"));
+        investmentManager.removeStrategiesFromDepositWhitelist(strategyArray);
+        cheats.stopPrank();
     }
 
     // INTERNAL / HELPER FUNCTIONS
