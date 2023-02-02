@@ -181,14 +181,16 @@ contract EigenLayerDeployer is Operators {
             address(eigenPodManagerImplementation),
             abi.encodeWithSelector(EigenPodManager.initialize.selector, beaconChainOracle, eigenLayerReputedMultisig)
         );
+        uint256 initPausedStatus = 0;
+        uint256 withdrawalDelayBlocks = PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS;
         eigenLayerProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(eigenPodPaymentEscrow))),
             address(eigenPodPaymentEscrowImplementation),
             abi.encodeWithSelector(EigenPodPaymentEscrow.initialize.selector,
             eigenLayerReputedMultisig,
             eigenLayerPauserReg,
-            0,
-            PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS)
+            initPausedStatus,
+            withdrawalDelayBlocks)
         );
 
         //simple ERC20 (**NOT** WETH-like!), used in a test investment strategy

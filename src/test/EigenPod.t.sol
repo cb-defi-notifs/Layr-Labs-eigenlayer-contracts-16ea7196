@@ -103,6 +103,9 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         );
 
         eigenPodBeacon = new UpgradeableBeacon(address(podImplementation));
+        emit log_named_address("podImplementation", address(podImplementation));
+        emit log_named_address("eigenPodBeacon", address(eigenPodBeacon));
+        emit log_named_address("eigenPodBeacon.implementation()", address(eigenPodBeacon.implementation()));        
 
         // this contract is deployed later to keep its address the same (for these tests)
         eigenPodManager = EigenPodManager(
@@ -143,12 +146,14 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
             address(eigenPodManagerImplementation),
             abi.encodeWithSelector(EigenPodManager.initialize.selector, beaconChainOracle, initialOwner)
         );
-         eigenLayerProxyAdmin.upgradeAndCall(
+        uint256 initPausedStatus = 0;
+        uint256 withdrawalDelayBlocks = PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS;
+        eigenLayerProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(eigenPodPaymentEscrow))),
             address(eigenPodPaymentEscrowImplementation),
-            abi.encodeWithSelector(EigenPodPaymentEscrow.initialize.selector, initialOwner, pauserReg, 0, PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS)
+            abi.encodeWithSelector(EigenPodPaymentEscrow.initialize.selector, initialOwner, pauserReg, initPausedStatus, withdrawalDelayBlocks)
         );
-       generalServiceManager1 = new ServiceManagerMock(slasher);
+        generalServiceManager1 = new ServiceManagerMock(slasher);
 
         generalReg1 = new MiddlewareRegistryMock(
              generalServiceManager1,
@@ -169,6 +174,9 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     }
 
     function testDeployAndVerifyNewEigenPod() public returns(IEigenPod){
+        emit log_named_address("podImplementation", address(podImplementation));
+        emit log_named_address("eigenPodBeacon", address(eigenPodBeacon));
+        emit log_named_address("eigenPodBeacon.implementation()", address(eigenPodBeacon.implementation()));        
         beaconChainOracle.setBeaconChainStateRoot(0xaf3bf0770df5dd35b984eda6586e6f6eb20af904a5fb840fe65df9a6415293bd);
         return _testDeployAndVerifyNewEigenPod(podOwner, signature, depositDataRoot, false, validatorIndex0);
     }
