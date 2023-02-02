@@ -14,8 +14,11 @@ interface IEigenPodPaymentEscrow {
         Payment[] payments;
     }
 
-    /// @notice Creates an escrowed payment for `msg.value` to the `recipient`.
-    function createPayment(address recipient) external payable;
+    /** 
+     * @notice Creates an escrowed payment for `msg.value` to the `recipient`.
+     * @dev Only callable by the `podOwner`'s EigenPod contract.
+     */
+    function createPayment(address podOwner, address recipient) external payable;
 
     /**
      * @notice Called in order to withdraw escrowed payments made to the `recipient` that have passed the `withdrawalDelayBlocks` period.

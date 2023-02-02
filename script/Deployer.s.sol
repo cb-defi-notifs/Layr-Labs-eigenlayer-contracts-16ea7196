@@ -151,7 +151,7 @@ contract EigenLayerDeployer is Script, Owners {
         InvestmentManager investmentManagerImplementation = new InvestmentManager(delegation, eigenPodManager, slasher);
         Slasher slasherImplementation = new Slasher(investmentManager, delegation);
         EigenPodManager eigenPodManagerImplementation = new EigenPodManager(ethPOSDeposit, eigenPodBeacon, investmentManager, slasher);
-        EigenPodPaymentEscrow eigenPodPaymentEscrowImplementation = new EigenPodPaymentEscrow();
+        EigenPodPaymentEscrow eigenPodPaymentEscrowImplementation = new EigenPodPaymentEscrow(eigenPodManager);
 
         // Third, upgrade the proxy contracts to use the correct implementation contracts and initialize them.
         eigenLayerProxyAdmin.upgradeAndCall(

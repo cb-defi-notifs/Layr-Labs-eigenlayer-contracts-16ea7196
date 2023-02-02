@@ -117,7 +117,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         InvestmentManager investmentManagerImplementation = new InvestmentManager(delegation, eigenPodManager, slasher);
         Slasher slasherImplementation = new Slasher(investmentManager, delegation);
         EigenPodManager eigenPodManagerImplementation = new EigenPodManager(ethPOSDeposit, eigenPodBeacon, investmentManager, slasher);
-        EigenPodPaymentEscrow eigenPodPaymentEscrowImplementation = new EigenPodPaymentEscrow();
+        EigenPodPaymentEscrow eigenPodPaymentEscrowImplementation = new EigenPodPaymentEscrow(eigenPodManager);
 
         //ensuring that the address of eigenpodmanager doesn't change
         bytes memory code = address(eigenPodManager).code;

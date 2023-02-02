@@ -426,6 +426,6 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard {
     }
 
     function _sendETH(address recipient, uint256 amountWei) internal {
-        eigenPodPaymentEscrow.createPayment{value: amountWei}(recipient);
+        eigenPodPaymentEscrow.createPayment{value: amountWei}(podOwner, recipient);
     }
 }

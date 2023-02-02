@@ -4,6 +4,7 @@ pragma solidity =0.8.12;
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
 import "@openzeppelin-upgrades/contracts/security/ReentrancyGuardUpgradeable.sol";
+import "../interfaces/IEigenPodManager.sol";
 import "../interfaces/IEigenPodPaymentEscrow.sol";
 import "../permissions/Pausable.sol";
 
@@ -22,8 +23,22 @@ contract EigenPodPaymentEscrow is Initializable, OwnableUpgradeable, ReentrancyG
     // the number of 12-second blocks in one week (60 * 60 * 24 * 7 / 12 = 50,400)
     uint256 public constant MAX_WITHDRAWAL_DELAY_BLOCKS = 50400;
 
+    /// @notice The EigenPodManager contract of EigenLayer.
+    IEigenPodManager public immutable eigenPodManager;
+
     /// @notice Mapping: user => struct storing all payment info. Marked as internal with an external getter function named `userPayments`
     mapping(address => UserPayments) internal _userPayments;
+
+    /// @notice Modifier used to permission a function to only be called by the EigenPod of the specified `podOwner`
+    modifier onlyEigenPod(address podOwner) {
+        require(address(eigenPodManager.getPod(podOwner)) == msg.sender, "EigenPodPaymentEscrow.onlyEigenPod: not podOwner's EigenPod");
+        _;
+    }
+
+    constructor(IEigenPodManager _eigenPodManager) {
+        require(address(_eigenPodManager) != address(0), "EigenPodPaymentEscrow.constructor: _eigenPodManager cannot be zero address");
+        eigenPodManager = _eigenPodManager;
+    }
 
     function initialize(address initOwner, IPauserRegistry _pauserRegistry, uint256 initPausedStatus, uint256 _withdrawalDelayBlocks) external initializer {
         _transferOwnership(initOwner);
@@ -31,8 +46,11 @@ contract EigenPodPaymentEscrow is Initializable, OwnableUpgradeable, ReentrancyG
         _setWithdrawalDelayBlocks(_withdrawalDelayBlocks);
     }
 
-    /// @notice Creates an escrowed payment for `msg.value` to the `recipient`.
-    function createPayment(address recipient) external payable {
+    /** 
+     * @notice Creates an escrowed payment for `msg.value` to the `recipient`.
+     * @dev Only callable by the `podOwner`'s EigenPod contract.
+     */
+    function createPayment(address podOwner, address recipient) external payable onlyEigenPod(podOwner) {
         uint224 paymentAmount = uint224(msg.value);
         if (paymentAmount != 0) {
             Payment memory payment = Payment({
