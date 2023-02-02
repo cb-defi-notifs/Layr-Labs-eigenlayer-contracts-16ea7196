@@ -64,18 +64,18 @@ contract EigenPodPaymentEscrow is Initializable, OwnableUpgradeable, ReentrancyG
     /**
      * @notice Called in order to withdraw escrowed payments made to the `recipient` that have passed the `withdrawalDelayBlocks` period.
      * @param recipient The address to claim payments for.
-     * @param maxClaimsToMake Used to limit the maximum number of payments to loop through claiming.
+     * @param maxNumberOfPaymentsToClaim Used to limit the maximum number of payments to loop through claiming.
      */
-    function claimPayments(address recipient, uint256 maxClaimsToMake) external nonReentrant onlyWhenNotPaused(PAUSED_WITHDRAWALS) {
-        _claimPayments(recipient, maxClaimsToMake);
+    function claimPayments(address recipient, uint256 maxNumberOfPaymentsToClaim) external nonReentrant onlyWhenNotPaused(PAUSED_WITHDRAWALS) {
+        _claimPayments(recipient, maxNumberOfPaymentsToClaim);
     }
 
     /**
      * @notice Called in order to withdraw escrowed payments made to the caller that have passed the `withdrawalDelayBlocks` period.
-     * @param maxClaimsToMake Used to limit the maximum number of payments to loop through claiming.
+     * @param maxNumberOfPaymentsToClaim Used to limit the maximum number of payments to loop through claiming.
      */
-    function claimPayments(uint256 maxClaimsToMake) external nonReentrant onlyWhenNotPaused(PAUSED_WITHDRAWALS) {
-        _claimPayments(msg.sender, maxClaimsToMake);
+    function claimPayments(uint256 maxNumberOfPaymentsToClaim) external nonReentrant onlyWhenNotPaused(PAUSED_WITHDRAWALS) {
+        _claimPayments(msg.sender, maxNumberOfPaymentsToClaim);
     }
 
     /// @notice Owner-only function for modifying the value of the `withdrawalDelayBlocks` variable.
@@ -99,12 +99,12 @@ contract EigenPodPaymentEscrow is Initializable, OwnableUpgradeable, ReentrancyG
     }
 
     /// @notice internal function used in both of the overloaded `claimPayments` functions
-    function _claimPayments(address recipient, uint256 maxClaimsToMake) internal {
+    function _claimPayments(address recipient, uint256 maxNumberOfPaymentsToClaim) internal {
         uint256 amountToSend = 0;
         uint256 paymentsCompletedBefore = _userPayments[recipient].paymentsCompleted;
         uint256 maxIndex = _userPayments[recipient].payments.length - 1;
         uint256 i = 0;
-        while (i < maxClaimsToMake && (paymentsCompletedBefore + i) < maxIndex) {
+        while (i < maxNumberOfPaymentsToClaim && (paymentsCompletedBefore + i) < maxIndex) {
             // copy payment from storage to memory
             Payment memory payment = _userPayments[recipient].payments[paymentsCompletedBefore + i];
             // check if payment can be claimed. break the loop as soon as a payment cannot be claimed
