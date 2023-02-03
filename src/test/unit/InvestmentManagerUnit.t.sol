@@ -15,9 +15,7 @@ import "../mocks/EigenPodManagerMock.sol";
 import "../mocks/Reenterer.sol";
 import "../mocks/Reverter.sol";
 
-
 import "../mocks/ERC20Mock.sol";
-
 
 contract InvestmentManagerUnitTests is Test {
 

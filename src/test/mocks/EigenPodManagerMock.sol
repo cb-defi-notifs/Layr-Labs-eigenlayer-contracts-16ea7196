@@ -4,7 +4,6 @@ pragma solidity ^0.8.9;
 import "forge-std/Test.sol";
 import "../../contracts/interfaces/IEigenPodManager.sol";
 
-
 contract EigenPodManagerMock is IEigenPodManager, Test {
     function slasher() external view returns(ISlasher) {}
 
@@ -20,8 +19,8 @@ contract EigenPodManagerMock is IEigenPodManager, Test {
 
     function updateBeaconChainOracle(IBeaconChainOracle /*newBeaconChainOracle*/) external pure {}
 
-    function getPod(address /*podOwner*/) external pure returns(IEigenPod) {
-        return IEigenPod(address(0));
+    function getPod(address podOwner) external pure returns(IEigenPod) {
+        return IEigenPod(podOwner);
     }
 
     function beaconChainOracle() external pure returns(IBeaconChainOracle) {
