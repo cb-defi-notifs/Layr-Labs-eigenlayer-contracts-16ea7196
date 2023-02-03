@@ -120,7 +120,7 @@ contract EigenPodPaymentEscrowUnitTests is Test {
             "userPaymentsAfter.payments.length != userPaymentsBefore.payments.length");
     }
 
-    function testClaimPayments(uint8 paymentsToCreate, uint8 maxNumberOfPaymentsToClaim, uint256 pseudorandomNumber_, address recipient)
+    function testClaimPayments(uint8 paymentsToCreate, uint8 maxNumberOfPaymentsToClaim, uint256 pseudorandomNumber_, address recipient, bool useOverloadedFunction)
         public filterFuzzedAddressInputs(recipient)
     {
         // filter contracts out of fuzzed recipient input, since most don't implement a payable fallback function
@@ -153,7 +153,13 @@ contract EigenPodPaymentEscrowUnitTests is Test {
 
         // claim the payments
         if (paymentsCreated != 0) {
-            eigenPodPaymentEscrow.claimPayments(recipient, maxNumberOfPaymentsToClaim);
+            if (useOverloadedFunction) {
+                eigenPodPaymentEscrow.claimPayments(recipient, maxNumberOfPaymentsToClaim);                
+            } else {
+                cheats.startPrank(recipient);
+                eigenPodPaymentEscrow.claimPayments(maxNumberOfPaymentsToClaim);
+                cheats.stopPrank();
+            }
         }
 
         IEigenPodPaymentEscrow.UserPayments memory userPaymentsAfter = eigenPodPaymentEscrow.userPayments(recipient);
@@ -175,7 +181,7 @@ contract EigenPodPaymentEscrowUnitTests is Test {
      * @notice Creates a set of payments of length (2 * `paymentsToCreate`) where only the first half is claimable, claims using `maxNumberOfPaymentsToClaim` input,
      * and checks that only appropriate payments were claimed.
      */
-    function testClaimPaymentsSomeUnclaimable(uint8 paymentsToCreate, uint8 maxNumberOfPaymentsToClaim) external {
+    function testClaimPaymentsSomeUnclaimable(uint8 paymentsToCreate, uint8 maxNumberOfPaymentsToClaim, bool useOverloadedFunction) external {
         // filter fuzzed inputs to avoid running out of gas & excessive test run-time
         cheats.assume(paymentsToCreate <= 32);
 
@@ -197,7 +203,6 @@ contract EigenPodPaymentEscrowUnitTests is Test {
         // roll forward the block number half of the delay window
         cheats.roll(block.number + eigenPodPaymentEscrow.withdrawalDelayBlocks() / 2);
 
-        emit log_named_uint("qwerty line: ", 195);
         // create the second set of payments
         uint256 paymentsCreated_2;
         for (uint256 i = 0; i < paymentsToCreate; ++i) {
@@ -215,14 +220,19 @@ contract EigenPodPaymentEscrowUnitTests is Test {
         IEigenPodPaymentEscrow.UserPayments memory userPaymentsBefore = eigenPodPaymentEscrow.userPayments(recipient);
         uint256 userBalanceBefore = recipient.balance;
 
-        emit log_named_uint("qwerty line: ", 213);
         // pre-condition check
         require(userPaymentsBefore.payments.length == paymentsCreated_1 + paymentsCreated_2,
             "userPaymentsBefore.payments.length != paymentsCreated_1 + paymentsCreated_2");
 
         // claim the payments
         if (paymentsCreated_1 + paymentsCreated_2 != 0) {
-            eigenPodPaymentEscrow.claimPayments(recipient, maxNumberOfPaymentsToClaim);
+            if (useOverloadedFunction) {
+                eigenPodPaymentEscrow.claimPayments(recipient, maxNumberOfPaymentsToClaim);                
+            } else {
+                cheats.startPrank(recipient);
+                eigenPodPaymentEscrow.claimPayments(maxNumberOfPaymentsToClaim);
+                cheats.stopPrank();
+            }
         }
 
         IEigenPodPaymentEscrow.UserPayments memory userPaymentsAfter = eigenPodPaymentEscrow.userPayments(recipient);
@@ -233,7 +243,6 @@ contract EigenPodPaymentEscrowUnitTests is Test {
         require(userPaymentsAfter.paymentsCompleted == userPaymentsBefore.paymentsCompleted + numberOfPaymentsThatShouldBeCompleted,
             "userPaymentsAfter.paymentsCompleted != userPaymentsBefore.paymentsCompleted + numberOfPaymentsThatShouldBeCompleted");
         uint256 totalPaymentAmount = 0;
-        emit log_named_uint("qwerty line: ", 229);
         for (uint256 i = 0; i < numberOfPaymentsThatShouldBeCompleted; ++i) {
             totalPaymentAmount += paymentAmounts[i];
         }
@@ -241,34 +250,34 @@ contract EigenPodPaymentEscrowUnitTests is Test {
             "userBalanceAfter != userBalanceBefore + totalPaymentAmount");
     }
 
-    function testClaimPayments_NoneToClaim_AttemptToClaimZero(uint256 pseudorandomNumber_) external {
+    function testClaimPayments_NoneToClaim_AttemptToClaimZero(uint256 pseudorandomNumber_, bool useOverloadedFunction) external {
         uint8 paymentsToCreate = 0;
         uint8 maxNumberOfPaymentsToClaim = 0;
         address recipient = address(22222);
-        testClaimPayments(paymentsToCreate, maxNumberOfPaymentsToClaim, pseudorandomNumber_, recipient);
+        testClaimPayments(paymentsToCreate, maxNumberOfPaymentsToClaim, pseudorandomNumber_, recipient, useOverloadedFunction);
     }
 
-    function testClaimPayments_NoneToClaim_AttemptToClaimNonzero(uint256 pseudorandomNumber_) external {
+    function testClaimPayments_NoneToClaim_AttemptToClaimNonzero(uint256 pseudorandomNumber_, bool useOverloadedFunction) external {
         uint8 paymentsToCreate = 0;
         uint8 maxNumberOfPaymentsToClaim = 2;
         address recipient = address(22222);
-        testClaimPayments(paymentsToCreate, maxNumberOfPaymentsToClaim, pseudorandomNumber_, recipient);
+        testClaimPayments(paymentsToCreate, maxNumberOfPaymentsToClaim, pseudorandomNumber_, recipient, useOverloadedFunction);
     }
 
-    function testClaimPayments_NonzeroToClaim_AttemptToClaimZero(uint256 pseudorandomNumber_) external {
+    function testClaimPayments_NonzeroToClaim_AttemptToClaimZero(uint256 pseudorandomNumber_, bool useOverloadedFunction) external {
         uint8 paymentsToCreate = 2;
         uint8 maxNumberOfPaymentsToClaim = 0;
         address recipient = address(22222);
-        testClaimPayments(paymentsToCreate, maxNumberOfPaymentsToClaim, pseudorandomNumber_, recipient);
+        testClaimPayments(paymentsToCreate, maxNumberOfPaymentsToClaim, pseudorandomNumber_, recipient, useOverloadedFunction);
     }
 
-    function testClaimPayments_NonzeroToClaim_AttemptToClaimNonzero(uint8 maxNumberOfPaymentsToClaim, uint256 pseudorandomNumber_) external {
+    function testClaimPayments_NonzeroToClaim_AttemptToClaimNonzero(uint8 maxNumberOfPaymentsToClaim, uint256 pseudorandomNumber_, bool useOverloadedFunction) external {
         uint8 paymentsToCreate = 2;
         address recipient = address(22222);
-        testClaimPayments(paymentsToCreate, maxNumberOfPaymentsToClaim, pseudorandomNumber_, recipient);
+        testClaimPayments(paymentsToCreate, maxNumberOfPaymentsToClaim, pseudorandomNumber_, recipient, useOverloadedFunction);
     }
 
-    function testClaimPayments_RevertsOnAttemptingReentrancy() external {
+    function testClaimPayments_RevertsOnAttemptingReentrancy(bool useOverloadedFunction) external {
         uint8 maxNumberOfPaymentsToClaim = 1;
         address recipient = address(reenterer);
         address podOwner = address(reenterer);
@@ -284,16 +293,26 @@ contract EigenPodPaymentEscrowUnitTests is Test {
         address targetToUse = address(eigenPodPaymentEscrow);
         uint256 msgValueToUse = 0;
         bytes memory expectedRevertDataToUse = bytes("ReentrancyGuard: reentrant call");
-        bytes memory callDataToUse = abi.encodeWithSignature(
-            "claimPayments(address,uint256)", address(22222), maxNumberOfPaymentsToClaim, expectedRevertDataToUse);
-        reenterer.prepare(targetToUse, msgValueToUse, callDataToUse);
+        bytes memory callDataToUse;
+        if (useOverloadedFunction) {
+            callDataToUse = abi.encodeWithSignature(
+                "claimPayments(address,uint256)", address(22222), maxNumberOfPaymentsToClaim);
+        } else {
+            callDataToUse  = abi.encodeWithSignature(
+                "claimPayments(uint256)", maxNumberOfPaymentsToClaim);
+        }
+        reenterer.prepare(targetToUse, msgValueToUse, callDataToUse, expectedRevertDataToUse);
 
-        // the Reenterer itself checks the reentrancy revert message -- this message bubbles up after the call to the Reenterer fails!
-        cheats.expectRevert(bytes("Address: unable to send value, recipient may have reverted"));
-        eigenPodPaymentEscrow.claimPayments(recipient, maxNumberOfPaymentsToClaim);
+        if (useOverloadedFunction) {
+            eigenPodPaymentEscrow.claimPayments(recipient, maxNumberOfPaymentsToClaim);                
+        } else {
+            cheats.startPrank(recipient);
+            eigenPodPaymentEscrow.claimPayments(maxNumberOfPaymentsToClaim);
+            cheats.stopPrank();
+        }
     }
 
-    function testClaimPayments_RevertsWhenPaused() external {
+    function testClaimPayments_RevertsWhenPaused(bool useOverloadedFunction) external {
         uint8 maxNumberOfPaymentsToClaim = 1;
         address recipient = address(22222);
 
@@ -303,7 +322,13 @@ contract EigenPodPaymentEscrowUnitTests is Test {
         cheats.stopPrank();
 
         cheats.expectRevert(bytes("Pausable: index is paused"));
-        eigenPodPaymentEscrow.claimPayments(recipient, maxNumberOfPaymentsToClaim);
+        if (useOverloadedFunction) {
+            eigenPodPaymentEscrow.claimPayments(recipient, maxNumberOfPaymentsToClaim);                
+        } else {
+            cheats.startPrank(recipient);
+            eigenPodPaymentEscrow.claimPayments(maxNumberOfPaymentsToClaim);
+            cheats.stopPrank();
+        }
     }
 
     function _getPseudorandomNumber() internal returns (uint256) {
