@@ -12,8 +12,8 @@ contract EigenPodPaymentEscrow is Initializable, OwnableUpgradeable, ReentrancyG
     /// @notice Emitted when the `withdrawalDelayBlocks` variable is modified from `previousValue` to `newValue`.
     event WithdrawalDelayBlocksSet(uint256 previousValue, uint256 newValue);
 
-    // index for flag that pauses withdrawals when set
-    uint8 internal constant PAUSED_WITHDRAWALS = 0;
+    // index for flag that pauses withdrawals (i.e. 'payment claims') when set
+    uint8 internal constant PAUSED_PAYMENT_CLAIMS = 0;
 
     /**
      * @notice Delay enforced by this contract for completing any payment. Measured in blocks, and adjustable by this contract's owner,
@@ -66,7 +66,7 @@ contract EigenPodPaymentEscrow is Initializable, OwnableUpgradeable, ReentrancyG
      * @param recipient The address to claim payments for.
      * @param maxNumberOfPaymentsToClaim Used to limit the maximum number of payments to loop through claiming.
      */
-    function claimPayments(address recipient, uint256 maxNumberOfPaymentsToClaim) external nonReentrant onlyWhenNotPaused(PAUSED_WITHDRAWALS) {
+    function claimPayments(address recipient, uint256 maxNumberOfPaymentsToClaim) external nonReentrant onlyWhenNotPaused(PAUSED_PAYMENT_CLAIMS) {
         _claimPayments(recipient, maxNumberOfPaymentsToClaim);
     }
 
@@ -74,7 +74,7 @@ contract EigenPodPaymentEscrow is Initializable, OwnableUpgradeable, ReentrancyG
      * @notice Called in order to withdraw escrowed payments made to the caller that have passed the `withdrawalDelayBlocks` period.
      * @param maxNumberOfPaymentsToClaim Used to limit the maximum number of payments to loop through claiming.
      */
-    function claimPayments(uint256 maxNumberOfPaymentsToClaim) external nonReentrant onlyWhenNotPaused(PAUSED_WITHDRAWALS) {
+    function claimPayments(uint256 maxNumberOfPaymentsToClaim) external nonReentrant onlyWhenNotPaused(PAUSED_PAYMENT_CLAIMS) {
         _claimPayments(msg.sender, maxNumberOfPaymentsToClaim);
     }
 
