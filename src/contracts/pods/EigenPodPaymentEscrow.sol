@@ -95,28 +95,25 @@ contract EigenPodPaymentEscrow is Initializable, OwnableUpgradeable, ReentrancyG
 
     /// @notice Convenience function for checking whethere or not the payment at the `index`th entry from the `_userPayments[user].payments` array is currently claimable
     function canClaimPayment(address user, uint256 index) external view returns (bool) {
-        return ((index >= _userPayments[user].paymentsCompleted) && (_userPayments[user].payments[index].blockCreated + withdrawalDelayBlocks <= block.number));
+        return ((index >= _userPayments[user].paymentsCompleted) && (block.number >= _userPayments[user].payments[index].blockCreated + withdrawalDelayBlocks));
     }
 
     /// @notice internal function used in both of the overloaded `claimPayments` functions
     function _claimPayments(address recipient, uint256 maxNumberOfPaymentsToClaim) internal {
         uint256 amountToSend = 0;
         uint256 paymentsCompletedBefore = _userPayments[recipient].paymentsCompleted;
-        uint256 length = _userPayments[recipient].payments.length;
-        if (length == 0) {
-            revert("EigenPodPaymentEscrow._claimPayments: payments length is zero");
-        }
-        uint256 maxIndex = length - 1;
+        uint256 userPaymentsLength = _userPayments[recipient].payments.length;
         uint256 i = 0;
-        while (i < maxNumberOfPaymentsToClaim && (paymentsCompletedBefore + i) < maxIndex) {
+        while (i < maxNumberOfPaymentsToClaim && (paymentsCompletedBefore + i) < userPaymentsLength) {
             // copy payment from storage to memory
             Payment memory payment = _userPayments[recipient].payments[paymentsCompletedBefore + i];
             // check if payment can be claimed. break the loop as soon as a payment cannot be claimed
-            if (payment.blockCreated + withdrawalDelayBlocks > block.number) {
+            if (block.number < payment.blockCreated + withdrawalDelayBlocks) {
                 break;
             }
             // otherwise, the payment can be claimed, in which case we increase the amountToSend and increment i
             amountToSend += payment.amount;
+            // increment i to account for the payment being claimed
             unchecked {
                 ++i;
             }
