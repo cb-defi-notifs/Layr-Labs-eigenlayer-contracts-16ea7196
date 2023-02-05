@@ -331,6 +331,38 @@ contract EigenPodPaymentEscrowUnitTests is Test {
         }
     }
 
+    function testSetWithdrawalDelayBlocks(uint16 valueToSet) external {
+        // filter fuzzed inputs to allowed amounts
+        cheats.assume(valueToSet <= eigenPodPaymentEscrow.MAX_WITHDRAWAL_DELAY_BLOCKS());
+
+        // set the `withdrawalDelayBlocks` variable
+        cheats.startPrank(eigenPodPaymentEscrow.owner());
+        eigenPodPaymentEscrow.setWithdrawalDelayBlocks(valueToSet);
+        cheats.stopPrank();
+        require(eigenPodPaymentEscrow.withdrawalDelayBlocks() == valueToSet, "eigenPodPaymentEscrow.withdrawalDelayBlocks() != valueToSet");
+    }
+
+    function testSetWithdrawalDelayBlocksRevertsWhenCalledByNotOwner(address notOwner) filterFuzzedAddressInputs(notOwner) external {
+        cheats.assume(notOwner != eigenPodPaymentEscrow.owner());
+
+        uint256 valueToSet = 1;
+        // set the `withdrawalDelayBlocks` variable
+        cheats.startPrank(notOwner);
+        cheats.expectRevert(bytes("Ownable: caller is not the owner"));
+        eigenPodPaymentEscrow.setWithdrawalDelayBlocks(valueToSet);
+        cheats.stopPrank();
+    }
+
+    function testSetWithdrawalDelayBlocksRevertsWhenInputValueTooHigh(uint256 valueToSet) external {
+        // filter fuzzed inputs to disallowed amounts
+        cheats.assume(valueToSet > eigenPodPaymentEscrow.MAX_WITHDRAWAL_DELAY_BLOCKS());
+
+        // attempt to set the `withdrawalDelayBlocks` variable
+        cheats.startPrank(eigenPodPaymentEscrow.owner());
+        cheats.expectRevert(bytes("EigenPodPaymentEscrow._setWithdrawalDelayBlocks: newValue too large"));
+        eigenPodPaymentEscrow.setWithdrawalDelayBlocks(valueToSet);
+    }
+
     function _getPseudorandomNumber() internal returns (uint256) {
         _pseudorandomNumber = uint256(keccak256(abi.encode(_pseudorandomNumber)));
         return _pseudorandomNumber;
