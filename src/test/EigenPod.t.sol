@@ -91,8 +91,6 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
             address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayerProxyAdmin), ""))
         );
 
-        beaconChainOracle = new BeaconChainOracleMock();
-
         ethPOSDeposit = new ETHPOSDepositMock();
         podImplementation = new EigenPod(
                 ethPOSDeposit, 
@@ -103,9 +101,6 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         );
 
         eigenPodBeacon = new UpgradeableBeacon(address(podImplementation));
-        emit log_named_address("podImplementation", address(podImplementation));
-        emit log_named_address("eigenPodBeacon", address(eigenPodBeacon));
-        emit log_named_address("eigenPodBeacon.implementation()", address(eigenPodBeacon.implementation()));        
 
         // this contract is deployed later to keep its address the same (for these tests)
         eigenPodManager = EigenPodManager(
@@ -114,15 +109,17 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
 
         // Second, deploy the *implementation* contracts, using the *proxy contracts* as inputs
         EigenLayerDelegation delegationImplementation = new EigenLayerDelegation(investmentManager, slasher);
-        InvestmentManager investmentManagerImplementation = new InvestmentManager(delegation, eigenPodManager, slasher);
+        InvestmentManager investmentManagerImplementation = new InvestmentManager(delegation, IEigenPodManager(podManagerAddress), slasher);
         Slasher slasherImplementation = new Slasher(investmentManager, delegation);
         EigenPodManager eigenPodManagerImplementation = new EigenPodManager(ethPOSDeposit, eigenPodBeacon, investmentManager, slasher);
-        EigenPodPaymentEscrow eigenPodPaymentEscrowImplementation = new EigenPodPaymentEscrow(eigenPodManager);
 
         //ensuring that the address of eigenpodmanager doesn't change
         bytes memory code = address(eigenPodManager).code;
         cheats.etch(podManagerAddress, code);
         eigenPodManager = IEigenPodManager(podManagerAddress);
+
+        beaconChainOracle = new BeaconChainOracleMock();
+        EigenPodPaymentEscrow eigenPodPaymentEscrowImplementation = new EigenPodPaymentEscrow(IEigenPodManager(podManagerAddress));
 
         address initialOwner = address(this);
         // Third, upgrade the proxy contracts to use the correct implementation contracts and initialize them.
@@ -174,9 +171,6 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     }
 
     function testDeployAndVerifyNewEigenPod() public returns(IEigenPod){
-        emit log_named_address("podImplementation", address(podImplementation));
-        emit log_named_address("eigenPodBeacon", address(eigenPodBeacon));
-        emit log_named_address("eigenPodBeacon.implementation()", address(eigenPodBeacon.implementation()));        
         beaconChainOracle.setBeaconChainStateRoot(0xaf3bf0770df5dd35b984eda6586e6f6eb20af904a5fb840fe65df9a6415293bd);
         return _testDeployAndVerifyNewEigenPod(podOwner, signature, depositDataRoot, false, validatorIndex0);
     }
@@ -500,8 +494,12 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         cheats.roll(claim.fraudproofPeriodEndBlockNumber + 1);
         pod.redeemLatestPartialWithdrawal(podOwner);
 
-        assertTrue(podOwner.balance - recipientBalanceBefore == (uint256(claim.partialWithdrawalAmountGwei) * uint256(1e9))); 
-        assertTrue(podBalanceBefore - address(pod).balance == (uint256(claim.partialWithdrawalAmountGwei) * uint256(1e9))); 
+        // claim payment
+        cheats.roll(block.number + eigenPodPaymentEscrow.withdrawalDelayBlocks());
+        eigenPodPaymentEscrow.claimPayments(podOwner, 1);
+
+        assertEq(podOwner.balance - recipientBalanceBefore, (uint256(claim.partialWithdrawalAmountGwei) * uint256(1e9))); 
+        assertEq(podBalanceBefore - address(pod).balance, (uint256(claim.partialWithdrawalAmountGwei) * uint256(1e9))); 
     }
 
     // 12. Expired partial withdrawal claim
@@ -669,6 +667,10 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         investmentManager.completeQueuedWithdrawal(queuedWithdrawal, tokensArray, middlewareTimesIndex, receiveAsTokens);
 
         cheats.stopPrank();
+
+        // claim payment
+        cheats.roll(block.number + eigenPodPaymentEscrow.withdrawalDelayBlocks());
+        eigenPodPaymentEscrow.claimPayments(podOwner, 1);
 
         require(podOwner.balance - podOwnerBalanceBefore == shareAmounts[0], "podOwner balance not updated correcty");
     } 

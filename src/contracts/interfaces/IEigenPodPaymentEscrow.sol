@@ -44,4 +44,10 @@ interface IEigenPodPaymentEscrow {
 
     /// @notice Convenience function for checking whethere or not the payment at the `index`th entry from the `_userPayments[user].payments` array is currently claimable
     function canClaimPayment(address user, uint256 index) external view returns (bool);
+
+    /**
+     * @notice Delay enforced by this contract for completing any payment. Measured in blocks, and adjustable by this contract's owner,
+     * up to a maximum of `MAX_WITHDRAWAL_DELAY_BLOCKS`. Minimum value is 0 (i.e. no delay enforced).
+     */
+    function withdrawalDelayBlocks() external view returns (uint256);
 }
