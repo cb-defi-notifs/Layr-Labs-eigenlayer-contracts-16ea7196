@@ -448,7 +448,8 @@ contract InvestmentManager is
             "InvestmentManager.completeQueuedWithdrawal: shares pending withdrawal are still slashable"
         );
 
-        require(queuedWithdrawal.withdrawalStartBlock + withdrawalDelayBlocks <= block.number,
+        require(queuedWithdrawal.withdrawalStartBlock + withdrawalDelayBlocks <= block.number 
+                || queuedWithdrawal.strategies[0] == beaconChainETHStrategy,
             "InvestmentManager.completeQueuedWithdrawal: withdrawalDelayBlocks period has not yet passed"
         );
 
