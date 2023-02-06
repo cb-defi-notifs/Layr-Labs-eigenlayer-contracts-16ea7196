@@ -20,6 +20,7 @@ import "../contracts/core/Slasher.sol";
 
 import "../contracts/pods/EigenPod.sol";
 import "../contracts/pods/EigenPodManager.sol";
+import "../contracts/pods/EigenPodPaymentEscrow.sol";
 
 import "../contracts/permissions/PauserRegistry.sol";
 
@@ -48,6 +49,7 @@ contract EigenLayerDeployer is Operators {
     InvestmentManager public investmentManager;
     EigenPodManager public eigenPodManager;
     IEigenPod public pod;
+    IEigenPodPaymentEscrow public eigenPodPaymentEscrow;
     IETHPOSDeposit public ethPOSDeposit;
     IBeacon public eigenPodBeacon;
     IBeaconChainOracle public beaconChainOracle;
@@ -139,12 +141,15 @@ contract EigenLayerDeployer is Operators {
         eigenPodManager = EigenPodManager(
             address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayerProxyAdmin), ""))
         );
+        eigenPodPaymentEscrow = EigenPodPaymentEscrow(
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayerProxyAdmin), ""))
+        );
 
         beaconChainOracle = new BeaconChainOracleMock();
         beaconChainOracle.setBeaconChainStateRoot(0xb08d5a1454de19ac44d523962096d73b85542f81822c5e25b8634e4e86235413);
 
         ethPOSDeposit = new ETHPOSDepositMock();
-        pod = new EigenPod(ethPOSDeposit, PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS, REQUIRED_BALANCE_WEI, MAX_PARTIAL_WTIHDRAWAL_AMOUNT_GWEI);
+        pod = new EigenPod(ethPOSDeposit, eigenPodPaymentEscrow, PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS, REQUIRED_BALANCE_WEI, MAX_PARTIAL_WTIHDRAWAL_AMOUNT_GWEI);
 
         eigenPodBeacon = new UpgradeableBeacon(address(pod));
 
@@ -153,9 +158,7 @@ contract EigenLayerDeployer is Operators {
         InvestmentManager investmentManagerImplementation = new InvestmentManager(delegation, eigenPodManager, slasher);
         Slasher slasherImplementation = new Slasher(investmentManager, delegation);
         EigenPodManager eigenPodManagerImplementation = new EigenPodManager(ethPOSDeposit, eigenPodBeacon, investmentManager, slasher);
-
-        
-
+        EigenPodPaymentEscrow eigenPodPaymentEscrowImplementation = new EigenPodPaymentEscrow(eigenPodManager);
 
         // Third, upgrade the proxy contracts to use the correct implementation contracts and initialize them.
         eigenLayerProxyAdmin.upgradeAndCall(
@@ -178,7 +181,17 @@ contract EigenLayerDeployer is Operators {
             address(eigenPodManagerImplementation),
             abi.encodeWithSelector(EigenPodManager.initialize.selector, beaconChainOracle, eigenLayerReputedMultisig, eigenLayerPauserReg, 0)
         );
-
+        uint256 initPausedStatus = 0;
+        uint256 withdrawalDelayBlocks = PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS;
+        eigenLayerProxyAdmin.upgradeAndCall(
+            TransparentUpgradeableProxy(payable(address(eigenPodPaymentEscrow))),
+            address(eigenPodPaymentEscrowImplementation),
+            abi.encodeWithSelector(EigenPodPaymentEscrow.initialize.selector,
+            eigenLayerReputedMultisig,
+            eigenLayerPauserReg,
+            initPausedStatus,
+            withdrawalDelayBlocks)
+        );
 
         //simple ERC20 (**NOT** WETH-like!), used in a test investment strategy
         weth = new ERC20PresetFixedSupply(

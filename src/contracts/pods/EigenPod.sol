@@ -13,9 +13,12 @@ import "../libraries/Endian.sol";
 import "../interfaces/IETHPOSDeposit.sol";
 import "../interfaces/IEigenPodManager.sol";
 import "../interfaces/IEigenPod.sol";
+import "../interfaces/IEigenPodPaymentEscrow.sol";
 import "../interfaces/IPausable.sol";
 
 import "./EigenPodPausingConstants.sol";
+
+import "forge-std/Test.sol";
 
 /**
  * @title The implementation contract used for restaking beacon chain ETH on EigenLayer 
@@ -38,6 +41,9 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
     //TODO: change this to constant in prod
     /// @notice This is the beacon chain deposit contract
     IETHPOSDeposit internal immutable ethPOS;
+
+    /// @notice Escrow contract used for payment routing, to provide an extra "safety net"
+    IEigenPodPaymentEscrow immutable public eigenPodPaymentEscrow;
 
     /// @notice The length, in blocks, of the fraudproof period following a claim on the amount of partial withdrawals in an EigenPod
     uint32 immutable public PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS;
@@ -68,9 +74,6 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
 
     /// @notice the amount of execution layer ETH in this contract that is staked in EigenLayer (i.e. withdrawn from the Beacon Chain but not from EigenLayer), 
     uint64 public restakedExecutionLayerGwei;
-
-    /// @notice the excess balance from full withdrawals over RESTAKED_BALANCE_PER_VALIDATOR or partial withdrawals
-    uint64 public instantlyWithdrawableBalanceGwei;
 
     /// @notice Emitted when an ETH validator stakes via this eigenPod
     event EigenPodStaked(bytes pubkey);
@@ -109,8 +112,15 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         _;
     }
 
-    constructor(IETHPOSDeposit _ethPOS, uint32 _PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS, uint256 _REQUIRED_BALANCE_WEI, uint64 _MIN_FULL_WITHDRAWAL_AMOUNT_GWEI) {
+    constructor(
+        IETHPOSDeposit _ethPOS,
+        IEigenPodPaymentEscrow _eigenPodPaymentEscrow,
+        uint32 _PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS,
+        uint256 _REQUIRED_BALANCE_WEI,
+        uint64 _MIN_FULL_WITHDRAWAL_AMOUNT_GWEI
+    ) {
         ethPOS = _ethPOS;
+        eigenPodPaymentEscrow = _eigenPodPaymentEscrow;
         PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS = _PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS;
         REQUIRED_BALANCE_WEI = _REQUIRED_BALANCE_WEI;
         REQUIRED_BALANCE_GWEI = uint64(_REQUIRED_BALANCE_WEI / GWEI_TO_WEI);
@@ -256,7 +266,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
             // if the withdrawal amount is greater than the REQUIRED_BALANCE_GWEI (i.e. the amount restaked on EigenLayer, per ETH validator)
             if (withdrawalAmountGwei >= REQUIRED_BALANCE_GWEI) {
                 // then the excess is immediately withdrawable
-                instantlyWithdrawableBalanceGwei += withdrawalAmountGwei - REQUIRED_BALANCE_GWEI;
+                _sendETH(podOwner, uint256(withdrawalAmountGwei - REQUIRED_BALANCE_GWEI) * uint256(GWEI_TO_WEI));
                 // and the extra execution layer ETH in the contract is REQUIRED_BALANCE_GWEI, which must be withdrawn through EigenLayer's normal withdrawal process
                 restakedExecutionLayerGwei += REQUIRED_BALANCE_GWEI;
             } else {
@@ -270,7 +280,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
             // if the withdrawal amount is greater than the REQUIRED_BALANCE_GWEI (i.e. the amount restaked on EigenLayer, per ETH validator)
             if (withdrawalAmountGwei >= REQUIRED_BALANCE_GWEI) {
                 // then the excess is immediately withdrawable
-                instantlyWithdrawableBalanceGwei += withdrawalAmountGwei - REQUIRED_BALANCE_GWEI;
+                _sendETH(podOwner, uint256(withdrawalAmountGwei - REQUIRED_BALANCE_GWEI) * uint256(GWEI_TO_WEI));
                 // and the extra execution layer ETH in the contract is REQUIRED_BALANCE_GWEI, which must be withdrawn through EigenLayer's normal withdrawal process
                 restakedExecutionLayerGwei += REQUIRED_BALANCE_GWEI;
                 /**
@@ -318,7 +328,6 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
      *         via  
      *              address(this).balance / GWEI_TO_WEI = 
      *                  restakedExecutionLayerGwei + 
-     *                  instantlyWithdrawableBalanceGwei + 
      *                  partialWithdrawalsGwei
      *         If any other full withdrawals are proven to have happened before block.number, the partial withdrawal is marked as failed
      * @param expireBlockNumber this is the block number before which the call to this function must be mined. To avoid race conditions with pending withdrawals,
@@ -340,9 +349,8 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         );
 
         // address(this).balance / GWEI_TO_WEI = restakedExecutionLayerGwei + 
-        //                                       instantlyWithdrawableBalanceGwei + 
         //                                       partialWithdrawalAmountGwei
-        uint64 partialWithdrawalAmountGwei = uint64(address(this).balance / GWEI_TO_WEI) - restakedExecutionLayerGwei - instantlyWithdrawableBalanceGwei;
+        uint64 partialWithdrawalAmountGwei = uint64(address(this).balance / GWEI_TO_WEI) - restakedExecutionLayerGwei;
         // push claim to the end of the list
         _partialWithdrawalClaims.push(
             PartialWithdrawalClaim({ 
@@ -375,19 +383,9 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         _partialWithdrawalClaims[lastClaimIndex].status = PARTIAL_WITHDRAWAL_CLAIM_STATUS.REDEEMED;
 
         // send the ETH to the `recipient`
-        AddressUpgradeable.sendValue(payable(recipient), uint256(claim.partialWithdrawalAmountGwei) * uint256(GWEI_TO_WEI));
+        _sendETH(recipient, uint256(claim.partialWithdrawalAmountGwei) * uint256(GWEI_TO_WEI));
 
         emit PartialWithdrawalRedeemed(recipient, claim.partialWithdrawalAmountGwei);
-    }
-
-    /** 
-     * @notice Withdraws instantlyWithdrawableBalanceGwei to the specified `recipient`
-     * @dev Note that this function is marked as non-reentrant to prevent the recipient calling back into it
-     */
-    function withdrawInstantlyWithdrawableBalanceGwei(address recipient) external onlyEigenPodOwner nonReentrant {
-        uint256 instantlyWithdrawableBalanceGweiMemory = instantlyWithdrawableBalanceGwei;
-        instantlyWithdrawableBalanceGwei = 0;
-        AddressUpgradeable.sendValue(payable(recipient), uint256(instantlyWithdrawableBalanceGweiMemory) * uint256(GWEI_TO_WEI));
     }
 
     /**
@@ -407,8 +405,8 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         // reduce the restakedExecutionLayerGwei
         restakedExecutionLayerGwei -= uint64(amountWei / GWEI_TO_WEI);
         
-        // transfer ETH directly from pod to `recipient`
-        AddressUpgradeable.sendValue(payable(recipient), amountWei);
+        // transfer ETH from pod to `recipient`
+        _sendETH(recipient, amountWei);
 
         emit RestakedBeaconChainETHWithdrawn(recipient, amountWei);
     }
@@ -432,4 +430,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         return abi.encodePacked(bytes1(uint8(1)), bytes11(0), address(this));
     }
 
+    function _sendETH(address recipient, uint256 amountWei) internal {
+        eigenPodPaymentEscrow.createPayment{value: amountWei}(podOwner, recipient);
+    }
 }
