@@ -448,6 +448,7 @@ contract InvestmentManager is
             "InvestmentManager.completeQueuedWithdrawal: shares pending withdrawal are still slashable"
         );
 
+        // enforce minimum delay lag (not applied to withdrawals of 'beaconChainETH', since the EigenPods enforce their own delay)
         require(queuedWithdrawal.withdrawalStartBlock + withdrawalDelayBlocks <= block.number 
                 || queuedWithdrawal.strategies[0] == beaconChainETHStrategy,
             "InvestmentManager.completeQueuedWithdrawal: withdrawalDelayBlocks period has not yet passed"

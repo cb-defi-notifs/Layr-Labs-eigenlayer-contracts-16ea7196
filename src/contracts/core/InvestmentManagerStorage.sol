@@ -39,6 +39,8 @@ abstract contract InvestmentManagerStorage is IInvestmentManager {
     /**
      * @notice Minimum delay enforced by this contract for completing queued withdrawals. Measured in blocks, and adjustable by this contract's owner,
      * up to a maximum of `MAX_WITHDRAWAL_DELAY_BLOCKS`. Minimum value is 0 (i.e. no delay enforced).
+     * @dev Note that the withdrawal delay is not enforced on withdrawals of 'beaconChainETH', as the EigenPods have their own separate delay mechanic
+     * and we want to avoid stacking multiple enforced delays onto a single withdrawal.
      */
     uint256 public withdrawalDelayBlocks;
     // the number of 12-second blocks in one week (60 * 60 * 24 * 7 / 12 = 50,400)
