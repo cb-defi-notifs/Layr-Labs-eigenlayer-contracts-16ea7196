@@ -74,7 +74,7 @@ contract InvestmentManagerUnitTests is Test {
                 new TransparentUpgradeableProxy(
                     address(investmentManagerImplementation),
                     address(proxyAdmin),
-                    abi.encodeWithSelector(InvestmentManager.initialize.selector, pauserRegistry, initialOwner)
+                    abi.encodeWithSelector(InvestmentManager.initialize.selector, pauserRegistry, initialOwner, 0)
                 )
             )
         );
@@ -98,7 +98,7 @@ contract InvestmentManagerUnitTests is Test {
 
     function testCannotReinitialize() public {
         cheats.expectRevert(bytes("Initializable: contract is already initialized"));
-        investmentManager.initialize(pauserRegistry, initialOwner);
+        investmentManager.initialize(pauserRegistry, initialOwner, 0);
     }
 
     function testDepositBeaconChainETHSuccessfully(address staker, uint256 amount) public filterFuzzedAddressInputs(staker) {
@@ -1211,6 +1211,64 @@ contract InvestmentManagerUnitTests is Test {
         investmentManager.completeQueuedWithdrawal(queuedWithdrawal, tokensArray, middlewareTimesIndex, receiveAsTokens);
     }
 
+    function testCompleteQueuedWithdrawalFailsWhenWithdrawalDelayBlocksHasNotPassed() external {
+        _tempStakerStorage = address(this);
+        uint256 depositAmount = 1e18;
+        uint256 withdrawalAmount = 1e18;
+        bool undelegateIfPossible = false;
+
+        (IInvestmentManager.QueuedWithdrawal memory queuedWithdrawal, IERC20[] memory tokensArray, /*bytes32 withdrawalRoot*/) =
+            testQueueWithdrawal_ToSelf_NotBeaconChainETH(depositAmount, withdrawalAmount, undelegateIfPossible);
+
+        uint256 middlewareTimesIndex = 0;
+        bool receiveAsTokens = false;
+
+        uint256 valueToSet = 1;
+        // set the `withdrawalDelayBlocks` variable
+        cheats.startPrank(investmentManager.owner());
+        investmentManager.setWithdrawalDelayBlocks(valueToSet);
+        cheats.stopPrank();
+        require(investmentManager.withdrawalDelayBlocks() == valueToSet, "investmentManager.withdrawalDelayBlocks() != valueToSet");
+
+        cheats.expectRevert(bytes("InvestmentManager.completeQueuedWithdrawal: withdrawalDelayBlocks period has not yet passed"));
+        investmentManager.completeQueuedWithdrawal(queuedWithdrawal, tokensArray, middlewareTimesIndex, receiveAsTokens);
+    }
+
+    function testCompleteQueuedWithdrawalWithNonzeroWithdrawalDelayBlocks(uint16 valueToSet) external {
+        // filter fuzzed inputs to allowed *and nonzero* amounts
+        cheats.assume(valueToSet <= investmentManager.MAX_WITHDRAWAL_DELAY_BLOCKS() && valueToSet != 0);
+
+        _tempStakerStorage = address(this);
+        uint256 depositAmount = 1e18;
+        uint256 withdrawalAmount = 1e18;
+        bool undelegateIfPossible = false;
+
+        (IInvestmentManager.QueuedWithdrawal memory queuedWithdrawal, IERC20[] memory tokensArray, /*bytes32 withdrawalRoot*/) =
+            testQueueWithdrawal_ToSelf_NotBeaconChainETH(depositAmount, withdrawalAmount, undelegateIfPossible);
+
+        uint256 middlewareTimesIndex = 0;
+        bool receiveAsTokens = false;
+
+        // set the `withdrawalDelayBlocks` variable
+        cheats.startPrank(investmentManager.owner());
+        investmentManager.setWithdrawalDelayBlocks(valueToSet);
+        cheats.stopPrank();
+        require(investmentManager.withdrawalDelayBlocks() == valueToSet, "investmentManager.withdrawalDelayBlocks() != valueToSet");
+
+        cheats.expectRevert(bytes("InvestmentManager.completeQueuedWithdrawal: withdrawalDelayBlocks period has not yet passed"));
+        investmentManager.completeQueuedWithdrawal(queuedWithdrawal, tokensArray, middlewareTimesIndex, receiveAsTokens);
+
+
+        // roll block number forward to one block before the withdrawal should be completeable and attempt again
+        uint256 originalBlockNumber = block.number;
+        cheats.roll(originalBlockNumber + valueToSet - 1);
+        cheats.expectRevert(bytes("InvestmentManager.completeQueuedWithdrawal: withdrawalDelayBlocks period has not yet passed"));
+        investmentManager.completeQueuedWithdrawal(queuedWithdrawal, tokensArray, middlewareTimesIndex, receiveAsTokens);
+
+        // roll block number forward to the block at which the withdrawal should be completeable, and complete it
+        cheats.roll(originalBlockNumber + valueToSet);
+    }
+
     function testSlashSharesNotBeaconChainETHFuzzed(uint64 withdrawalAmount) external {
         _tempStakerStorage = address(this);
         IInvestmentStrategy strategy = dummyStrat;
@@ -1706,6 +1764,12 @@ contract InvestmentManagerUnitTests is Test {
         dummyToken = IERC20(address(new Reverter()));
         dummyStrat = new InvestmentStrategyWrapper(investmentManager, dummyToken);
 
+        // whitelist the strategy for deposit
+        cheats.startPrank(investmentManager.owner());
+        IInvestmentStrategy[] memory _strategy = new IInvestmentStrategy[](1);
+        _strategy[0] = dummyStrat;
+        investmentManager.addStrategiesToDepositWhitelist(_strategy);
+        cheats.stopPrank();
 
         address staker = address(this);
         IERC20 token = dummyToken;
@@ -1723,6 +1787,12 @@ contract InvestmentManagerUnitTests is Test {
         dummyToken = IERC20(address(5678));
         dummyStrat = new InvestmentStrategyWrapper(investmentManager, dummyToken);
 
+        // whitelist the strategy for deposit
+        cheats.startPrank(investmentManager.owner());
+        IInvestmentStrategy[] memory _strategy = new IInvestmentStrategy[](1);
+        _strategy[0] = dummyStrat;
+        investmentManager.addStrategiesToDepositWhitelist(_strategy);
+        cheats.stopPrank();
 
         address staker = address(this);
         IERC20 token = dummyToken;
@@ -1743,6 +1813,13 @@ contract InvestmentManagerUnitTests is Test {
             )
         );
 
+        // whitelist the strategy for deposit
+        cheats.startPrank(investmentManager.owner());
+        IInvestmentStrategy[] memory _strategy = new IInvestmentStrategy[](1);
+        _strategy[0] = dummyStrat;
+        investmentManager.addStrategiesToDepositWhitelist(_strategy);
+        cheats.stopPrank();
+
         address staker = address(this);
         IERC20 token = dummyToken;
         uint256 amount = 1e18;
@@ -1760,6 +1837,13 @@ contract InvestmentManagerUnitTests is Test {
             address(5678)
         );
 
+        // whitelist the strategy for deposit
+        cheats.startPrank(investmentManager.owner());
+        IInvestmentStrategy[] memory _strategy = new IInvestmentStrategy[](1);
+        _strategy[0] = dummyStrat;
+        investmentManager.addStrategiesToDepositWhitelist(_strategy);
+        cheats.stopPrank();
+
         address staker = address(this);
         IERC20 token = dummyToken;
         uint256 amount = 1e18;
@@ -1767,6 +1851,21 @@ contract InvestmentManagerUnitTests is Test {
 
         cheats.startPrank(staker);
         cheats.expectRevert();
+        investmentManager.depositIntoStrategy(strategy, token, amount);
+        cheats.stopPrank();
+    }
+
+    function test_depositIntoStrategyRevertsWhenStrategyNotWhitelisted() external {
+        // replace 'dummyStrat' with one that is not whitelisted
+        dummyStrat = new InvestmentStrategyWrapper(investmentManager, dummyToken);
+
+        address staker = address(this);
+        IERC20 token = dummyToken;
+        uint256 amount = 1e18;
+        IInvestmentStrategy strategy = dummyStrat;
+
+        cheats.startPrank(staker);
+        cheats.expectRevert("InvestmentManager.onlyStrategiesWhitelistedForDeposit: strategy not whitelisted");
         investmentManager.depositIntoStrategy(strategy, token, amount);
         cheats.stopPrank();
     }
@@ -1871,6 +1970,130 @@ contract InvestmentManagerUnitTests is Test {
         require(balanceAfter == balanceBefore + amount, "balanceAfter != balanceBefore + amount");
     }
 
+    function testSetWithdrawalDelayBlocks(uint16 valueToSet) external {
+        // filter fuzzed inputs to allowed amounts
+        cheats.assume(valueToSet <= investmentManager.MAX_WITHDRAWAL_DELAY_BLOCKS());
+
+        // set the `withdrawalDelayBlocks` variable
+        cheats.startPrank(investmentManager.owner());
+        investmentManager.setWithdrawalDelayBlocks(valueToSet);
+        cheats.stopPrank();
+        require(investmentManager.withdrawalDelayBlocks() == valueToSet, "investmentManager.withdrawalDelayBlocks() != valueToSet");
+    }
+
+    function testSetWithdrawalDelayBlocksRevertsWhenCalledByNotOwner(address notOwner) filterFuzzedAddressInputs(notOwner) external {
+        cheats.assume(notOwner != investmentManager.owner());
+
+        uint256 valueToSet = 1;
+        // set the `withdrawalDelayBlocks` variable
+        cheats.startPrank(notOwner);
+        cheats.expectRevert(bytes("Ownable: caller is not the owner"));
+        investmentManager.setWithdrawalDelayBlocks(valueToSet);
+        cheats.stopPrank();
+    }
+
+    function testSetWithdrawalDelayBlocksRevertsWhenInputValueTooHigh(uint256 valueToSet) external {
+        // filter fuzzed inputs to disallowed amounts
+        cheats.assume(valueToSet > investmentManager.MAX_WITHDRAWAL_DELAY_BLOCKS());
+
+        // attempt to set the `withdrawalDelayBlocks` variable
+        cheats.startPrank(investmentManager.owner());
+        cheats.expectRevert(bytes("InvestmentManager.setWithdrawalDelay: _withdrawalDelayBlocks too high"));
+        investmentManager.setWithdrawalDelayBlocks(valueToSet);
+    }
+
+    function testSetStrategyWhitelister(address newWhitelister) external {
+        investmentManager.setStrategyWhitelister(newWhitelister);
+        require(investmentManager.strategyWhitelister() == newWhitelister, "investmentManager.strategyWhitelister() != newWhitelister");
+    }
+
+    function testSetStrategyWhitelisterRevertsWhenCalledByNotOwner(address notOwner)
+        external filterFuzzedAddressInputs(notOwner)
+    {
+        cheats.assume(notOwner != investmentManager.owner());
+        address newWhitelister = address(this);
+        cheats.startPrank(notOwner);
+        cheats.expectRevert(bytes("Ownable: caller is not the owner"));
+        investmentManager.setStrategyWhitelister(newWhitelister);
+        cheats.stopPrank();
+    }
+
+    function testAddStrategiesToDepositWhitelist(uint8 numberOfStrategiesToAdd) public returns (IInvestmentStrategy[] memory) {
+        // sanity filtering on fuzzed input
+        cheats.assume(numberOfStrategiesToAdd <= 16);
+
+        IInvestmentStrategy[] memory strategyArray = new IInvestmentStrategy[](numberOfStrategiesToAdd);
+        // loop that deploys a new strategy and adds it to the array
+        for (uint256 i = 0; i < numberOfStrategiesToAdd; ++i) {
+            IInvestmentStrategy _strategy = new InvestmentStrategyWrapper(investmentManager, dummyToken);
+            strategyArray[i] = _strategy;
+            require(!investmentManager.strategyIsWhitelistedForDeposit(_strategy), "strategy improperly whitelisted?");
+        }
+
+        cheats.startPrank(investmentManager.strategyWhitelister());
+        investmentManager.addStrategiesToDepositWhitelist(strategyArray);
+        cheats.stopPrank();
+
+        for (uint256 i = 0; i < numberOfStrategiesToAdd; ++i) {
+            require(investmentManager.strategyIsWhitelistedForDeposit(strategyArray[i]), "strategy not properly whitelisted");
+        }
+
+        return strategyArray;
+    }
+
+    function testAddStrategiesToDepositWhitelistRevertsWhenCalledByNotStrategyWhitelister(address notStrategyWhitelister)
+        external filterFuzzedAddressInputs(notStrategyWhitelister)
+    {
+        cheats.assume(notStrategyWhitelister != investmentManager.strategyWhitelister());
+        IInvestmentStrategy[] memory strategyArray = new IInvestmentStrategy[](1);
+        IInvestmentStrategy _strategy = new InvestmentStrategyWrapper(investmentManager, dummyToken);
+        strategyArray[0] = _strategy;
+
+        cheats.startPrank(notStrategyWhitelister);
+        cheats.expectRevert(bytes("InvestmentManager.onlyStrategyWhitelister: not the strategyWhitelister"));
+        investmentManager.addStrategiesToDepositWhitelist(strategyArray);
+        cheats.stopPrank();
+    }
+
+    function testRemoveStrategiesFromDepositWhitelist(uint8 numberOfStrategiesToAdd, uint8 numberOfStrategiesToRemove) external {
+        // sanity filtering on fuzzed input
+        cheats.assume(numberOfStrategiesToAdd <= 16);
+        cheats.assume(numberOfStrategiesToRemove <= 16);
+        cheats.assume(numberOfStrategiesToRemove <= numberOfStrategiesToAdd);
+
+        IInvestmentStrategy[] memory strategiesAdded = testAddStrategiesToDepositWhitelist(numberOfStrategiesToAdd);
+
+        IInvestmentStrategy[] memory strategiesToRemove = new IInvestmentStrategy[](numberOfStrategiesToRemove);
+        // loop that selectively copies from array to other array
+        for (uint256 i = 0; i < numberOfStrategiesToRemove; ++i) {
+            strategiesToRemove[i] = strategiesAdded[i];
+        }
+
+        cheats.startPrank(investmentManager.strategyWhitelister());
+        investmentManager.removeStrategiesFromDepositWhitelist(strategiesToRemove);
+        cheats.stopPrank();
+
+        for (uint256 i = 0; i < numberOfStrategiesToAdd; ++i) {
+            if (i < numberOfStrategiesToRemove) {
+                require(!investmentManager.strategyIsWhitelistedForDeposit(strategiesToRemove[i]), "strategy not properly removed from whitelist");
+            } else {
+                require(investmentManager.strategyIsWhitelistedForDeposit(strategiesAdded[i]), "strategy improperly removed from whitelist?");                
+            }
+        }
+    }
+
+    function testRemoveStrategiesFromDepositWhitelistRevertsWhenCalledByNotStrategyWhitelister(address notStrategyWhitelister)
+        external filterFuzzedAddressInputs(notStrategyWhitelister)
+    {
+        cheats.assume(notStrategyWhitelister != investmentManager.strategyWhitelister());
+        IInvestmentStrategy[] memory strategyArray = testAddStrategiesToDepositWhitelist(1);
+
+        cheats.startPrank(notStrategyWhitelister);
+        cheats.expectRevert(bytes("InvestmentManager.onlyStrategyWhitelister: not the strategyWhitelister"));
+        investmentManager.removeStrategiesFromDepositWhitelist(strategyArray);
+        cheats.stopPrank();
+    }
+
     // INTERNAL / HELPER FUNCTIONS
     function _beaconChainReentrancyTestsSetup() internal {
         // prepare InvestmentManager with EigenPodManager and Delegation replaced with a Reenterer contract
@@ -1881,7 +2104,7 @@ contract InvestmentManagerUnitTests is Test {
                 new TransparentUpgradeableProxy(
                     address(investmentManagerImplementation),
                     address(proxyAdmin),
-                    abi.encodeWithSelector(InvestmentManager.initialize.selector, pauserRegistry, initialOwner)
+                    abi.encodeWithSelector(InvestmentManager.initialize.selector, pauserRegistry, initialOwner, 0)
                 )
             )
         );

@@ -67,9 +67,6 @@ interface IEigenPod {
     /// @notice the amount of execution layer ETH in this contract that is staked in EigenLayer (i.e. withdrawn from beaconchain but not EigenLayer), 
     function restakedExecutionLayerGwei() external view returns(uint64);
 
-    /// @notice the excess balance from full withdrawals over RESTAKED_BALANCE_PER_VALIDATOR or partial withdrawals
-    function instantlyWithdrawableBalanceGwei() external view returns(uint64);
-
     /// @notice Used to initialize the pointers to contracts crucial to the pod's functionality, in beacon proxy construction from EigenPodManager
     function initialize(IEigenPodManager _eigenPodManager, address owner) external;
 
@@ -156,10 +153,4 @@ interface IEigenPod {
 
     /// @notice This function allows pod owners to redeem their partial withdrawals after the fraudproof period has elapsed
     function redeemLatestPartialWithdrawal(address recipient) external;
-
-    /** 
-     * @notice Withdraws instantlyWithdrawableBalanceGwei to the specified `recipient`
-     * @dev Note that this function is marked as non-reentrant to prevent the recipient calling back into it
-     */
-    function withdrawInstantlyWithdrawableBalanceGwei(address recipient) external;
 }
