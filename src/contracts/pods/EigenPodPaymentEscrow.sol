@@ -111,9 +111,9 @@ contract EigenPodPaymentEscrow is Initializable, OwnableUpgradeable, ReentrancyG
     function _claimPayments(address recipient, uint256 maxNumberOfPaymentsToClaim) internal {
         uint256 amountToSend = 0;
         uint256 paymentsCompletedBefore = _userPayments[recipient].paymentsCompleted;
-        uint256 userPaymentsLength = _userPayments[recipient].payments.length;
+        uint256 _userPaymentsLength = _userPayments[recipient].payments.length;
         uint256 i = 0;
-        while (i < maxNumberOfPaymentsToClaim && (paymentsCompletedBefore + i) < userPaymentsLength) {
+        while (i < maxNumberOfPaymentsToClaim && (paymentsCompletedBefore + i) < _userPaymentsLength) {
             // copy payment from storage to memory
             Payment memory payment = _userPayments[recipient].payments[paymentsCompletedBefore + i];
             // check if payment can be claimed. break the loop as soon as a payment cannot be claimed

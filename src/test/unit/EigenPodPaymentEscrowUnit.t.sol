@@ -125,6 +125,8 @@ contract EigenPodPaymentEscrowUnitTests is Test {
     {
         // filter contracts out of fuzzed recipient input, since most don't implement a payable fallback function
         cheats.assume(!Address.isContract(recipient));
+        // filter out precompile addresses (they won't accept payment either)
+        cheats.assume(uint160(recipient) > 256);
         // filter fuzzed inputs to avoid running out of gas & excessive test run-time
         cheats.assume(paymentsToCreate <= 32);
 
