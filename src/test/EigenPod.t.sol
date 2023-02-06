@@ -290,7 +290,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     // Test: Credit the pod balance with AMOUNT (>= REQUIRED_BALANCE_GWEI) gwei and then owner submit 
     //       full withdrawal proof for validator from (3).
     // Expected Behaviour: restakedExecutionLayerBalanceGwei should be REQUIRED_BALANCE_GWEI
-    //                     instantlyWithdrawableBalanceGwei should be AMOUNT - REQUIRED_BALANCE_GWEI
+    //                     pod owner balance should increaase by AMOUNT - REQUIRED_BALANCE_GWEI
     //                     validator status should be marked as WITHDRAWN
 
     function testSufficientFullWithdrawal() public {
@@ -300,7 +300,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         // withdrawal amount must be sufficient
         cheats.assume(withdrawalAmountGwei >= pod.REQUIRED_BALANCE_GWEI() && withdrawalAmountGwei <= 33 ether);
 
-        uint64 podOwnerBalanceBefore = pod.podOwner().balance;
+        uint256 podOwnerBalanceBefore = pod.podOwner().balance;
 
         cheats.deal(address(pod), address(pod).balance + withdrawalAmountGwei * GWEI_TO_WEI);
 
@@ -308,7 +308,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         _proveFullWithdrawal(pod);
 
         assertTrue(pod.restakedExecutionLayerGwei() == pod.REQUIRED_BALANCE_GWEI(), "restakedExecutionLayerGwei not set correctly");
-        assertTrue(pod.podOwner().balance - podOwnerBalanceBefore == withdrawalAmountGwei - pod.REQUIRED_BALANCE_GWEI(), "new withdrawal not set correctly");
+        assertTrue(pod.podOwner().balance - podOwnerBalanceBefore == withdrawalAmountGwei - pod.REQUIRED_BALANCE_GWEI(), "pod owner balance not increased correctly");
         assertTrue(pod.validatorStatus(validatorIndex0) == IEigenPod.VALIDATOR_STATUS.WITHDRAWN, "validator status not set correctly");
     }
 
@@ -349,7 +349,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
 
         // get beaconChainETH shares
         uint256 beaconChainETHBefore = getBeaconChainETHShares(pod.podOwner());
-        uint64 instantlyWithdrawableBalanceGweiBefore = pod.instantlyWithdrawableBalanceGwei();
+        uint256 podOwnerBalanceBefore = pod.podOwner().balance;
 
         cheats.deal(address(pod), address(pod).balance + withdrawalAmountGwei * GWEI_TO_WEI);
 
@@ -369,7 +369,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         assertTrue((beaconChainETHBefore - beaconChainETHAfter) == expectedSharePenalty,
             "beaconChainETHShares not updated correctly");
         assertTrue(pod.restakedExecutionLayerGwei() == withdrawalAmountGwei, "restakedExecutionLayerGwei is not 0");
-        assertTrue(pod.instantlyWithdrawableBalanceGwei() == instantlyWithdrawableBalanceGweiBefore, "instantlyWithdrawableBalanceGweiBefore has changed");
+        assertTrue(pod.podOwner().balance == podOwnerBalanceBefore, "instantlyWithdrawableBalanceGweiBefore has changed");
         assertTrue(pod.validatorStatus(validatorIndex0) == IEigenPod.VALIDATOR_STATUS.WITHDRAWN, "validator status not updated correctly");
     }
 
@@ -386,7 +386,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
 
         // get beaconChainETH shares
         uint256 beaconChainETHBefore = getBeaconChainETHShares(pod.podOwner());
-        uint64 instantlyWithdrawableBalanceGweiBefore = pod.instantlyWithdrawableBalanceGwei();
+        uint256 podOwnerBalanceBefore = pod.podOwner().balance;
 
         cheats.deal(address(pod), address(pod).balance + withdrawalAmountGwei * GWEI_TO_WEI);
 
@@ -397,14 +397,14 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
 
         assertTrue(beaconChainETHBefore - getBeaconChainETHShares(pod.podOwner()) == expectedSharePenalty, "beaconChainETHShares not updated");
 
-        assertTrue(pod.instantlyWithdrawableBalanceGwei() == instantlyWithdrawableBalanceGweiBefore, "instantlyWithdrawableBalanceGweiBefore has changed");
+        assertTrue(pod.podOwner().balance == podOwnerBalanceBefore, "pod owner balance has changed");
         assertTrue(pod.validatorStatus(validatorIndex0) == IEigenPod.VALIDATOR_STATUS.WITHDRAWN, "validator status not updated correctly");
     }
 
     // 7. Pay off penalties with sufficient full withdrawal
     // Test: Run (5). Then prove a sufficient withdrawal.
     // Expected Behaviour: restakedExecutionLayerBalanceGwei should be withdrawalAmountGwei
-    //                     instantlyWithdrawableBalanceGwei should be AMOUNT - REQUIRED_BALANCE_GWEI
+    //                     pod owner balance should increase by AMOUNT - REQUIRED_BALANCE_GWEI
     //                     validator status should be marked as WITHDRWAN
 
     function testPayOffPenaltiesWithSufficientWithdrawal() public {
@@ -415,7 +415,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
 
         testProveOverCommittedBalance(pod, validatorIndex0);
 
-        uint64 instantlyWithdrawableBalanceGweiBefore = pod.instantlyWithdrawableBalanceGwei();
+        uint256 podOwnerBalanceBefore = pod.podOwner().balance;
 
         cheats.deal(address(pod), address(pod).balance + withdrawalAmountGwei * GWEI_TO_WEI);
 
@@ -423,7 +423,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         _proveFullWithdrawal(pod);
 
         assertEq(pod.restakedExecutionLayerGwei(), withdrawalAmountGwei);
-        assertEq(pod.instantlyWithdrawableBalanceGwei() - instantlyWithdrawableBalanceGweiBefore, withdrawalAmountGwei - pod.REQUIRED_BALANCE_GWEI());
+        assertEq(pod.podOwner().balance - podOwnerBalanceBefore, withdrawalAmountGwei - pod.REQUIRED_BALANCE_GWEI());
         assertTrue(pod.validatorStatus(validatorIndex0) == IEigenPod.VALIDATOR_STATUS.WITHDRAWN);
     }
 
@@ -433,7 +433,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         _testVerifyNewValidator(pod, validatorIndex1);
         
         require(pod.restakedExecutionLayerGwei() == 0);
-        require(pod.instantlyWithdrawableBalanceGwei() == 0);
+        uint256 podOwnerBalanceBefore = pod.podOwner().balance;
         // withdrawal amount must be sufficient
         cheats.assume(withdrawalAmountGwei >= pod.REQUIRED_BALANCE_GWEI() && withdrawalAmountGwei <= 33 ether);
 
@@ -447,23 +447,22 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         _proveFullWithdrawal(pod);
 
         assertEq(pod.restakedExecutionLayerGwei(), withdrawalAmountGwei);
-        assertEq(pod.instantlyWithdrawableBalanceGwei(), withdrawalAmountGwei - pod.REQUIRED_BALANCE_GWEI());
+        assertEq(pod.podOwner().balance - podOwnerBalanceBefore, withdrawalAmountGwei - pod.REQUIRED_BALANCE_GWEI());
         assertTrue(pod.validatorStatus(validatorIndex0) == IEigenPod.VALIDATOR_STATUS.WITHDRAWN);
     }
 
     // 11. Make partial withdrawal claim
     // Test: Credit balance with PARTIAL_AMOUNT_GWEI gwei and record a balance snapshot with an expire block far in the future
     // Expected Behaviour: Should append a pending a partial withdrawal claim for 
-    //                     (pod.balance - restakedExecutionLayerGwei - instantlyWithdrawableBalanceGwei) amount 
+    //                     (pod.balance - restakedExecutionLayerGwei) amount 
     //                     at block.number to the end of the partial withdrawal list
 
     function testMakePartialWithdrawalClaim(uint64 partialWithdrawalAmountGwei) public returns(IEigenPod,  IEigenPod.PartialWithdrawalClaim memory){
         IEigenPod pod = testDeployAndVerifyNewEigenPod();
 
         uint64 restakedExectionLayerGweiBefore = pod.restakedExecutionLayerGwei();
-        uint64 instantlyWithdrawableBalanceGweiBefore = pod.instantlyWithdrawableBalanceGwei();
         uint256 lengthBefore = pod.getPartialWithdrawalClaimsLength();
-        cheats.assume(partialWithdrawalAmountGwei > restakedExectionLayerGweiBefore + instantlyWithdrawableBalanceGweiBefore);
+        cheats.assume(partialWithdrawalAmountGwei > restakedExectionLayerGweiBefore);
         cheats.deal(address(pod), address(pod).balance + partialWithdrawalAmountGwei * GWEI_TO_WEI);
 
         cheats.prank(pod.podOwner());
@@ -472,7 +471,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         IEigenPod.PartialWithdrawalClaim memory claim = pod.getPartialWithdrawalClaim(pod.getPartialWithdrawalClaimsLength() - 1);
 
         require(claim.status == IEigenPod.PARTIAL_WITHDRAWAL_CLAIM_STATUS.PENDING, "status not set to pending");
-        require(claim.partialWithdrawalAmountGwei == uint64(address(pod).balance / GWEI_TO_WEI) - restakedExectionLayerGweiBefore - instantlyWithdrawableBalanceGweiBefore, "partialWithdrawalAmount not correct");
+        require(claim.partialWithdrawalAmountGwei == uint64(address(pod).balance / GWEI_TO_WEI) - restakedExectionLayerGweiBefore, "partialWithdrawalAmount not correct");
         require(pod.getPartialWithdrawalClaimsLength() == lengthBefore + 1, "partialWithdrawalClaim not added");
         return (pod, claim);
 
@@ -511,8 +510,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         IEigenPod pod = testDeployAndVerifyNewEigenPod();
 
         uint64 restakedExectionLayerGweiBefore = pod.restakedExecutionLayerGwei();
-        uint64 instantlyWithdrawableBalanceGweiBefore = pod.instantlyWithdrawableBalanceGwei();
-        cheats.assume(partialWithdrawalAmountGwei >= restakedExectionLayerGweiBefore + instantlyWithdrawableBalanceGweiBefore);
+        cheats.assume(partialWithdrawalAmountGwei >= restakedExectionLayerGweiBefore);
         cheats.deal(address(pod), address(pod).balance + partialWithdrawalAmountGwei * GWEI_TO_WEI);
 
         cheats.prank(pod.podOwner());
