@@ -2,15 +2,21 @@
 pragma solidity =0.8.12;
 
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/utils/Address.sol";
+import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
+import "@openzeppelin-upgrades/contracts/security/ReentrancyGuardUpgradeable.sol";
+import "@openzeppelin-upgrades/contracts/utils/AddressUpgradeable.sol";
+
 import "../libraries/BeaconChainProofs.sol";
 import "../libraries/BytesLib.sol";
 import "../libraries/Endian.sol";
+
 import "../interfaces/IETHPOSDeposit.sol";
 import "../interfaces/IEigenPodManager.sol";
 import "../interfaces/IEigenPod.sol";
 import "../interfaces/IEigenPodPaymentEscrow.sol";
+import "../interfaces/IPausable.sol";
+
+import "./EigenPodPausingConstants.sol";
 
 /**
  * @title The implementation contract used for restaking beacon chain ETH on EigenLayer 
@@ -25,7 +31,7 @@ import "../interfaces/IEigenPodPaymentEscrow.sol";
  * @dev Note that all beacon chain balances are stored as gwei within the beacon chain datastructures. We choose
  *   to account balances in terms of gwei in the EigenPod contract and convert to wei when making calls to other contracts
  */
-contract EigenPod is IEigenPod, Initializable, ReentrancyGuard {
+contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, EigenPodPausingConstants {
     using BytesLib for bytes;
 
     uint256 internal constant GWEI_TO_WEI = 1e9;
@@ -58,9 +64,11 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard {
     /// @notice this is a mapping of validator indices to a Validator struct containing pertinent info about the validator
     mapping(uint40 => VALIDATOR_STATUS) public validatorStatus;
 
-    /// @notice the claims on the amount of deserved partial withdrawals for the ETH validators of this EigenPod
-    /// @dev this array is marked as internal because of how Solidity handles structs in storage -- use the `getPartialWithdrawalClaim` getter function to fetch on this array!
-    PartialWithdrawalClaim[] internal partialWithdrawalClaims;
+    /**
+     * @notice the claims on the amount of deserved partial withdrawals for the ETH validators of this EigenPod
+     * @dev this array is marked as internal because of how Solidity handles structs in storage. Use the `getPartialWithdrawalClaim` getter function to fetch from this array.
+     */
+    PartialWithdrawalClaim[] internal _partialWithdrawalClaims;
 
     /// @notice the amount of execution layer ETH in this contract that is staked in EigenLayer (i.e. withdrawn from the Beacon Chain but not from EigenLayer), 
     uint64 public restakedExecutionLayerGwei;
@@ -89,6 +97,16 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard {
 
     modifier onlyNotFrozen {
         require(!eigenPodManager.slasher().isFrozen(podOwner), "EigenPod.onlyNotFrozen: pod owner is frozen");
+        _;
+    }
+
+    /**
+     * @notice Based on 'Pausable' code, but uses the storage of the EigenPodManager instead of this contract. This construction
+     * is necessary for enabling pausing all EigenPods at the same time (due to EigenPods being Beacon Proxies).
+     * Modifier throws if the `indexed`th bit of `_paused` in the EigenPodManager is 1, i.e. if the `index`th pause switch is flipped.
+     */
+    modifier onlyWhenNotPaused(uint8 index) {
+        require(!IPausable(address(eigenPodManager)).paused(index), "EigenPod.onlyWhenNotPaused: index is paused in EigenPodManager");
         _;
     }
 
@@ -136,7 +154,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard {
         uint40 validatorIndex,
         bytes calldata proof, 
         bytes32[] calldata validatorFields
-    ) external {
+    ) external onlyWhenNotPaused(PAUSED_EIGENPODS_VERIFY_CREDENTIALS) {
         // TODO: tailor this to production oracle
         bytes32 beaconStateRoot = eigenPodManager.getBeaconChainStateRoot();
 
@@ -178,7 +196,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard {
         bytes calldata proof, 
         bytes32[] calldata validatorFields,
         uint256 beaconChainETHStrategyIndex
-    ) external {
+    ) external onlyWhenNotPaused(PAUSED_EIGENPODS_VERIFY_OVERCOMMITTED) {
         //TODO: tailor this to production oracle
         bytes32 beaconStateRoot = eigenPodManager.getBeaconChainStateRoot();
         // verify ETH validator proof
@@ -217,7 +235,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard {
         bytes32 blockNumberRoot,
         bytes32[] calldata withdrawalFields,
         uint256 beaconChainETHStrategyIndex
-    ) external {
+    ) external onlyWhenNotPaused(PAUSED_EIGENPODS_VERIFY_WITHDRAWAL) {
         //TODO: tailor this to production oracle
         bytes32 beaconStateRoot = eigenPodManager.getBeaconChainStateRoot();
         // verify the validator filds and block number
@@ -286,16 +304,16 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard {
         validatorStatus[validatorIndex] = VALIDATOR_STATUS.WITHDRAWN;
 
         // check withdrawal against current claim
-        uint256 claimsLength = partialWithdrawalClaims.length;
+        uint256 claimsLength = _partialWithdrawalClaims.length;
         if (claimsLength != 0) {
-            PartialWithdrawalClaim memory currentClaim = partialWithdrawalClaims[claimsLength - 1];
+            PartialWithdrawalClaim memory currentClaim = _partialWithdrawalClaims[claimsLength - 1];
             /**
              * if a full withdrawal is proven before the current partial withdrawal claim and the partial withdrawal claim 
              * is pending (still in its fraudproof period), then the partial withdrawal claim is incorrect and fraudulent
              */
             if (withdrawalBlockNumber <= currentClaim.creationBlockNumber && currentClaim.status == PARTIAL_WITHDRAWAL_CLAIM_STATUS.PENDING) {
                 // mark the partial withdrawal claim as failed
-                partialWithdrawalClaims[claimsLength - 1].status = PARTIAL_WITHDRAWAL_CLAIM_STATUS.FAILED;
+                _partialWithdrawalClaims[claimsLength - 1].status = PARTIAL_WITHDRAWAL_CLAIM_STATUS.FAILED;
                 // TODO: reward the updater
             }
         }
@@ -318,13 +336,13 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard {
     function recordPartialWithdrawalClaim(uint32 expireBlockNumber) external onlyEigenPodOwner {
         uint32 currBlockNumber = uint32(block.number);
         require(currBlockNumber < expireBlockNumber, "EigenPod.recordBalanceSnapshot: recordPartialWithdrawalClaim tx mined too late");
-        uint256 claimsLength = partialWithdrawalClaims.length;
+        uint256 claimsLength = _partialWithdrawalClaims.length;
         // we do not allow parallel withdrawal claims to minimize complexity
         require(
             // either no claims have been made yet
             claimsLength == 0 ||
             // or the last claim is not pending
-            partialWithdrawalClaims[claimsLength - 1].status != PARTIAL_WITHDRAWAL_CLAIM_STATUS.PENDING,
+            _partialWithdrawalClaims[claimsLength - 1].status != PARTIAL_WITHDRAWAL_CLAIM_STATUS.PENDING,
             "EigenPod.recordPartialWithdrawalClaim: cannot make a new claim until previous claim is not pending"
         );
 
@@ -332,7 +350,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard {
         //                                       partialWithdrawalAmountGwei
         uint64 partialWithdrawalAmountGwei = uint64(address(this).balance / GWEI_TO_WEI) - restakedExecutionLayerGwei;
         // push claim to the end of the list
-        partialWithdrawalClaims.push(
+        _partialWithdrawalClaims.push(
             PartialWithdrawalClaim({ 
                 status: PARTIAL_WITHDRAWAL_CLAIM_STATUS.PENDING, 
                 creationBlockNumber: currBlockNumber,
@@ -347,8 +365,8 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard {
     /// @notice This function allows pod owners to redeem their partial withdrawals after the fraudproof period has elapsed
     function redeemLatestPartialWithdrawal(address recipient) external onlyEigenPodOwner nonReentrant {
         // load claim into memory, note this function should and will fail if there are no claims yet
-        uint256 lastClaimIndex = partialWithdrawalClaims.length - 1;        
-        PartialWithdrawalClaim memory claim = partialWithdrawalClaims[lastClaimIndex];
+        uint256 lastClaimIndex = _partialWithdrawalClaims.length - 1;        
+        PartialWithdrawalClaim memory claim = _partialWithdrawalClaims[lastClaimIndex];
 
         require(
             claim.status == PARTIAL_WITHDRAWAL_CLAIM_STATUS.PENDING,
@@ -360,7 +378,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard {
         );
 
         // mark the claim's status as redeemed
-        partialWithdrawalClaims[lastClaimIndex].status = PARTIAL_WITHDRAWAL_CLAIM_STATUS.REDEEMED;
+        _partialWithdrawalClaims[lastClaimIndex].status = PARTIAL_WITHDRAWAL_CLAIM_STATUS.REDEEMED;
 
         // send the ETH to the `recipient`
         _sendETH(recipient, uint256(claim.partialWithdrawalAmountGwei) * uint256(GWEI_TO_WEI));
@@ -395,13 +413,13 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard {
 
     /// @return claim is the partial withdrawal claim at the provided index
     function getPartialWithdrawalClaim(uint256 index) external view returns(PartialWithdrawalClaim memory) {
-        PartialWithdrawalClaim memory claim = partialWithdrawalClaims[index];
+        PartialWithdrawalClaim memory claim = _partialWithdrawalClaims[index];
         return claim;
     }
 
     /// @return length : the number of partial withdrawal claims ever made for this EigenPod
     function getPartialWithdrawalClaimsLength() external view returns(uint256) {
-        return partialWithdrawalClaims.length;
+        return _partialWithdrawalClaims.length;
     }
 
     // INTERNAL FUNCTIONS
