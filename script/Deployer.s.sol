@@ -156,7 +156,7 @@ contract EigenLayerDeployer is Script, Owners {
         eigenLayerProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(investmentManager))),
             address(investmentManagerImplementation),
-            abi.encodeWithSelector(InvestmentManager.initialize.selector, eigenLayerPauserReg, address(eigenLayerReputedMultisig))
+            abi.encodeWithSelector(InvestmentManager.initialize.selector, eigenLayerPauserReg, address(eigenLayerReputedMultisig), 0)
         );
         eigenLayerProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(slasher))),
