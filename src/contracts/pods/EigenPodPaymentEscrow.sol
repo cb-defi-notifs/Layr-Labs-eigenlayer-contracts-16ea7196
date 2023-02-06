@@ -29,6 +29,9 @@ contract EigenPodPaymentEscrow is Initializable, OwnableUpgradeable, ReentrancyG
     /// @notice Mapping: user => struct storing all payment info. Marked as internal with an external getter function named `userPayments`
     mapping(address => UserPayments) internal _userPayments;
 
+    /// @notice event for payment creation
+    event PaymentCreated(address podOwner, address recipient, uint256 amount);
+
     /// @notice Modifier used to permission a function to only be called by the EigenPod of the specified `podOwner`
     modifier onlyEigenPod(address podOwner) {
         require(address(eigenPodManager.getPod(podOwner)) == msg.sender, "EigenPodPaymentEscrow.onlyEigenPod: not podOwner's EigenPod");
@@ -58,6 +61,7 @@ contract EigenPodPaymentEscrow is Initializable, OwnableUpgradeable, ReentrancyG
                 blockCreated: uint32(block.number)
             });
             _userPayments[recipient].payments.push(payment);
+            emit PaymentCreated(podOwner, recipient, paymentAmount);
         }
     }
 
@@ -91,6 +95,11 @@ contract EigenPodPaymentEscrow is Initializable, OwnableUpgradeable, ReentrancyG
     /// @notice Getter function for fetching the payment at the `index`th entry from the `_userPayments[user].payments` array
     function userPaymentByIndex(address user, uint256 index) external view returns (Payment memory) {
         return _userPayments[user].payments[index];
+    }
+
+    /// @notice Getter function for fetching the length of the payments array of a specific user
+    function userPaymentsLength(address user) external view returns (uint256) {
+        return _userPayments[user].payments.length;
     }
 
     /// @notice Convenience function for checking whethere or not the payment at the `index`th entry from the `_userPayments[user].payments` array is currently claimable

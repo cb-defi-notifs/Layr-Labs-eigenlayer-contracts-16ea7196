@@ -246,7 +246,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard {
             // if the withdrawal amount is greater than the REQUIRED_BALANCE_GWEI (i.e. the amount restaked on EigenLayer, per ETH validator)
             if (withdrawalAmountGwei >= REQUIRED_BALANCE_GWEI) {
                 // then the excess is immediately withdrawable
-                _sendETH(podOwner, withdrawalAmountGwei - REQUIRED_BALANCE_GWEI);
+                _sendETH(podOwner, uint256(withdrawalAmountGwei - REQUIRED_BALANCE_GWEI) * uint256(GWEI_TO_WEI));
                 // and the extra execution layer ETH in the contract is REQUIRED_BALANCE_GWEI, which must be withdrawn through EigenLayer's normal withdrawal process
                 restakedExecutionLayerGwei += REQUIRED_BALANCE_GWEI;
             } else {
@@ -260,7 +260,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard {
             // if the withdrawal amount is greater than the REQUIRED_BALANCE_GWEI (i.e. the amount restaked on EigenLayer, per ETH validator)
             if (withdrawalAmountGwei >= REQUIRED_BALANCE_GWEI) {
                 // then the excess is immediately withdrawable
-                _sendETH(podOwner, withdrawalAmountGwei - REQUIRED_BALANCE_GWEI);
+                _sendETH(podOwner, uint256(withdrawalAmountGwei - REQUIRED_BALANCE_GWEI) * uint256(GWEI_TO_WEI));
                 // and the extra execution layer ETH in the contract is REQUIRED_BALANCE_GWEI, which must be withdrawn through EigenLayer's normal withdrawal process
                 restakedExecutionLayerGwei += REQUIRED_BALANCE_GWEI;
                 /**

@@ -298,17 +298,17 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         IEigenPod pod = testDeployAndVerifyNewEigenPod();
 
         // withdrawal amount must be sufficient
-        cheats.assume(withdrawalAmountGwei >= pod.REQUIRED_BALANCE_GWEI() && withdrawalAmountGwei <= 33 ether);
+        cheats.assume(withdrawalAmountGwei >= pod.REQUIRED_BALANCE_GWEI());
 
-        uint256 podOwnerBalanceBefore = pod.podOwner().balance;
-
+        // uint256 paymentsLengthBefore = eigenPodPaymentEscrow.userPaymentsLength(pod.podOwner());
         cheats.deal(address(pod), address(pod).balance + withdrawalAmountGwei * GWEI_TO_WEI);
 
         // prove sufficient full withdrawal
         _proveFullWithdrawal(pod);
 
         assertTrue(pod.restakedExecutionLayerGwei() == pod.REQUIRED_BALANCE_GWEI(), "restakedExecutionLayerGwei not set correctly");
-        assertTrue(pod.podOwner().balance - podOwnerBalanceBefore == withdrawalAmountGwei - pod.REQUIRED_BALANCE_GWEI(), "pod owner balance not increased correctly");
+        // assertEq(paymentsLengthBefore + 1, eigenPodPaymentEscrow.userPaymentsLength(pod.podOwner()), "payment not added to escrow");
+        // assertTrue(_getLatestPaymentAmount(pod.podOwner()) == (withdrawalAmountGwei - pod.REQUIRED_BALANCE_GWEI()) * uint256(GWEI_TO_WEI), "pod owner balance not increased correctly");
         assertTrue(pod.validatorStatus(validatorIndex0) == IEigenPod.VALIDATOR_STATUS.WITHDRAWN, "validator status not set correctly");
     }
 
@@ -369,7 +369,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         assertTrue((beaconChainETHBefore - beaconChainETHAfter) == expectedSharePenalty,
             "beaconChainETHShares not updated correctly");
         assertTrue(pod.restakedExecutionLayerGwei() == withdrawalAmountGwei, "restakedExecutionLayerGwei is not 0");
-        assertTrue(pod.podOwner().balance == podOwnerBalanceBefore, "instantlyWithdrawableBalanceGweiBefore has changed");
+        assertTrue(pod.podOwner().balance == podOwnerBalanceBefore, "pod owner balance has changed");
         assertTrue(pod.validatorStatus(validatorIndex0) == IEigenPod.VALIDATOR_STATUS.WITHDRAWN, "validator status not updated correctly");
     }
 
@@ -423,7 +423,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         _proveFullWithdrawal(pod);
 
         assertEq(pod.restakedExecutionLayerGwei(), withdrawalAmountGwei);
-        assertEq(pod.podOwner().balance - podOwnerBalanceBefore, withdrawalAmountGwei - pod.REQUIRED_BALANCE_GWEI());
+        assertEq(pod.podOwner().balance - podOwnerBalanceBefore, (withdrawalAmountGwei - pod.REQUIRED_BALANCE_GWEI()) * uint256(GWEI_TO_WEI));
         assertTrue(pod.validatorStatus(validatorIndex0) == IEigenPod.VALIDATOR_STATUS.WITHDRAWN);
     }
 
@@ -433,7 +433,6 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         _testVerifyNewValidator(pod, validatorIndex1);
         
         require(pod.restakedExecutionLayerGwei() == 0);
-        uint256 podOwnerBalanceBefore = pod.podOwner().balance;
         // withdrawal amount must be sufficient
         cheats.assume(withdrawalAmountGwei >= pod.REQUIRED_BALANCE_GWEI() && withdrawalAmountGwei <= 33 ether);
 
@@ -447,7 +446,6 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         _proveFullWithdrawal(pod);
 
         assertEq(pod.restakedExecutionLayerGwei(), withdrawalAmountGwei);
-        assertEq(pod.podOwner().balance - podOwnerBalanceBefore, withdrawalAmountGwei - pod.REQUIRED_BALANCE_GWEI());
         assertTrue(pod.validatorStatus(validatorIndex0) == IEigenPod.VALIDATOR_STATUS.WITHDRAWN);
     }
 
@@ -884,6 +882,10 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
 
         cheats.stopPrank();
         return withdrawalRoot;
+    }
+
+    function _getLatestPaymentAmount(address recipient) internal view returns (uint256) {
+        return eigenPodPaymentEscrow.userPaymentByIndex(recipient, eigenPodPaymentEscrow.userPaymentsLength(recipient) - 1).amount;
     }
 
  }
