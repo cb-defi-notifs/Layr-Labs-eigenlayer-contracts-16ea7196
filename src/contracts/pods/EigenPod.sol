@@ -65,9 +65,6 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard {
     /// @notice the amount of execution layer ETH in this contract that is staked in EigenLayer (i.e. withdrawn from the Beacon Chain but not from EigenLayer), 
     uint64 public restakedExecutionLayerGwei;
 
-    /// @notice the excess balance from full withdrawals over RESTAKED_BALANCE_PER_VALIDATOR or partial withdrawals
-    uint64 public instantlyWithdrawableBalanceGwei;
-
     /// @notice Emitted when an ETH validator stakes via this eigenPod
     event EigenPodStaked(bytes pubkey);
 
@@ -249,7 +246,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard {
             // if the withdrawal amount is greater than the REQUIRED_BALANCE_GWEI (i.e. the amount restaked on EigenLayer, per ETH validator)
             if (withdrawalAmountGwei >= REQUIRED_BALANCE_GWEI) {
                 // then the excess is immediately withdrawable
-                instantlyWithdrawableBalanceGwei += withdrawalAmountGwei - REQUIRED_BALANCE_GWEI;
+                _sendETH(podOwner, withdrawalAmountGwei - REQUIRED_BALANCE_GWEI);
                 // and the extra execution layer ETH in the contract is REQUIRED_BALANCE_GWEI, which must be withdrawn through EigenLayer's normal withdrawal process
                 restakedExecutionLayerGwei += REQUIRED_BALANCE_GWEI;
             } else {
@@ -263,7 +260,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard {
             // if the withdrawal amount is greater than the REQUIRED_BALANCE_GWEI (i.e. the amount restaked on EigenLayer, per ETH validator)
             if (withdrawalAmountGwei >= REQUIRED_BALANCE_GWEI) {
                 // then the excess is immediately withdrawable
-                instantlyWithdrawableBalanceGwei += withdrawalAmountGwei - REQUIRED_BALANCE_GWEI;
+                _sendETH(podOwner, withdrawalAmountGwei - REQUIRED_BALANCE_GWEI);
                 // and the extra execution layer ETH in the contract is REQUIRED_BALANCE_GWEI, which must be withdrawn through EigenLayer's normal withdrawal process
                 restakedExecutionLayerGwei += REQUIRED_BALANCE_GWEI;
                 /**
@@ -311,7 +308,6 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard {
      *         via  
      *              address(this).balance / GWEI_TO_WEI = 
      *                  restakedExecutionLayerGwei + 
-     *                  instantlyWithdrawableBalanceGwei + 
      *                  partialWithdrawalsGwei
      *         If any other full withdrawals are proven to have happened before block.number, the partial withdrawal is marked as failed
      * @param expireBlockNumber this is the block number before which the call to this function must be mined. To avoid race conditions with pending withdrawals,
@@ -333,9 +329,8 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard {
         );
 
         // address(this).balance / GWEI_TO_WEI = restakedExecutionLayerGwei + 
-        //                                       instantlyWithdrawableBalanceGwei + 
         //                                       partialWithdrawalAmountGwei
-        uint64 partialWithdrawalAmountGwei = uint64(address(this).balance / GWEI_TO_WEI) - restakedExecutionLayerGwei - instantlyWithdrawableBalanceGwei;
+        uint64 partialWithdrawalAmountGwei = uint64(address(this).balance / GWEI_TO_WEI) - restakedExecutionLayerGwei;
         // push claim to the end of the list
         partialWithdrawalClaims.push(
             PartialWithdrawalClaim({ 
@@ -371,16 +366,6 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuard {
         _sendETH(recipient, uint256(claim.partialWithdrawalAmountGwei) * uint256(GWEI_TO_WEI));
 
         emit PartialWithdrawalRedeemed(recipient, claim.partialWithdrawalAmountGwei);
-    }
-
-    /** 
-     * @notice Withdraws instantlyWithdrawableBalanceGwei to the specified `recipient`
-     * @dev Note that this function is marked as non-reentrant to prevent the recipient calling back into it
-     */
-    function withdrawInstantlyWithdrawableBalanceGwei(address recipient) external onlyEigenPodOwner nonReentrant {
-        uint256 instantlyWithdrawableBalanceGweiMemory = instantlyWithdrawableBalanceGwei;
-        instantlyWithdrawableBalanceGwei = 0;
-        _sendETH(recipient, uint256(instantlyWithdrawableBalanceGweiMemory) * uint256(GWEI_TO_WEI));
     }
 
     /**

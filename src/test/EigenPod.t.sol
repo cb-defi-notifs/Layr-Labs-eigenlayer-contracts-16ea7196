@@ -300,7 +300,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         // withdrawal amount must be sufficient
         cheats.assume(withdrawalAmountGwei >= pod.REQUIRED_BALANCE_GWEI() && withdrawalAmountGwei <= 33 ether);
 
-        uint64 instantlyWithdrawableBalanceGweiBefore = pod.instantlyWithdrawableBalanceGwei();
+        uint64 podOwnerBalanceBefore = pod.podOwner().balance;
 
         cheats.deal(address(pod), address(pod).balance + withdrawalAmountGwei * GWEI_TO_WEI);
 
@@ -308,7 +308,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         _proveFullWithdrawal(pod);
 
         assertTrue(pod.restakedExecutionLayerGwei() == pod.REQUIRED_BALANCE_GWEI(), "restakedExecutionLayerGwei not set correctly");
-        assertTrue(pod.instantlyWithdrawableBalanceGwei() - instantlyWithdrawableBalanceGweiBefore == withdrawalAmountGwei - pod.REQUIRED_BALANCE_GWEI(), "instantlyWithdrawableBalanceGwei not set correctly");
+        assertTrue(pod.podOwner().balance - podOwnerBalanceBefore == withdrawalAmountGwei - pod.REQUIRED_BALANCE_GWEI(), "new withdrawal not set correctly");
         assertTrue(pod.validatorStatus(validatorIndex0) == IEigenPod.VALIDATOR_STATUS.WITHDRAWN, "validator status not set correctly");
     }
 
