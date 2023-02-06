@@ -4,13 +4,14 @@ pragma solidity =0.8.12;
 import "./IInvestmentManager.sol";
 import "./IEigenPod.sol";
 import "./IBeaconChainOracle.sol";
+import "./IPausable.sol";
 
 /**
  * @title Interface for factory that creates and manages solo staking pods that have their withdrawal credentials pointed to EigenLayer.
  * @author Layr Labs, Inc.
  */
 
-interface IEigenPodManager {
+interface IEigenPodManager is IPausable {
     /**
      * @notice Creates an EigenPod for the sender.
      * @dev Function will revert if the `msg.sender` already has an EigenPod.
