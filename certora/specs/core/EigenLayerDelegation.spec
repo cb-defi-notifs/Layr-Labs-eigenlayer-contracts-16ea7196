@@ -2,11 +2,11 @@
 methods {
     //// External Calls
 	// external calls to EigenLayerDelegation 
-    undelegate(address) => DISPATCHER(true)
-    isDelegated(address) returns (bool) => DISPATCHER(true)
-    delegatedTo(address) returns (address) => DISPATCHER(true)
-    decreaseDelegatedShares(address,address[],uint256[]) => DISPATCHER(true)
-	increaseDelegatedShares(address,address,uint256) => DISPATCHER(true)
+    undelegate(address) 
+    isDelegated(address) returns (bool) 
+    delegatedTo(address) returns (address) 
+    decreaseDelegatedShares(address,address[],uint256[]) 
+	increaseDelegatedShares(address,address,uint256) 
 
 	// external calls to Slasher
     isFrozen(address) returns (bool) => DISPATCHER(true)
@@ -167,13 +167,12 @@ rule canOnlyDelegateWithSpecificFunctions(address staker) {
         } else {
             assert (isNotDelegated(staker), "staker delegated to inappropriate address?");
         }
-    } else if (f.selector == delegateToBySignature(address, address, uint256, bytes32, bytes32).selector) {
+    } else if (f.selector == delegateToBySignature(address, address, uint256, bytes).selector) {
         address toDelegateFrom;
         address operator;
         uint256 expiry;
-        bytes32 r;
-        bytes32 vs;
-        delegateToBySignature(e, toDelegateFrom, operator, expiry, r, vs);
+        bytes signature;
+        delegateToBySignature(e, toDelegateFrom, operator, expiry, signature);
         // TODO: this check could be stricter! need to filter when the block timestamp is appropriate for expiry and r, vs is a valid signature
         assert (isNotDelegated(staker) || delegatedTo(staker) == operator, "delegateToBySignature bug?");
     } else if (f.selector == registerAsOperator(address).selector) {

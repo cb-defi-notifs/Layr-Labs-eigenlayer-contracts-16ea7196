@@ -12,6 +12,7 @@ certoraRun certora/harnesses/EigenLayerDelegationHarness.sol \
     --verify EigenLayerDelegationHarness:certora/specs/core/EigenLayerDelegation.spec \
     --optimistic_loop \
     --send_only \
+    --cloud master \
     --settings -optimisticFallback=true \
     $RULE \
     --cloud master \

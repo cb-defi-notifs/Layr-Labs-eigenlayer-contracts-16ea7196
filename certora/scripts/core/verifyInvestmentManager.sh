@@ -12,6 +12,7 @@ certoraRun certora/harnesses/InvestmentManagerHarness.sol \
     --verify InvestmentManagerHarness:certora/specs/core/InvestmentManager.spec \
     --optimistic_loop \
     --send_only \
+    --cloud master \
     --settings -optimisticFallback=true \
     $RULE \
     --loop_iter 3 \

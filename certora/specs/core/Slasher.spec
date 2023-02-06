@@ -11,8 +11,8 @@ methods {
     _delegationWithdrawnHook(address,address,address[],uint256[]) => NONDET
 
 	// external calls to Slasher
-    isFrozen(address) returns (bool) => DISPATCHER(true)
-	canWithdraw(address,uint32,uint256) returns (bool) => DISPATCHER(true)
+    isFrozen(address) returns (bool) envfree 
+	canWithdraw(address,uint32,uint256) returns (bool) 
 
 	// external calls to InvestmentManager
     getDeposits(address) returns (address[],uint256[]) => DISPATCHER(true)
@@ -70,10 +70,7 @@ definition nodeIsWellLinked(address operator, uint256 node) returns bool =
 	&& get_linked_list_entry(operator, get_previous_node(operator, node), true) == node
 	&& get_linked_list_entry(operator, get_next_node(operator, node), false) == node;
 
-/*
-TODO: sort out if `isFrozen` can also be marked as envfree -- currently this is failing with the error
-could not type expression "isFrozen(staker)", message: Could not find an overloading of method isFrozen that matches
-the given arguments: address. Method is not envfree; did you forget to provide the environment as the first function argument?
+
 rule cantBeUnfrozen(method f) {
 	address staker;
 
@@ -87,7 +84,6 @@ rule cantBeUnfrozen(method f) {
 	bool frozen_ = isFrozen(staker);
 	assert frozen_, "frozen stakers must stay frozen";
 }
-*/
 
 /*
 verifies that `bondedUntil[operator][contractAddress]` only changes when either:

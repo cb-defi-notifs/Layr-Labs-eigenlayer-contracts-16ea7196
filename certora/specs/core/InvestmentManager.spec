@@ -15,10 +15,10 @@ methods {
 	canWithdraw(address,uint32,uint256) returns (bool) => DISPATCHER(true)
 
 	// external calls to InvestmentManager
-    getDeposits(address) returns (address[],uint256[]) => DISPATCHER(true)
-    slasher() returns (address) => DISPATCHER(true)
-	deposit(address,uint256) returns (uint256) => DISPATCHER(true)
-	withdraw(address,address,uint256) => DISPATCHER(true)
+    getDeposits(address) returns (address[],uint256[]) 
+    slasher() returns (address) 
+	deposit(address,uint256) returns (uint256) 
+	withdraw(address,address,uint256) 
 
 	// external calls to EigenPodManager
 	withdrawRestakedBeaconChainETH(address,address,uint256) => DISPATCHER(true)
