@@ -194,8 +194,7 @@ _Only callable by EigenPodManager._
 function recordOvercommittedBeaconChainETH(address overcommittedPodOwner, uint256 beaconChainETHStrategyIndex, uint256 amount) external
 ```
 
-Records an overcommitment event on behalf of a staker. The staker's beaconChainETH shares are decremented by `amount` and the 
-EigenPodManager will subsequently impose a penalty upon the staker.
+Records an overcommitment event on behalf of a staker. The staker's beaconChainETH shares are decremented by `amount`.
 
 _Only callable by EigenPodManager._
 
@@ -426,6 +425,12 @@ function _undelegate(address depositor) internal
 
 If the `depositor` has no existing shares, then they can `undelegate` themselves.
 This allows people a "hard reset" in their relationship with EigenLayer after withdrawing all of their stake.
+
+### _withdrawBeaconChainETH
+
+```solidity
+function _withdrawBeaconChainETH(address staker, address recipient, uint256 amount) internal
+```
 
 ### getDeposits
 

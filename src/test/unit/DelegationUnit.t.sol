@@ -11,7 +11,6 @@ import "../mocks/ERC20Mock.sol";
 import "../mocks/DelegationTermsMock.sol";
 import "../Delegation.t.sol";
 
-
 contract DelegationUnitTests is EigenLayerTestHelper {
 
     InvestmentManagerMock investmentManagerMock;
