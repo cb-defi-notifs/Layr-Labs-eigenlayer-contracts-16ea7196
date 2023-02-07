@@ -157,6 +157,15 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         bytes calldata proof, 
         bytes32[] calldata validatorFields
     ) external onlyWhenNotPaused(PAUSED_EIGENPODS_VERIFY_CREDENTIALS) {
+        require(validatorStatus[validatorIndex] == VALIDATOR_STATUS.INACTIVE, "EigenPod.verifyCorrectWithdrawalCredentials: Validator not inactive");
+        require(validatorFields[BeaconChainProofs.VALIDATOR_WITHDRAWAL_CREDENTIALS_INDEX] == _podWithdrawalCredentials().toBytes32(0),
+            "EigenPod.verifyCorrectWithdrawalCredentials: Proof is not for this EigenPod");
+        // convert the balance field from 8 bytes of little endian to uint64 big endian 💪
+        uint64 validatorBalanceGwei = Endian.fromLittleEndianUint64(validatorFields[BeaconChainProofs.VALIDATOR_BALANCE_INDEX]);
+        // make sure the balance is greater than the amount restaked per validator
+        require(validatorBalanceGwei >= REQUIRED_BALANCE_GWEI,
+            "EigenPod.verifyCorrectWithdrawalCredentials: ETH validator's balance must be greater than or equal to the restaked balance per validator");
+
         // TODO: tailor this to production oracle
         bytes32 beaconStateRoot = eigenPodManager.getBeaconChainStateRoot();
 
@@ -168,16 +177,9 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
             validatorFields
         );
 
-        require(validatorStatus[validatorIndex] == VALIDATOR_STATUS.INACTIVE, "EigenPod.verifyCorrectWithdrawalCredentials: Validator not inactive");
-        require(validatorFields[BeaconChainProofs.VALIDATOR_WITHDRAWAL_CREDENTIALS_INDEX] == _podWithdrawalCredentials().toBytes32(0),
-            "EigenPod.verifyCorrectWithdrawalCredentials: Proof is not for this EigenPod");
-        // convert the balance field from 8 bytes of little endian to uint64 big endian 💪
-        uint64 validatorBalanceGwei = Endian.fromLittleEndianUint64(validatorFields[BeaconChainProofs.VALIDATOR_BALANCE_INDEX]);
-        // make sure the balance is greater than the amount restaked per validator
-        require(validatorBalanceGwei >= REQUIRED_BALANCE_GWEI,
-            "EigenPod.verifyCorrectWithdrawalCredentials: ETH validator's balance must be greater than or equal to the restaked balance per validator");
         // set the status to active
         validatorStatus[validatorIndex] = VALIDATOR_STATUS.ACTIVE;
+
         // deposit RESTAKED_BALANCE_PER_VALIDATOR for new ETH validator
         // @dev balances are in GWEI so need to convert
         eigenPodManager.restakeBeaconChainETH(podOwner, REQUIRED_BALANCE_WEI);
@@ -199,6 +201,16 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         bytes32[] calldata validatorFields,
         uint256 beaconChainETHStrategyIndex
     ) external onlyWhenNotPaused(PAUSED_EIGENPODS_VERIFY_OVERCOMMITTED) {
+
+        require(validatorStatus[validatorIndex] == VALIDATOR_STATUS.ACTIVE, "EigenPod.verifyBalanceUpdate: Validator not active");
+        // convert the balance field from 8 bytes of little endian to uint64 big endian 💪
+        uint64 validatorBalance = Endian.fromLittleEndianUint64(validatorFields[BeaconChainProofs.VALIDATOR_BALANCE_INDEX]);
+
+        // if the validatorBalance is zero *and* the validator is overcommitted, then overcommitement should be proved through `verifyBeaconChainFullWithdrawal`
+        require(validatorBalance != 0, "EigenPod.verifyCorrectWithdrawalCredentials: cannot prove overcommitment on a full withdrawal");
+        require(validatorBalance < REQUIRED_BALANCE_GWEI,
+            "EigenPod.verifyCorrectWithdrawalCredentials: validator's balance must be less than the restaked balance per validator");
+
         //TODO: tailor this to production oracle
         bytes32 beaconStateRoot = eigenPodManager.getBeaconChainStateRoot();
         // verify ETH validator proof
@@ -209,14 +221,6 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
             validatorFields
         );
 
-        require(validatorStatus[validatorIndex] == VALIDATOR_STATUS.ACTIVE, "EigenPod.verifyBalanceUpdate: Validator not active");
-        // convert the balance field from 8 bytes of little endian to uint64 big endian 💪
-        uint64 validatorBalance = Endian.fromLittleEndianUint64(validatorFields[BeaconChainProofs.VALIDATOR_BALANCE_INDEX]);
-
-        // if the validatorBalance is zero *and* the validator is overcommitted, then overcommitement should be proved through `verifyBeaconChainFullWithdrawal`
-        require(validatorBalance != 0, "EigenPod.verifyCorrectWithdrawalCredentials: cannot prove overcommitment on a full withdrawal");
-        require(validatorBalance < REQUIRED_BALANCE_GWEI,
-            "EigenPod.verifyCorrectWithdrawalCredentials: validator's balance must be less than the restaked balance per validator");
         // mark the ETH validator as overcommitted
         validatorStatus[validatorIndex] = VALIDATOR_STATUS.OVERCOMMITTED;
         // remove and undelegate shares in EigenLayer
@@ -238,15 +242,6 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         bytes32[] calldata withdrawalFields,
         uint256 beaconChainETHStrategyIndex
     ) external onlyWhenNotPaused(PAUSED_EIGENPODS_VERIFY_WITHDRAWAL) {
-        //TODO: tailor this to production oracle
-        bytes32 beaconStateRoot = eigenPodManager.getBeaconChainStateRoot();
-        // verify the validator filds and block number
-        BeaconChainProofs.verifyWithdrawalFieldsAndBlockNumber(
-            beaconStateRoot,
-            proof,
-            blockNumberRoot,
-            withdrawalFields
-        );
         // get the validator index
         uint40 validatorIndex = uint40(Endian.fromLittleEndianUint64(withdrawalFields[BeaconChainProofs.WITHDRAWAL_VALIDATOR_INDEX_INDEX]));
         // store the validator's status in memory, to save on SLOAD operations
@@ -260,6 +255,17 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         uint64 withdrawalAmountGwei = Endian.fromLittleEndianUint64(withdrawalFields[BeaconChainProofs.WITHDRAWAL_VALIDATOR_AMOUNT_INDEX]);
 
         require(MIN_FULL_WITHDRAWAL_AMOUNT_GWEI <= withdrawalAmountGwei, "EigenPod.verifyBeaconChainFullWithdrawal: withdrawal is too small to be a full withdrawal");
+
+
+        //TODO: tailor this to production oracle
+        bytes32 beaconStateRoot = eigenPodManager.getBeaconChainStateRoot();
+        // verify the validator filds and block number
+        BeaconChainProofs.verifyWithdrawalFieldsAndBlockNumber(
+            beaconStateRoot,
+            proof,
+            blockNumberRoot,
+            withdrawalFields
+        );
 
         // if the validator has not previously been proven to be "overcommitted"
         if (status == VALIDATOR_STATUS.ACTIVE) {
