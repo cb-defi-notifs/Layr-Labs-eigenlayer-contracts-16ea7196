@@ -38,7 +38,6 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
 
     uint256 internal constant GWEI_TO_WEI = 1e9;
 
-    //TODO: change this to constant in prod
     /// @notice This is the beacon chain deposit contract
     IETHPOSDeposit internal immutable ethPOS;
 
@@ -148,11 +147,14 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
      * @notice This function verifies that the withdrawal credentials of the podOwner are pointed to
      * this contract. It verifies the provided proof of the ETH validator against the beacon chain state
      * root, marks the validator as 'active' in EigenLayer, and credits the restaked ETH in Eigenlayer.
+     * @param slot The Beacon Chain slot whose state root the `proof` will be proven against.
+     * @param validatorIndex is the index of the validator being proven, refer to consensus specs 
      * @param proof is the bytes that prove the ETH validator's metadata against a beacon chain state root
      * @param validatorFields are the fields of the "Validator Container", refer to consensus specs 
      * for details: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
      */
     function verifyCorrectWithdrawalCredentials(
+        uint64 slot,
         uint40 validatorIndex,
         bytes calldata proof, 
         bytes32[] calldata validatorFields
@@ -166,8 +168,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         require(validatorBalanceGwei >= REQUIRED_BALANCE_GWEI,
             "EigenPod.verifyCorrectWithdrawalCredentials: ETH validator's balance must be greater than or equal to the restaked balance per validator");
 
-        // TODO: tailor this to production oracle
-        bytes32 beaconStateRoot = eigenPodManager.getBeaconChainStateRoot();
+        bytes32 beaconStateRoot = eigenPodManager.getBeaconChainStateRoot(slot);
 
         // verify ETH validator proof
         BeaconChainProofs.verifyValidatorFields(
@@ -189,6 +190,8 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
      * @notice This function records an overcommitment of stake to EigenLayer on behalf of a certain ETH validator.
      *         If successful, the overcommitted balance is penalized (available for withdrawal whenever the pod's balance allows).
      *         The ETH validator's shares in the enshrined beaconChainETH strategy are also removed from the InvestmentManager and undelegated.
+     * @param slot The Beacon Chain slot whose state root the `proof` will be proven against.
+     * @param validatorIndex is the index of the validator being proven, refer to consensus specs 
      * @param proof is the bytes that prove the ETH validator's metadata against a beacon state root
      * @param validatorFields are the fields of the "Validator Container", refer to consensus specs 
      * @param beaconChainETHStrategyIndex is the index of the beaconChainETHStrategy for the pod owner for the callback to 
@@ -196,6 +199,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
      * @dev For more details on the Beacon Chain spec, see: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
      */
     function verifyOvercommittedStake(
+        uint64 slot,
         uint40 validatorIndex,
         bytes calldata proof, 
         bytes32[] calldata validatorFields,
@@ -211,8 +215,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         require(validatorBalance < REQUIRED_BALANCE_GWEI,
             "EigenPod.verifyCorrectWithdrawalCredentials: validator's balance must be less than the restaked balance per validator");
 
-        //TODO: tailor this to production oracle
-        bytes32 beaconStateRoot = eigenPodManager.getBeaconChainStateRoot();
+        bytes32 beaconStateRoot = eigenPodManager.getBeaconChainStateRoot(slot);
         // verify ETH validator proof
         BeaconChainProofs.verifyValidatorFields(
             validatorIndex,
@@ -229,6 +232,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
 
     /**
      * @notice This function records a full withdrawal on behalf of one of the Ethereum validators for this EigenPod
+     * @param slot The Beacon Chain slot whose state root the `proof` will be proven against.
      * @param proof is the information needed to check the veracity of the block number and withdrawal being proven
      * @param blockNumberRoot is block number at which the withdrawal being proven is claimed to have happened
      * @param withdrawalFields are the fields of the withdrawal being proven
@@ -237,6 +241,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
      *                                    podOwner's list of strategies
      */
     function verifyBeaconChainFullWithdrawal(
+        uint64 slot,
         BeaconChainProofs.WithdrawalAndBlockNumberProof calldata proof,
         bytes32 blockNumberRoot,
         bytes32[] calldata withdrawalFields,
@@ -256,9 +261,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
 
         require(MIN_FULL_WITHDRAWAL_AMOUNT_GWEI <= withdrawalAmountGwei, "EigenPod.verifyBeaconChainFullWithdrawal: withdrawal is too small to be a full withdrawal");
 
-
-        //TODO: tailor this to production oracle
-        bytes32 beaconStateRoot = eigenPodManager.getBeaconChainStateRoot();
+        bytes32 beaconStateRoot = eigenPodManager.getBeaconChainStateRoot(slot);
         // verify the validator filds and block number
         BeaconChainProofs.verifyWithdrawalFieldsAndBlockNumber(
             beaconStateRoot,
@@ -322,7 +325,6 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
             if (withdrawalBlockNumber <= currentClaim.creationBlockNumber && currentClaim.status == PARTIAL_WITHDRAWAL_CLAIM_STATUS.PENDING) {
                 // mark the partial withdrawal claim as failed
                 _partialWithdrawalClaims[claimsLength - 1].status = PARTIAL_WITHDRAWAL_CLAIM_STATUS.FAILED;
-                // TODO: reward the updater
             }
         }
     }

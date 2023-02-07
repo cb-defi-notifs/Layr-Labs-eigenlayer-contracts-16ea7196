@@ -201,7 +201,10 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, Pausable, IEigenP
         return address(_podByOwner[podOwner]) != address(0);
     }
 
-    function getBeaconChainStateRoot() external view returns(bytes32){
-        return beaconChainOracle.getBeaconChainStateRoot();
+    /// @notice Returns the Beacon Chain state root at `slot`. Reverts if the Beacon Chain state root at `slot` has not yet been finalized.
+    function getBeaconChainStateRoot(uint64 slot) external view returns(bytes32) {
+        bytes32 stateRoot = beaconChainOracle.beaconStateRoot(slot);
+        require(stateRoot != bytes32(0), "EigenPodManager.getBeaconChainStateRoot: state root at slot not yet finalized");
+        return stateRoot;
     }
 }
