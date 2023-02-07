@@ -148,13 +148,14 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
      * this contract. It verifies the provided proof of the ETH validator against the beacon chain state
      * root, marks the validator as 'active' in EigenLayer, and credits the restaked ETH in Eigenlayer.
      * @param slot The Beacon Chain slot whose state root the `proof` will be proven against.
+     * @param validatorIndex is the index of the validator being proven, refer to consensus specs 
      * @param proof is the bytes that prove the ETH validator's metadata against a beacon chain state root
      * @param validatorFields are the fields of the "Validator Container", refer to consensus specs 
      * for details: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
      */
     function verifyCorrectWithdrawalCredentials(
-        uint40 validatorIndex,
         uint64 slot,
+        uint40 validatorIndex,
         bytes calldata proof, 
         bytes32[] calldata validatorFields
     ) external onlyWhenNotPaused(PAUSED_EIGENPODS_VERIFY_CREDENTIALS) {
@@ -190,6 +191,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
      *         If successful, the overcommitted balance is penalized (available for withdrawal whenever the pod's balance allows).
      *         The ETH validator's shares in the enshrined beaconChainETH strategy are also removed from the InvestmentManager and undelegated.
      * @param slot The Beacon Chain slot whose state root the `proof` will be proven against.
+     * @param validatorIndex is the index of the validator being proven, refer to consensus specs 
      * @param proof is the bytes that prove the ETH validator's metadata against a beacon state root
      * @param validatorFields are the fields of the "Validator Container", refer to consensus specs 
      * @param beaconChainETHStrategyIndex is the index of the beaconChainETHStrategy for the pod owner for the callback to 
@@ -197,8 +199,8 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
      * @dev For more details on the Beacon Chain spec, see: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
      */
     function verifyOvercommittedStake(
-        uint40 validatorIndex,
         uint64 slot,
+        uint40 validatorIndex,
         bytes calldata proof, 
         bytes32[] calldata validatorFields,
         uint256 beaconChainETHStrategyIndex

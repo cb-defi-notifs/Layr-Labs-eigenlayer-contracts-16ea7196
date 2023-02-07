@@ -210,7 +210,7 @@ contract EigenPodTests is BeaconChainProofUtils, EigenPodPausingConstants, DSTes
         bytes memory proofs = abi.encodePacked(validatorMerkleProof, beaconStateMerkleProofForValidators);
         cheats.expectRevert(bytes("EigenPod.verifyCorrectWithdrawalCredentials: Proof is not for this EigenPod"));
         uint64 slot = 0;
-        newPod.verifyCorrectWithdrawalCredentials(validatorIndex0, slot, proofs, validatorContainerFields);
+        newPod.verifyCorrectWithdrawalCredentials(slot, validatorIndex0, proofs, validatorContainerFields);
     }
 
     //test that when withdrawal credentials are verified more than once, it reverts
@@ -229,10 +229,10 @@ contract EigenPodTests is BeaconChainProofUtils, EigenPodPausingConstants, DSTes
         // bytes32 validatorIndexBytes = bytes32(uint256(validatorIndex0));
         bytes memory proofs = abi.encodePacked(validatorMerkleProof, beaconStateMerkleProofForValidators);
         uint64 slot = 0;
-        newPod.verifyCorrectWithdrawalCredentials(validatorIndex0, slot, proofs, validatorContainerFields);
+        newPod.verifyCorrectWithdrawalCredentials(slot, validatorIndex0, proofs, validatorContainerFields);
 
         cheats.expectRevert(bytes("EigenPod.verifyCorrectWithdrawalCredentials: Validator not inactive"));
-        newPod.verifyCorrectWithdrawalCredentials(validatorIndex0, slot, proofs, validatorContainerFields);
+        newPod.verifyCorrectWithdrawalCredentials(slot, validatorIndex0, proofs, validatorContainerFields);
     }
 
     function testWithdrawalProofs() public {
@@ -718,7 +718,7 @@ contract EigenPodTests is BeaconChainProofUtils, EigenPodPausingConstants, DSTes
 
         cheats.expectRevert(bytes("EigenPod.onlyWhenNotPaused: index is paused in EigenPodManager"));
         uint64 slot = 0;
-        pod.verifyCorrectWithdrawalCredentials(validatorIndex, slot, proofs, validatorContainerFields);
+        pod.verifyCorrectWithdrawalCredentials(slot, validatorIndex, proofs, validatorContainerFields);
     }
 
     function testVerifyOvercommittedStakeRevertsWhenPaused() external {
@@ -746,7 +746,7 @@ contract EigenPodTests is BeaconChainProofUtils, EigenPodPausingConstants, DSTes
 
         cheats.expectRevert(bytes("EigenPod.onlyWhenNotPaused: index is paused in EigenPodManager"));
         uint64 slot = 0;
-        pod.verifyOvercommittedStake(validatorIndex, slot, proofs, validatorContainerFields, 0);
+        pod.verifyOvercommittedStake(slot, validatorIndex, proofs, validatorContainerFields, 0);
     }
 
     function testVerifyBeaconChainFullWithdrawalRevertsWhenPaused() external {
@@ -869,7 +869,7 @@ contract EigenPodTests is BeaconChainProofUtils, EigenPodPausingConstants, DSTes
         bytes memory proofs = abi.encodePacked(validatorMerkleProof, beaconStateMerkleProofForValidators);
 
         uint64 slot = 0;
-        newPod.verifyCorrectWithdrawalCredentials(validatorIndex, slot, proofs, validatorContainerFields);
+        newPod.verifyCorrectWithdrawalCredentials(slot, validatorIndex, proofs, validatorContainerFields);
 
         IInvestmentStrategy beaconChainETHStrategy = investmentManager.beaconChainETHStrategy();
 
@@ -884,7 +884,7 @@ contract EigenPodTests is BeaconChainProofUtils, EigenPodPausingConstants, DSTes
         bytes memory proofs = abi.encodePacked(validatorMerkleProof, beaconStateMerkleProofForValidators);
 
         uint64 slot = 0;
-        pod.verifyCorrectWithdrawalCredentials(validatorIndex, slot, proofs, validatorContainerFields);
+        pod.verifyCorrectWithdrawalCredentials(slot, validatorIndex, proofs, validatorContainerFields);
     }
 
     function _proveFullWithdrawal(IEigenPod pod) internal {
@@ -975,7 +975,7 @@ contract EigenPodTests is BeaconChainProofUtils, EigenPodPausingConstants, DSTes
         // bytes32 validatorIndexBytes = bytes32(uint256(validatorIndex));
         bytes memory proofs = abi.encodePacked(validatorMerkleProof, beaconStateMerkleProofForValidators);
         uint64 slot = 0;
-        pod.verifyOvercommittedStake(validatorIndex, slot, proofs, validatorContainerFields, 0);
+        pod.verifyOvercommittedStake(slot, validatorIndex, proofs, validatorContainerFields, 0);
     }
 
     function _testQueueWithdrawal(
