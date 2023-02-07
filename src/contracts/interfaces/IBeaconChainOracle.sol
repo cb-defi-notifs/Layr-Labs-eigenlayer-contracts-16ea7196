@@ -6,6 +6,8 @@ pragma solidity =0.8.12;
  * @author Layr Labs, Inc.
  */
 interface IBeaconChainOracle {
+    /// @notice Largest slot that has been confirmed by the oracle.
+    function latestConfirmedOracleSlot() external view returns(uint64);
     /// @notice Mapping: Beacon Chain slot => the Beacon Chain state root at the specified slot.
     /// @dev This will return `bytes32(0)` if the state root is not yet finalized at the slot.
     function beaconStateRoot(uint64 slot) external view returns(bytes32);
