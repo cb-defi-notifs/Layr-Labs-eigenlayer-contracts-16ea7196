@@ -10,7 +10,7 @@ import "../interfaces/IBeaconChainOracle.sol";
  * @notice The owner of this contract can edit a set of 'oracle signers', as well as changing the threshold number of oracle signers that must vote for a
  *  particular state root at a specified slot before the state root is considered 'finalized'.
  */
-contract BeaconStateOracle is IBeaconChainOracle, Ownable {
+contract BeaconChainOracle is IBeaconChainOracle, Ownable {
     /// @notice Total number of members of the set of oracle signers.
     uint256 public totalOracleSigners;
     /// @notice Number of oracle signers that must vote for a state root in order for the state root to be finalized.
@@ -40,7 +40,7 @@ contract BeaconStateOracle is IBeaconChainOracle, Ownable {
 
     /// @notice Modifier that restricts functions to only be callable by members of the oracle signer set
     modifier onlyOracleSigner() {
-        require(isOracleSigner[msg.sender], "BeaconStateOracle.onlyOracleSigner: Not an oracle signer");
+        require(isOracleSigner[msg.sender], "BeaconChainOracle.onlyOracleSigner: Not an oracle signer");
         _;
     }
 
@@ -49,7 +49,7 @@ contract BeaconStateOracle is IBeaconChainOracle, Ownable {
      * @param _threshold Desired new value for the `threshold` variable. Function will revert if this is set to zero.
      */
     function setThreshold(uint256 _threshold) external onlyOwner {
-        require(_threshold != 0, "BeaconStateOracle.setThreshold: Cannot set threshold to zero");
+        require(_threshold != 0, "BeaconChainOracle.setThreshold: Cannot set threshold to zero");
         emit ThresholdModified(threshold, _threshold);
         threshold = _threshold;
     }
@@ -87,8 +87,8 @@ contract BeaconStateOracle is IBeaconChainOracle, Ownable {
      * @param stateRoot The Beacon Chain state root that the caller asserts was the correct root, at the specified `slot`.
      */
     function voteForBeaconChainStateRoot(uint64 slot, bytes32 stateRoot) external onlyOracleSigner {
-        require(!hasVoted[slot][msg.sender], "BeaconStateOracle.setBeaconChainStateRoot: Signer has alreader voted");
-        require(beaconStateRoot[slot] == bytes32(0), "BeaconStateOracle.setBeaconChainStateRoot: State root already finalized");
+        require(!hasVoted[slot][msg.sender], "BeaconChainOracle.setBeaconChainStateRoot: Signer has alreader voted");
+        require(beaconStateRoot[slot] == bytes32(0), "BeaconChainOracle.setBeaconChainStateRoot: State root already finalized");
         // Mark the signer as having voted
         hasVoted[slot][msg.sender] = true;
         // Increment the vote count for the state root
