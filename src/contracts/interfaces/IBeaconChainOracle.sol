@@ -17,7 +17,7 @@ interface IBeaconChainOracle {
     function hasVoted(uint64 slot, address oracleSigner) external view returns(bool);
 
     /// @notice Mapping: Beacon Chain slot => state root => total number of oracle signer votes for the state root at the slot. 
-    function stateRootVotes(uint64 slot, address oracleSigner) external view returns(uint256);
+    function stateRootVotes(uint64 slot, bytes32 stateRoot) external view returns(uint256);
 
     /// @notice Total number of members of the set of oracle signers.
     function totalOracleSigners() external view returns(uint256);

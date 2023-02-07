@@ -25,11 +25,11 @@ contract BeaconChainOracleMock is IBeaconChainOracle {
         return true;
     }
 
-    function hasVoted(uint64 /*slot*/, address oracleSigner) external pure returns(bool) {
+    function hasVoted(uint64 /*slot*/, address /*oracleSigner*/) external pure returns(bool) {
         return true;
     }
 
-    function stateRootVotes(uint64 /*slot*/, address /*oracleSigner*/) external pure returns(uint256) {
+    function stateRootVotes(uint64 /*slot*/, bytes32 /*stateRoot*/) external pure returns(uint256) {
         return 0;
     }
 

@@ -24,7 +24,7 @@ contract BeaconChainOracle is IBeaconChainOracle, Ownable {
     /// @notice Mapping: Beacon Chain slot => oracle signer address => whether or not the oracle signer has voted on the state root at the slot.
     mapping(uint64 => mapping(address => bool)) public hasVoted;
     /// @notice Mapping: Beacon Chain slot => state root => total number of oracle signer votes for the state root at the slot. 
-    mapping(uint64 => mapping(bytes32 => uint64)) public stateRootVotes;
+    mapping(uint64 => mapping(bytes32 => uint256)) public stateRootVotes;
 
     /// @notice Emitted when the value of the `threshold` variable is changed from `previousValue` to `newValue`.
     event ThresholdModified(uint256 previousValue, uint256 newValue);

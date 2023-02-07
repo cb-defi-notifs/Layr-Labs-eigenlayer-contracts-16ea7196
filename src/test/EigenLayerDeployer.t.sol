@@ -21,6 +21,7 @@ import "../contracts/core/Slasher.sol";
 import "../contracts/pods/EigenPod.sol";
 import "../contracts/pods/EigenPodManager.sol";
 import "../contracts/pods/EigenPodPaymentEscrow.sol";
+import "../contracts/pods/BeaconChainOracle.sol";
 
 import "../contracts/permissions/PauserRegistry.sol";
 
@@ -30,7 +31,6 @@ import "./utils/Operators.sol";
 
 import "./mocks/LiquidStakingToken.sol";
 import "./mocks/EmptyContract.sol";
-import "./mocks/BeaconChainOracleMock.sol";
 import "./mocks/ETHDepositMock.sol";
 
 import "forge-std/Test.sol";
@@ -145,8 +145,7 @@ contract EigenLayerDeployer is Operators {
             address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayerProxyAdmin), ""))
         );
 
-        beaconChainOracle = new BeaconChainOracleMock();
-        beaconChainOracle.setBeaconChainStateRoot(0xb08d5a1454de19ac44d523962096d73b85542f81822c5e25b8634e4e86235413);
+        beaconChainOracle = new BeaconChainOracle();
 
         ethPOSDeposit = new ETHPOSDepositMock();
         pod = new EigenPod(ethPOSDeposit, eigenPodPaymentEscrow, PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS, REQUIRED_BALANCE_WEI, MAX_PARTIAL_WTIHDRAWAL_AMOUNT_GWEI);
