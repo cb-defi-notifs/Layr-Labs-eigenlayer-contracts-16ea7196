@@ -48,4 +48,6 @@ contract BeaconChainOracleMock is IBeaconChainOracle {
     function removeOracleSigner(address /*_oracleSigner*/) external pure {}
 
     function voteForBeaconChainStateRoot(uint64 /*slot*/, bytes32 /*stateRoot*/) external pure {}
+
+    function latestConfirmedOracleSlot() external pure returns(uint64) {}
 }
