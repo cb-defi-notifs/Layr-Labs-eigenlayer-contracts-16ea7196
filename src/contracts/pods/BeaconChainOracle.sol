@@ -114,7 +114,7 @@ contract BeaconChainOracle is IBeaconChainOracle, Ownable {
 
     /// @notice Internal function used for modifying the value of the `threshold` variable, used in the constructor and the `setThreshold` function
     function _setThreshold(uint256 _threshold) internal {
-        require(_threshold >= MINIMUM_THRESHOLD, "BeaconChainOracle.setThreshold: cannot set threshold below MINIMUM_THRESHOLD");
+        require(_threshold >= MINIMUM_THRESHOLD, "BeaconChainOracle._setThreshold: cannot set threshold below MINIMUM_THRESHOLD");
         emit ThresholdModified(threshold, _threshold);
         threshold = _threshold;
     }
