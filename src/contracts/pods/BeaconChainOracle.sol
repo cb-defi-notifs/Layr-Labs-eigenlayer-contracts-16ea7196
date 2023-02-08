@@ -11,12 +11,16 @@ import "../interfaces/IBeaconChainOracle.sol";
  *  particular state root at a specified slot before the state root is considered 'confirmed'.
  */
 contract BeaconChainOracle is IBeaconChainOracle, Ownable {
+    /// @notice The minimum value which the `treshold` variable is allowed to take.
+    uint256 public constant MINIMUM_THRESHOLD = 2;
+
     /// @notice Total number of members of the set of oracle signers.
     uint256 public totalOracleSigners;
     /// @notice Number of oracle signers that must vote for a state root in order for the state root to be confirmed.
     uint256 public threshold;
     /// @notice Largest slot that has been confirmed by the oracle.
     uint64 public latestConfirmedOracleSlot;
+
     /// @notice Mapping: Beacon Chain slot => the Beacon Chain state root at the specified slot.
     /// @dev This will return `bytes32(0)` if the state root is not yet confirmed at the slot.
     mapping(uint64 => bytes32) public beaconStateRoot;
@@ -45,14 +49,17 @@ contract BeaconChainOracle is IBeaconChainOracle, Ownable {
         _;
     }
 
+    constructor(address initialOwner, uint256 initialThreshold) {
+        _transferOwnership(initialOwner);
+        _setThreshold(initialThreshold);
+    }
+
     /**
      * @notice Owner-only function used to modify the value of the `threshold` variable.
      * @param _threshold Desired new value for the `threshold` variable. Function will revert if this is set to zero.
      */
     function setThreshold(uint256 _threshold) external onlyOwner {
-        require(_threshold != 0, "BeaconChainOracle.setThreshold: Cannot set threshold to zero");
-        emit ThresholdModified(threshold, _threshold);
-        threshold = _threshold;
+        _setThreshold(_threshold);
     }
 
     /**
@@ -103,5 +110,12 @@ contract BeaconChainOracle is IBeaconChainOracle, Ownable {
                 latestConfirmedOracleSlot = slot;
             }
         }
+    }
+
+    /// @notice Internal function used for modifying the value of the `threshold` variable, used in the constructor and the `setThreshold` function
+    function _setThreshold(uint256 _threshold) internal {
+        require(_threshold >= MINIMUM_THRESHOLD, "BeaconChainOracle.setThreshold: cannot set threshold below MINIMUM_THRESHOLD");
+        emit ThresholdModified(threshold, _threshold);
+        threshold = _threshold;
     }
 }
