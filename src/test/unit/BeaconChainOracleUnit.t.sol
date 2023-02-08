@@ -29,7 +29,8 @@ contract BeaconChainOracleUnitTests is Test {
     }
 
     function setUp() external {
-        beaconChainOracle = new BeaconChainOracle(initialBeaconChainOwner, initialBeaconChainOracleThreshold);
+        address[] memory initialOracleSignersArray = new address[](0);
+        beaconChainOracle = new BeaconChainOracle(initialBeaconChainOwner, initialBeaconChainOracleThreshold, initialOracleSignersArray);
         minThreshold = beaconChainOracle.MINIMUM_THRESHOLD();
 
         // set up array for use in testing
@@ -39,12 +40,13 @@ contract BeaconChainOracleUnitTests is Test {
     }
 
     function testConstructor_RevertsOnThresholdTooLow() external {
-        // check that deployment fails when trying to set threshold below `MINIMUM_THRESHOLD`
+         address[] memory initialOracleSignersArray = new address[](0);
+       // check that deployment fails when trying to set threshold below `MINIMUM_THRESHOLD`
         cheats.expectRevert(bytes("BeaconChainOracle._setThreshold: cannot set threshold below MINIMUM_THRESHOLD"));
-        new BeaconChainOracle(initialBeaconChainOwner, minThreshold - 1);
+        new BeaconChainOracle(initialBeaconChainOwner, minThreshold - 1, initialOracleSignersArray);
 
         // check that deployment succeeds when trying to set threshold *at* (i.e. equal to) `MINIMUM_THRESHOLD`
-        beaconChainOracle = new BeaconChainOracle(initialBeaconChainOwner, minThreshold);
+        beaconChainOracle = new BeaconChainOracle(initialBeaconChainOwner, minThreshold, initialOracleSignersArray);
     }
 
     function testSetThreshold(uint256 newThreshold) public {
@@ -78,33 +80,71 @@ contract BeaconChainOracleUnitTests is Test {
     }
 
     function testAddOracleSigner(address signerToAdd) public {
+        uint256 totalSignersBefore = beaconChainOracle.totalOracleSigners();
+        bool alreadySigner = beaconChainOracle.isOracleSigner(signerToAdd);
+
+        address[] memory signerArray = new address[](1);
+        signerArray[0] = signerToAdd;
         cheats.startPrank(beaconChainOracle.owner());
-        beaconChainOracle.addOracleSigner(signerToAdd);
+        beaconChainOracle.addOracleSigners(signerArray);
         cheats.stopPrank();
 
+        uint256 totalSignersAfter = beaconChainOracle.totalOracleSigners();
         require(beaconChainOracle.isOracleSigner(signerToAdd), "signer not added");
+        if (alreadySigner) {
+            require(totalSignersAfter == totalSignersBefore, "totalSigners incremented incorrectly");
+        } else {
+            require(totalSignersAfter == totalSignersBefore + 1, "totalSigners did not increment correctly");
+        }
     }
 
-    function testAddOracleSigner_SignerAlreadyInSet() external {
+    function testAddOracleSigner(uint8 amountSignersToAdd) external {
+        cheats.assume(amountSignersToAdd <= numberPotentialOracleSigners);
+        uint256 totalSignersBefore = beaconChainOracle.totalOracleSigners();
+
+        // copy array to memory
+        address[] memory signerArray = new address[](amountSignersToAdd);
+        for (uint256 i = 0; i < amountSignersToAdd; ++i) {
+            signerArray[i] = potentialOracleSigners[i];
+        }
+
+        cheats.startPrank(beaconChainOracle.owner());
+        beaconChainOracle.addOracleSigners(signerArray);
+        cheats.stopPrank();
+
+        // check post conditions
+        uint256 totalSignersAfter = beaconChainOracle.totalOracleSigners();
+        for (uint256 i = 0; i < amountSignersToAdd; ++i) {
+            require(beaconChainOracle.isOracleSigner(signerArray[i]), "signer not added");
+        }
+        require(totalSignersAfter == totalSignersBefore + amountSignersToAdd, "totalSigners did not increment correctly");
+    }
+
+    function testAddOracleSigners_SignerAlreadyInSet() external {
         address oracleSigner = potentialOracleSigners[0];
+        address[] memory signerArray = new address[](1);
+        signerArray[0] = oracleSigner;
         testAddOracleSigner(oracleSigner);
 
         cheats.startPrank(beaconChainOracle.owner());
-        beaconChainOracle.addOracleSigner(oracleSigner);
+        beaconChainOracle.addOracleSigners(signerArray);
         cheats.stopPrank();
 
         require(beaconChainOracle.isOracleSigner(oracleSigner), "signer improperly removed");
     }
 
-    function testAddOracleSigner_RevertsOnCallingFromNotOwner(address notOwner) external {
+    function testAddOracleSigners_RevertsOnCallingFromNotOwner(address notOwner) external {
         cheats.assume(notOwner != beaconChainOracle.owner());
+        address oracleSigner = potentialOracleSigners[0];
+        address[] memory signerArray = new address[](1);
+        signerArray[0] = oracleSigner;
 
         cheats.startPrank(notOwner);
         cheats.expectRevert(bytes("Ownable: caller is not the owner"));
-        beaconChainOracle.addOracleSigner(potentialOracleSigners[0]);
+        beaconChainOracle.addOracleSigners(signerArray);
         cheats.stopPrank();
 
-        require(!beaconChainOracle.isOracleSigner(potentialOracleSigners[0]), "signer improperly added");
+        require(!beaconChainOracle.isOracleSigner(oracleSigner), "signer improperly added");
     }
 
     function testVoteForBeaconChainStateRoot(address oracleSigner, uint64 _slot, bytes32 _stateRoot) public {

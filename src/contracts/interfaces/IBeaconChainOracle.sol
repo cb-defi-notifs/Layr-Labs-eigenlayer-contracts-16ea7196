@@ -35,17 +35,17 @@ interface IBeaconChainOracle {
 
     /**
      * @notice Owner-only function used to add a signer to the set of oracle signers.
-     * @param _oracleSigner Address to be added to the set.
-     * @dev Function will have no effect if the `_oracleSigner`is already in the set of oracle signers.
+     * @param _oracleSigners Array of address to be added to the set.
+     * @dev Function will have no effect on the i-th input address if `_oracleSigners[i]`is already in the set of oracle signers.
      */
-    function addOracleSigner(address _oracleSigner) external;
+    function addOracleSigners(address[] memory _oracleSigners) external;
 
     /**
      * @notice Owner-only function used to remove a signer from the set of oracle signers.
-     * @param _oracleSigner Address to be removed from the set.
-     * @dev Function will have no effect if the `_oracleSigner`is already not in the set of oracle signers.
+     * @param _oracleSigners Array of address to be removed from the set.
+     * @dev Function will have no effect on the i-th input address if `_oracleSigners[i]`is already not in the set of oracle signers.
      */
-    function removeOracleSigner(address _oracleSigner) external;
+    function removeOracleSigners(address[] memory _oracleSigners) external;
 
     /**
      * @notice Called by a member of the set of oracle signers to assert that the Beacon Chain state root is `stateRoot` at `slot`.

@@ -49,9 +49,10 @@ contract BeaconChainOracle is IBeaconChainOracle, Ownable {
         _;
     }
 
-    constructor(address initialOwner, uint256 initialThreshold) {
+    constructor(address initialOwner, uint256 initialThreshold, address[] memory initialOracleSigners) {
         _transferOwnership(initialOwner);
         _setThreshold(initialThreshold);
+        _addOracleSigners(initialOracleSigners);
     }
 
     /**
@@ -64,27 +65,28 @@ contract BeaconChainOracle is IBeaconChainOracle, Ownable {
 
     /**
      * @notice Owner-only function used to add a signer to the set of oracle signers.
-     * @param _oracleSigner Address to be added to the set.
-     * @dev Function will have no effect if the `_oracleSigner`is already in the set of oracle signers.
+     * @param _oracleSigners Array of address to be added to the set.
+     * @dev Function will have no effect on the i-th input address if `_oracleSigners[i]`is already in the set of oracle signers.
      */
-    function addOracleSigner(address _oracleSigner) external onlyOwner {
-        if (!isOracleSigner[_oracleSigner]) {
-            emit OracleSignerAdded(_oracleSigner);
-            isOracleSigner[_oracleSigner] = true;
-            totalOracleSigners += 1;
-        }
+    function addOracleSigners(address[] memory _oracleSigners) external onlyOwner {
+        _addOracleSigners(_oracleSigners);
     }
 
     /**
      * @notice Owner-only function used to remove a signer from the set of oracle signers.
-     * @param _oracleSigner Address to be removed from the set.
-     * @dev Function will have no effect if the `_oracleSigner`is already not in the set of oracle signers.
+     * @param _oracleSigners Array of address to be removed from the set.
+     * @dev Function will have no effect on the i-th input address if `_oracleSigners[i]`is already not in the set of oracle signers.
      */
-    function removeOracleSigner(address _oracleSigner) external onlyOwner {
-        if (isOracleSigner[_oracleSigner]) {
-            emit OracleSignerRemoved(_oracleSigner);
-            isOracleSigner[_oracleSigner] = false;
-            totalOracleSigners -= 1;
+    function removeOracleSigners(address[] memory _oracleSigners) external onlyOwner {
+        for (uint256 i = 0; i < _oracleSigners.length;) {
+            if (isOracleSigner[_oracleSigners[i]]) {
+                emit OracleSignerRemoved(_oracleSigners[i]);
+                isOracleSigner[_oracleSigners[i]] = false;
+                totalOracleSigners -= 1;
+            }
+            unchecked {
+                ++i;
+            }
         }
     }
 
@@ -117,5 +119,19 @@ contract BeaconChainOracle is IBeaconChainOracle, Ownable {
         require(_threshold >= MINIMUM_THRESHOLD, "BeaconChainOracle._setThreshold: cannot set threshold below MINIMUM_THRESHOLD");
         emit ThresholdModified(threshold, _threshold);
         threshold = _threshold;
+    }
+
+    /// @notice Internal counterpart of the `addOracleSigners` function. Also used in the constructor.
+    function _addOracleSigners(address[] memory _oracleSigners) internal {
+        for (uint256 i = 0; i < _oracleSigners.length;) {
+            if (!isOracleSigner[_oracleSigners[i]]) {
+                emit OracleSignerAdded(_oracleSigners[i]);
+                isOracleSigner[_oracleSigners[i]] = true;
+                totalOracleSigners += 1;
+            }
+            unchecked {
+                ++i;
+            }
+        }
     }
 }
