@@ -270,12 +270,13 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
             withdrawalFields
         );
 
+        uint256 amountToSend;
         // if the validator has not previously been proven to be "overcommitted"
         if (status == VALIDATOR_STATUS.ACTIVE) {
             // if the withdrawal amount is greater than the REQUIRED_BALANCE_GWEI (i.e. the amount restaked on EigenLayer, per ETH validator)
             if (withdrawalAmountGwei >= REQUIRED_BALANCE_GWEI) {
                 // then the excess is immediately withdrawable
-                _sendETH(podOwner, uint256(withdrawalAmountGwei - REQUIRED_BALANCE_GWEI) * uint256(GWEI_TO_WEI));
+                amountToSend = uint256(withdrawalAmountGwei - REQUIRED_BALANCE_GWEI) * uint256(GWEI_TO_WEI);
                 // and the extra execution layer ETH in the contract is REQUIRED_BALANCE_GWEI, which must be withdrawn through EigenLayer's normal withdrawal process
                 restakedExecutionLayerGwei += REQUIRED_BALANCE_GWEI;
             } else {
@@ -289,7 +290,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
             // if the withdrawal amount is greater than the REQUIRED_BALANCE_GWEI (i.e. the amount restaked on EigenLayer, per ETH validator)
             if (withdrawalAmountGwei >= REQUIRED_BALANCE_GWEI) {
                 // then the excess is immediately withdrawable
-                _sendETH(podOwner, uint256(withdrawalAmountGwei - REQUIRED_BALANCE_GWEI) * uint256(GWEI_TO_WEI));
+                amountToSend = uint256(withdrawalAmountGwei - REQUIRED_BALANCE_GWEI) * uint256(GWEI_TO_WEI);
                 // and the extra execution layer ETH in the contract is REQUIRED_BALANCE_GWEI, which must be withdrawn through EigenLayer's normal withdrawal process
                 restakedExecutionLayerGwei += REQUIRED_BALANCE_GWEI;
                 /**
@@ -326,6 +327,11 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
                 // mark the partial withdrawal claim as failed
                 _partialWithdrawalClaims[claimsLength - 1].status = PARTIAL_WITHDRAWAL_CLAIM_STATUS.FAILED;
             }
+        }
+
+        // send ETH, if applicable
+        if (amountToSend != 0) {
+            _sendETH(podOwner, amountToSend);
         }
     }
 
