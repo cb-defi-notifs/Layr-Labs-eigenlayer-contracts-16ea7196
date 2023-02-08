@@ -29,8 +29,8 @@ contract InvestmentManager is
     Initializable,
     OwnableUpgradeable,
     ReentrancyGuardUpgradeable,
-    InvestmentManagerStorage,
-    Pausable
+    Pausable,
+    InvestmentManagerStorage
 {
     using SafeERC20 for IERC20;
 
