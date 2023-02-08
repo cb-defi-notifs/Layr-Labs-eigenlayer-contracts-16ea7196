@@ -95,8 +95,8 @@ contract BeaconChainOracle is IBeaconChainOracle, Ownable {
      * @param stateRoot The Beacon Chain state root that the caller asserts was the correct root, at the specified `slot`.
      */
     function voteForBeaconChainStateRoot(uint64 slot, bytes32 stateRoot) external onlyOracleSigner {
-        require(!hasVoted[slot][msg.sender], "BeaconChainOracle.setBeaconChainStateRoot: Signer has alreader voted");
-        require(beaconStateRoot[slot] == bytes32(0), "BeaconChainOracle.setBeaconChainStateRoot: State root already confirmed");
+        require(!hasVoted[slot][msg.sender], "BeaconChainOracle.voteForBeaconChainStateRoot: Signer has already voted");
+        require(beaconStateRoot[slot] == bytes32(0), "BeaconChainOracle.voteForBeaconChainStateRoot: State root already confirmed");
         // Mark the signer as having voted
         hasVoted[slot][msg.sender] = true;
         // Increment the vote count for the state root
