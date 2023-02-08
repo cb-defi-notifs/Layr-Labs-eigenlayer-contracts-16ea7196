@@ -98,7 +98,7 @@ contract BeaconChainOracleUnitTests is Test {
         }
     }
 
-    function testAddOracleSigner(uint8 amountSignersToAdd) external {
+    function testAddOracleSigners(uint8 amountSignersToAdd) public {
         cheats.assume(amountSignersToAdd <= numberPotentialOracleSigners);
         uint256 totalSignersBefore = beaconChainOracle.totalOracleSigners();
 
@@ -142,6 +142,77 @@ contract BeaconChainOracleUnitTests is Test {
         cheats.startPrank(notOwner);
         cheats.expectRevert(bytes("Ownable: caller is not the owner"));
         beaconChainOracle.addOracleSigners(signerArray);
+        cheats.stopPrank();
+
+        require(!beaconChainOracle.isOracleSigner(oracleSigner), "signer improperly added");
+    }
+
+    function testRemoveOracleSigner(address signerToRemove) public {
+        uint256 totalSignersBefore = beaconChainOracle.totalOracleSigners();
+        bool alreadySigner = beaconChainOracle.isOracleSigner(signerToRemove);
+
+        address[] memory signerArray = new address[](1);
+        signerArray[0] = signerToRemove;
+        cheats.startPrank(beaconChainOracle.owner());
+        beaconChainOracle.removeOracleSigners(signerArray);
+        cheats.stopPrank();
+
+        uint256 totalSignersAfter = beaconChainOracle.totalOracleSigners();
+        require(!beaconChainOracle.isOracleSigner(signerToRemove), "signer not removed");
+        if (alreadySigner) {
+            require(totalSignersAfter == totalSignersBefore - 1, "totalSigners did not decrement correctly");
+        } else {
+            require(totalSignersAfter == totalSignersBefore, "totalSigners decremented incorrectly");
+        }
+    }
+
+    function testRemoveOracleSigners(uint8 amountSignersToAdd, uint8 amountSignersToRemove) external {
+        cheats.assume(amountSignersToAdd <= numberPotentialOracleSigners);
+        cheats.assume(amountSignersToRemove <= numberPotentialOracleSigners);
+        testAddOracleSigners(amountSignersToAdd);
+
+        uint256 totalSignersBefore = beaconChainOracle.totalOracleSigners();
+
+        // copy array to memory
+        address[] memory signerArray = new address[](amountSignersToRemove);
+        for (uint256 i = 0; i < amountSignersToRemove; ++i) {
+            signerArray[i] = potentialOracleSigners[i];
+        }
+
+        cheats.startPrank(beaconChainOracle.owner());
+        beaconChainOracle.removeOracleSigners(signerArray);
+        cheats.stopPrank();
+
+        // check post conditions
+        uint256 totalSignersAfter = beaconChainOracle.totalOracleSigners();
+        for (uint256 i = 0; i < amountSignersToRemove; ++i) {
+            require(!beaconChainOracle.isOracleSigner(signerArray[i]), "signer not removed");
+        }
+        uint256 amountThatShouldHaveBeenRemoved = amountSignersToRemove > amountSignersToAdd ? amountSignersToAdd : amountSignersToRemove;
+        require(totalSignersAfter + amountThatShouldHaveBeenRemoved == totalSignersBefore, "totalSigners did not decrement correctly");
+    }
+
+    function testRemoveOracleSigners_SignerAlreadyNotInSet() external {
+        address oracleSigner = potentialOracleSigners[0];
+        address[] memory signerArray = new address[](1);
+        signerArray[0] = oracleSigner;
+
+        cheats.startPrank(beaconChainOracle.owner());
+        beaconChainOracle.removeOracleSigners(signerArray);
+        cheats.stopPrank();
+
+        require(!beaconChainOracle.isOracleSigner(oracleSigner), "signer improperly added");
+    }
+
+    function testRemoveOracleSigners_RevertsOnCallingFromNotOwner(address notOwner) external {
+        cheats.assume(notOwner != beaconChainOracle.owner());
+        address oracleSigner = potentialOracleSigners[0];
+        address[] memory signerArray = new address[](1);
+        signerArray[0] = oracleSigner;
+
+        cheats.startPrank(notOwner);
+        cheats.expectRevert(bytes("Ownable: caller is not the owner"));
+        beaconChainOracle.removeOracleSigners(signerArray);
         cheats.stopPrank();
 
         require(!beaconChainOracle.isOracleSigner(oracleSigner), "signer improperly added");
