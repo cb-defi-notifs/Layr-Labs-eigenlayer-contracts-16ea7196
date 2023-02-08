@@ -6,5 +6,6 @@
         "@openzeppelin/=lib/openzeppelin-contracts/",
         "@openzeppelin-upgrades/=lib/openzeppelin-contracts-upgradeable/",
         "ds-test/=lib/ds-test/src/"
-    ]
+    ],
+    "compile_force_framework": "foundry"
 }
