@@ -29,7 +29,7 @@ import "./EigenPodPausingConstants.sol";
  * - withdrawing eth when withdrawals are initiated
  */
 contract EigenPodManager is Initializable, OwnableUpgradeable, Pausable, IEigenPodManager, EigenPodPausingConstants {
-    //TODO: change this to constant in prod
+    /// @notice The ETH2 Deposit Contract
     IETHPOSDeposit public immutable ethPOS;
     
     /// @notice Beacon proxy to which the EigenPods point
