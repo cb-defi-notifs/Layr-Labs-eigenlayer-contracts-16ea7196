@@ -60,6 +60,15 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
         string socket
     );
 
+    /// @notice Emitted when the `whitelister` role is transferred.
+    event WhitelisterTransferred(address previousAddress, address newAddress);
+
+    /// @notice Modifier that restricts a function to only be callable by the `whitelister` role.
+    modifier onlyWhitelister {
+        require(whitelister == msg.sender, "BLSRegistry.onlyWhitelister: not whitelister");
+        _;
+    }
+
     constructor(
         IInvestmentManager _investmentManager,
         IServiceManager _serviceManager,
@@ -84,7 +93,7 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
         StrategyAndWeightingMultiplier[] memory _firstQuorumStrategiesConsideredAndMultipliers,
         StrategyAndWeightingMultiplier[] memory _secondQuorumStrategiesConsideredAndMultipliers
     ) public virtual initializer {
-        whitelister = _whitelister;
+        _setWhitelister(_whitelister);
         whitelistEnabled = _whitelistEnabled;
         // process an apk update to get index and totalStake arrays to the same length
         _processApkUpdate(BN254.G1Point(0, 0));
@@ -96,11 +105,17 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
     }
 
     /**
+     * @notice Called by the whitelister to transfer its role to another address 
+     */
+    function transferWhitelister(address _whitelister) external onlyWhitelister {
+        _setWhitelister(_whitelister);
+    }
+
+    /**
      * @notice Called by the whitelister, this function toggles the whitelist on or off
      * @param _whitelistEnabled true if turning whitelist on, false otherwise
      */
-    function setWhitelistStatus(bool _whitelistEnabled) external {
-        require(whitelister == msg.sender, "BLSRegistry.setWhitelistStatus: not whitelister");
+    function setWhitelistStatus(bool _whitelistEnabled) external onlyWhitelister {
         whitelistEnabled = _whitelistEnabled;
     }
 
@@ -108,9 +123,7 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
      * @notice Called by the whitelister, adds a list of operators to the whitelist
      * @param operators the operators to add to the whitelist
      */
-    function addToWhitelist(address[] calldata operators) external {
-
-        require(whitelister == msg.sender, "BLSRegistry.addWhitelist: not whitelister");
+    function addToWhitelist(address[] calldata operators) external onlyWhitelister {
         for (uint i = 0; i < operators.length; i++) {
             whitelisted[operators[i]] = true;
         }
@@ -120,8 +133,7 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
      * @notice Called by the whitelister, removes a list of operators to the whitelist
      * @param operators the operators to remove from the whitelist
      */
-    function removeFromWhitelist(address[] calldata operators) external {
-        require(whitelister == msg.sender, "BLSRegistry.removeWhitelist: not whitelister");
+    function removeFromWhitelist(address[] calldata operators) external onlyWhitelister {
         for (uint i = 0; i < operators.length; i++) {
             whitelisted[operators[i]] = false;
         }
@@ -331,6 +343,12 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
         }));
 
         return newApkHash;
+    }
+
+    function _setWhitelister(address _whitelister) internal {
+        require(_whitelister != address(0), "BLSRegistry.initialize: cannot set whitelister to zero address");
+        emit WhitelisterTransferred(whitelister, _whitelister);
+        whitelister = _whitelister;
     }
 
     /**
