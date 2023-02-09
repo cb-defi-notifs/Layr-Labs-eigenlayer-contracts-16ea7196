@@ -27,6 +27,14 @@ contract IETHPOSDeposit ethPOS
 
 This is the beacon chain deposit contract
 
+### eigenPodPaymentEscrow
+
+```solidity
+contract IEigenPodPaymentEscrow eigenPodPaymentEscrow
+```
+
+Escrow contract used for payment routing, to provide an extra "safety net"
+
 ### PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS
 
 ```solidity
@@ -83,15 +91,15 @@ mapping(uint40 => enum IEigenPod.VALIDATOR_STATUS) validatorStatus
 
 this is a mapping of validator indices to a Validator struct containing pertinent info about the validator
 
-### partialWithdrawalClaims
+### _partialWithdrawalClaims
 
 ```solidity
-struct IEigenPod.PartialWithdrawalClaim[] partialWithdrawalClaims
+struct IEigenPod.PartialWithdrawalClaim[] _partialWithdrawalClaims
 ```
 
 the claims on the amount of deserved partial withdrawals for the ETH validators of this EigenPod
 
-_this array is marked as internal because of how Solidity handles structs in storage -- use the `getPartialWithdrawalClaim` getter function to fetch on this array!_
+_this array is marked as internal because of how Solidity handles structs in storage. Use the `getPartialWithdrawalClaim` getter function to fetch from this array._
 
 ### restakedExecutionLayerGwei
 
@@ -100,14 +108,6 @@ uint64 restakedExecutionLayerGwei
 ```
 
 the amount of execution layer ETH in this contract that is staked in EigenLayer (i.e. withdrawn from the Beacon Chain but not from EigenLayer),
-
-### instantlyWithdrawableBalanceGwei
-
-```solidity
-uint64 instantlyWithdrawableBalanceGwei
-```
-
-the excess balance from full withdrawals over RESTAKED_BALANCE_PER_VALIDATOR or partial withdrawals
 
 ### EigenPodStaked
 
@@ -159,10 +159,20 @@ modifier onlyEigenPodOwner()
 modifier onlyNotFrozen()
 ```
 
+### onlyWhenNotPaused
+
+```solidity
+modifier onlyWhenNotPaused(uint8 index)
+```
+
+Based on 'Pausable' code, but uses the storage of the EigenPodManager instead of this contract. This construction
+is necessary for enabling pausing all EigenPods at the same time (due to EigenPods being Beacon Proxies).
+Modifier throws if the `indexed`th bit of `_paused` in the EigenPodManager is 1, i.e. if the `index`th pause switch is flipped.
+
 ### constructor
 
 ```solidity
-constructor(contract IETHPOSDeposit _ethPOS, uint32 _PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS, uint256 _REQUIRED_BALANCE_WEI, uint64 _MIN_FULL_WITHDRAWAL_AMOUNT_GWEI) public
+constructor(contract IETHPOSDeposit _ethPOS, contract IEigenPodPaymentEscrow _eigenPodPaymentEscrow, uint32 _PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS, uint256 _REQUIRED_BALANCE_WEI, uint64 _MIN_FULL_WITHDRAWAL_AMOUNT_GWEI) public
 ```
 
 ### initialize
@@ -184,7 +194,7 @@ Called by EigenPodManager when the owner wants to create another ETH validator.
 ### verifyCorrectWithdrawalCredentials
 
 ```solidity
-function verifyCorrectWithdrawalCredentials(uint40 validatorIndex, bytes proof, bytes32[] validatorFields) external
+function verifyCorrectWithdrawalCredentials(uint64 slot, uint40 validatorIndex, bytes proof, bytes32[] validatorFields) external
 ```
 
 This function verifies that the withdrawal credentials of the podOwner are pointed to
@@ -195,14 +205,15 @@ root, marks the validator as 'active' in EigenLayer, and credits the restaked ET
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| validatorIndex | uint40 |  |
+| slot | uint64 | The Beacon Chain slot whose state root the `proof` will be proven against. |
+| validatorIndex | uint40 | is the index of the validator being proven, refer to consensus specs |
 | proof | bytes | is the bytes that prove the ETH validator's metadata against a beacon chain state root |
 | validatorFields | bytes32[] | are the fields of the "Validator Container", refer to consensus specs  for details: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator |
 
 ### verifyOvercommittedStake
 
 ```solidity
-function verifyOvercommittedStake(uint40 validatorIndex, bytes proof, bytes32[] validatorFields, uint256 beaconChainETHStrategyIndex) external
+function verifyOvercommittedStake(uint64 slot, uint40 validatorIndex, bytes proof, bytes32[] validatorFields, uint256 beaconChainETHStrategyIndex) external
 ```
 
 This function records an overcommitment of stake to EigenLayer on behalf of a certain ETH validator.
@@ -215,7 +226,8 @@ _For more details on the Beacon Chain spec, see: https://github.com/ethereum/con
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| validatorIndex | uint40 |  |
+| slot | uint64 | The Beacon Chain slot whose state root the `proof` will be proven against. |
+| validatorIndex | uint40 | is the index of the validator being proven, refer to consensus specs |
 | proof | bytes | is the bytes that prove the ETH validator's metadata against a beacon state root |
 | validatorFields | bytes32[] | are the fields of the "Validator Container", refer to consensus specs |
 | beaconChainETHStrategyIndex | uint256 | is the index of the beaconChainETHStrategy for the pod owner for the callback to                                     the InvestmentManger in case it must be removed from the list of the podOwners strategies |
@@ -223,7 +235,7 @@ _For more details on the Beacon Chain spec, see: https://github.com/ethereum/con
 ### verifyBeaconChainFullWithdrawal
 
 ```solidity
-function verifyBeaconChainFullWithdrawal(struct BeaconChainProofs.WithdrawalAndBlockNumberProof proof, bytes32 blockNumberRoot, bytes32[] withdrawalFields, uint256 beaconChainETHStrategyIndex) external
+function verifyBeaconChainFullWithdrawal(uint64 slot, struct BeaconChainProofs.WithdrawalAndBlockNumberProof proof, bytes32 blockNumberRoot, bytes32[] withdrawalFields, uint256 beaconChainETHStrategyIndex) external
 ```
 
 This function records a full withdrawal on behalf of one of the Ethereum validators for this EigenPod
@@ -232,6 +244,7 @@ This function records a full withdrawal on behalf of one of the Ethereum validat
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
+| slot | uint64 | The Beacon Chain slot whose state root the `proof` will be proven against. |
 | proof | struct BeaconChainProofs.WithdrawalAndBlockNumberProof | is the information needed to check the veracity of the block number and withdrawal being proven |
 | blockNumberRoot | bytes32 | is block number at which the withdrawal being proven is claimed to have happened |
 | withdrawalFields | bytes32[] | are the fields of the withdrawal being proven |
@@ -249,7 +262,6 @@ This function records a balance snapshot for the EigenPod. Its main functionalit
         via  
              address(this).balance / GWEI_TO_WEI = 
                  restakedExecutionLayerGwei + 
-                 instantlyWithdrawableBalanceGwei + 
                  partialWithdrawalsGwei
         If any other full withdrawals are proven to have happened before block.number, the partial withdrawal is marked as failed
 
@@ -268,16 +280,6 @@ function redeemLatestPartialWithdrawal(address recipient) external
 ```
 
 This function allows pod owners to redeem their partial withdrawals after the fraudproof period has elapsed
-
-### withdrawInstantlyWithdrawableBalanceGwei
-
-```solidity
-function withdrawInstantlyWithdrawableBalanceGwei(address recipient) external
-```
-
-Withdraws instantlyWithdrawableBalanceGwei to the specified `recipient`
-
-_Note that this function is marked as non-reentrant to prevent the recipient calling back into it_
 
 ### withdrawRestakedBeaconChainETH
 
@@ -319,5 +321,11 @@ function getPartialWithdrawalClaimsLength() external view returns (uint256)
 
 ```solidity
 function _podWithdrawalCredentials() internal view returns (bytes)
+```
+
+### _sendETH
+
+```solidity
+function _sendETH(address recipient, uint256 amountWei) internal
 ```
 

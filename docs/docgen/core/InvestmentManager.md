@@ -95,6 +95,14 @@ event WithdrawalCompleted(address depositor, address withdrawer, bytes32 withdra
 
 Emitted when a queued withdrawal is completed
 
+### StrategyWhitelisterChanged
+
+```solidity
+event StrategyWhitelisterChanged(address previousAddress, address newAddress)
+```
+
+Emitted when the `strategyWhitelister` is changed
+
 ### StrategyAddedToDepositWhitelist
 
 ```solidity
@@ -110,6 +118,14 @@ event StrategyRemovedFromDepositWhitelist(contract IInvestmentStrategy strategy)
 ```
 
 Emitted when a strategy is removed from the approved list of strategies for deposit
+
+### WithdrawalDelayBlocksSet
+
+```solidity
+event WithdrawalDelayBlocksSet(uint256 previousValue, uint256 newValue)
+```
+
+Emitted when the `withdrawalDelayBlocks` variable is modified from `previousValue` to `newValue`.
 
 ### onlyNotFrozen
 
@@ -135,6 +151,12 @@ modifier onlyEigenPodManager()
 modifier onlyEigenPod(address podOwner, address pod)
 ```
 
+### onlyStrategyWhitelister
+
+```solidity
+modifier onlyStrategyWhitelister()
+```
+
 ### onlyStrategiesWhitelistedForDeposit
 
 ```solidity
@@ -158,7 +180,7 @@ constructor(contract IEigenLayerDelegation _delegation, contract IEigenPodManage
 ### initialize
 
 ```solidity
-function initialize(contract IPauserRegistry _pauserRegistry, address initialOwner) external
+function initialize(contract IPauserRegistry _pauserRegistry, address initialOwner, uint256 _withdrawalDelayBlocks) external
 ```
 
 Initializes the investment manager contract. Sets the `pauserRegistry` (currently **not** modifiable after being set),
@@ -170,6 +192,7 @@ and transfers contract ownership to the specified `initialOwner`.
 | ---- | ---- | ----------- |
 | _pauserRegistry | contract IPauserRegistry | Used for access control of pausing. |
 | initialOwner | address | Ownership of this contract is transferred to this address. |
+| _withdrawalDelayBlocks | uint256 | The initial value of `withdrawalDelayBlocks` to set. |
 
 ### depositBeaconChainETH
 
@@ -352,6 +375,22 @@ Slashes an existing queued withdrawal that was created by a 'frozen' operator (o
 | tokens | contract IERC20[] | Array in which the i-th entry specifies the `token` input to the 'withdraw' function of the i-th InvestmentStrategy in the `strategies` array of the `queuedWithdrawal`. |
 | indicesToSkip | uint256[] | Optional input parameter -- indices in the `strategies` array to skip (i.e. not call the 'withdraw' function on). This input exists so that, e.g., if the slashed QueuedWithdrawal contains a malicious strategy in the `strategies` array which always reverts on calls to its 'withdraw' function, then the malicious strategy can be skipped (with the shares in effect "burned"), while the non-malicious strategies are still called as normal. |
 
+### setWithdrawalDelayBlocks
+
+```solidity
+function setWithdrawalDelayBlocks(uint256 _withdrawalDelayBlocks) external
+```
+
+Owner-only function for modifying the value of the `withdrawalDelayBlocks` variable.
+
+### setStrategyWhitelister
+
+```solidity
+function setStrategyWhitelister(address newStrategyWhitelister) external
+```
+
+Owner-only function to change the `strategyWhitelister` address.
+
 ### addStrategiesToDepositWhitelist
 
 ```solidity
@@ -431,6 +470,22 @@ This allows people a "hard reset" in their relationship with EigenLayer after wi
 ```solidity
 function _withdrawBeaconChainETH(address staker, address recipient, uint256 amount) internal
 ```
+
+### _setWithdrawalDelayBlocks
+
+```solidity
+function _setWithdrawalDelayBlocks(uint256 _withdrawalDelayBlocks) internal
+```
+
+internal function for changing the value of `withdrawalDelayBlocks`. Also performs sanity check and emits an event.
+
+### _setStrategyWhitelister
+
+```solidity
+function _setStrategyWhitelister(address newStrategyWhitelister) internal
+```
+
+Internal function for modifying the `strategyWhitelister`. Used inside of the `setStrategyWhitelister` and `initialize` functions.
 
 ### getDeposits
 

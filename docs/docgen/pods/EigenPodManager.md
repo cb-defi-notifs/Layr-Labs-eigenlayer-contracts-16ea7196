@@ -99,7 +99,7 @@ constructor(contract IETHPOSDeposit _ethPOS, contract IBeacon _eigenPodBeacon, c
 ### initialize
 
 ```solidity
-function initialize(contract IBeaconChainOracle _beaconChainOracle, address initialOwner) public
+function initialize(contract IBeaconChainOracle _beaconChainOracle, address initialOwner, contract IPauserRegistry _pauserRegistry, uint256 _initPausedStatus) public
 ```
 
 ### createPod
@@ -230,8 +230,8 @@ Returns 'true' if the `podOwner` has created an EigenPod, and 'false' otherwise.
 ### getBeaconChainStateRoot
 
 ```solidity
-function getBeaconChainStateRoot() external view returns (bytes32)
+function getBeaconChainStateRoot(uint64 slot) external view returns (bytes32)
 ```
 
-Returns the latest beacon chain state root posted to the beaconChainOracle.
+Returns the Beacon Chain state root at `slot`. Reverts if the Beacon Chain state root at `slot` has not yet been finalized.
 

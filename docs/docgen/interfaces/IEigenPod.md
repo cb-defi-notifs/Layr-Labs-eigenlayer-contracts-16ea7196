@@ -117,14 +117,6 @@ function restakedExecutionLayerGwei() external view returns (uint64)
 
 the amount of execution layer ETH in this contract that is staked in EigenLayer (i.e. withdrawn from beaconchain but not EigenLayer),
 
-### instantlyWithdrawableBalanceGwei
-
-```solidity
-function instantlyWithdrawableBalanceGwei() external view returns (uint64)
-```
-
-the excess balance from full withdrawals over RESTAKED_BALANCE_PER_VALIDATOR or partial withdrawals
-
 ### initialize
 
 ```solidity
@@ -172,17 +164,18 @@ The owner of this EigenPod
 ### verifyCorrectWithdrawalCredentials
 
 ```solidity
-function verifyCorrectWithdrawalCredentials(uint40 validatorIndex, bytes proof, bytes32[] validatorFields) external
+function verifyCorrectWithdrawalCredentials(uint64 slot, uint40 validatorIndex, bytes proof, bytes32[] validatorFields) external
 ```
 
 This function verifies that the withdrawal credentials of the podOwner are pointed to
-this contract.  It verifies the provided proof of the ETH validator against the beacon chain state
+this contract. It verifies the provided proof of the ETH validator against the beacon chain state
 root, marks the validator as 'active' in EigenLayer, and credits the restaked ETH in Eigenlayer.
 
 #### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
+| slot | uint64 | The Beacon Chain slot whose state root the `proof` will be proven against. |
 | validatorIndex | uint40 |  |
 | proof | bytes | is the bytes that prove the ETH validator's metadata against a beacon chain state root |
 | validatorFields | bytes32[] | are the fields of the "Validator Container", refer to consensus specs  for details: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator |
@@ -190,7 +183,7 @@ root, marks the validator as 'active' in EigenLayer, and credits the restaked ET
 ### verifyOvercommittedStake
 
 ```solidity
-function verifyOvercommittedStake(uint40 validatorIndex, bytes proof, bytes32[] validatorFields, uint256 beaconChainETHStrategyIndex) external
+function verifyOvercommittedStake(uint64 slot, uint40 validatorIndex, bytes proof, bytes32[] validatorFields, uint256 beaconChainETHStrategyIndex) external
 ```
 
 This function records an overcommitment of stake to EigenLayer on behalf of a certain ETH validator.
@@ -203,6 +196,7 @@ _For more details on the Beacon Chain spec, see: https://github.com/ethereum/con
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
+| slot | uint64 | The Beacon Chain slot whose state root the `proof` will be proven against. |
 | validatorIndex | uint40 |  |
 | proof | bytes | is the bytes that prove the ETH validator's metadata against a beacon state root |
 | validatorFields | bytes32[] | are the fields of the "Validator Container", refer to consensus specs |
@@ -211,7 +205,7 @@ _For more details on the Beacon Chain spec, see: https://github.com/ethereum/con
 ### verifyBeaconChainFullWithdrawal
 
 ```solidity
-function verifyBeaconChainFullWithdrawal(struct BeaconChainProofs.WithdrawalAndBlockNumberProof proof, bytes32 blockNumberRoot, bytes32[] withdrawalFields, uint256 beaconChainETHStrategyIndex) external
+function verifyBeaconChainFullWithdrawal(uint64 slot, struct BeaconChainProofs.WithdrawalAndBlockNumberProof proof, bytes32 blockNumberRoot, bytes32[] withdrawalFields, uint256 beaconChainETHStrategyIndex) external
 ```
 
 This function records a full withdrawal on behalf of one of the Ethereum validators for this EigenPod
@@ -220,6 +214,7 @@ This function records a full withdrawal on behalf of one of the Ethereum validat
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
+| slot | uint64 | The Beacon Chain slot whose state root the `proof` will be proven against. |
 | proof | struct BeaconChainProofs.WithdrawalAndBlockNumberProof | is the information needed to check the veracity of the block number and withdrawal being proven |
 | blockNumberRoot | bytes32 | is block number at which the withdrawal being proven is claimed to have happened |
 | withdrawalFields | bytes32[] | are the fields of the withdrawal being proven |
@@ -256,14 +251,4 @@ function redeemLatestPartialWithdrawal(address recipient) external
 ```
 
 This function allows pod owners to redeem their partial withdrawals after the fraudproof period has elapsed
-
-### withdrawInstantlyWithdrawableBalanceGwei
-
-```solidity
-function withdrawInstantlyWithdrawableBalanceGwei(address recipient) external
-```
-
-Withdraws instantlyWithdrawableBalanceGwei to the specified `recipient`
-
-_Note that this function is marked as non-reentrant to prevent the recipient calling back into it_
 

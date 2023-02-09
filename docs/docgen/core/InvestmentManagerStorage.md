@@ -62,6 +62,32 @@ contract ISlasher slasher
 
 Returns the single, central Slasher contract of EigenLayer
 
+### strategyWhitelister
+
+```solidity
+address strategyWhitelister
+```
+
+Permissioned role, which can be changed by the contract owner. Has the ability to edit the strategy whitelist
+
+### withdrawalDelayBlocks
+
+```solidity
+uint256 withdrawalDelayBlocks
+```
+
+Minimum delay enforced by this contract for completing queued withdrawals. Measured in blocks, and adjustable by this contract's owner,
+up to a maximum of `MAX_WITHDRAWAL_DELAY_BLOCKS`. Minimum value is 0 (i.e. no delay enforced).
+
+_Note that the withdrawal delay is not enforced on withdrawals of 'beaconChainETH', as the EigenPods have their own separate delay mechanic
+and we want to avoid stacking multiple enforced delays onto a single withdrawal._
+
+### MAX_WITHDRAWAL_DELAY_BLOCKS
+
+```solidity
+uint256 MAX_WITHDRAWAL_DELAY_BLOCKS
+```
+
 ### investorStratShares
 
 ```solidity
