@@ -2,6 +2,17 @@
 
 ## IEigenPod
 
+The main functionalities are:
+- creating new ETH validators with their withdrawal credentials pointed to this contract
+- proving from beacon chain state roots that withdrawal credentials are pointed to this contract
+- proving from beacon chain state roots the balances of ETH validators with their withdrawal credentials
+  pointed to this contract
+- updating aggregate balances in the EigenPodManager
+- withdrawing eth when withdrawals are initiated
+
+_Note that all beacon chain balances are stored as gwei within the beacon chain datastructures. We choose
+  to account balances in terms of gwei in the EigenPod contract and convert to wei when making calls to other contracts_
+
 ### VALIDATOR_STATUS
 
 ```solidity
@@ -49,17 +60,6 @@ function REQUIRED_BALANCE_GWEI() external view returns (uint64)
 ```
 
 The amount of eth, in gwei, that is restaked per validator
-
-### OVERCOMMITMENT_PENALTY_AMOUNT_GWEI
-
-```solidity
-function OVERCOMMITMENT_PENALTY_AMOUNT_GWEI() external view returns (uint64)
-```
-
-The amount of eth, in wei, that is added to the penalty balance of the pod in case a validator's beacon chain balance ever falls
-        below REQUIRED_BALANCE_GWEI
-
-_currently this is set to REQUIRED_BALANCE_GWEI_
 
 ### REQUIRED_BALANCE_WEI
 
@@ -124,23 +124,6 @@ function instantlyWithdrawableBalanceGwei() external view returns (uint64)
 ```
 
 the excess balance from full withdrawals over RESTAKED_BALANCE_PER_VALIDATOR or partial withdrawals
-
-### rollableBalanceGwei
-
-```solidity
-function rollableBalanceGwei() external view returns (uint64)
-```
-
-the amount of penalties that have been paid from instantlyWithdrawableBalanceGwei or from partial withdrawals. These can be rolled
-        over from restakedExecutionLayerGwei into instantlyWithdrawableBalanceGwei when all existing penalties have been paid
-
-### penaltiesDueToOvercommittingGwei
-
-```solidity
-function penaltiesDueToOvercommittingGwei() external view returns (uint64)
-```
-
-the total amount of gwei outstanding (i.e. to-be-paid) penalties due to over committing to EigenLayer on behalf of this pod
 
 ### initialize
 
@@ -283,32 +266,4 @@ function withdrawInstantlyWithdrawableBalanceGwei(address recipient) external
 Withdraws instantlyWithdrawableBalanceGwei to the specified `recipient`
 
 _Note that this function is marked as non-reentrant to prevent the recipient calling back into it_
-
-### rollOverRollableBalance
-
-```solidity
-function rollOverRollableBalance(uint64 amountGwei) external
-```
-
-Rebalances restakedExecutionLayerGwei in case penalties were previously paid from instantlyWithdrawableBalanceGwei or partial 
-        withdrawal, so the EigenPod thinks podOwner has more restakedExecutionLayerGwei and staked balance than beaconChainETH on EigenLayer
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| amountGwei | uint64 | is the amount, in gwei, to roll over |
-
-### payOffPenalties
-
-```solidity
-function payOffPenalties() external
-```
-
-Pays off existing penalties due to overcommitting to EigenLayer. Funds for paying penalties are deducted:
-        1) first, from the execution layer ETH that is restaked in EigenLayer, because 
-           it is the ETH that is actually supposed to be restaked
-        2) second, from the instantlyWithdrawableBalanceGwei, to avoid allowing instant withdrawals
-           from instantlyWithdrawableBalanceGwei, in case the balance of the contract is not enough 
-           to cover the entire penalty
 

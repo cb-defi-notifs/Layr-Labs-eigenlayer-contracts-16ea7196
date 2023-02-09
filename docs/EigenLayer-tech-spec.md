@@ -57,14 +57,12 @@ Withdrawals and undelegation are handled through the `InvestmentManager`. Both *
 2. Push any necessary updates to middlewares (or wait for someone else to do so), recording the decrease in funds to place at stake on new tasks.
 3. Complete their withdrawal after an appropriate delay, i.e. once all tasks have been completed upon which the to-be-withdrawn funds were placed at stake.
 
-<!-- TODO: link to specific "flow" docs-->
-
 ## Contract-Specific Overview
 
 ### InvestmentManager
 The InvestmentManager contract keeps track of all stakers’ investments, in the form of “shares” in the InvestmentStrategy contracts. Stakers who wish to deposit ERC20 tokens can do so by calling the InvestmentManager, which will transfer the depositor’s tokens to a user-specified InvestmentStrategy contract, which in turn manages the tokens to generate yields in the deposited token (or just passively holds them, if the depositor is risk-averse or the token lacks good yield-generating opportunities).
 
-As the arbiter of share amounts, the InvestmentManager is also the main interaction point for withdrawals from EigenLayer. In general, withdrawals from EigenLayer must ensure that restaked assets cannot be withdrawn until they are no longer placed at risk of slashing by securing some service on EigenLayer. To accomplish this, EigenLayer enforces "guaranteed stake updates on withdrawals". The full withdrawal process is outlined in [TODO: add link to withdrawal flow doc](link-here).
+As the arbiter of share amounts, the InvestmentManager is also the main interaction point for withdrawals from EigenLayer. In general, withdrawals from EigenLayer must ensure that restaked assets cannot be withdrawn until they are no longer placed at risk of slashing by securing some service on EigenLayer. To accomplish this, EigenLayer enforces "guaranteed stake updates on withdrawals". The full withdrawal process is outlined in [the withdrawal flow doc](./EigenLayer-withdrawal-flow.md).
 
 Lastly, the InvestmentManager processes slashing actions, in which some (or all) of a user's shares are transferred to a specified address. Slashing of this kind should only ever occur as the result of an operator taking a provably malicious action.
 
@@ -125,10 +123,10 @@ Any `contractAddress` for which `bondedUntil[operator][contractAddress]` is *str
 * `frozenStatus[operator]` should change *only* when either `freezeOperator` (changing it from 'false' to 'true') or resetFrozenStatus (changing it from 'true' to 'false') is invoked
 
 ### EigenPodManager
-The `EigenPodManager` contract is designed to handle Beacon Chain ETH being staked on EigenLayer. Specifically, it is designed around withdrawal credentials pointed directly to the EigenLayer contracts, i.e. primarily those of "solo stakers". The EigenPodManager creates new EigenPod contracts, and coordinates virtual deposits and withdrawals of an enshrined `beaconChainETH` strategy to and from the InvestmentManager. In addition, the EigenPodManager also facilitates the collection and distribution of penalties assigned to validators whose beacon chain balances fall below a certain threshold. More details on the EigenPodManager and EigenPod contracts can be found in the [EigenPod Doc](./EigenPods.md).
+The `EigenPodManager` contract is designed to handle Beacon Chain ETH being staked on EigenLayer. Specifically, it is designed around withdrawal credentials pointed directly to the EigenLayer contracts, i.e. primarily those of "solo stakers". The EigenPodManager creates new EigenPod contracts, and coordinates virtual deposits and withdrawals of an enshrined `beaconChainETH` strategy to and from the InvestmentManager. More details on the EigenPodManager and EigenPod contracts can be found in the [EigenPod Doc](./EigenPods.md).
 
 ### EigenPods 
-Each staker can deploy a single `EigenPod` contract through the EigenPodManager that allows them to stake ETH into the Beacon Chain and restake their deposits on EigenLayer. A watcher can also prove that an Ethereum validator that is restaked on an EigenPod has a lower balance on the Beacon Chain than its stake in EigenLayer. A validator in this state is called *overcommitted*. For each overcommitted validator, the owner of an EigenPod will be assigned *penalties* equivalent to the balance they restaked in EigenLayer. Finally, EigenPods also facilitate the execution of withdrawals of partially withdrawn yield from the Beacon Chain on behalf of validators (a major upgrade in the upcoming Capella consensus layer hardfork) through an optimistic challenge process. Calls are -- in general -- passed from the EigenPod to the EigenPodManager to trigger additional accounting logic within EigenLayer.
+Each staker can deploy a single `EigenPod` contract through the EigenPodManager that allows them to stake ETH into the Beacon Chain and restake their deposits on EigenLayer. A watcher can also prove that an Ethereum validator that is restaked on an EigenPod has a lower balance on the Beacon Chain than its stake in EigenLayer. Finally, EigenPods also facilitate the execution of withdrawals of partially withdrawn yield from the Beacon Chain on behalf of validators (a major upgrade in the upcoming Capella consensus layer hardfork) through an optimistic challenge process. Calls are -- in general -- passed from the EigenPod to the EigenPodManager to trigger additional accounting logic within EigenLayer.
 EigenPods are deployed using a beacon proxy pattern, allowing simultaneous upgrades of all EigenPods. This upgradeability will likely be necessary in order to fully enable withdrawals through the EigenPods, once Ethereum has been upgraded to enable Beacon Chain withdrawals.
 
 ### BeaconChainOracle

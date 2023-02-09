@@ -16,6 +16,9 @@ import "../interfaces/IETHPOSDeposit.sol";
 import "../interfaces/IEigenPod.sol";
 import "../interfaces/IBeaconChainOracle.sol";
 
+import "../permissions/Pausable.sol";
+import "./EigenPodPausingConstants.sol";
+
 /**
  * @title The contract used for creating and managing EigenPods
  * @author Layr Labs, Inc.
@@ -25,8 +28,8 @@ import "../interfaces/IBeaconChainOracle.sol";
  * - keeping track of the balances of all validators of EigenPods, and their stake in EigenLayer
  * - withdrawing eth when withdrawals are initiated
  */
-contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager {
-    //TODO: change this to constant in prod
+contract EigenPodManager is Initializable, OwnableUpgradeable, Pausable, IEigenPodManager, EigenPodPausingConstants {
+    /// @notice The ETH2 Deposit Contract
     IETHPOSDeposit public immutable ethPOS;
     
     /// @notice Beacon proxy to which the EigenPods point
@@ -41,9 +44,6 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager 
     /// @notice Oracle contract that provides updates to the beacon chain's state
     IBeaconChainOracle public beaconChainOracle;
     
-    /// @notice Pod owner to the amount of penalties they have paid that are still in this contract
-    mapping(address => uint256) public podOwnerToUnwithdrawnPaidPenalties;
-
     /// @notice Pod owner to deployed EigenPod address
     mapping(address => IEigenPod) internal _podByOwner;
 
@@ -55,9 +55,6 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager 
 
     /// @notice Emitted to notify a deposit of beacon chain ETH recorded in the investment manager
     event BeaconChainETHDeposited(address indexed podOwner, uint256 amount);
-
-    /// @notice Emitted when an EigenPod pays penalties, on behalf of its owner
-    event PenaltiesPaid(address indexed podOwner, uint256 amountPaid);
 
     modifier onlyEigenPod(address podOwner) {
         require(address(getPod(podOwner)) == msg.sender, "EigenPodManager.onlyEigenPod: not a pod");
@@ -77,9 +74,15 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager 
         _disableInitializers();
     }
 
-    function initialize(IBeaconChainOracle _beaconChainOracle, address initialOwner) public initializer {
+    function initialize(
+        IBeaconChainOracle _beaconChainOracle,
+        address initialOwner,
+        IPauserRegistry _pauserRegistry,
+        uint256 _initPausedStatus
+    ) public initializer {
         _updateBeaconChainOracle(_beaconChainOracle);
         _transferOwnership(initialOwner);
+        _initializePauser(_pauserRegistry, _initPausedStatus);
     }
 
     /**
@@ -137,31 +140,10 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager 
      * @param amount The amount of ETH to withdraw.
      * @dev Callable only by the InvestmentManager contract.
      */
-    function withdrawRestakedBeaconChainETH(address podOwner, address recipient, uint256 amount) external onlyInvestmentManager {
+    function withdrawRestakedBeaconChainETH(address podOwner, address recipient, uint256 amount)
+        external onlyInvestmentManager onlyWhenNotPaused(PAUSED_WITHDRAW_RESTAKED_ETH)
+    {
         getPod(podOwner).withdrawRestakedBeaconChainETH(recipient, amount);
-    }
-
-    /**
-     * @notice Records receiving ETH from the `PodOwner`'s EigenPod, paid in order to fullfill the EigenPod's penalties to EigenLayer
-     * @param podOwner The owner of the pod whose balance is being sent.
-     * @dev Callable only by the podOwner's EigenPod contract.
-     */
-    function payPenalties(address podOwner) external payable onlyEigenPod(podOwner) {
-        podOwnerToUnwithdrawnPaidPenalties[podOwner] += msg.value;
-        emit PenaltiesPaid(podOwner, msg.value);
-    }
-
-    /**
-     * @notice Withdraws paid penalties of the `podOwner`'s EigenPod, to the `recipient` address
-     * @param recipient The recipient of withdrawn ETH.
-     * @param amount The amount of ETH to withdraw.
-     * @dev Callable only by the investmentManager.owner().
-     */
-    function withdrawPenalties(address podOwner, address recipient, uint256 amount) external {
-        require(msg.sender == Ownable(address(investmentManager)).owner(), "EigenPods.withdrawPenalties: only investmentManager owner");
-        podOwnerToUnwithdrawnPaidPenalties[podOwner] -= amount;
-        // transfer penalties from pod to `recipient`
-        Address.sendValue(payable(recipient), amount);
     }
 
     /**
@@ -173,9 +155,8 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager 
         _updateBeaconChainOracle(newBeaconChainOracle);
     }
 
-
     // INTERNAL FUNCTIONS
-    function _deployPod() internal returns (IEigenPod) {
+    function _deployPod() internal onlyWhenNotPaused(PAUSED_NEW_EIGENPODS) returns (IEigenPod) {
         IEigenPod pod = 
             IEigenPod(
                 Create2.deploy(
@@ -220,7 +201,10 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager 
         return address(_podByOwner[podOwner]) != address(0);
     }
 
-    function getBeaconChainStateRoot() external view returns(bytes32){
-        return beaconChainOracle.getBeaconChainStateRoot();
+    /// @notice Returns the Beacon Chain state root at `slot`. Reverts if the Beacon Chain state root at `slot` has not yet been finalized.
+    function getBeaconChainStateRoot(uint64 slot) external view returns(bytes32) {
+        bytes32 stateRoot = beaconChainOracle.beaconStateRoot(slot);
+        require(stateRoot != bytes32(0), "EigenPodManager.getBeaconChainStateRoot: state root at slot not yet finalized");
+        return stateRoot;
     }
 }
