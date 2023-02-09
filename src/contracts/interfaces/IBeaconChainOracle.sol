@@ -24,7 +24,12 @@ interface IBeaconChainOracle {
     /// @notice Total number of members of the set of oracle signers.
     function totalOracleSigners() external view returns(uint256);
 
-    /// @notice Number of oracle signers that must vote for a state root in order for the state root to be finalized.
+    /**
+     * @notice Number of oracle signers that must vote for a state root in order for the state root to be confirmed.
+     * Adjustable by this contract's owner through use of the `setThreshold` function.
+     * @dev We note that there is an edge case -- when the threshold is adjusted downward, if a state root already has enough votes to meet the *new* threshold,
+     * the state root must still receive one additional vote from an oracle signer to be confirmed. This behavior is intended, to minimize unexpected root confirmations.
+     */
     function threshold() external view returns(uint256);
 
     /**
