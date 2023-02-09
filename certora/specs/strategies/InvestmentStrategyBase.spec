@@ -35,3 +35,17 @@ invariant totalSharesNeverTooSmall()
     // CVL doesn't appear to parse 1e9, so the literal value is typed out instead.
     (totalShares() == 0) || (totalShares() >= 1000000000)
 
+
+/*
+// idea based on OpenZeppelin invariant -- see https://github.com/OpenZeppelin/openzeppelin-contracts/blob/formal-verification/certora/specs/ERC20.spec#L8-L22
+ghost sumOfBalances() returns uint256 {
+  init_state axiom sumOfBalances() == 0;
+}
+
+hook Sstore investorStratShares[KEY address addr, address strat] uint256 newValue (uint256 oldValue) STORAGE {
+    havoc sumOfBalances assuming sumOfBalances@new() == sumOfBalances@old() + newValue - oldValue;
+}
+
+invariant totalSupplyIsSumOfBalances()
+    totalSupply() == sumOfBalances()
+*/
