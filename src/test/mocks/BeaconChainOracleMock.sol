@@ -43,9 +43,9 @@ contract BeaconChainOracleMock is IBeaconChainOracle {
 
     function setThreshold(uint256 /*_threshold*/) external pure {}
 
-    function addOracleSigner(address /*_oracleSigner*/) external pure {}
+    function addOracleSigners(address[] memory /*_oracleSigners*/) external pure {}
 
-    function removeOracleSigner(address /*_oracleSigner*/) external pure {}
+    function removeOracleSigners(address[] memory /*_oracleSigners*/) external pure {}
 
     function voteForBeaconChainStateRoot(uint64 /*slot*/, bytes32 /*stateRoot*/) external pure {}
 

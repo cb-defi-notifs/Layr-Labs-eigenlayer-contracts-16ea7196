@@ -24,7 +24,12 @@ interface IBeaconChainOracle {
     /// @notice Total number of members of the set of oracle signers.
     function totalOracleSigners() external view returns(uint256);
 
-    /// @notice Number of oracle signers that must vote for a state root in order for the state root to be finalized.
+    /**
+     * @notice Number of oracle signers that must vote for a state root in order for the state root to be confirmed.
+     * Adjustable by this contract's owner through use of the `setThreshold` function.
+     * @dev We note that there is an edge case -- when the threshold is adjusted downward, if a state root already has enough votes to meet the *new* threshold,
+     * the state root must still receive one additional vote from an oracle signer to be confirmed. This behavior is intended, to minimize unexpected root confirmations.
+     */
     function threshold() external view returns(uint256);
 
     /**
@@ -35,17 +40,17 @@ interface IBeaconChainOracle {
 
     /**
      * @notice Owner-only function used to add a signer to the set of oracle signers.
-     * @param _oracleSigner Address to be added to the set.
-     * @dev Function will have no effect if the `_oracleSigner`is already in the set of oracle signers.
+     * @param _oracleSigners Array of address to be added to the set.
+     * @dev Function will have no effect on the i-th input address if `_oracleSigners[i]`is already in the set of oracle signers.
      */
-    function addOracleSigner(address _oracleSigner) external;
+    function addOracleSigners(address[] memory _oracleSigners) external;
 
     /**
      * @notice Owner-only function used to remove a signer from the set of oracle signers.
-     * @param _oracleSigner Address to be removed from the set.
-     * @dev Function will have no effect if the `_oracleSigner`is already not in the set of oracle signers.
+     * @param _oracleSigners Array of address to be removed from the set.
+     * @dev Function will have no effect on the i-th input address if `_oracleSigners[i]`is already not in the set of oracle signers.
      */
-    function removeOracleSigner(address _oracleSigner) external;
+    function removeOracleSigners(address[] memory _oracleSigners) external;
 
     /**
      * @notice Called by a member of the set of oracle signers to assert that the Beacon Chain state root is `stateRoot` at `slot`.
