@@ -102,7 +102,7 @@ rule sharesAmountsChangeOnlyWhenAppropriateFunctionsCalled(address staker, addre
     assert(sharesAfter < sharesBefore => methodCanDecreaseShares(f));
 }
 
-// idea based on OpenZeppelin invariant -- see https://github.com/OpenZeppelin/openzeppelin-contracts/blob/formal-verification/certora/specs/ERC20.spec#L8-L22
+// based on Certora's example here https://github.com/Certora/Tutorials/blob/michael/ethcc/EthCC/Ghosts/ghostTest.spec
 ghost mapping(address => uint256) sumOfSharesInStrategy {
   init_state axiom forall address strategy. sumOfSharesInStrategy[strategy] == 0;
 }
@@ -111,11 +111,17 @@ hook Sstore investorStratShares[KEY address staker][KEY address strategy] uint25
     sumOfSharesInStrategy[strategy] = sumOfSharesInStrategy[strategy] + newValue - oldValue;
 }
 
-// invariant needs better definition -- this doesn't work since totalShares and shares in the strategy don't always change in concert...
+/**
+* Verifies that the `totalShares` returned by an InvestmentStrategy is always greater than or equal to the sum of shares in the `investorStratShares`
+* mapping -- specifically, that `strategy.totalShares() >= sum_over_all_stakers(investorStratShares[staker][strategy])`
+* We cannot show strict equality here, since the withdrawal process first decreases a staker's shares (when `queueWithdrawal` is called) and
+* only later is `totalShares` decremented (when `completeQueuedWithdrawal` is called).
+*/
 invariant totalSharesGeqSumOfShares(address strategy)
     totalShares(strategy) >= sumOfSharesInStrategy[strategy]
     // preserved block since does not apply for 'beaconChainETH'
     { preserved {
-        // 0xbeaC0eeEeeeeEEeEeEEEEeeEEeEeeeEeeEEBEaC0 converted to decimal (this is the address of virtual 'beaconChainETH')
+        // 0xbeaC0eeEeeeeEEeEeEEEEeeEEeEeeeEeeEEBEaC0 converted to decimal (this is the address of the virtual 'beaconChainETH' strategy)
+        // require strategy != beaconChainETHStrategy();
         require strategy != 1088545275507480024404324736574744392984337050304;
     } }
