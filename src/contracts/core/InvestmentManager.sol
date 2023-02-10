@@ -722,10 +722,9 @@ contract InvestmentManager is
 
         // subtract the shares from the depositor's existing shares for this strategy
         investorStratShares[depositor][strategy] = userShares;
-        // if no existing shares, remove is from this investors strats
 
+        // if no existing shares, remove the strategy from the depositor's dynamic array of strategies
         if (userShares == 0) {
-            // remove the strategy from the depositor's dynamic array of strategies
             _removeStrategyFromInvestorStrats(depositor, strategyIndex, strategy);
 
             // return true in the event that the strategy was removed from investorStrats[depositor]
