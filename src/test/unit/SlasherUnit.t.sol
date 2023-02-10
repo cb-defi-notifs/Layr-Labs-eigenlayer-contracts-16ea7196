@@ -22,6 +22,14 @@ contract SlasherUnitTests is Test {
 
     Vm cheats = Vm(HEVM_ADDRESS);
 
+    uint256 private constant HEAD = 0;
+
+    uint8 internal constant PAUSED_OPT_INTO_SLASHING = 0;
+    uint8 internal constant PAUSED_FIRST_STAKE_UPDATE = 1;
+    uint8 internal constant PAUSED_NEW_FREEZING = 2;
+
+    uint32 internal constant MAX_BONDED_UNTIL = type(uint32).max;
+
     ProxyAdmin public proxyAdmin;
     PauserRegistry public pauserRegistry;
 
@@ -90,10 +98,36 @@ contract SlasherUnitTests is Test {
         addressIsExcludedFromFuzzedInputs[address(proxyAdmin)] = true;
     }
 
-    // function testCannotReinitialize() public {
-    //     cheats.expectRevert(bytes("Initializable: contract is already initialized"));
-    //     investmentManager.initialize(pauserRegistry, initialOwner, 0);
-    // }
+    function testCannotReinitialize() public {
+        cheats.expectRevert(bytes("Initializable: contract is already initialized"));
+        slasher.initialize(pauserRegistry, initialOwner);
+    }
+
+    function testOptIntoSlashing(address caller, address contractAddress) external {
+        delegationMock.setIsOperator(caller, true);
+
+        cheats.startPrank(caller);
+        slasher.optIntoSlashing(contractAddress);
+        cheats.stopPrank();
+
+        assertEq(slasher.bondedUntil(caller, contractAddress), MAX_BONDED_UNTIL);
+    }
+
+
+    function testOptIntoSlashing_RevertsWhenPaused() public {
+        address caller = address(this);
+        address contractAddress = address(this);
+
+        // pause opting into slashing
+        cheats.startPrank(pauser);
+        slasher.pause(2 ** PAUSED_OPT_INTO_SLASHING);
+        cheats.stopPrank();
+
+        cheats.expectRevert(bytes("Pausable: index is paused"));
+        cheats.startPrank(caller);
+        slasher.optIntoSlashing(contractAddress);
+        cheats.stopPrank();
+    }
 
     // function testDepositBeaconChainETHSuccessfully(address staker, uint256 amount) public filterFuzzedAddressInputs(staker) {
     //     // filter out zero case since it will revert with "InvestmentManager._addShares: shares should not be zero!"
