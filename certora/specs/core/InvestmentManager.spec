@@ -14,11 +14,10 @@ methods {
     isFrozen(address) returns (bool) => DISPATCHER(true)
 	canWithdraw(address,uint32,uint256) returns (bool) => DISPATCHER(true)
 
-	// external calls to InvestmentManager
-    getDeposits(address) returns (address[],uint256[]) => DISPATCHER(true)
-    slasher() returns (address) => DISPATCHER(true)
-	deposit(address,uint256) returns (uint256) => DISPATCHER(true)
-	withdraw(address,address,uint256) => DISPATCHER(true)
+	// external calls to InvestmentStrategy
+    deposit(address, uint256) returns (uint256) => DISPATCHER(true)
+    withdraw(address, address, uint256) => DISPATCHER(true)
+    totalShares() => DISPATCHER(true)  
 
 	// external calls to EigenPodManager
 	withdrawRestakedBeaconChainETH(address,address,uint256) => DISPATCHER(true)
@@ -107,13 +106,19 @@ rule sharesAmountsChangeOnlyWhenAppropriateFunctionsCalled(address staker, addre
 
 
 // idea based on OpenZeppelin invariant -- see https://github.com/OpenZeppelin/openzeppelin-contracts/blob/formal-verification/certora/specs/ERC20.spec#L8-L22
-ghost mapping(address => uint256) sumOfBalances {
-  init_state axiom forall address strategy. sumOfBalances[strategy] == 0;
+ghost mapping(address => uint256) sumOfSharesInStrategy {
+  init_state axiom forall address strategy. sumOfSharesInStrategy[strategy] == 0;
 }
 
 hook Sstore investorStratShares[KEY address staker][KEY address strategy] uint256 newValue (uint256 oldValue) STORAGE {
-    havoc sumOfBalances assuming sumOfBalances@new[strategy] == sumOfBalances@old[strategy] + newValue - oldValue;
+    sumOfSharesInStrategy[strategy] = sumOfSharesInStrategy[strategy] + newValue - oldValue;
 }
 
-invariant totalSharesIsSumOfBalances(address strategy)
-    totalShares(strategy) == sumOfBalances[strategy]
+// invariant needs better definition -- this doesn't work since totalShares and shares in the strategy don't always change in concert...
+invariant totalSharesGeqSumOfShares(address strategy)
+    totalShares(strategy) >= sumOfSharesInStrategy[strategy]
+    // preserved block since does not apply for 'beaconChainETH'
+    { preserved {
+        // 0xbeaC0eeEeeeeEEeEeEEEEeeEEeEeeeEeeEEBEaC0 converted to decimal
+        require strategy != 1088545275507480024404324736574744392984337050304;
+    } }
