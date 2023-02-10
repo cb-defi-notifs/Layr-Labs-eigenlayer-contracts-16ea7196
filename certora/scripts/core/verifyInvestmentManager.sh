@@ -13,6 +13,7 @@ certoraRun certora/harnesses/InvestmentManagerHarness.sol \
     --optimistic_loop \
     --send_only \
     --settings -optimisticFallback=true \
+    --settings -optimisticUnboundedHashing=true \
     $RULE \
     --loop_iter 3 \
     --packages @openzeppelin=lib/openzeppelin-contracts @openzeppelin-upgrades=lib/openzeppelin-contracts-upgradeable \

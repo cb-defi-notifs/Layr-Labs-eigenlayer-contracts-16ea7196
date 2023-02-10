@@ -43,6 +43,7 @@ methods {
     // Harnessed getters
     strategy_is_in_stakers_array(address, address) returns (bool) envfree
     num_times_strategy_is_in_stakers_array(address, address) returns (uint256) envfree
+    totalShares(address) returns (uint256) envfree
 
 	//// Normal Functions
 	investorStratsLength(address) returns (uint256) envfree
@@ -67,3 +68,52 @@ invariant arrayExhibitsProperties(address staker)
 // if a strategy is *not* in staker's array of strategies, then the staker should have precisely zero shares in that strategy
 invariant strategiesNotInArrayHaveZeroShares(address staker, uint256 index)
     (index >= investorStratsLength(staker)) => (investorStratShares(staker, investorStrats(staker, index)) == 0)
+
+
+
+
+/**
+* a staker's amount of shares in a strategy (i.e. `investorStratShares[staker][strategy]`) should only increase when
+* `depositIntoStrategy`, `depositIntoStrategyOnBehalfOf`, or `depositBeaconChainETH` has been called
+* *OR* when completing a withdrawal
+*/
+definition methodCanIncreaseShares(method f) returns bool =
+    f.selector == depositIntoStrategy(address,address,uint256).selector
+    || f.selector == depositIntoStrategyOnBehalfOf(address,address,uint256,address,uint256,bytes).selector
+    || f.selector == depositBeaconChainETH(address,uint256).selector
+    || f.selector == completeQueuedWithdrawal((address[],uint256[],address,(address,uint96),uint32,address),address[],uint256,bool).selector;
+    // || f.selector == slashQueuedWithdrawal(address,bytes,address[],uint256[]).selector
+    // || f.selector == slashShares(address,address,address[],address[],uint256[],uint256[]).selector;
+
+/**
+* a staker's amount of shares in a strategy (i.e. `investorStratShares[staker][strategy]`) should only decrease when
+* `queueWithdrawal`, `slashShares`, or `recordOvercommittedBeaconChainETH` has been called
+*/
+definition methodCanDecreaseShares(method f) returns bool =
+    f.selector == queueWithdrawal(uint256[],address[],uint256[],address,bool).selector
+    || f.selector == slashShares(address,address,address[],address[],uint256[],uint256[]).selector
+    || f.selector == recordOvercommittedBeaconChainETH(address,uint256,uint256).selector;
+
+rule sharesAmountsChangeOnlyWhenAppropriateFunctionsCalled(address staker, address strategy) {
+    uint256 sharesBefore = investorStratShares(staker, strategy);
+    method f;
+    env e;
+    calldataarg args;
+    f(e,args);
+    uint256 sharesAfter = investorStratShares(staker, strategy);
+    assert(sharesAfter > sharesBefore => methodCanIncreaseShares(f));
+    assert(sharesAfter < sharesBefore => methodCanDecreaseShares(f));
+}
+
+
+// // idea based on OpenZeppelin invariant -- see https://github.com/OpenZeppelin/openzeppelin-contracts/blob/formal-verification/certora/specs/ERC20.spec#L8-L22
+// ghost sumOfBalances(address strategy) returns uint256 {
+//   init_state axiom sumOfBalances(strategy) == 0;
+// }
+
+// hook Sstore investorStratShares[KEY address staker][KEY address strategy] uint256 newValue (uint256 oldValue) STORAGE {
+//     havoc sumOfBalances assuming sumOfBalances@new(strategy) == sumOfBalances@old(strategy) + newValue - oldValue;
+// }
+
+// invariant totalSharesIsSumOfBalances(address strategy)
+//     totalShares(strategy) == sumOfBalances(strategy)
