@@ -103,7 +103,7 @@ contract SlasherUnitTests is Test {
         slasher.initialize(pauserRegistry, initialOwner);
     }
 
-    function testOptIntoSlashing(address caller, address contractAddress) external {
+    function testOptIntoSlashing(address caller, address contractAddress) public {
         delegationMock.setIsOperator(caller, true);
 
         cheats.startPrank(caller);
@@ -111,8 +111,8 @@ contract SlasherUnitTests is Test {
         cheats.stopPrank();
 
         assertEq(slasher.bondedUntil(caller, contractAddress), MAX_BONDED_UNTIL);
+        require(slasher.canSlash(caller, contractAddress), "contract was not properly granted slashing permission");
     }
-
 
     function testOptIntoSlashing_RevertsWhenPaused() public {
         address caller = address(this);
@@ -123,11 +123,118 @@ contract SlasherUnitTests is Test {
         slasher.pause(2 ** PAUSED_OPT_INTO_SLASHING);
         cheats.stopPrank();
 
-        cheats.expectRevert(bytes("Pausable: index is paused"));
         cheats.startPrank(caller);
+        cheats.expectRevert(bytes("Pausable: index is paused"));
         slasher.optIntoSlashing(contractAddress);
         cheats.stopPrank();
     }
+
+    function testOptIntoSlashing_RevertsWhenCallerNotOperator(address notOperator) public filterFuzzedAddressInputs(notOperator) {
+        require(!delegationMock.isOperator(notOperator), "caller is an operator -- this is assumed false");
+        address contractAddress = address(this);
+
+        cheats.startPrank(notOperator);
+        cheats.expectRevert(bytes("Slasher.optIntoSlashing: msg.sender is not a registered operator"));
+        slasher.optIntoSlashing(contractAddress);
+        cheats.stopPrank();
+    }
+
+    function testFreezeOperator(address toBeFrozen, address freezingContract) public
+        filterFuzzedAddressInputs(toBeFrozen)
+        filterFuzzedAddressInputs(freezingContract)
+    {
+        testOptIntoSlashing(toBeFrozen, freezingContract);
+        cheats.startPrank(freezingContract);
+        slasher.freezeOperator(toBeFrozen);
+        cheats.stopPrank();
+
+        require(slasher.isFrozen(toBeFrozen), "operator not properly frozen");
+    }
+
+    function testFreezeOperator_RevertsWhenPaused(address toBeFrozen, address freezingContract) external
+        filterFuzzedAddressInputs(toBeFrozen)
+        filterFuzzedAddressInputs(freezingContract)
+    {
+        testOptIntoSlashing(toBeFrozen, freezingContract);
+
+        // pause freezing
+        cheats.startPrank(pauser);
+        slasher.pause(2 ** PAUSED_NEW_FREEZING);
+        cheats.stopPrank();
+
+        cheats.startPrank(freezingContract);
+        cheats.expectRevert(bytes("Pausable: index is paused"));
+        slasher.freezeOperator(toBeFrozen);
+        cheats.stopPrank();
+    }
+
+    function testFreezeOperator_WhenCallerDoesntHaveSlashingPermission(address toBeFrozen, address freezingContract) external
+        filterFuzzedAddressInputs(toBeFrozen)
+        filterFuzzedAddressInputs(freezingContract)
+    {
+        cheats.startPrank(freezingContract);
+        cheats.expectRevert(bytes("Slasher.freezeOperator: msg.sender does not have permission to slash this operator"));
+        slasher.freezeOperator(toBeFrozen);
+        cheats.stopPrank();
+    }
+
+    function testResetFrozenStatus(uint8 numberOfOperators, uint256 pseudorandomInput) external {
+        // sanity filtering
+        cheats.assume(numberOfOperators <= 16);
+
+        address contractAddress = address(this);
+
+        address[] memory operatorAddresses = new address[](numberOfOperators);
+        bool[] memory operatorFrozen = new bool[](numberOfOperators);
+        for (uint256 i = 0; i < numberOfOperators; ++i) {
+            address operatorAddress = address(uint160(8888 + i));
+            operatorAddresses[i] = operatorAddress;
+            testOptIntoSlashing(operatorAddress, contractAddress);
+            bool freezeOperator = (pseudorandomInput % 2 == 0) ? false : true;
+            pseudorandomInput = uint256(keccak256(abi.encodePacked(pseudorandomInput)));
+            operatorFrozen[i] = freezeOperator;
+            if (freezeOperator) {
+                testFreezeOperator(operatorAddress, contractAddress);
+            }
+        }
+
+        cheats.startPrank(slasher.owner());
+        slasher.resetFrozenStatus(operatorAddresses);
+        cheats.stopPrank();
+
+        for (uint256 i = 0; i < numberOfOperators; ++i) {
+            require(!slasher.isFrozen(operatorAddresses[i]), "operator frozen improperly (not unfrozen when should be)");
+        }
+    }
+
+    function testResetFrozenStatus_RevertsWhenCalledByNotOwner(address notOwner) external filterFuzzedAddressInputs(notOwner)  {        
+        // sanity filtering
+        cheats.assume(notOwner != slasher.owner());
+
+        address[] memory operatorAddresses = new address[](1);
+
+        cheats.startPrank(notOwner);
+        cheats.expectRevert(bytes("Ownable: caller is not the owner"));
+        slasher.resetFrozenStatus(operatorAddresses);
+        cheats.stopPrank();
+    }
+
+    function testRecordFirstStateUpdate() external {
+
+    }
+
+    function testRecordFirstStateUpdate_RevertsWhenPaused() external {
+        
+    }
+
+    function testRecordFirstStateUpdate_RevertsWhenCallerDoesntHaveSlashingPermission() external {
+        
+    }
+
+    function testRecordFirstStateUpdate_RevertsWhenCallerAlreadyInList() external {
+        
+    }
+
 
     // function testDepositBeaconChainETHSuccessfully(address staker, uint256 amount) public filterFuzzedAddressInputs(staker) {
     //     // filter out zero case since it will revert with "InvestmentManager._addShares: shares should not be zero!"
