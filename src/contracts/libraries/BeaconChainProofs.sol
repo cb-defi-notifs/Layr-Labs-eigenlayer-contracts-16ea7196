@@ -101,15 +101,16 @@ library BeaconChainProofs{
     }
 
     struct WithdrawalProofs {
-        uint16 blockHeaderRootIndex;
-        uint8 withdrawalIndex;
-        uint8 validatorIndex;
-        bytes32 executionPayloadHeaderRoot;
-        bytes32 blockHeaderRoot;
         bytes blockHeaderProof;
         bytes withdrawalProof;
         bytes slotProof;
         bytes validatorProof;
+        uint16 blockHeaderRootIndex;
+        uint8 withdrawalIndex;
+        uint8 validatorIndex;
+        bytes32 blockHeaderRoot;
+        bytes32 blockBodyRoot;
+        bytes32 slotRoot;
     }
 
 
@@ -184,8 +185,6 @@ library BeaconChainProofs{
 
     function verifySlotAndWithdrawalFields(
         bytes32 beaconStateRoot,
-        bytes32 beaconBlockHeaderRoot,
-        bytes32 slotRoot,
         WithdrawalProofs calldata proofs,
         bytes32[] calldata withdrawalFields,
         bytes32[] calldata validatorFields
@@ -208,24 +207,24 @@ library BeaconChainProofs{
 
         //Compute the block_header_index relative to the beaconStateRoot.  It concatenates the indexes of all the
         // intermediate root indexes from the bottom of the sub trees (the block header container) to the top of the tree
-        uint256 block_header_index = BLOCK_ROOTS_INDEX << (BLOCK_ROOTS_TREE_HEIGHT + 1)  | uint256(proofs.blockHeaderRootIndex);
-        require(Merkle.verifyInclusionSha256(proofs.blockHeaderProof, beaconStateRoot, beaconBlockHeaderRoot, block_header_index), "BeaconChainProofs.verifySlotAndWithdrawalFields: Invalid block header merkle proof");
+        uint256 block_header_index = BLOCK_ROOTS_INDEX << (BLOCK_ROOTS_TREE_HEIGHT)  | uint256(proofs.blockHeaderRootIndex);
+        require(Merkle.verifyInclusionSha256(proofs.blockHeaderProof, beaconStateRoot, proofs.blockHeaderRoot, block_header_index), "BeaconChainProofs.verifySlotAndWithdrawalFields: Invalid block header merkle proof");
 
-        //Next we verify the slot against the beaconBlockHeaderRoot
+        //Next we verify the slot against the blockHeaderRoot
         uint256 slot_index = uint256(SLOT_INDEX);
-        require(Merkle.verifyInclusionSha256(proofs.slotProof, beaconBlockHeaderRoot, slotRoot, slot_index), "BeaconChainProofs.verifySlotAndWithdrawalFields: Invalid slot merkle proof");
+        require(Merkle.verifyInclusionSha256(proofs.slotProof, proofs.blockHeaderRoot, proofs.slotRoot, slot_index), "BeaconChainProofs.verifySlotAndWithdrawalFields: Invalid slot merkle proof");
 
-        //Next we verify the withdrawal fields against the beaconBlockHeaderRoot
+        //Next we verify the withdrawal fields against the blockHeaderRoot
 
-        //This computes the withdrawal_index relative to the beaconBlockHeaderRoot.  It concatenates the indexes of all the 
-        // intermediate root indexes from the bottom of the sub trees (the withdrawal container) to the top, the beaconBlockHeaderRoot
+        //This computes the withdrawal_index relative to the blockHeaderRoot.  It concatenates the indexes of all the 
+        // intermediate root indexes from the bottom of the sub trees (the withdrawal container) to the top, the blockHeaderRoot
         uint256 withdrawal_index = 
                             BODY_ROOT_INDEX << (BEACON_BLOCK_BODY_FIELD_TREE_HEIGHT + EXECUTION_PAYLOAD_FIELD_TREE_HEIGHT +  (WITHDRAWALS_TREE_HEIGHT + 1))
                             | EXECUTION_PAYLOAD_INDEX << (EXECUTION_PAYLOAD_FIELD_TREE_HEIGHT + (WITHDRAWALS_TREE_HEIGHT + 1))
                             | WITHDRAWALS_INDEX << (WITHDRAWALS_TREE_HEIGHT + 1)
                             | uint256(proofs.withdrawalIndex);
         bytes32 withdrawalRoot = Merkle.merkleizeSha256(withdrawalFields);
-        require(Merkle.verifyInclusionSha256(proofs.withdrawalProof, beaconBlockHeaderRoot, withdrawalRoot, withdrawal_index), "BeaconChainProofs.verifySlotAndWithdrawalFields: Invalid withdrawal merkle proof");
+        require(Merkle.verifyInclusionSha256(proofs.withdrawalProof, proofs.blockHeaderRoot, withdrawalRoot, withdrawal_index), "BeaconChainProofs.verifySlotAndWithdrawalFields: Invalid withdrawal merkle proof");
 
 
         //Next we verify the validator fields against the beaconStateRoot (for the withdrawable proof)
