@@ -106,14 +106,14 @@ rule sharesAmountsChangeOnlyWhenAppropriateFunctionsCalled(address staker, addre
 }
 
 
-// // idea based on OpenZeppelin invariant -- see https://github.com/OpenZeppelin/openzeppelin-contracts/blob/formal-verification/certora/specs/ERC20.spec#L8-L22
-// ghost sumOfBalances(address strategy) returns uint256 {
-//   init_state axiom sumOfBalances(strategy) == 0;
-// }
+// idea based on OpenZeppelin invariant -- see https://github.com/OpenZeppelin/openzeppelin-contracts/blob/formal-verification/certora/specs/ERC20.spec#L8-L22
+ghost mapping(address => uint256) sumOfBalances {
+  init_state axiom forall address strategy. sumOfBalances[strategy] == 0;
+}
 
-// hook Sstore investorStratShares[KEY address staker][KEY address strategy] uint256 newValue (uint256 oldValue) STORAGE {
-//     havoc sumOfBalances assuming sumOfBalances@new(strategy) == sumOfBalances@old(strategy) + newValue - oldValue;
-// }
+hook Sstore investorStratShares[KEY address staker][KEY address strategy] uint256 newValue (uint256 oldValue) STORAGE {
+    havoc sumOfBalances assuming sumOfBalances@new[strategy] == sumOfBalances@old[strategy] + newValue - oldValue;
+}
 
-// invariant totalSharesIsSumOfBalances(address strategy)
-//     totalShares(strategy) == sumOfBalances(strategy)
+invariant totalSharesIsSumOfBalances(address strategy)
+    totalShares(strategy) == sumOfBalances[strategy]
