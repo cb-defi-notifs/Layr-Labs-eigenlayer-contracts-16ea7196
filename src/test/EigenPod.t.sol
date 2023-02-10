@@ -6,11 +6,14 @@ import "../contracts/interfaces/IBLSPublicKeyCompendium.sol";
 import "../contracts/middleware/BLSPublicKeyCompendium.sol";
 import "../contracts/pods/EigenPodPaymentEscrow.sol";
 import "./utils/BeaconChainUtils.sol";
+import "./utils/ProofParsing.sol";
 import "./EigenLayerDeployer.t.sol";
 import "./mocks/MiddlewareRegistryMock.sol";
 import "./mocks/ServiceManagerMock.sol";
+import "../contracts/libraries/BeaconChainProofs.sol";
 
-contract EigenPodTests is BeaconChainProofUtils, EigenPodPausingConstants, DSTest {
+
+contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingConstants {
     using BytesLib for bytes;
 
     uint256 internal constant GWEI_TO_WEI = 1e9;
@@ -168,6 +171,44 @@ contract EigenPodTests is BeaconChainProofUtils, EigenPodPausingConstants, DSTes
         fuzzedAddressMapping[address(generalServiceManager1)] = true;
         fuzzedAddressMapping[address(generalReg1)] = true;
 
+    }
+
+    function testVerifyFullWithdrawal() public {
+        //make initial deposit
+        bytes32 beaconStateRoot = getBeaconStateRoot();
+        bytes32 blockHeaderRoot = getBlockHeaderRoot();
+        bytes32 blockBodyRoot = getBlockBodyRoot();
+        bytes32 slotRoot = getSlotRoot();
+
+        uint256 validatorIndex = getValidatorIndex(); 
+        uint256 withdrawalIndex = getWithdrawalIndex();
+        uint256 blockHeaderRootIndex = getBlockHeaderRootIndex();
+
+        blockHeaderProof = getBlockHeaderProof();
+        withdrawalProof = getWithdrawalProof();
+        slotProof = getSlotProof();
+        validatorProof = getValidatorProof();
+
+        withdrawalFields = getWithdrawalFields();   
+        validatorFields = getValidatorFields();
+
+
+        BeaconChainProofs.WithdrawalProofs memory proofs = BeaconChainProofs.WithdrawalProofs(
+            abi.encodePacked(blockHeaderProof),
+            abi.encodePacked(withdrawalProof),
+            abi.encodePacked(slotProof),
+            abi.encodePacked(validatorProof),
+            uint16(blockHeaderRootIndex),
+            uint8(withdrawalIndex),
+            uint8(validatorIndex),
+            blockHeaderRoot,
+            blockBodyRoot,
+            slotRoot
+        );
+
+        Relayer relay = new Relayer();
+
+        relay.verifySlotAndWithdrawalFields(beaconStateRoot, proofs, withdrawalFields, validatorFields);
     }
 
     function testDeployAndVerifyNewEigenPod() public returns(IEigenPod){
@@ -1008,5 +1049,14 @@ contract EigenPodTests is BeaconChainProofUtils, EigenPodPausingConstants, DSTes
         bytes32[] calldata withdrawalFields
     ) public view {
         BeaconChainProofs.verifyWithdrawalFieldsAndBlockNumber(beaconStateRoot, proof, blockNumberRoot, withdrawalFields);
+    }
+
+    function verifySlotAndWithdrawalFields(
+        bytes32 beaconStateRoot,
+        BeaconChainProofs.WithdrawalProofs calldata proofs,
+        bytes32[] calldata withdrawalFields,
+        bytes32[] calldata validatorFields
+    ) public view {
+        BeaconChainProofs.verifySlotAndWithdrawalFields(beaconStateRoot, proofs, withdrawalFields, validatorFields);
     }
  }
