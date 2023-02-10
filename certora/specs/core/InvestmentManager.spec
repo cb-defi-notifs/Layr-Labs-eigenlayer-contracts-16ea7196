@@ -106,7 +106,7 @@ rule sharesAmountsChangeOnlyWhenAppropriateFunctionsCalled(address staker, addre
 }
 
 // based on Certora's example here https://github.com/Certora/Tutorials/blob/michael/ethcc/EthCC/Ghosts/ghostTest.spec
-ghost mapping(address => uint256) sumOfSharesInStrategy {
+ghost mapping(address => mathint) sumOfSharesInStrategy {
   init_state axiom forall address strategy. sumOfSharesInStrategy[strategy] == 0;
 }
 
