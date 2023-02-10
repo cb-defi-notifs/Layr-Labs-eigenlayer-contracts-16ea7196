@@ -37,11 +37,7 @@ contract InvestmentStrategyBaseUnitTests is Test {
 
         pauserRegistry = new PauserRegistry(pauser, unpauser);
 
-        investmentManager = new InvestmentManagerMock(
-            IEigenLayerDelegation(address(this)),
-            IEigenPodManager(address(this)),
-            ISlasher(address(this))
-        );
+        investmentManager = new InvestmentManagerMock();
 
         underlyingToken = new ERC20PresetFixedSupply("Test Token", "TEST", initialSupply, initialOwner);
 
