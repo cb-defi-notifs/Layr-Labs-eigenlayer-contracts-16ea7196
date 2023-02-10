@@ -531,11 +531,11 @@ contract InvestmentManager is
                 }
             }
 
-            if (strategies[i] == beaconChainETHStrategy){
+            if (strategies[i] == beaconChainETHStrategy) {
                  //withdraw the beaconChainETH to the recipient
                 _withdrawBeaconChainETH(slashedAddress, recipient, shareAmounts[i]);
             }
-            else{
+            else {
                 // withdraw the shares and send funds to the recipient
                 strategies[i].withdraw(recipient, tokens[i], shareAmounts[i]);
             }
