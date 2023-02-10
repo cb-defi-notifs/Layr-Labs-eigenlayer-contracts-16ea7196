@@ -25,6 +25,9 @@ methods {
     // external calls to EigenPod (from EigenPodManager)
     withdrawRestakedBeaconChainETH(address, uint256) => DISPATCHER(true)
 	    
+    // external calls to EigenPodPaymentEscrow (from EigenPod)
+    createPayment(address, address) => DISPATCHER(true)
+
     // external calls to IDelegationTerms
     onDelegationWithdrawn(address,address[],uint256[]) => CONSTANT
     onDelegationReceived(address,address[],uint256[]) => CONSTANT
@@ -103,7 +106,7 @@ rule sharesAmountsChangeOnlyWhenAppropriateFunctionsCalled(address staker, addre
 }
 
 // based on Certora's example here https://github.com/Certora/Tutorials/blob/michael/ethcc/EthCC/Ghosts/ghostTest.spec
-ghost mapping(address => mathint) sumOfSharesInStrategy {
+ghost mapping(address => uint256) sumOfSharesInStrategy {
   init_state axiom forall address strategy. sumOfSharesInStrategy[strategy] == 0;
 }
 
