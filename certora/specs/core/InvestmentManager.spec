@@ -34,6 +34,7 @@ methods {
 	unpauser() returns (address) => DISPATCHER(true)
 
     // external calls to ERC20
+    balanceOf(address) returns (uint256) => DISPATCHER(true)
     transfer(address, uint256) returns (bool) => DISPATCHER(true)
     transferFrom(address, address, uint256) returns (bool) => DISPATCHER(true)
 	
@@ -68,9 +69,6 @@ invariant arrayExhibitsProperties(address staker)
 invariant strategiesNotInArrayHaveZeroShares(address staker, uint256 index)
     (index >= investorStratsLength(staker)) => (investorStratShares(staker, investorStrats(staker, index)) == 0)
 
-
-
-
 /**
 * a staker's amount of shares in a strategy (i.e. `investorStratShares[staker][strategy]`) should only increase when
 * `depositIntoStrategy`, `depositIntoStrategyOnBehalfOf`, or `depositBeaconChainETH` has been called
@@ -104,7 +102,6 @@ rule sharesAmountsChangeOnlyWhenAppropriateFunctionsCalled(address staker, addre
     assert(sharesAfter < sharesBefore => methodCanDecreaseShares(f));
 }
 
-
 // idea based on OpenZeppelin invariant -- see https://github.com/OpenZeppelin/openzeppelin-contracts/blob/formal-verification/certora/specs/ERC20.spec#L8-L22
 ghost mapping(address => uint256) sumOfSharesInStrategy {
   init_state axiom forall address strategy. sumOfSharesInStrategy[strategy] == 0;
@@ -119,6 +116,6 @@ invariant totalSharesGeqSumOfShares(address strategy)
     totalShares(strategy) >= sumOfSharesInStrategy[strategy]
     // preserved block since does not apply for 'beaconChainETH'
     { preserved {
-        // 0xbeaC0eeEeeeeEEeEeEEEEeeEEeEeeeEeeEEBEaC0 converted to decimal
+        // 0xbeaC0eeEeeeeEEeEeEEEEeeEEeEeeeEeeEEBEaC0 converted to decimal (this is the address of virtual 'beaconChainETH')
         require strategy != 1088545275507480024404324736574744392984337050304;
     } }
