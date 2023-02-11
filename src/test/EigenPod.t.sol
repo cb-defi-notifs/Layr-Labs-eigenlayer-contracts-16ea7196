@@ -208,6 +208,8 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
 
         Relayer relay = new Relayer();
 
+        emit log_named_uint("length withdrawal firle", withdrawalFields.length);
+
         relay.verifySlotAndWithdrawalFields(beaconStateRoot, proofs, withdrawalFields, validatorFields);
     }
 

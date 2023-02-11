@@ -20,7 +20,7 @@ contract ProofParsing is Test{
     bytes32[] validatorFields;
 
     constructor() {
-        proofConfigJson = vm.readFile("./src/test/test-data/owners.json");
+        proofConfigJson = vm.readFile("./src/test/test-data/proofs.json");
     }
 
     function getSlot() public returns(uint256) {
@@ -60,6 +60,7 @@ contract ProofParsing is Test{
             prefix = string.concat(".BlockHeaderProof[", string.concat(vm.toString(i), "]"));
             blockHeaderProof.push(stdJson.readBytes32(proofConfigJson, prefix)); 
         }
+        return blockHeaderProof;
     }
 
     function getSlotProof() public returns(bytes32[] memory){
@@ -67,6 +68,7 @@ contract ProofParsing is Test{
             prefix = string.concat(".SlotProof[", string.concat(vm.toString(i), "]"));
             slotProof.push(stdJson.readBytes32(proofConfigJson, prefix)); 
         }
+        return slotProof;
     }
 
     function getWithdrawalProof() public returns(bytes32[] memory){
@@ -74,6 +76,7 @@ contract ProofParsing is Test{
             prefix = string.concat(".WithdrawalProof[", string.concat(vm.toString(i), "]"));
             withdrawalProof.push(stdJson.readBytes32(proofConfigJson, prefix)); 
         }
+        return withdrawalProof;
     }
 
     function getValidatorProof() public returns(bytes32[] memory){
@@ -81,13 +84,18 @@ contract ProofParsing is Test{
             prefix = string.concat(".ValidatorProof[", string.concat(vm.toString(i), "]"));
             validatorProof.push(stdJson.readBytes32(proofConfigJson, prefix)); 
         }
+        return validatorProof;
     }
     
     function getWithdrawalFields() public returns(bytes32[] memory){
         for (uint i = 0; i < 4; i++) {
             prefix = string.concat(".WithdrawalFields[", string.concat(vm.toString(i), "]"));
+            emit log_named_bytes32("prefix", stdJson.readBytes32(proofConfigJson, prefix));
             withdrawalFields.push(stdJson.readBytes32(proofConfigJson, prefix)); 
         }
+         emit log_named_uint("length withdrawal firle", withdrawalFields.length);
+         return withdrawalFields;
+
     }
 
     function getValidatorFields() public returns(bytes32[] memory){
@@ -95,6 +103,7 @@ contract ProofParsing is Test{
             prefix = string.concat(".ValidatorFields[", string.concat(vm.toString(i), "]"));
             validatorFields.push(stdJson.readBytes32(proofConfigJson, prefix)); 
         }
+        return validatorFields;
     }
 
 
