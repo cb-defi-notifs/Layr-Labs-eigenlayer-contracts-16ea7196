@@ -10,7 +10,7 @@ import "../libraries/Endian.sol";
 //SSZ Spec: https://github.com/ethereum/consensus-specs/blob/dev/ssz/simple-serialize.md#merkleization
 //BeaconBlockHeader Spec: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#beaconblockheader
 //BeaconState Spec: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#beaconstate
-library BeaconChainProofs{
+library BeaconChainProofs {
     using BytesLib for bytes;
     // constants are the number of fields and the heights of the different merkle trees used in merkleizing beacon chain containers
     uint256 internal constant NUM_BEACON_BLOCK_HEADER_FIELDS = 5;
@@ -195,13 +195,14 @@ library BeaconChainProofs{
 
         require(proofs.blockHeaderRootIndex < 2**BLOCK_ROOTS_TREE_HEIGHT, "BeaconChainProofs.verifySlotAndWithdrawalFields: blockRootIndex is too large");
         require(proofs.withdrawalIndex < 2**WITHDRAWALS_TREE_HEIGHT, "BeaconChainProofs.verifySlotAndWithdrawalFields: withdrawalIndex is too large");
-        require(proofs.validatorIndex < 2**VALIDATOR_FIELD_TREE_HEIGHT, "BeaconChainProofs.verifySlotAndWithdrawalFields: validatorIndex is too large");
+        require(proofs.validatorIndex < 2**VALIDATOR_TREE_HEIGHT, "BeaconChainProofs.verifySlotAndWithdrawalFields: validatorIndex is too large");
 
+       
         // verify the block header proof length
         require(proofs.blockHeaderProof.length == 32 * (BEACON_STATE_FIELD_TREE_HEIGHT + BLOCK_ROOTS_TREE_HEIGHT), "BeaconChainProofs.verifySlotAndWithdrawalFields: blockHeaderProof has incorrect length");
-        require(proofs.withdrawalProof.length == 32 * (BEACON_BLOCK_HEADER_FIELD_TREE_HEIGHT + BEACON_BLOCK_BODY_FIELD_TREE_HEIGHT + EXECUTION_PAYLOAD_HEADER_FIELD_TREE_HEIGHT + WITHDRAWALS_TREE_HEIGHT + WITHDRAWAL_FIELD_TREE_HEIGHT), "BeaconChainProofs.verifySlotAndWithdrawalFields: withdrawalProof has incorrect length");
+        require(proofs.withdrawalProof.length == 32 * (BEACON_BLOCK_HEADER_FIELD_TREE_HEIGHT + BEACON_BLOCK_BODY_FIELD_TREE_HEIGHT + EXECUTION_PAYLOAD_HEADER_FIELD_TREE_HEIGHT + WITHDRAWALS_TREE_HEIGHT + 1), "BeaconChainProofs.verifySlotAndWithdrawalFields: withdrawalProof has incorrect length");
         require(proofs.slotProof.length == 32 * (BEACON_BLOCK_HEADER_FIELD_TREE_HEIGHT), "BeaconChainProofs.verifySlotAndWithdrawalFields: slotProof has incorrect length");
-        require(proofs.validatorProof.length == 32 * (BEACON_STATE_FIELD_TREE_HEIGHT + VALIDATOR_TREE_HEIGHT + VALIDATOR_FIELD_TREE_HEIGHT), "BeaconChainProofs.verifySlotAndWithdrawalFields: validatorProof has incorrect length");
+        require(proofs.validatorProof.length == 32 * (BEACON_STATE_FIELD_TREE_HEIGHT + VALIDATOR_TREE_HEIGHT + 1), "BeaconChainProofs.verifySlotAndWithdrawalFields: validatorProof has incorrect length");
 
         //First we verify the block header proof, which is common to the withdrawal proof and the slot proof
 

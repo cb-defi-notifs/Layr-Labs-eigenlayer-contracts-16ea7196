@@ -181,6 +181,7 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
         bytes32 slotRoot = getSlotRoot();
 
         uint256 validatorIndex = getValidatorIndex(); 
+
         uint256 withdrawalIndex = getWithdrawalIndex();
         uint256 blockHeaderRootIndex = getBlockHeaderRootIndex();
 
@@ -209,6 +210,8 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
         Relayer relay = new Relayer();
 
         emit log_named_uint("length withdrawal firle", withdrawalFields.length);
+
+        emit log_named_uint("proofs.validatorIndex", proofs.validatorIndex);
 
         relay.verifySlotAndWithdrawalFields(beaconStateRoot, proofs, withdrawalFields, validatorFields);
     }
