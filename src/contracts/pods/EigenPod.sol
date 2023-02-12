@@ -226,10 +226,11 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
     }
 
     function verifyWithdrawal(
-        BeaconChainProofs.WithdrawalProofs calldata proof, 
+        BeaconChainProofs.WithdrawalProofs calldata proofs, 
         bytes32[] calldata validatorFields,
         bytes32[] calldata withdrawalFields,
-        uint256 beaconChainETHStrategyIndex
+        uint256 beaconChainETHStrategyIndex,
+        address recipient
     ) external onlyWhenNotPaused(PAUSED_EIGENPODS_VERIFY_WITHDRAWAL) {
         bytes32 beaconStateRoot = eigenPodManager.getBeaconChainStateRoot();
 
@@ -237,19 +238,21 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
 
         uint64 withdrawableEpoch = Endian.fromLittleEndianUint64(validatorFields[BeaconChainProofs.VALIDATOR_WITHDRAWABLE_EPOCH_INDEX]);
         uint64 withdrawalAmountGwei = Endian.fromLittleEndianUint64(withdrawalFields[BeaconChainProofs.WITHDRAWAL_VALIDATOR_AMOUNT_INDEX]);
-        uint64 slot = Endian.fromLittleEndianUint64(proof.slotRoot);
+        uint64 slot = Endian.fromLittleEndianUint64(proofs.slotRoot);
         uint40 validatorIndex = uint40(Endian.fromLittleEndianUint64(withdrawalFields[BeaconChainProofs.WITHDRAWAL_VALIDATOR_INDEX_INDEX]));
 
         if (withdrawableEpoch <= slot/BeaconChainProofs.SLOTS_PER_EPOCH) {
-            ProcessFullWithdrawal(withdrawalAmountGwei, validatorIndex);
+            ProcessFullWithdrawal(withdrawalAmountGwei, validatorIndex, beaconChainETHStrategyIndex, recipient);
         }
 
         else {
-            ProcessPartialWithdrawal(slot, validatorIndex);
+            ProcessPartialWithdrawal(slot, validatorIndex, recipient);
         }
     }
 
-    function ProcessFullWithdrawal(uint64 withdrawalAmountGwei, uint40 validatorIndex) internal {
+    function ProcessFullWithdrawal(uint64 withdrawalAmountGwei, uint40 validatorIndex, uint256 beaconChainETHStrategyIndex, address recipient) internal {
+
+        VALIDATOR_STATUS status = validatorStatus[validatorIndex];
 
         // if the validator has not previously been proven to be "overcommitted"
             if (status == VALIDATOR_STATUS.ACTIVE) {
@@ -297,7 +300,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
 
     }
 
-    function ProcessPartialWithdrawal(uint64 withdrawalHappenedSlot, uint40 validatorIndex, uint64 withdrawalAmountGwei) internal {
+    function ProcessPartialWithdrawal(uint64 withdrawalHappenedSlot, uint40 validatorIndex, address recipient) internal {
         require(!provenPartialWithdrawal[validatorIndex][withdrawalHappenedSlot], "partial withdrawal has already been proven for this slot");
 
         uint64 partialWithdrawalAmountGwei = uint64(address(this).balance / GWEI_TO_WEI) - restakedExecutionLayerGwei;
