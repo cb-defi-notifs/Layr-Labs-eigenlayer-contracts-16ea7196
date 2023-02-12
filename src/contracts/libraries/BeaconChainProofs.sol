@@ -76,6 +76,7 @@ library BeaconChainProofs {
     // in validator
     uint256 internal constant VALIDATOR_WITHDRAWAL_CREDENTIALS_INDEX = 1;
     uint256 internal constant VALIDATOR_BALANCE_INDEX = 2;
+    uint256 internal constant VALIDATOR_WITHDRAWABLE_EPOCH_INDEX = 7;
     
     // in exection payload header
     uint256 internal constant BLOCK_NUMBER_INDEX = 6;
@@ -90,6 +91,9 @@ library BeaconChainProofs {
 
     //In historicalBatch
     uint256 internal constant HISTORICALBATCH_STATEROOTS_INDEX = 1;
+
+    //Misc Constants
+    uint256 internal constant SLOTS_PER_EPOCH = 32;
 
     struct WithdrawalAndBlockNumberProof {
         uint16 stateRootIndex;
