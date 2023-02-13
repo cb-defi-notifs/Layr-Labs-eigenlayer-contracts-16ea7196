@@ -12,7 +12,6 @@ import "../src/contracts/core/EigenLayerDelegation.sol";
 import "../src/contracts/interfaces/IEigenLayerDelegation.sol";
 import "../src/contracts/interfaces/IETHPOSDeposit.sol";
 import "../src/contracts/interfaces/IBeaconChainOracle.sol";
-import "../src/contracts/interfaces/ISafe.sol";
 
 import "../src/contracts/core/InvestmentManager.sol";
 import "../src/contracts/strategies/InvestmentStrategyBase.sol";
@@ -68,8 +67,8 @@ contract EigenLayerDeployer is Script, Owners {
     address eigenLayerReputedMultisigAddress;
     address eigenLayerTeamMultisigAddress;
     
-    ISafe public eigenLayerReputedMultisig;
-    ISafe public eigenLayerTeamMultisig;
+    address public eigenLayerReputedMultisig;
+    address public eigenLayerTeamMultisig;
 
     // DataLayr contracts
     ProxyAdmin public dataLayrProxyAdmin;
@@ -106,9 +105,8 @@ contract EigenLayerDeployer is Script, Owners {
     function run() external {
         vm.startBroadcast();
 
-        eigenLayerReputedMultisig = ISafe(eigenLayerReputedMultisigAddress);
-        eigenLayerTeamMultisig = ISafe(eigenLayerTeamMultisigAddress);
-        setUpSafes();
+        eigenLayerReputedMultisig = msg.sender;
+        eigenLayerTeamMultisig = msg.sender;
         
 
         // deploy proxy admin for ability to upgrade proxy contracts
@@ -247,7 +245,7 @@ contract EigenLayerDeployer is Script, Owners {
         EigenPodManager eigenPodManagerContract
     ) internal view {
         require(address(delegationContract.slasher()) == address(slasher), "delegation slasher address not set correctly");
-        require(address(delegationContract.investmentManager()) == address(slasher), "delegation investmentManager address not set correctly");
+        require(address(delegationContract.investmentManager()) == address(investmentManager), "delegation investmentManager address not set correctly");
 
         require(address(investmentManagerContract.slasher()) == address(slasher), "investmentManager slasher address not set correctly");
         require(address(investmentManagerContract.delegation()) == address(delegation), "investmentManager delegation address not set correctly");
@@ -262,29 +260,12 @@ contract EigenLayerDeployer is Script, Owners {
         require(address(eigenPodManagerContract.slasher()) == address(slasher), "eigenPodManager slasher contract address not set correctly");
 
     }
-    function setUpSafes() internal {
-        address[] memory _owners = getOwnerAddresses();
-        uint256 _threshold = 2;
-        address to = address(0);
-        bytes memory data = "";
-        address fallbackHandler = address(0);
-        address paymentToken = address(0);
-        uint256 payment = 0;
-        address payable paymentReceiver = payable(address(0));
-
-        
-        eigenLayerTeamMultisig.setup(_owners, _threshold, to, data, fallbackHandler, paymentToken, payment, paymentReceiver);
-        _threshold = 6;
-        _owners = getReputedOwnerAddresses();
-        eigenLayerReputedMultisig.setup(_owners, _threshold, to, data, fallbackHandler, paymentToken, payment, paymentReceiver);
-    }
 
     function verifyOwners()internal view {
-       
         require(investmentManager.owner() == address(eigenLayerReputedMultisig), "investmentManager owner not set correctly");
         require(delegation.owner() == address(eigenLayerReputedMultisig), "delegation owner not set correctly");
         require(slasher.owner() == address(eigenLayerReputedMultisig), "slasher owner not set correctly");
-        require(eigenPodManager.owner() == address(eigenLayerReputedMultisig), "delegation owner not set correctly");
+        require(eigenPodManager.owner() == address(eigenLayerReputedMultisig), "pod manager owner not set correctly");
 
     }
     function checkPauserInitializations() internal view {
