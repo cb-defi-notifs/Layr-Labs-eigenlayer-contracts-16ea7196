@@ -243,6 +243,7 @@ contract SlasherUnitTests is Test {
         slasher.recordFirstStakeUpdate(operator, serveUntil);
         cheats.stopPrank();
 
+//TODO: add more checks about the MiddlewareTimes struct and/or operatorToMiddlewareTimes array
         // if this is the first MiddlewareTimes struct in the array OR latestServeUntil will be increased OR...
         if (middlewareTimesLengthBefore == 0 || serveUntil > mostRecentMiddlewareTimesStruct.latestServeUntil) {
             require(slasher.middlewareTimesLength(operator) == middlewareTimesLengthBefore + 1, "MiddlewareTimes struct not pushed to array");
@@ -255,16 +256,66 @@ contract SlasherUnitTests is Test {
     }
 
     function testRecordFirstStateUpdate_RevertsWhenPaused() external {
-        
+        address operator = address(this);
+        address contractAddress = address(this);
+        uint32 serveUntil = 0;
+        testOptIntoSlashing(operator, contractAddress);
+
+        // pause first stake updates
+        cheats.startPrank(pauser);
+        slasher.pause(2 ** PAUSED_FIRST_STAKE_UPDATE);
+        cheats.stopPrank();
+
+        cheats.startPrank(contractAddress);
+        cheats.expectRevert(bytes("Pausable: index is paused"));
+        slasher.recordFirstStakeUpdate(operator, serveUntil);
+        cheats.stopPrank();
     }
 
     function testRecordFirstStateUpdate_RevertsWhenCallerDoesntHaveSlashingPermission() external {
-        
+        address operator = address(this);
+        address contractAddress = address(this);
+        uint32 serveUntil = 0;
+
+        require(!slasher.canSlash(operator, contractAddress), "improper slashing permission has been given");
+
+        cheats.startPrank(contractAddress);
+        cheats.expectRevert(bytes("Slasher.onlyCanSlash: only slashing contracts"));
+        slasher.recordFirstStakeUpdate(operator, serveUntil);
+        cheats.stopPrank();
     }
 
     function testRecordFirstStateUpdate_RevertsWhenCallerAlreadyInList() external {
-        
+        address operator = address(this);
+        address contractAddress = address(this);
+        uint32 serveUntil = 0;
+
+        testRecordFirstStateUpdate(operator, contractAddress, serveUntil);
+
+        cheats.startPrank(contractAddress);
+        cheats.expectRevert(bytes("Slasher.recordFirstStakeUpdate: Appending middleware unsuccessful"));
+        slasher.recordFirstStakeUpdate(operator, serveUntil);
+        cheats.stopPrank();
     }
+
+    function testRecordStakeUpdate(address operator, address contractAddress, uint32 updateBlock, uint32 serveUntil, uint256 insertAfter)
+        public
+        filterFuzzedAddressInputs(operator)
+        filterFuzzedAddressInputs(contractAddress)
+    {
+        // TODO: write this test
+    }
+
+    function testRecordLastStakeUpdateAndRevokeSlashingAbility(address operator, address contractAddress, uint32 serveUntil)
+        public
+        filterFuzzedAddressInputs(operator)
+        filterFuzzedAddressInputs(contractAddress)
+    {
+        // TODO: write this test
+    }
+
+    
+
 
 
     // function testDepositBeaconChainETHSuccessfully(address staker, uint256 amount) public filterFuzzedAddressInputs(staker) {
