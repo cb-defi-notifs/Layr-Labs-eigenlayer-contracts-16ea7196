@@ -49,11 +49,11 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
      *  [
      *      (
      *          the least recent update block of all of the middlewares it's serving/served, 
-     *          latest time the the stake bonded at that update needed to serve until
+     *          latest time that the stake bonded at that update needed to serve until
      *      )
      *  ]
      */
-    mapping(address => MiddlewareTimes[]) public operatorToMiddlewareTimes;
+    mapping(address => MiddlewareTimes[]) public _operatorToMiddlewareTimes;
 
     /// @notice Emitted when a middleware times is added to `operator`'s array.
     event MiddlewareTimesAdded(address operator, uint256 index, uint32 stalestUpdateBlock, uint32 latestServeUntil);
@@ -255,24 +255,24 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
 
     /**
      * @notice Returns 'true' if `operator` can currently complete a withdrawal started at the `withdrawalStartBlock`, with `middlewareTimesIndex` used
-     * to specify the index of a `MiddlewareTimes` struct in the operator's list (i.e. an index in `operatorToMiddlewareTimes[operator]`). The specified
+     * to specify the index of a `MiddlewareTimes` struct in the operator's list (i.e. an index in `_operatorToMiddlewareTimes[operator]`). The specified
      * struct is consulted as proof of the `operator`'s ability (or lack thereof) to complete the withdrawal.
      * This function will return 'false' if the operator cannot currently complete a withdrawal started at the `withdrawalStartBlock`, *or* in the event
      * that an incorrect `middlewareTimesIndex` is supplied, even if one or more correct inputs exist.
      * @param operator Either the operator who queued the withdrawal themselves, or if the withdrawing party is a staker who delegated to an operator,
      * this address is the operator *who the staker was delegated to* at the time of the `withdrawalStartBlock`.
      * @param withdrawalStartBlock The block number at which the withdrawal was initiated.
-     * @param middlewareTimesIndex Indicates an index in `operatorToMiddlewareTimes[operator]` to consult as proof of the `operator`'s ability to withdraw
+     * @param middlewareTimesIndex Indicates an index in `_operatorToMiddlewareTimes[operator]` to consult as proof of the `operator`'s ability to withdraw
      * @dev The correct `middlewareTimesIndex` input should be computable off-chain.
      */
     function canWithdraw(address operator, uint32 withdrawalStartBlock, uint256 middlewareTimesIndex) external view returns (bool) {
         // if the operator has never registered for a middleware, just return 'true'
-        if (operatorToMiddlewareTimes[operator].length == 0) {
+        if (_operatorToMiddlewareTimes[operator].length == 0) {
             return true;
         }
 
-        // pull the MiddlewareTimes struct at the `middlewareTimesIndex`th position in `operatorToMiddlewareTimes[operator]`
-        MiddlewareTimes memory update = operatorToMiddlewareTimes[operator][middlewareTimesIndex];
+        // pull the MiddlewareTimes struct at the `middlewareTimesIndex`th position in `_operatorToMiddlewareTimes[operator]`
+        MiddlewareTimes memory update = _operatorToMiddlewareTimes[operator][middlewareTimesIndex];
         
         /**
          * Make sure the stalest update block at the time of the update is strictly after `withdrawalStartBlock` and ensure that the current time
@@ -286,19 +286,24 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
         );
     }
 
-    /// @notice Getter function for fetching `operatorToMiddlewareTimes[operator].length`
+    /// @notice Getter function for fetching `_operatorToMiddlewareTimes[operator][arrayIndex]`.
+    function operatorToMiddlewareTimes(address operator, uint256 arrayIndex) external view returns (MiddlewareTimes memory) {
+        return _operatorToMiddlewareTimes[operator][arrayIndex];
+    }
+
+    /// @notice Getter function for fetching `_operatorToMiddlewareTimes[operator].length`.
     function middlewareTimesLength(address operator) external view returns (uint256) {
-        return operatorToMiddlewareTimes[operator].length;
+        return _operatorToMiddlewareTimes[operator].length;
     }
 
-    /// @notice Getter function for fetching `operatorToMiddlewareTimes[operator][index].stalestUpdateBlock`.
+    /// @notice Getter function for fetching `_operatorToMiddlewareTimes[operator][index].stalestUpdateBlock`.
     function getMiddlewareTimesIndexBlock(address operator, uint32 index) external view returns (uint32) {
-        return operatorToMiddlewareTimes[operator][index].stalestUpdateBlock;
+        return _operatorToMiddlewareTimes[operator][index].stalestUpdateBlock;
     }
 
-    /// @notice Getter function for fetching `operatorToMiddlewareTimes[operator][index].latestServeUntil`.
+    /// @notice Getter function for fetching `_operatorToMiddlewareTimes[operator][index].latestServeUntil`.
     function getMiddlewareTimesIndexServeUntil(address operator, uint32 index) external view returns (uint32) {
-        return operatorToMiddlewareTimes[operator][index].latestServeUntil;
+        return _operatorToMiddlewareTimes[operator][index].latestServeUntil;
     }
 
     /**
@@ -386,8 +391,8 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
         _whitelistedContractDetails[operator][msg.sender].latestUpdateBlock = updateBlock;
         // get the latest recorded MiddlewareTimes, if the operator's list of MiddlwareTimes is non empty
         MiddlewareTimes memory curr;
-        if (operatorToMiddlewareTimes[operator].length != 0) {
-            curr = operatorToMiddlewareTimes[operator][operatorToMiddlewareTimes[operator].length - 1];
+        if (_operatorToMiddlewareTimes[operator].length != 0) {
+            curr = _operatorToMiddlewareTimes[operator][_operatorToMiddlewareTimes[operator].length - 1];
         }
         MiddlewareTimes memory next = curr;
         bool pushToMiddlewareTimes;
@@ -398,7 +403,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
             pushToMiddlewareTimes = true;
         } 
         
-        // If this is the very first middleware added to the operator's list of middleware, then we add an entry to operatorToMiddlewareTimes
+        // If this is the very first middleware added to the operator's list of middleware, then we add an entry to _operatorToMiddlewareTimes
         if (operatorToWhitelistedContractsByUpdate[operator].size == 0) {
             next.stalestUpdateBlock = updateBlock;
             pushToMiddlewareTimes = true;
@@ -428,8 +433,8 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
         
         // if `next` has new information, then push it
         if (pushToMiddlewareTimes) {
-            operatorToMiddlewareTimes[operator].push(next);
-            emit MiddlewareTimesAdded(operator, operatorToMiddlewareTimes[operator].length - 1, next.stalestUpdateBlock, next.latestServeUntil);
+            _operatorToMiddlewareTimes[operator].push(next);
+            emit MiddlewareTimesAdded(operator, _operatorToMiddlewareTimes[operator].length - 1, next.stalestUpdateBlock, next.latestServeUntil);
         }
     }
 

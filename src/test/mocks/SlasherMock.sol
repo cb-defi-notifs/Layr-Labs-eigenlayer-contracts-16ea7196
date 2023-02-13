@@ -48,6 +48,17 @@ contract SlasherMock is ISlasher, Test {
         return _canWithdraw;
     }
 
+    /**
+     * operator => 
+     *  [
+     *      (
+     *          the least recent update block of all of the middlewares it's serving/served, 
+     *          latest time that the stake bonded at that update needed to serve until
+     *      )
+     *  ]
+     */
+    function operatorToMiddlewareTimes(address operator, uint256 arrayIndex) external view returns (MiddlewareTimes memory) {}
+
     /// @notice Getter function for fetching `operatorToMiddlewareTimes[operator].length`
     function middlewareTimesLength(address operator) external view returns (uint256) {}
 
