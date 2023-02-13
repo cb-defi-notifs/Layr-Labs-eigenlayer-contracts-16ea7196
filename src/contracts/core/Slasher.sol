@@ -400,18 +400,18 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
         
         // If this is the very first middleware added to the operator's list of middleware, then we add an entry to operatorToMiddlewareTimes
         if (operatorToWhitelistedContractsByUpdate[operator].size == 0) {
-            pushToMiddlewareTimes = true;
             next.stalestUpdateBlock = updateBlock;
+            pushToMiddlewareTimes = true;
         }
-        // If the middleware is the first in the list, we will update the `stalestUpdateBlock` field in MiddlwareTimes
+        // If the middleware is the first in the list, we will update the `stalestUpdateBlock` field in MiddlewareTimes
         else if (operatorToWhitelistedContractsByUpdate[operator].getHead() == _addressToUint(msg.sender)) {
             // if the updated middleware was the earliest update, set it to the 2nd earliest update's update time
             (bool hasNext, uint256 nextNode) = operatorToWhitelistedContractsByUpdate[operator].getNextNode(_addressToUint(msg.sender));
 
-            if(hasNext) {
-                // get the next middleware's most latest update block
+            if (hasNext) {
+                // get the next middleware's latest update block
                 uint32 nextMiddlewaresLeastRecentUpdateBlock = _whitelistedContractDetails[operator][_uintToAddress(nextNode)].latestUpdateBlock;
-                if(nextMiddlewaresLeastRecentUpdateBlock < updateBlock) {
+                if (nextMiddlewaresLeastRecentUpdateBlock < updateBlock) {
                     // if there is a next node, then set the stalestUpdateBlock to its recorded value
                     next.stalestUpdateBlock = nextMiddlewaresLeastRecentUpdateBlock;
                 } else {
@@ -422,7 +422,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
                 // otherwise this is the only middleware so right now is the stalestUpdateBlock
                 next.stalestUpdateBlock = updateBlock;
             }
-            // mark that we need push next to middleware times array because it contains new information
+            // mark that we need to push `next` to middleware times array because it contains new information
             pushToMiddlewareTimes = true;
         }
         
