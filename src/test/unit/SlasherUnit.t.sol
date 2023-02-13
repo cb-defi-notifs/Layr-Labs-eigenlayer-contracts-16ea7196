@@ -232,15 +232,26 @@ contract SlasherUnitTests is Test {
 
         ISlasher.MiddlewareDetails memory middlewareDetailsBefore = slasher.whitelistedContractDetails(operator, contractAddress);
 
+        ISlasher.MiddlewareTimes memory mostRecentMiddlewareTimesStruct;
+        // fetch the most recent struct, if at least one exists (otherwise leave the struct uninitialized)
+        uint256 middlewareTimesLengthBefore = slasher.middlewareTimesLength(operator);
+        if (middlewareTimesLengthBefore != 0) {
+            mostRecentMiddlewareTimesStruct = slasher.operatorToMiddlewareTimes(operator, middlewareTimesLengthBefore - 1);
+        }
+
         cheats.startPrank(contractAddress);
         slasher.recordFirstStakeUpdate(operator, serveUntil);
         cheats.stopPrank();
+
+        // if this is the first MiddlewareTimes struct in the array OR latestServeUntil will be increased OR...
+        if (middlewareTimesLengthBefore == 0 || serveUntil > mostRecentMiddlewareTimesStruct.latestServeUntil) {
+            require(slasher.middlewareTimesLength(operator) == middlewareTimesLengthBefore + 1, "MiddlewareTimes struct not pushed to array");
+        }
 
         ISlasher.MiddlewareDetails memory middlewareDetailsAfter = slasher.whitelistedContractDetails(operator, contractAddress);
         require(middlewareDetailsAfter.latestUpdateBlock == block.number, "latestUpdateBlock not updated correctly");
         require(middlewareDetailsAfter.bondedUntil == middlewareDetailsBefore.bondedUntil, "bondedUntil changed unexpectedly");
 
-        // ISlasher.MiddlewareTimes memory curr;
     }
 
     function testRecordFirstStateUpdate_RevertsWhenPaused() external {
