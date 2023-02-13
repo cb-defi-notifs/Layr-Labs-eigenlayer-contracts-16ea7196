@@ -109,6 +109,9 @@ interface ISlasher {
      */
     function canWithdraw(address operator, uint32 withdrawalStartBlock, uint256 middlewareTimesIndex) external returns(bool);
 
+    /// @notice Getter function for fetching `operatorToMiddlewareTimes[operator].length`
+    function middlewareTimesLength(address operator) external view returns (uint256);
+
     /// @notice Getter function for fetching `operatorToMiddlewareTimes[operator][index].stalestUpdateBlock`.
     function getMiddlewareTimesIndexBlock(address operator, uint32 index) external view returns(uint32);
 
