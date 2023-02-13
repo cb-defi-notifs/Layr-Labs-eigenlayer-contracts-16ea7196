@@ -58,12 +58,6 @@ interface IEigenPod {
     /// @notice this is a mapping of validator indices to a Validator struct containing pertinent info about the validator
     function validatorStatus(uint40 validatorIndex) external view returns(VALIDATOR_STATUS);
 
-    /// @return claim is the partial withdrawal claim at the provided index
-    function getPartialWithdrawalClaim(uint256 index) external view returns(PartialWithdrawalClaim memory);
-        
-    /// @return length : the number of partial withdrawal claims ever made for this EigenPod
-    function getPartialWithdrawalClaimsLength() external view returns(uint256);
-
     /// @notice the amount of execution layer ETH in this contract that is staked in EigenLayer (i.e. withdrawn from beaconchain but not EigenLayer), 
     function restakedExecutionLayerGwei() external view returns(uint64);
 
@@ -133,24 +127,4 @@ interface IEigenPod {
         bytes32[] calldata withdrawalFields,
         uint256 beaconChainETHStrategyIndex
     ) external;
-
-    /**
-     * @notice This function records a balance snapshot for the EigenPod. Its main functionality is to begin an optimistic
-     *         claim process on the partial withdrawable balance for the EigenPod owner. The owner is claiming that they have 
-     *         proven all full withdrawals until block.number, allowing their partial withdrawal balance to be easily calculated 
-     *         via  
-     *              address(this).balance / GWEI_TO_WEI = 
-     *                  restakedExecutionLayerGwei + 
-     *                  instantlyWithdrawableBalanceGwei + 
-     *                  partialWithdrawalsGwei
-     *         If any other full withdrawals are proven to have happened before block.number, the partial withdrawal is marked as failed
-     * @param expireBlockNumber this is the block number before which the call to this function must be mined. To avoid race conditions with pending withdrawals,
-     *                          if there are any pending full withrawals to this Eigenpod, this parameter should be set to the blockNumber at which the next full withdrawal
-     *                          for a validator on this EigenPod is going to occur.
-     * @dev The sender should be able to safely set the value of `expireBlockNumber` to type(uint32).max if there are no pending full withdrawals to this Eigenpod.
-     */
-    function recordPartialWithdrawalClaim(uint32 expireBlockNumber) external;
-
-    /// @notice This function allows pod owners to redeem their partial withdrawals after the fraudproof period has elapsed
-    function redeemLatestPartialWithdrawal(address recipient) external;
 }

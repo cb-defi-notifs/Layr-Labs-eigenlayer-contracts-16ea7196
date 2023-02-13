@@ -409,72 +409,6 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         }
     }
 
-    /**
-     * @notice This function records a balance snapshot for the EigenPod. Its main functionality is to begin an optimistic
-     *         claim process on the partial withdrawable balance for the EigenPod owner. The owner is claiming that they have 
-     *         proven all full withdrawals until block.number, allowing their partial withdrawal balance to be easily calculated 
-     *         via  
-     *              address(this).balance / GWEI_TO_WEI = 
-     *                  restakedExecutionLayerGwei + 
-     *                  partialWithdrawalsGwei
-     *         If any other full withdrawals are proven to have happened before block.number, the partial withdrawal is marked as failed
-     * @param expireBlockNumber this is the block number before which the call to this function must be mined. To avoid race conditions with pending withdrawals,
-     *                          if there are any pending full withrawals to this Eigenpod, this parameter should be set to the blockNumber at which the next full withdrawal
-     *                          for a validator on this EigenPod is going to occur.
-     * @dev The sender should be able to safely set the value of `expireBlockNumber` to type(uint32).max if there are no pending full withdrawals to this Eigenpod.
-     */
-    function recordPartialWithdrawalClaim(uint32 expireBlockNumber) external onlyEigenPodOwner {
-        uint32 currBlockNumber = uint32(block.number);
-        require(currBlockNumber < expireBlockNumber, "EigenPod.recordBalanceSnapshot: recordPartialWithdrawalClaim tx mined too late");
-        uint256 claimsLength = _partialWithdrawalClaims.length;
-        // we do not allow parallel withdrawal claims to minimize complexity
-        require(
-            // either no claims have been made yet
-            claimsLength == 0 ||
-            // or the last claim is not pending
-            _partialWithdrawalClaims[claimsLength - 1].status != PARTIAL_WITHDRAWAL_CLAIM_STATUS.PENDING,
-            "EigenPod.recordPartialWithdrawalClaim: cannot make a new claim until previous claim is not pending"
-        );
-
-        // address(this).balance / GWEI_TO_WEI = restakedExecutionLayerGwei + 
-        //                                       partialWithdrawalAmountGwei
-        uint64 partialWithdrawalAmountGwei = uint64(address(this).balance / GWEI_TO_WEI) - restakedExecutionLayerGwei;
-        // push claim to the end of the list
-        _partialWithdrawalClaims.push(
-            PartialWithdrawalClaim({ 
-                status: PARTIAL_WITHDRAWAL_CLAIM_STATUS.PENDING, 
-                creationBlockNumber: currBlockNumber,
-                fraudproofPeriodEndBlockNumber: currBlockNumber + PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS,
-                partialWithdrawalAmountGwei: partialWithdrawalAmountGwei
-            })
-        );
-
-        emit PartialWithdrawalClaimRecorded(currBlockNumber, partialWithdrawalAmountGwei);
-    }
-
-    /// @notice This function allows pod owners to redeem their partial withdrawals after the fraudproof period has elapsed
-    function redeemLatestPartialWithdrawal(address recipient) external onlyEigenPodOwner nonReentrant {
-        // load claim into memory, note this function should and will fail if there are no claims yet
-        uint256 lastClaimIndex = _partialWithdrawalClaims.length - 1;        
-        PartialWithdrawalClaim memory claim = _partialWithdrawalClaims[lastClaimIndex];
-
-        require(
-            claim.status == PARTIAL_WITHDRAWAL_CLAIM_STATUS.PENDING,
-            "EigenPod.redeemLatestPartialWithdrawal: partial withdrawal either redeemed or failed making it ineligible for redemption"
-        );
-        require(
-            uint32(block.number) > claim.fraudproofPeriodEndBlockNumber,
-            "EigenPod.redeemLatestPartialWithdrawal: can only redeem partial withdrawals after fraudproof period"
-        );
-
-        // mark the claim's status as redeemed
-        _partialWithdrawalClaims[lastClaimIndex].status = PARTIAL_WITHDRAWAL_CLAIM_STATUS.REDEEMED;
-
-        // send the ETH to the `recipient`
-        _sendETH(recipient, uint256(claim.partialWithdrawalAmountGwei) * uint256(GWEI_TO_WEI));
-
-        emit PartialWithdrawalRedeemed(recipient, claim.partialWithdrawalAmountGwei);
-    }
 
     /**
      * @notice Transfers `amountWei` in ether from this contract to the specified `recipient` address
@@ -497,19 +431,6 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         _sendETH(recipient, amountWei);
 
         emit RestakedBeaconChainETHWithdrawn(recipient, amountWei);
-    }
-
-    // VIEW FUNCTIONS
-
-    /// @return claim is the partial withdrawal claim at the provided index
-    function getPartialWithdrawalClaim(uint256 index) external view returns(PartialWithdrawalClaim memory) {
-        PartialWithdrawalClaim memory claim = _partialWithdrawalClaims[index];
-        return claim;
-    }
-
-    /// @return length : the number of partial withdrawal claims ever made for this EigenPod
-    function getPartialWithdrawalClaimsLength() external view returns(uint256) {
-        return _partialWithdrawalClaims.length;
     }
 
     // INTERNAL FUNCTIONS
