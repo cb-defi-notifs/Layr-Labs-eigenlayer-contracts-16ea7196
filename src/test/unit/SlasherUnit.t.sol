@@ -103,7 +103,11 @@ contract SlasherUnitTests is Test {
         slasher.initialize(pauserRegistry, initialOwner);
     }
 
-    function testOptIntoSlashing(address caller, address contractAddress) public {
+    function testOptIntoSlashing(address caller, address contractAddress)
+        public
+        filterFuzzedAddressInputs(caller)
+        filterFuzzedAddressInputs(contractAddress)
+    {
         delegationMock.setIsOperator(caller, true);
 
         cheats.startPrank(caller);
@@ -219,8 +223,24 @@ contract SlasherUnitTests is Test {
         cheats.stopPrank();
     }
 
-    function testRecordFirstStateUpdate() external {
+    function testRecordFirstStateUpdate(address operator, address contractAddress, uint32 serveUntil)
+        public
+        filterFuzzedAddressInputs(operator)
+        filterFuzzedAddressInputs(contractAddress)
+    {
+        testOptIntoSlashing(operator, contractAddress);
 
+        ISlasher.MiddlewareDetails memory middlewareDetailsBefore = slasher.whitelistedContractDetails(operator, contractAddress);
+
+        cheats.startPrank(contractAddress);
+        slasher.recordFirstStakeUpdate(operator, serveUntil);
+        cheats.stopPrank();
+
+        ISlasher.MiddlewareDetails memory middlewareDetailsAfter = slasher.whitelistedContractDetails(operator, contractAddress);
+        require(middlewareDetailsAfter.latestUpdateBlock == block.number, "latestUpdateBlock not updated correctly");
+        require(middlewareDetailsAfter.bondedUntil == middlewareDetailsBefore.bondedUntil, "bondedUntil changed unexpectedly");
+
+        // ISlasher.MiddlewareTimes memory curr;
     }
 
     function testRecordFirstStateUpdate_RevertsWhenPaused() external {
