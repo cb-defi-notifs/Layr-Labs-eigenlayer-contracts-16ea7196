@@ -402,8 +402,9 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
         _whitelistedContractDetails[operator][msg.sender].latestUpdateBlock = updateBlock;
         // get the latest recorded MiddlewareTimes, if the operator's list of MiddlwareTimes is non empty
         MiddlewareTimes memory curr;
-        if (_operatorToMiddlewareTimes[operator].length != 0) {
-            curr = _operatorToMiddlewareTimes[operator][_operatorToMiddlewareTimes[operator].length - 1];
+        uint256 _operatorToMiddlewareTimesLength = _operatorToMiddlewareTimes[operator].length;
+        if (_operatorToMiddlewareTimesLength != 0) {
+            curr = _operatorToMiddlewareTimes[operator][_operatorToMiddlewareTimesLength - 1];
         }
         MiddlewareTimes memory next = curr;
         bool pushToMiddlewareTimes;
