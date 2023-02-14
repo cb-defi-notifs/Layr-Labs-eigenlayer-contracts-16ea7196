@@ -270,7 +270,7 @@ contract SlasherUnitTests is Test {
                 "MiddlewareTimes struct not pushed to array");
             require(mostRecentMiddlewareTimesStructAfter.stalestUpdateBlock == block.number,
                 "stalestUpdateBlock not updated correctly -- contractAddress is first list enttry");
-        // otherwise, we check if the `contractAddress` is the head of the list. If it *is*, then...
+        // otherwise, we check if the `contractAddress` is the head of the list. If it *is*, then prevNode will be _HEAD, and...
         } else if (prevNode == _HEAD) {
             // if nextNode is _HEAD, then the this indicates that `contractAddress` is actually the only list entry
             if (nextNode != _HEAD) {
@@ -290,7 +290,6 @@ contract SlasherUnitTests is Test {
             "latestUpdateBlock not updated correctly");
         require(middlewareDetailsAfter.bondedUntil == middlewareDetailsBefore.bondedUntil,
             "bondedUntil changed unexpectedly");
-
     }
 
     function testRecordFirstStakeUpdate_RevertsWhenPaused() external {
@@ -336,12 +335,64 @@ contract SlasherUnitTests is Test {
         cheats.stopPrank();
     }
 
-    function testRecordStakeUpdate(address operator, address contractAddress, uint32 updateBlock, uint32 serveUntil, uint256 insertAfter)
+    function testRecordStakeUpdate(address operator, address contractAddress, uint32 prevServeUntil, uint32 updateBlock, uint32 serveUntil, uint256 insertAfter)
         public
         filterFuzzedAddressInputs(operator)
         filterFuzzedAddressInputs(contractAddress)
     {
-        // TODO: write this test
+        testRecordFirstStakeUpdate(operator, contractAddress, prevServeUntil);
+
+        uint256 linkedListLengthBefore = slasher.operatorWhitelistedContractsLinkedListSize(operator);
+        ISlasher.MiddlewareDetails memory middlewareDetailsBefore = slasher.whitelistedContractDetails(operator, contractAddress);
+
+        // fetch the most recent struct
+        uint256 middlewareTimesLengthBefore = slasher.middlewareTimesLength(operator);
+        ISlasher.MiddlewareTimes memory mostRecentMiddlewareTimesStructBefore = slasher.operatorToMiddlewareTimes(operator, middlewareTimesLengthBefore - 1);
+
+        cheats.startPrank(contractAddress);
+        slasher.recordStakeUpdate(operator, updateBlock, serveUntil, insertAfter);
+        cheats.stopPrank();
+
+        ISlasher.MiddlewareTimes memory mostRecentMiddlewareTimesStructAfter = slasher.operatorToMiddlewareTimes(operator, slasher.middlewareTimesLength(operator) - 1);
+
+        // check that linked list size remained the same appropriately
+        require(slasher.operatorWhitelistedContractsLinkedListSize(operator) == linkedListLengthBefore, "linked list length did increased inappropriately");
+        // get the linked list entry for the `contractAddress`
+        (bool nodeExists, uint256 prevNode, uint256 nextNode) = slasher.operatorWhitelistedContractsLinkedListEntry(operator, contractAddress);
+        // verify that the node nodeExists
+        require(nodeExists, "node does not exist");
+
+        // if the `serveUntil` time is greater than the previous maximum, then an update must have been pushed and the `latestServeUntil` must be equal to the `serveUntil` input
+        if (serveUntil > mostRecentMiddlewareTimesStructBefore.latestServeUntil) {
+            require(slasher.middlewareTimesLength(operator) == middlewareTimesLengthBefore + 1, "MiddlewareTimes struct not pushed to array");
+            require(mostRecentMiddlewareTimesStructAfter.latestServeUntil == serveUntil, "latestServeUntil not updated correctly");
+        }
+        // if this is the first MiddlewareTimes struct in the array, then an update must have been pushed and the `stalestUpdateBlock` *must* be equal to the current block
+        if (middlewareTimesLengthBefore == 0) {
+            require(slasher.middlewareTimesLength(operator) == middlewareTimesLengthBefore + 1,
+                "MiddlewareTimes struct not pushed to array");
+            require(mostRecentMiddlewareTimesStructAfter.stalestUpdateBlock == updateBlock,
+                "stalestUpdateBlock not updated correctly -- contractAddress is first list enttry");
+        // otherwise, we check if the `contractAddress` is the head of the list. If it *is*, then prevNode will be _HEAD, and...
+        } else if (prevNode == _HEAD) {
+            // if nextNode is _HEAD, then the this indicates that `contractAddress` is actually the only list entry
+            if (nextNode != _HEAD) {
+                // if nextNode is not the only list entry, then `latestUpdateBlock` should update to a more recent time (if applicable!)
+                uint32 nextMiddlewaresLeastRecentUpdateBlock = slasher.whitelistedContractDetails(operator, _uintToAddress(nextNode)).latestUpdateBlock;
+                uint32 newValue = (nextMiddlewaresLeastRecentUpdateBlock < updateBlock) ? nextMiddlewaresLeastRecentUpdateBlock: uint32(updateBlock);
+                require(mostRecentMiddlewareTimesStructAfter.stalestUpdateBlock == newValue,
+                    "stalestUpdateBlock not updated correctly -- should have updated to newValue");                
+            } else {
+                require(mostRecentMiddlewareTimesStructAfter.stalestUpdateBlock == updateBlock,
+                    "stalestUpdateBlock not updated correctly -- contractAddress is only list entry");
+            }
+        }
+
+        ISlasher.MiddlewareDetails memory middlewareDetailsAfter = slasher.whitelistedContractDetails(operator, contractAddress);
+        require(middlewareDetailsAfter.latestUpdateBlock == updateBlock,
+            "latestUpdateBlock not updated correctly");
+        require(middlewareDetailsAfter.bondedUntil == middlewareDetailsBefore.bondedUntil,
+            "bondedUntil changed unexpectedly");
     }
 
     function testRecordLastStakeUpdateAndRevokeSlashingAbility(address operator, address contractAddress, uint32 serveUntil)
