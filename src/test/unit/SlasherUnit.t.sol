@@ -68,8 +68,13 @@ contract SlasherUnitTests is Test {
     uint256[] public emptyUintArray;
 
     // used as transient storage to fix stack-too-deep errors
-    IInvestmentStrategy public _tempStrategyStorage;
-    address public _tempStakerStorage;
+    uint256 linkedListLengthBefore;
+    uint256 middlewareTimesLengthBefore;
+    bool nodeExists;
+    uint256 prevNode;
+    uint256 nextNode;
+    ISlasher.MiddlewareDetails middlewareDetailsBefore;
+    ISlasher.MiddlewareDetails middlewareDetailsAfter;
 
     mapping(address => bool) public addressIsExcludedFromFuzzedInputs;
 
@@ -236,12 +241,12 @@ contract SlasherUnitTests is Test {
     {
         testOptIntoSlashing(operator, contractAddress);
 
-        uint256 linkedListLengthBefore = slasher.operatorWhitelistedContractsLinkedListSize(operator);
-        ISlasher.MiddlewareDetails memory middlewareDetailsBefore = slasher.whitelistedContractDetails(operator, contractAddress);
+        linkedListLengthBefore = slasher.operatorWhitelistedContractsLinkedListSize(operator);
+        middlewareDetailsBefore = slasher.whitelistedContractDetails(operator, contractAddress);
 
         ISlasher.MiddlewareTimes memory mostRecentMiddlewareTimesStructBefore;
         // fetch the most recent struct, if at least one exists (otherwise leave the struct uninitialized)
-        uint256 middlewareTimesLengthBefore = slasher.middlewareTimesLength(operator);
+        middlewareTimesLengthBefore = slasher.middlewareTimesLength(operator);
         if (middlewareTimesLengthBefore != 0) {
             mostRecentMiddlewareTimesStructBefore = slasher.operatorToMiddlewareTimes(operator, middlewareTimesLengthBefore - 1);
         }
@@ -255,7 +260,7 @@ contract SlasherUnitTests is Test {
         // check that linked list size increased appropriately
         require(slasher.operatorWhitelistedContractsLinkedListSize(operator) == linkedListLengthBefore + 1, "linked list length did not increase when it should!");
         // get the linked list entry for the `contractAddress`
-        (bool nodeExists, uint256 prevNode, uint256 nextNode) = slasher.operatorWhitelistedContractsLinkedListEntry(operator, contractAddress);
+        (nodeExists, prevNode, nextNode) = slasher.operatorWhitelistedContractsLinkedListEntry(operator, contractAddress);
         // verify that the node nodeExists
         require(nodeExists, "node does not exist");
 
@@ -269,7 +274,7 @@ contract SlasherUnitTests is Test {
             require(slasher.middlewareTimesLength(operator) == middlewareTimesLengthBefore + 1,
                 "MiddlewareTimes struct not pushed to array");
             require(mostRecentMiddlewareTimesStructAfter.stalestUpdateBlock == block.number,
-                "stalestUpdateBlock not updated correctly -- contractAddress is first list enttry");
+                "stalestUpdateBlock not updated correctly -- contractAddress is first list entry");
         // otherwise, we check if the `contractAddress` is the head of the list. If it *is*, then prevNode will be _HEAD, and...
         } else if (prevNode == _HEAD) {
             // if nextNode is _HEAD, then the this indicates that `contractAddress` is actually the only list entry
@@ -285,7 +290,7 @@ contract SlasherUnitTests is Test {
             }
         }
 
-        ISlasher.MiddlewareDetails memory middlewareDetailsAfter = slasher.whitelistedContractDetails(operator, contractAddress);
+        middlewareDetailsAfter = slasher.whitelistedContractDetails(operator, contractAddress);
         require(middlewareDetailsAfter.latestUpdateBlock == block.number,
             "latestUpdateBlock not updated correctly");
         require(middlewareDetailsAfter.bondedUntil == middlewareDetailsBefore.bondedUntil,
@@ -340,13 +345,19 @@ contract SlasherUnitTests is Test {
         filterFuzzedAddressInputs(operator)
         filterFuzzedAddressInputs(contractAddress)
     {
+        // filter out invalid fuzzed inputs. "cannot provide update for future block"
+        cheats.assume(updateBlock <= block.number);
+
         testRecordFirstStakeUpdate(operator, contractAddress, prevServeUntil);
 
-        uint256 linkedListLengthBefore = slasher.operatorWhitelistedContractsLinkedListSize(operator);
-        ISlasher.MiddlewareDetails memory middlewareDetailsBefore = slasher.whitelistedContractDetails(operator, contractAddress);
+        linkedListLengthBefore = slasher.operatorWhitelistedContractsLinkedListSize(operator);
+        middlewareDetailsBefore = slasher.whitelistedContractDetails(operator, contractAddress);
+
+        // filter out invalid fuzzed inputs. "can't push a previous update"
+        cheats.assume(updateBlock >= middlewareDetailsBefore.latestUpdateBlock);
 
         // fetch the most recent struct
-        uint256 middlewareTimesLengthBefore = slasher.middlewareTimesLength(operator);
+        middlewareTimesLengthBefore = slasher.middlewareTimesLength(operator);
         ISlasher.MiddlewareTimes memory mostRecentMiddlewareTimesStructBefore = slasher.operatorToMiddlewareTimes(operator, middlewareTimesLengthBefore - 1);
 
         cheats.startPrank(contractAddress);
@@ -358,7 +369,7 @@ contract SlasherUnitTests is Test {
         // check that linked list size remained the same appropriately
         require(slasher.operatorWhitelistedContractsLinkedListSize(operator) == linkedListLengthBefore, "linked list length did increased inappropriately");
         // get the linked list entry for the `contractAddress`
-        (bool nodeExists, uint256 prevNode, uint256 nextNode) = slasher.operatorWhitelistedContractsLinkedListEntry(operator, contractAddress);
+        (nodeExists, prevNode, nextNode) = slasher.operatorWhitelistedContractsLinkedListEntry(operator, contractAddress);
         // verify that the node nodeExists
         require(nodeExists, "node does not exist");
 
@@ -372,7 +383,7 @@ contract SlasherUnitTests is Test {
             require(slasher.middlewareTimesLength(operator) == middlewareTimesLengthBefore + 1,
                 "MiddlewareTimes struct not pushed to array");
             require(mostRecentMiddlewareTimesStructAfter.stalestUpdateBlock == updateBlock,
-                "stalestUpdateBlock not updated correctly -- contractAddress is first list enttry");
+                "stalestUpdateBlock not updated correctly -- contractAddress is first list entry");
         // otherwise, we check if the `contractAddress` is the head of the list. If it *is*, then prevNode will be _HEAD, and...
         } else if (prevNode == _HEAD) {
             // if nextNode is _HEAD, then the this indicates that `contractAddress` is actually the only list entry
@@ -388,7 +399,7 @@ contract SlasherUnitTests is Test {
             }
         }
 
-        ISlasher.MiddlewareDetails memory middlewareDetailsAfter = slasher.whitelistedContractDetails(operator, contractAddress);
+        middlewareDetailsAfter = slasher.whitelistedContractDetails(operator, contractAddress);
         require(middlewareDetailsAfter.latestUpdateBlock == updateBlock,
             "latestUpdateBlock not updated correctly");
         require(middlewareDetailsAfter.bondedUntil == middlewareDetailsBefore.bondedUntil,
