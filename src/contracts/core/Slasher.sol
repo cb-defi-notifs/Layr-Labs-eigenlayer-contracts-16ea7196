@@ -53,7 +53,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
      *      )
      *  ]
      */
-    mapping(address => MiddlewareTimes[]) public _operatorToMiddlewareTimes;
+    mapping(address => MiddlewareTimes[]) internal _operatorToMiddlewareTimes;
 
     /// @notice Emitted when a middleware times is added to `operator`'s array.
     event MiddlewareTimesAdded(address operator, uint256 index, uint32 stalestUpdateBlock, uint32 latestServeUntil);
