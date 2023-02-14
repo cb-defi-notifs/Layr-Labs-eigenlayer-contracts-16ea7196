@@ -244,6 +244,9 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         uint64 slot = Endian.fromLittleEndianUint64(proofs.slotRoot);
         uint40 validatorIndex = uint40(Endian.fromLittleEndianUint64(withdrawalFields[BeaconChainProofs.WITHDRAWAL_VALIDATOR_INDEX_INDEX]));
 
+        //check if the withdrawal occured after latestWithdrawalBlockNumber
+        uint64 withdrawalBlockNumber = Endian.fromLittleEndianUint64(proofs.withdrawalBlockNumber);
+        require(withdrawalBlockNumber > latestWithdrawalBlockNumber, "EigenPod.verifyAndCompleteWithdrawal: withdrawal block number must be greater than latest withdrawal block number");
         if (withdrawableEpoch <= slot/BeaconChainProofs.SLOTS_PER_EPOCH) {
             processFullWithdrawal(withdrawalAmountGwei, validatorIndex, beaconChainETHStrategyIndex, recipient);
         }
