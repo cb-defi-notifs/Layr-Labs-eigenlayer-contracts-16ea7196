@@ -114,17 +114,21 @@ interface IEigenPod {
 
     /**
      * @notice This function records a full withdrawal on behalf of one of the Ethereum validators for this EigenPod
-     * @param proof is the information needed to check the veracity of the block number and withdrawal being proven
-     * @param blockNumberRoot is block number at which the withdrawal being proven is claimed to have happened
+     * @param proofs is the information needed to check the veracity of the block number and withdrawal being proven
      * @param withdrawalFields are the fields of the withdrawal being proven
+     * @param validatorFields are the fields of the validator being proven
      * @param beaconChainETHStrategyIndex is the index of the beaconChainETHStrategy for the pod owner for the callback to 
      *                                    the EigenPodManager to the InvestmentManager in case it must be removed from the 
      *                                    podOwner's list of strategies
+     * @param recipient is the address to which the full/partial withdrawal will be sent
      */
-    function verifyBeaconChainFullWithdrawal(
-        BeaconChainProofs.WithdrawalAndBlockNumberProof calldata proof,
-        bytes32 blockNumberRoot,
+
+
+    function verifyAndCompleteWithdrawal(
+        BeaconChainProofs.WithdrawalProofs calldata proofs, 
+        bytes32[] calldata validatorFields,
         bytes32[] calldata withdrawalFields,
-        uint256 beaconChainETHStrategyIndex
+        uint256 beaconChainETHStrategyIndex,
+        address recipient
     ) external;
 }
