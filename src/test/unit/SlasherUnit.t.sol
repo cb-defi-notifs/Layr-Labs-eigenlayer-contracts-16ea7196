@@ -24,6 +24,12 @@ contract SlasherUnitTests is Test {
 
     uint256 private constant HEAD = 0;
 
+    uint256 private constant _NULL = 0;
+    uint256 private constant _HEAD = 0;
+
+    bool private constant _PREV = false;
+    bool private constant _NEXT = true;
+
     uint8 internal constant PAUSED_OPT_INTO_SLASHING = 0;
     uint8 internal constant PAUSED_FIRST_STAKE_UPDATE = 1;
     uint8 internal constant PAUSED_NEW_FREEZING = 2;
@@ -223,39 +229,71 @@ contract SlasherUnitTests is Test {
         cheats.stopPrank();
     }
 
-    function testRecordFirstStateUpdate(address operator, address contractAddress, uint32 serveUntil)
+    function testRecordFirstStakeUpdate(address operator, address contractAddress, uint32 serveUntil)
         public
         filterFuzzedAddressInputs(operator)
         filterFuzzedAddressInputs(contractAddress)
     {
         testOptIntoSlashing(operator, contractAddress);
 
+        uint256 linkedListLengthBefore = slasher.operatorWhitelistedContractsLinkedListSize(operator);
         ISlasher.MiddlewareDetails memory middlewareDetailsBefore = slasher.whitelistedContractDetails(operator, contractAddress);
 
-        ISlasher.MiddlewareTimes memory mostRecentMiddlewareTimesStruct;
+        ISlasher.MiddlewareTimes memory mostRecentMiddlewareTimesStructBefore;
         // fetch the most recent struct, if at least one exists (otherwise leave the struct uninitialized)
         uint256 middlewareTimesLengthBefore = slasher.middlewareTimesLength(operator);
         if (middlewareTimesLengthBefore != 0) {
-            mostRecentMiddlewareTimesStruct = slasher.operatorToMiddlewareTimes(operator, middlewareTimesLengthBefore - 1);
+            mostRecentMiddlewareTimesStructBefore = slasher.operatorToMiddlewareTimes(operator, middlewareTimesLengthBefore - 1);
         }
 
         cheats.startPrank(contractAddress);
         slasher.recordFirstStakeUpdate(operator, serveUntil);
         cheats.stopPrank();
 
-//TODO: add more checks about the MiddlewareTimes struct and/or operatorToMiddlewareTimes array
-        // if this is the first MiddlewareTimes struct in the array OR latestServeUntil will be increased OR...
-        if (middlewareTimesLengthBefore == 0 || serveUntil > mostRecentMiddlewareTimesStruct.latestServeUntil) {
+        ISlasher.MiddlewareTimes memory mostRecentMiddlewareTimesStructAfter = slasher.operatorToMiddlewareTimes(operator, slasher.middlewareTimesLength(operator) - 1);
+
+        // check that linked list size increased appropriately
+        require(slasher.operatorWhitelistedContractsLinkedListSize(operator) == linkedListLengthBefore + 1, "linked list length did not increase when it should!");
+        // get the linked list entry for the `contractAddress`
+        (bool nodeExists, uint256 prevNode, uint256 nextNode) = slasher.operatorWhitelistedContractsLinkedListEntry(operator, contractAddress);
+        // verify that the node nodeExists
+        require(nodeExists, "node does not exist");
+
+        // if the `serveUntil` time is greater than the previous maximum, then an update must have been pushed and the `latestServeUntil` must be equal to the `serveUntil` input
+        if (serveUntil > mostRecentMiddlewareTimesStructBefore.latestServeUntil) {
             require(slasher.middlewareTimesLength(operator) == middlewareTimesLengthBefore + 1, "MiddlewareTimes struct not pushed to array");
+            require(mostRecentMiddlewareTimesStructAfter.latestServeUntil == serveUntil, "latestServeUntil not updated correctly");
+        }
+        // if this is the first MiddlewareTimes struct in the array, then an update must have been pushed and the `stalestUpdateBlock` *must* be equal to the current block
+        if (middlewareTimesLengthBefore == 0) {
+            require(slasher.middlewareTimesLength(operator) == middlewareTimesLengthBefore + 1,
+                "MiddlewareTimes struct not pushed to array");
+            require(mostRecentMiddlewareTimesStructAfter.stalestUpdateBlock == block.number,
+                "stalestUpdateBlock not updated correctly -- contractAddress is first list enttry");
+        // otherwise, we check if the `contractAddress` is the head of the list. If it *is*, then...
+        } else if (prevNode == _HEAD) {
+            // if nextNode is _HEAD, then the this indicates that `contractAddress` is actually the only list entry
+            if (nextNode != _HEAD) {
+                // if nextNode is not the only list entry, then `latestUpdateBlock` should update to a more recent time (if applicable!)
+                uint32 nextMiddlewaresLeastRecentUpdateBlock = slasher.whitelistedContractDetails(operator, _uintToAddress(nextNode)).latestUpdateBlock;
+                uint32 newValue = (nextMiddlewaresLeastRecentUpdateBlock < block.number) ? nextMiddlewaresLeastRecentUpdateBlock: uint32(block.number);
+                require(mostRecentMiddlewareTimesStructAfter.stalestUpdateBlock == newValue,
+                    "stalestUpdateBlock not updated correctly -- should have updated to newValue");                
+            } else {
+                require(mostRecentMiddlewareTimesStructAfter.stalestUpdateBlock == block.number,
+                    "stalestUpdateBlock not updated correctly -- contractAddress is only list entry");
+            }
         }
 
         ISlasher.MiddlewareDetails memory middlewareDetailsAfter = slasher.whitelistedContractDetails(operator, contractAddress);
-        require(middlewareDetailsAfter.latestUpdateBlock == block.number, "latestUpdateBlock not updated correctly");
-        require(middlewareDetailsAfter.bondedUntil == middlewareDetailsBefore.bondedUntil, "bondedUntil changed unexpectedly");
+        require(middlewareDetailsAfter.latestUpdateBlock == block.number,
+            "latestUpdateBlock not updated correctly");
+        require(middlewareDetailsAfter.bondedUntil == middlewareDetailsBefore.bondedUntil,
+            "bondedUntil changed unexpectedly");
 
     }
 
-    function testRecordFirstStateUpdate_RevertsWhenPaused() external {
+    function testRecordFirstStakeUpdate_RevertsWhenPaused() external {
         address operator = address(this);
         address contractAddress = address(this);
         uint32 serveUntil = 0;
@@ -272,7 +310,7 @@ contract SlasherUnitTests is Test {
         cheats.stopPrank();
     }
 
-    function testRecordFirstStateUpdate_RevertsWhenCallerDoesntHaveSlashingPermission() external {
+    function testRecordFirstStakeUpdate_RevertsWhenCallerDoesntHaveSlashingPermission() external {
         address operator = address(this);
         address contractAddress = address(this);
         uint32 serveUntil = 0;
@@ -285,12 +323,12 @@ contract SlasherUnitTests is Test {
         cheats.stopPrank();
     }
 
-    function testRecordFirstStateUpdate_RevertsWhenCallerAlreadyInList() external {
+    function testRecordFirstStakeUpdate_RevertsWhenCallerAlreadyInList() external {
         address operator = address(this);
         address contractAddress = address(this);
         uint32 serveUntil = 0;
 
-        testRecordFirstStateUpdate(operator, contractAddress, serveUntil);
+        testRecordFirstStakeUpdate(operator, contractAddress, serveUntil);
 
         cheats.startPrank(contractAddress);
         cheats.expectRevert(bytes("Slasher.recordFirstStakeUpdate: Appending middleware unsuccessful"));
@@ -312,5 +350,14 @@ contract SlasherUnitTests is Test {
         filterFuzzedAddressInputs(contractAddress)
     {
         // TODO: write this test
+    }
+
+
+    function _addressToUint(address addr) internal pure returns(uint256) {
+        return uint256(uint160(addr));
+    }
+
+    function _uintToAddress(uint256 x) internal pure returns(address) {
+        return address(uint160(x));
     }
 }
