@@ -68,5 +68,9 @@ contract SlasherMock is ISlasher, Test {
     /// @notice Getter function for fetching `operatorToMiddlewareTimes[operator][index].latestServeUntil`.
     function getMiddlewareTimesIndexServeUntil(address operator, uint32 index) external view returns(uint32){}
 
+    /// @notice Getter function for fetching `_operatorToWhitelistedContractsByUpdate[operator].size`.
+    function operatorWhitelistedContractsLinkedListSize(address operator) external view returns (uint256) {}
 
+    /// @notice Getter function for fetching a single node in the operator's linked list (`_operatorToWhitelistedContractsByUpdate[operator]`).
+    function operatorWhitelistedContractsLinkedListEntry(address operator, address node) external view returns (bool, uint256, uint256) {}
 }
