@@ -45,6 +45,9 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
     /// @notice Escrow contract used for payment routing, to provide an extra "safety net"
     IEigenPodPaymentEscrow immutable public eigenPodPaymentEscrow;
 
+    /// @notice The most recent block number at which a withdrawal was processed
+    uint64 public latestWithdrawalBlockNumber;
+
     /// @notice The length, in blocks, of the fraudproof period following a claim on the amount of partial withdrawals in an EigenPod
     uint32 immutable public PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS;
 

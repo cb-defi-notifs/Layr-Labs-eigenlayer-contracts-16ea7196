@@ -178,7 +178,9 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
         bytes32 beaconStateRoot = getBeaconStateRoot();
         bytes32 blockHeaderRoot = getBlockHeaderRoot();
         bytes32 blockBodyRoot = getBlockBodyRoot();
-        bytes32 slotRoot = getSlotRoot();
+        slotRoot = getSlotRoot();
+        blockNumberRoot = getBlockNumberRoot();
+        executionPayloadRoot = getExecutionPayloadRoot();
 
         uint256 validatorIndex = getValidatorIndex(); 
 
@@ -189,6 +191,8 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
         withdrawalProof = getWithdrawalProof();
         slotProof = getSlotProof();
         validatorProof = getValidatorProof();
+        executionPayloadProof = getExecutionPayloadProof();
+        blockNumberProof = getBlockNumberProof();
 
         withdrawalFields = getWithdrawalFields();   
         validatorFields = getValidatorFields();
@@ -199,12 +203,16 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
             abi.encodePacked(withdrawalProof),
             abi.encodePacked(slotProof),
             abi.encodePacked(validatorProof),
+            abi.encodePacked(executionPayloadProof),
+            abi.encodePacked(blockNumberProof),
             uint16(blockHeaderRootIndex),
             uint8(withdrawalIndex),
             uint8(validatorIndex),
             blockHeaderRoot,
             blockBodyRoot,
-            slotRoot
+            slotRoot,
+            blockNumberRoot,
+            executionPayloadRoot
         );
 
         Relayer relay = new Relayer();

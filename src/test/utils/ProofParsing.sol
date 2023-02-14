@@ -19,6 +19,13 @@ contract ProofParsing is Test{
     bytes32[] withdrawalFields;
     bytes32[] validatorFields;
 
+    bytes32[] executionPayloadProof;
+    bytes32[] blockNumberProofs;
+
+    bytes32 slotRoot;
+    bytes32 executionPayloadRoot;
+    bytes32 blockNumberRoots;
+
     constructor() {
         proofConfigJson = vm.readFile("./src/test/test-data/proofs.json");
     }
@@ -55,6 +62,29 @@ contract ProofParsing is Test{
         return stdJson.readBytes32(proofConfigJson, ".slotRoot");
     }
 
+    function getBlockNumberRoot() public returns(bytes32){
+        return stdJson.readBytes32(proofConfigJson, ".blockNumberRoot");
+    }
+
+    function getExecutionPayloadRoot() public returns(bytes32){
+        return stdJson.readBytes32(proofConfigJson, ".executionPayloadRoot");
+    }
+    function getExecutionPayloadProof () public returns(bytes32[] memory){
+        for (uint i = 0; i < 7; i++) {
+            prefix = string.concat(".ExecutionPayloadProof[", string.concat(vm.toString(i), "]"));
+            executionPayloadProof.push(stdJson.readBytes32(proofConfigJson, prefix)); 
+        }
+        return executionPayloadProof;
+    }
+
+    function getBlockNumberProof () public returns(bytes32[] memory){
+        for (uint i = 0; i < 4; i++) {
+            prefix = string.concat(".BlockNumberProof[", string.concat(vm.toString(i), "]"));
+            blockNumberProofs.push(stdJson.readBytes32(proofConfigJson, prefix)); 
+        }
+        return blockNumberProofs;
+    }
+
     function getBlockHeaderProof() public returns(bytes32[] memory){
         for (uint i = 0; i < 18; i++) {
             prefix = string.concat(".BlockHeaderProof[", string.concat(vm.toString(i), "]"));
@@ -72,7 +102,7 @@ contract ProofParsing is Test{
     }
 
     function getWithdrawalProof() public returns(bytes32[] memory){
-        for (uint i = 0; i < 16; i++) {
+        for (uint i = 0; i < 9; i++) {
             prefix = string.concat(".WithdrawalProof[", string.concat(vm.toString(i), "]"));
             withdrawalProof.push(stdJson.readBytes32(proofConfigJson, prefix)); 
         }
