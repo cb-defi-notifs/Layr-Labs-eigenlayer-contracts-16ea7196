@@ -105,17 +105,17 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
     }
 
     /**
-     * @notice Called by the whitelister to transfer its role to another address 
+     * @notice Called by the service manager owner to transfer the whitelister role to another address 
      */
-    function transferWhitelister(address _whitelister) external onlyWhitelister {
+    function setWhitelister(address _whitelister) external onlyServiceManagerOwner {
         _setWhitelister(_whitelister);
     }
 
     /**
-     * @notice Called by the whitelister, this function toggles the whitelist on or off
+     * @notice Callable only by the service manager owner, this function toggles the whitelist on or off
      * @param _whitelistEnabled true if turning whitelist on, false otherwise
      */
-    function setWhitelistStatus(bool _whitelistEnabled) external onlyWhitelister {
+    function setWhitelistStatus(bool _whitelistEnabled) external onlyServiceManagerOwner {
         whitelistEnabled = _whitelistEnabled;
     }
 
