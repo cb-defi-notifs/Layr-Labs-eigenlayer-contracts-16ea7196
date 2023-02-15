@@ -228,6 +228,9 @@ library BeaconChainProofs {
         uint256 executionPayloadIndex = BODY_ROOT_INDEX << (BEACON_BLOCK_BODY_FIELD_TREE_HEIGHT)| EXECUTION_PAYLOAD_INDEX ;
         require(Merkle.verifyInclusionSha256(proofs.executionPayloadProof, proofs.blockHeaderRoot, proofs.executionPayloadRoot, executionPayloadIndex), "BeaconChainProofs.verifySlotAndWithdrawalFields: Invalid executionPayload merkle proof");
 
+        // Next we verify the blockNumber against the executionPayload root
+        uint256 blockNumberIndex = uint256(BLOCK_NUMBER_INDEX);
+        require(Merkle.verifyInclusionSha256(proofs.blockNumberProof, proofs.executionPayloadRoot, proofs.blockNumberRoot, blockNumberIndex);)
 
         //Next we verify the withdrawal fields against the blockHeaderRoot
         //This computes the withdrawal_index relative to the blockHeaderRoot.  It concatenates the indexes of all the 
