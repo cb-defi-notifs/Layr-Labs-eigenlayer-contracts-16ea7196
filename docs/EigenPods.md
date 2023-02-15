@@ -34,7 +34,7 @@ After staking an Etherum validator with its withdrawal credentials pointed to th
 
 If a Ethereum validator restaked on an EigenPod has a balance that falls below `REQUIRED_BALANCE_WEI`, then they are overcommitted to EigenLayer, meaning they have less stake on the beacon chain than they have restaked Eigenlayer. Any watcher can prove to EigenPods that the EigenPod has a validator that is in such a state. If proof verification and other checks succeed, then `REQUIRED_BALANCE_WEI` will be immediately decremented from the EigenPod owner's (the staker's) shares in the InvestmentManager. This overcommitment imposes a negative externality on middlewares that the staker is securing, since the middlewares a suffer sudden downgrade in security as part of the process.
 
-### Proofs of Full Withdrawals
+### Proofs of Full/Partial Withdrawals
 
 Whenever a staker withdraws one of their validators from the beacon chain to provide liquidity, they have a few options. Stakers could keep the ETH in the EigenPod and continue staking on EigenLayer, in which case their ETH, when withdrawn to the EigenPod, will not earn any additional Ethereum staking yield, it will only earn their EigenLayer staking yield. Stakers could also queue withdrawals on EigenLayer for the virtual beacon chain ETH strategy which will be fullfilled once their staking obligations have ended and their EigenPod has enough balance to complete the withdrawal.
 
