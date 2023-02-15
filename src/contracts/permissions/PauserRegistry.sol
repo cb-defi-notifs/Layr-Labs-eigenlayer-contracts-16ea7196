@@ -18,11 +18,6 @@ contract PauserRegistry is IPauserRegistry {
 
     event UnpauserChanged(address previousUnpauser, address newUnpauser);
 
-    modifier onlyPauser() {
-        require(msg.sender == pauser, "msg.sender is not permissioned as pauser");
-        _;
-    }
-
     modifier onlyUnpauser() {
         require(msg.sender == unpauser, "msg.sender is not permissioned as unpauser");
         _;
