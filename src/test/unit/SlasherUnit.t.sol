@@ -167,6 +167,11 @@ contract SlasherUnitTests is Test {
         require(slasher.isFrozen(toBeFrozen), "operator not properly frozen");
     }
 
+    function testFreezeOperatorTwice(address toBeFrozen, address freezingContract) public {
+        testFreezeOperator(toBeFrozen, freezingContract);
+        testFreezeOperator(toBeFrozen, freezingContract);
+    }
+
     function testFreezeOperator_RevertsWhenPaused(address toBeFrozen, address freezingContract) external
         filterFuzzedAddressInputs(toBeFrozen)
         filterFuzzedAddressInputs(freezingContract)
@@ -279,6 +284,8 @@ contract SlasherUnitTests is Test {
         if (serveUntil > mostRecentMiddlewareTimesStructBefore.latestServeUntil) {
             require(slasher.middlewareTimesLength(operator) == middlewareTimesLengthBefore + 1, "MiddlewareTimes struct not pushed to array");
             require(mostRecentMiddlewareTimesStructAfter.latestServeUntil == serveUntil, "latestServeUntil not updated correctly");
+        } else {
+            require(mostRecentMiddlewareTimesStructAfter.latestServeUntil  == mostRecentMiddlewareTimesStructBefore.latestServeUntil, "latestServeUntil updated incorrectly");
         }
         // if this is the first MiddlewareTimes struct in the array, then an update must have been pushed and the `stalestUpdateBlock` *must* be equal to the current block
         if (middlewareTimesLengthBefore == 0) {
@@ -412,6 +419,8 @@ contract SlasherUnitTests is Test {
         if (serveUntil > mostRecentMiddlewareTimesStructBefore.latestServeUntil) {
             require(slasher.middlewareTimesLength(operator) == middlewareTimesLengthBefore + 1, "MiddlewareTimes struct not pushed to array");
             require(mostRecentMiddlewareTimesStructAfter.latestServeUntil == serveUntil, "latestServeUntil not updated correctly");
+        } else {
+            require(mostRecentMiddlewareTimesStructAfter.latestServeUntil  == mostRecentMiddlewareTimesStructBefore.latestServeUntil, "latestServeUntil updated incorrectly");
         }
         // if this is the first MiddlewareTimes struct in the array, then an update must have been pushed and the `stalestUpdateBlock` *must* be equal to the current block
         if (middlewareTimesLengthBefore == 0) {
@@ -595,6 +604,8 @@ contract SlasherUnitTests is Test {
         if (serveUntil > mostRecentMiddlewareTimesStructBefore.latestServeUntil) {
             require(slasher.middlewareTimesLength(operator) == middlewareTimesLengthBefore + 1, "MiddlewareTimes struct not pushed to array");
             require(mostRecentMiddlewareTimesStructAfter.latestServeUntil == serveUntil, "latestServeUntil not updated correctly");
+        } else {
+            require(mostRecentMiddlewareTimesStructAfter.latestServeUntil  == mostRecentMiddlewareTimesStructBefore.latestServeUntil, "latestServeUntil updated incorrectly");
         }
         // if this is the first MiddlewareTimes struct in the array, then an update must have been pushed and the `stalestUpdateBlock` *must* be equal to the current block
         if (middlewareTimesLengthBefore == 0) {
