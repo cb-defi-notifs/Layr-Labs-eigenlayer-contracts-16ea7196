@@ -80,9 +80,10 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
         _disableInitializers();
     }
 
-    /// @notice Ensures that the caller is allowed to slash the operator.
-    modifier onlyCanSlash(address operator) {
-        require(canSlash(operator, msg.sender), "Slasher.onlyCanSlash: only slashing contracts");
+    /// @notice Ensures that the operator has opted into slashing by the caller, and that the caller has never revoked its slashing ability.
+    modifier onlyRegisteredForService(address operator) {
+        require(_whitelistedContractDetails[operator][msg.sender].bondedUntil == MAX_BONDED_UNTIL,
+            "Slasher.onlyRegisteredForService: Operator has not opted into slashing by caller");
         _;
     }
 
@@ -141,9 +142,8 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
     function recordFirstStakeUpdate(address operator, uint32 serveUntil) 
         external 
         onlyWhenNotPaused(PAUSED_FIRST_STAKE_UPDATE)
-        onlyCanSlash(operator) 
+        onlyRegisteredForService(operator)
     {
-
         // update the 'stalest' stakes update time + latest 'serveUntil' time of the `operator`
         _recordUpdateAndAddToMiddlewareTimes(operator, uint32(block.number), serveUntil);
 
@@ -164,7 +164,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
      */
     function recordStakeUpdate(address operator, uint32 updateBlock, uint32 serveUntil, uint256 insertAfter) 
         external 
-        onlyCanSlash(operator) 
+        onlyRegisteredForService(operator) 
     {
         // sanity check on input
         require(updateBlock <= block.number, "Slasher.recordStakeUpdate: cannot provide update for future block");
@@ -196,7 +196,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
      * @dev removes the middleware's slashing contract to the operator's linked list and revokes the middleware's (i.e. caller's) ability to
      * slash `operator` once `serveUntil` is reached
      */
-    function recordLastStakeUpdateAndRevokeSlashingAbility(address operator, uint32 serveUntil) external onlyCanSlash(operator) {
+    function recordLastStakeUpdateAndRevokeSlashingAbility(address operator, uint32 serveUntil) external onlyRegisteredForService(operator) {
         // update the 'stalest' stakes update time + latest 'serveUntil' time of the `operator`
         _recordUpdateAndAddToMiddlewareTimes(operator, uint32(block.number), serveUntil);
         // remove the middleware from the list
@@ -220,7 +220,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
 
     /*
     * @notice Returns `_whitelistedContractDetails[operator][serviceContract]`.
-    * @dev A getter function like this appears to be necessary for returning a struct from storage
+    * @dev A getter function like this appears to be necessary for returning a struct from storage in struct form, rather than as a tuple.
     */
     function whitelistedContractDetails(address operator, address serviceContract) external view returns (MiddlewareDetails memory) {
         return _whitelistedContractDetails[operator][serviceContract];
@@ -366,11 +366,10 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
     }
 
     function _revokeSlashingAbility(address operator, address contractAddress, uint32 serveUntil) internal {
-        if (_whitelistedContractDetails[operator][contractAddress].bondedUntil == MAX_BONDED_UNTIL) {
-            // contractAddress can now only slash operator before `serveUntil`
-            _whitelistedContractDetails[operator][contractAddress].bondedUntil = serveUntil;
-            emit SlashingAbilityRevoked(operator, contractAddress, serveUntil);
-        }
+        require(serveUntil != MAX_BONDED_UNTIL, "Slasher._revokeSlashingAbility: serveUntil time must be limited");
+        // contractAddress can now only slash operator before `serveUntil`
+        _whitelistedContractDetails[operator][contractAddress].bondedUntil = serveUntil;
+        emit SlashingAbilityRevoked(operator, contractAddress, serveUntil);
     }
 
     function _freezeOperator(address toBeFrozen, address slashingContract) internal {

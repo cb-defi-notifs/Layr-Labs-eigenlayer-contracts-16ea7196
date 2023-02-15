@@ -241,6 +241,15 @@ contract SlasherUnitTests is Test {
         filterFuzzedAddressInputs(contractAddress)
     {
         testOptIntoSlashing(operator, contractAddress);
+        _testRecordFirstStakeUpdate(operator, contractAddress, serveUntil);
+    }
+
+    // internal function corresponding to the bulk of the logic in `testRecordFirstStakeUpdate`, so we can reuse it elsewhere without calling `testOptIntoSlashing`
+    function _testRecordFirstStakeUpdate(address operator, address contractAddress, uint32 serveUntil)
+        internal
+        filterFuzzedAddressInputs(operator)
+        filterFuzzedAddressInputs(contractAddress)
+    {
 
         linkedListLengthBefore = slasher.operatorWhitelistedContractsLinkedListSize(operator);
         middlewareDetailsBefore = slasher.whitelistedContractDetails(operator, contractAddress);
@@ -326,7 +335,7 @@ contract SlasherUnitTests is Test {
         require(!slasher.canSlash(operator, contractAddress), "improper slashing permission has been given");
 
         cheats.startPrank(contractAddress);
-        cheats.expectRevert(bytes("Slasher.onlyCanSlash: only slashing contracts"));
+        cheats.expectRevert(bytes("Slasher.onlyRegisteredForService: Operator has not opted into slashing by caller"));
         slasher.recordFirstStakeUpdate(operator, serveUntil);
         cheats.stopPrank();
     }
@@ -356,10 +365,24 @@ contract SlasherUnitTests is Test {
         filterFuzzedAddressInputs(operator)
         filterFuzzedAddressInputs(contractAddress)
     {
+        testRecordFirstStakeUpdate(operator, contractAddress, prevServeUntil);
+        _testRecordStakeUpdate(operator, contractAddress, updateBlock, serveUntil, insertAfter);
+    }
+
+    // internal function corresponding to the bulk of the logic in `testRecordStakeUpdate`, so we can reuse it elsewhere without calling `testOptIntoSlashing`
+    function _testRecordStakeUpdate(
+        address operator,
+        address contractAddress,
+        uint32 updateBlock,
+        uint32 serveUntil,
+        uint256 insertAfter
+    )
+        internal
+        filterFuzzedAddressInputs(operator)
+        filterFuzzedAddressInputs(contractAddress)
+    {
         // filter out invalid fuzzed inputs. "cannot provide update for future block"
         cheats.assume(updateBlock <= block.number);
-
-        testRecordFirstStakeUpdate(operator, contractAddress, prevServeUntil);
 
         linkedListLengthBefore = slasher.operatorWhitelistedContractsLinkedListSize(operator);
         middlewareDetailsBefore = slasher.whitelistedContractDetails(operator, contractAddress);
@@ -494,7 +517,7 @@ contract SlasherUnitTests is Test {
         filterFuzzedAddressInputs(contractAddress)
     {
         uint32 updateBlock = 0;
-        cheats.expectRevert(bytes("Slasher.onlyCanSlash: only slashing contracts"));
+        cheats.expectRevert(bytes("Slasher.onlyRegisteredForService: Operator has not opted into slashing by caller"));
         cheats.startPrank(contractAddress);
         slasher.recordStakeUpdate(operator, updateBlock, serveUntil, insertAfter);
         cheats.stopPrank();
@@ -536,6 +559,9 @@ contract SlasherUnitTests is Test {
         filterFuzzedAddressInputs(operator)
         filterFuzzedAddressInputs(contractAddress)
     {
+        // filter out setting the `serveUntil` time to the MAX, since the contract will revert in this instance.
+        cheats.assume(serveUntil != MAX_BONDED_UNTIL);
+
         testRecordStakeUpdate_MultipleLinkedListEntries(operator, contractAddress, prevServeUntil, updateBlock, serveUntil, insertAfter);
 
         linkedListLengthBefore = slasher.operatorWhitelistedContractsLinkedListSize(operator);
@@ -607,7 +633,10 @@ contract SlasherUnitTests is Test {
         filterFuzzedAddressInputs(operator)
         filterFuzzedAddressInputs(contractAddress)
     {
-        cheats.expectRevert(bytes("Slasher.onlyCanSlash: only slashing contracts"));
+        // filter out setting the `serveUntil` time to the MAX, since the contract will revert in this instance.
+        cheats.assume(serveUntil != MAX_BONDED_UNTIL);
+
+        cheats.expectRevert(bytes("Slasher.onlyRegisteredForService: Operator has not opted into slashing by caller"));
         cheats.startPrank(contractAddress);
         slasher.recordLastStakeUpdateAndRevokeSlashingAbility(operator, serveUntil);
         cheats.stopPrank();
@@ -622,12 +651,38 @@ contract SlasherUnitTests is Test {
         filterFuzzedAddressInputs(operator)
         filterFuzzedAddressInputs(contractAddress)
     {
-        uint32 updateBlock = 0;
+        // filter out setting the `serveUntil` time to the MAX, since the contract will revert in this instance.
+        cheats.assume(serveUntil != MAX_BONDED_UNTIL);
 
         testOptIntoSlashing(operator, contractAddress);
 
         cheats.expectRevert(bytes("Slasher.recordLastStakeUpdateAndRevokeSlashingAbility: Removing middleware unsuccessful"));
         cheats.startPrank(contractAddress);
+        slasher.recordLastStakeUpdateAndRevokeSlashingAbility(operator, serveUntil);
+        cheats.stopPrank();
+    }
+
+    function testRecordLastStakeUpdateAndRevokeSlashingAbility_RevertsWhenServeUntilInputIsMax(
+        address operator,
+        address contractAddress,
+        uint32 prevServeUntil,
+        uint32 updateBlock,
+        uint256 insertAfter
+    )
+        public
+        filterFuzzedAddressInputs(operator)
+        filterFuzzedAddressInputs(contractAddress)
+    {
+        uint32 serveUntil = MAX_BONDED_UNTIL;
+
+        testOptIntoSlashing(operator, contractAddress);
+
+        _testRecordFirstStakeUpdate(operator, contractAddress, prevServeUntil);
+        _testRecordStakeUpdate(operator, contractAddress, updateBlock, prevServeUntil, insertAfter);
+
+        // perform the last stake update and revoke slashing ability, from the `contractAddress`
+        cheats.startPrank(contractAddress);
+        cheats.expectRevert(bytes("Slasher._revokeSlashingAbility: serveUntil time must be limited"));
         slasher.recordLastStakeUpdateAndRevokeSlashingAbility(operator, serveUntil);
         cheats.stopPrank();
     }
