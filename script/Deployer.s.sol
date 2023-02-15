@@ -222,6 +222,11 @@ contract EigenLayerDeployer is Script, Owners {
             )
         );
 
+        IInvestmentStrategy[] memory strategies = new IInvestmentStrategy[](2);
+        strategies[0] = wethStrat;
+        strategies[1] = eigenStrat;
+        investmentManager.addStrategiesToDepositWhitelist(strategies);
+
         verifyContract(delegationImplementation, investmentManagerImplementation, slasherImplementation, eigenPodManagerImplementation);
         verifyContract(delegation, investmentManager, slasher, eigenPodManager);
         verifyOwners();
