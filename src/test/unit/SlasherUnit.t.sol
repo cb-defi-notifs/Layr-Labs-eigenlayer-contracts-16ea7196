@@ -476,6 +476,47 @@ contract SlasherUnitTests is Test {
         cheats.stopPrank();
     }
 
+    function testRecordStakeUpdate_RevertsWhenCallerCannotSlash(
+        address operator,
+        address contractAddress,
+        uint32 serveUntil,
+        uint256 insertAfter
+    )
+        public
+        filterFuzzedAddressInputs(operator)
+        filterFuzzedAddressInputs(contractAddress)
+    {
+        uint32 updateBlock = 0;
+        cheats.expectRevert(bytes("Slasher.onlyCanSlash: only slashing contracts"));
+        cheats.startPrank(contractAddress);
+        slasher.recordStakeUpdate(operator, updateBlock, serveUntil, insertAfter);
+        cheats.stopPrank();
+    }
+
+
+    function testRecordStakeUpdate_RevertsWhenUpdateBlockInFuture(
+        address operator,
+        address contractAddress,
+        uint32 prevServeUntil,
+        uint32 updateBlock,
+        uint32 serveUntil,
+        uint256 insertAfter
+    )
+        public
+        filterFuzzedAddressInputs(operator)
+        filterFuzzedAddressInputs(contractAddress)
+    {
+        // filter to appropriate fuzzed inputs (appropriate for causing reverts!)
+        cheats.assume(updateBlock > block.number);
+
+        testRecordFirstStakeUpdate(operator, contractAddress, prevServeUntil);
+
+        cheats.expectRevert(bytes("Slasher.recordStakeUpdate: cannot provide update for future block"));
+        cheats.startPrank(contractAddress);
+        slasher.recordStakeUpdate(operator, updateBlock, serveUntil, insertAfter);
+        cheats.stopPrank();
+    }
+
     function testRecordLastStakeUpdateAndRevokeSlashingAbility(address operator, address contractAddress, uint32 serveUntil)
         public
         filterFuzzedAddressInputs(operator)
