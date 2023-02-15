@@ -184,7 +184,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
         // if there is precisely one middleware in the list, then ensure that the caller is indeed the singular list entrant
         } else {
             require(_operatorToWhitelistedContractsByUpdate[operator].getHead() == _addressToUint(msg.sender),
-                "Slasher.recordStakeUpdate: Callter is not the list entrant");
+                "Slasher.recordStakeUpdate: Caller is not the list entrant");
         }
     }
 

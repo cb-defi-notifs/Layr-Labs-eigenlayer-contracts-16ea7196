@@ -340,7 +340,14 @@ contract SlasherUnitTests is Test {
         cheats.stopPrank();
     }
 
-    function testRecordStakeUpdate(address operator, address contractAddress, uint32 prevServeUntil, uint32 updateBlock, uint32 serveUntil, uint256 insertAfter)
+    function testRecordStakeUpdate(
+        address operator,
+        address contractAddress,
+        uint32 prevServeUntil,
+        uint32 updateBlock,
+        uint32 serveUntil,
+        uint256 insertAfter
+    )
         public
         filterFuzzedAddressInputs(operator)
         filterFuzzedAddressInputs(contractAddress)
@@ -404,6 +411,69 @@ contract SlasherUnitTests is Test {
             "latestUpdateBlock not updated correctly");
         require(middlewareDetailsAfter.bondedUntil == middlewareDetailsBefore.bondedUntil,
             "bondedUntil changed unexpectedly");
+    }
+
+    function testRecordStakeUpdate_MultipleLinkedListEntries(
+        address operator,
+        address contractAddress,
+        uint32 prevServeUntil,
+        uint32 updateBlock,
+        uint32 serveUntil,
+        uint256 insertAfter
+    )
+        public
+        filterFuzzedAddressInputs(operator)
+        filterFuzzedAddressInputs(contractAddress)
+    {
+        address _contractAddress = address(this);
+        cheats.assume(contractAddress != _contractAddress);
+        testRecordFirstStakeUpdate(operator, _contractAddress, prevServeUntil);
+        testRecordStakeUpdate(operator, contractAddress, prevServeUntil, updateBlock, serveUntil, insertAfter);
+    }
+
+    function testRecordStakeUpdate_RevertsWhenCallerNotAlreadyInList(
+        address operator,
+        address contractAddress,
+        uint32 serveUntil,
+        uint256 insertAfter
+    )
+        public
+        filterFuzzedAddressInputs(operator)
+        filterFuzzedAddressInputs(contractAddress)
+    {
+        uint32 updateBlock = 0;
+
+        testOptIntoSlashing(operator, contractAddress);
+
+        cheats.expectRevert(bytes("Slasher.recordStakeUpdate: Removing middleware unsuccessful"));
+        cheats.startPrank(contractAddress);
+        slasher.recordStakeUpdate(operator, updateBlock, serveUntil, insertAfter);
+        cheats.stopPrank();
+    }
+
+    function testRecordStakeUpdate_RevertsWhenCallerNotAlreadyInList_MultipleLinkedListEntries(
+        address operator,
+        address contractAddress,
+        uint32 prevServeUntil,
+        uint32 serveUntil,
+        uint256 insertAfter
+    )
+        public
+        filterFuzzedAddressInputs(operator)
+        filterFuzzedAddressInputs(contractAddress)
+    {
+        address _contractAddress = address(this);
+        uint32 updateBlock = 0;
+
+        cheats.assume(contractAddress != _contractAddress);
+
+        testRecordFirstStakeUpdate(operator, _contractAddress, prevServeUntil);
+        testOptIntoSlashing(operator, contractAddress);
+
+        cheats.expectRevert(bytes("Slasher.recordStakeUpdate: Caller is not the list entrant"));
+        cheats.startPrank(contractAddress);
+        slasher.recordStakeUpdate(operator, updateBlock, serveUntil, insertAfter);
+        cheats.stopPrank();
     }
 
     function testRecordLastStakeUpdateAndRevokeSlashingAbility(address operator, address contractAddress, uint32 serveUntil)
