@@ -46,7 +46,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
     IEigenPodPaymentEscrow immutable public eigenPodPaymentEscrow;
 
     /// @notice The most recent block number at which a withdrawal was processed
-    uint64 public latestWithdrawalBlockNumber;
+    uint64 public latestWithdrawalBlock;
 
     /// @notice The length, in blocks, of the fraudproof period following a claim on the amount of partial withdrawals in an EigenPod
     uint32 immutable public PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS;
@@ -244,9 +244,9 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         uint64 slot = Endian.fromLittleEndianUint64(proofs.slotRoot);
         uint40 validatorIndex = uint40(Endian.fromLittleEndianUint64(withdrawalFields[BeaconChainProofs.WITHDRAWAL_VALIDATOR_INDEX_INDEX]));
 
-        //check if the withdrawal occured after latestWithdrawalBlockNumber
+        //check if the withdrawal occured after latestWithdrawalBlock
         uint64 withdrawalBlockNumber = Endian.fromLittleEndianUint64(proofs.blockNumberRoot);
-        require(withdrawalBlockNumber > latestWithdrawalBlockNumber, "EigenPod.verifyAndCompleteWithdrawal: withdrawal block number must be greater than latest withdrawal block number");
+        require(withdrawalBlockNumber > latestWithdrawalBlock, "EigenPod.verifyAndCompleteWithdrawal: attempting to withdraw a previously claimed withdrawal");
         if (withdrawableEpoch <= slot/BeaconChainProofs.SLOTS_PER_EPOCH) {
             processFullWithdrawal(withdrawalAmountGwei, validatorIndex, beaconChainETHStrategyIndex, recipient);
         }
