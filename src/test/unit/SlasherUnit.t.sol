@@ -68,6 +68,7 @@ contract SlasherUnitTests is Test {
     uint256[] public emptyUintArray;
 
     // used as transient storage to fix stack-too-deep errors
+    uint32 bondedUntilBefore;
     uint256 linkedListLengthBefore;
     uint256 middlewareTimesLengthBefore;
     bool nodeExists;
@@ -243,6 +244,7 @@ contract SlasherUnitTests is Test {
 
         linkedListLengthBefore = slasher.operatorWhitelistedContractsLinkedListSize(operator);
         middlewareDetailsBefore = slasher.whitelistedContractDetails(operator, contractAddress);
+        bondedUntilBefore = slasher.bondedUntil(operator, contractAddress);
 
         ISlasher.MiddlewareTimes memory mostRecentMiddlewareTimesStructBefore;
         // fetch the most recent struct, if at least one exists (otherwise leave the struct uninitialized)
@@ -295,6 +297,8 @@ contract SlasherUnitTests is Test {
             "latestUpdateBlock not updated correctly");
         require(middlewareDetailsAfter.bondedUntil == middlewareDetailsBefore.bondedUntil,
             "bondedUntil changed unexpectedly");
+        // check that `bondedUntil` did not change
+        require(slasher.bondedUntil(operator, contractAddress) == bondedUntilBefore, "bondedUntil changed unexpectedly");
     }
 
     function testRecordFirstStakeUpdate_RevertsWhenPaused() external {
@@ -359,6 +363,7 @@ contract SlasherUnitTests is Test {
 
         linkedListLengthBefore = slasher.operatorWhitelistedContractsLinkedListSize(operator);
         middlewareDetailsBefore = slasher.whitelistedContractDetails(operator, contractAddress);
+        bondedUntilBefore = slasher.bondedUntil(operator, contractAddress);
 
         // filter out invalid fuzzed inputs. "can't push a previous update"
         cheats.assume(updateBlock >= middlewareDetailsBefore.latestUpdateBlock);
@@ -411,6 +416,8 @@ contract SlasherUnitTests is Test {
             "latestUpdateBlock not updated correctly");
         require(middlewareDetailsAfter.bondedUntil == middlewareDetailsBefore.bondedUntil,
             "bondedUntil changed unexpectedly");
+        // check that `bondedUntil` did not change
+        require(slasher.bondedUntil(operator, contractAddress) == bondedUntilBefore, "bondedUntil changed unexpectedly");
     }
 
     function testRecordStakeUpdate_MultipleLinkedListEntries(
