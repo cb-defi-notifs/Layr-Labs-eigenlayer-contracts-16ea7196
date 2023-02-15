@@ -353,7 +353,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
 
     /// @notice gets the node previous to the given node in the operators middleware update linked list
     /// @dev used in offchain libs for updating stakes
-    function getPreviousWhitelistedContractByUpdate(address operator, uint256 node) public view returns (bool, uint256) {
+    function getPreviousWhitelistedContractByUpdate(address operator, uint256 node) external view returns (bool, uint256) {
         return _operatorToWhitelistedContractsByUpdate[operator].getPreviousNode(node);
     }
 
@@ -534,5 +534,12 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
 
     function _uintToAddress(uint256 x) internal pure returns(address) {
         return address(uint160(x));
-    }    
+    }
+
+    /**
+     * @dev This empty reserved space is put in place to allow future versions to add new
+     * variables without shifting down storage in the inheritance chain.
+     * See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
+     */
+    uint256[46] private __gap;
 }

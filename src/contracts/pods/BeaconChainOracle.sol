@@ -11,8 +11,8 @@ import "../interfaces/IBeaconChainOracle.sol";
  *  particular state root at a specified slot before the state root is considered 'confirmed'.
  */
 contract BeaconChainOracle is IBeaconChainOracle, Ownable {
-    /// @notice The minimum value which the `treshold` variable is allowed to take.
-    uint256 public constant MINIMUM_THRESHOLD = 2;
+    /// @notice The minimum value which the `threshold` variable is allowed to take.
+    uint256 public constant MINIMUM_THRESHOLD = 1;
 
     /// @notice Total number of members of the set of oracle signers.
     uint256 public totalOracleSigners;

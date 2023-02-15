@@ -29,8 +29,8 @@ contract InvestmentManager is
     Initializable,
     OwnableUpgradeable,
     ReentrancyGuardUpgradeable,
-    InvestmentManagerStorage,
-    Pausable
+    Pausable,
+    InvestmentManagerStorage
 {
     using SafeERC20 for IERC20;
 
@@ -531,11 +531,11 @@ contract InvestmentManager is
                 }
             }
 
-            if (strategies[i] == beaconChainETHStrategy){
+            if (strategies[i] == beaconChainETHStrategy) {
                  //withdraw the beaconChainETH to the recipient
                 _withdrawBeaconChainETH(slashedAddress, recipient, shareAmounts[i]);
             }
-            else{
+            else {
                 // withdraw the shares and send funds to the recipient
                 strategies[i].withdraw(recipient, tokens[i], shareAmounts[i]);
             }
@@ -722,10 +722,9 @@ contract InvestmentManager is
 
         // subtract the shares from the depositor's existing shares for this strategy
         investorStratShares[depositor][strategy] = userShares;
-        // if no existing shares, remove is from this investors strats
 
+        // if no existing shares, remove the strategy from the depositor's dynamic array of strategies
         if (userShares == 0) {
-            // remove the strategy from the depositor's dynamic array of strategies
             _removeStrategyFromInvestorStrats(depositor, strategyIndex, strategy);
 
             // return true in the event that the strategy was removed from investorStrats[depositor]
