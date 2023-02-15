@@ -79,7 +79,7 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, Pausable, IEigenP
         address initialOwner,
         IPauserRegistry _pauserRegistry,
         uint256 _initPausedStatus
-    ) public initializer {
+    ) external initializer {
         _updateBeaconChainOracle(_beaconChainOracle);
         _transferOwnership(initialOwner);
         _initializePauser(_pauserRegistry, _initPausedStatus);
