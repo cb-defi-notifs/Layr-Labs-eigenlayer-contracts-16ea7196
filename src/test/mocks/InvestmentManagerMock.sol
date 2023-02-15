@@ -27,7 +27,7 @@ contract InvestmentManagerMock is
     IEigenPodManager public eigenPodManager;
     ISlasher public slasher;
 
-    constructor(IEigenLayerDelegation _delegation, IEigenPodManager _eigenPodManager, ISlasher _slasher)
+    function setAddresses(IEigenLayerDelegation _delegation, IEigenPodManager _eigenPodManager, ISlasher _slasher) external
     {
        delegation = _delegation;
        slasher = _slasher;
