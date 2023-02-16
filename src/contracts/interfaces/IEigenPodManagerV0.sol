@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity =0.8.12;
 
-import "./IEigenPodD1.sol";
+import "./IEigenPodV0.sol";
 import "./IPausable.sol";
 
 /**
@@ -10,7 +10,7 @@ import "./IPausable.sol";
  * @author Layr Labs, Inc.
  */
 
-interface IEigenPodManagerD1 is IPausable {
+interface IEigenPodManagerV0 is IPausable {
     /**
      * @notice Creates an EigenPod for the sender.
      * @dev Function will revert if the `msg.sender` already has an EigenPod.
@@ -27,7 +27,7 @@ interface IEigenPodManagerD1 is IPausable {
     function stake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable;
 
     /// @notice Returns the address of the `podOwner`'s EigenPod (whether it is deployed yet or not).
-    function getPod(address podOwner) external view returns(IEigenPodD1);
+    function getPod(address podOwner) external view returns(IEigenPodV0);
 
     function hasPod(address podOwner) external view returns (bool);
 }

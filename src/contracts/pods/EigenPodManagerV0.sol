@@ -9,9 +9,9 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
 
-import "../interfaces/IEigenPodManagerV1.sol";
+import "../interfaces/IEigenPodManagerV0.sol";
 import "../interfaces/IETHPOSDeposit.sol";
-import "../interfaces/IEigenPodV1.sol";
+import "../interfaces/IEigenPodV0.sol";
 
 import "../permissions/Pausable.sol";
 import "./EigenPodPausingConstants.sol";
@@ -25,7 +25,7 @@ import "./EigenPodPausingConstants.sol";
  * - keeping track of the balances of all validators of EigenPods, and their stake in EigenLayer
  * - withdrawing eth when withdrawals are initiated
  */
-contract EigenPodManager is Initializable, OwnableUpgradeable, Pausable, IEigenPodManager, EigenPodPausingConstants {
+contract EigenPodManagerV0 is Initializable, OwnableUpgradeable, Pausable, IEigenPodManagerV0, EigenPodPausingConstants {
     /// @notice The ETH2 Deposit Contract
     IETHPOSDeposit public immutable ethPOS;
     
@@ -33,7 +33,7 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, Pausable, IEigenP
     IBeacon public immutable eigenPodBeacon;
     
     /// @notice Pod owner to deployed EigenPod address
-    mapping(address => IEigenPod) internal _podByOwner;
+    mapping(address => IEigenPodV0) internal _podByOwner;
 
     /// @notice Emitted to notify the deployment of an EigenPod
     event PodDeployed(address indexed eigenPod, address indexed podOwner);
@@ -76,7 +76,7 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, Pausable, IEigenP
      * @param depositDataRoot The root/hash of the deposit data for the validator's deposit.
      */
     function stake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable {
-        IEigenPod pod = getPod(msg.sender);
+        IEigenPodV0 pod = getPod(msg.sender);
         if(!hasPod(msg.sender)) {
             //deploy a pod if the sender doesn't have one already
             pod = _deployPod();
@@ -85,16 +85,16 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, Pausable, IEigenP
     }
 
     // INTERNAL FUNCTIONS
-    function _deployPod() internal onlyWhenNotPaused(PAUSED_NEW_EIGENPODS) returns (IEigenPod) {
-        IEigenPod pod = 
-            IEigenPod(
+    function _deployPod() internal onlyWhenNotPaused(PAUSED_NEW_EIGENPODS) returns (IEigenPodV0) {
+        IEigenPodV0 pod = 
+            IEigenPodV0(
                 Create2.deploy(
                     0, 
                     bytes32(uint256(uint160(msg.sender))), 
                     // set the beacon address to the eigenPodBeacon and initialize it
                     abi.encodePacked(
                         type(BeaconProxy).creationCode, 
-                        abi.encode(eigenPodBeacon, abi.encodeWithSelector(IEigenPod.initialize.selector, IEigenPodManager(address(this)), msg.sender))
+                        abi.encode(eigenPodBeacon, abi.encodeWithSelector(IEigenPodV0.initialize.selector, IEigenPodManagerV0(address(this)), msg.sender))
                     )
                 )
             );
@@ -104,16 +104,16 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, Pausable, IEigenP
 
     // VIEW FUNCTIONS
     /// @notice Returns the address of the `podOwner`'s EigenPod (whether it is deployed yet or not).
-    function getPod(address podOwner) public view returns (IEigenPod) {
-        IEigenPod pod = _podByOwner[podOwner];
+    function getPod(address podOwner) public view returns (IEigenPodV0) {
+        IEigenPodV0 pod = _podByOwner[podOwner];
         // if pod does not exist already, calculate what its address *will be* once it is deployed
         if (address(pod) == address(0)) {
-            pod = IEigenPod(
+            pod = IEigenPodV0(
                 Create2.computeAddress(
                     bytes32(uint256(uint160(podOwner))), //salt
                     keccak256(abi.encodePacked(
                         type(BeaconProxy).creationCode, 
-                        abi.encode(eigenPodBeacon, abi.encodeWithSelector(IEigenPod.initialize.selector, IEigenPodManager(address(this)), podOwner))
+                        abi.encode(eigenPodBeacon, abi.encodeWithSelector(IEigenPodV0.initialize.selector, IEigenPodManagerV0(address(this)), podOwner))
                     )) //bytecode
                 ));
         }

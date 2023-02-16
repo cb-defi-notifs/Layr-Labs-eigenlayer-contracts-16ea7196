@@ -7,8 +7,8 @@ import "@openzeppelin-upgrades/contracts/security/ReentrancyGuardUpgradeable.sol
 import "@openzeppelin-upgrades/contracts/utils/AddressUpgradeable.sol";
 
 import "../interfaces/IETHPOSDeposit.sol";
-import "../interfaces/IEigenPodManagerV1.sol";
-import "../interfaces/IEigenPodV1.sol";
+import "../interfaces/IEigenPodManagerV0.sol";
+import "../interfaces/IEigenPodV0.sol";
 import "../interfaces/IEigenPodPaymentEscrow.sol";
 import "../interfaces/IPausable.sol";
 
@@ -29,7 +29,7 @@ import "forge-std/Test.sol";
  * @dev Note that all beacon chain balances are stored as gwei within the beacon chain datastructures. We choose
  *   to account balances in terms of gwei in the EigenPod contract and convert to wei when making calls to other contracts
  */
-contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, EigenPodPausingConstants {
+contract EigenPodV0 is IEigenPodV0, Initializable, ReentrancyGuardUpgradeable, EigenPodPausingConstants {
     uint256 internal constant GWEI_TO_WEI = 1e9;
 
     /// @notice This is the beacon chain deposit contract
@@ -39,7 +39,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
     IEigenPodPaymentEscrow immutable public eigenPodPaymentEscrow;
 
     /// @notice The single EigenPodManager for EigenLayer
-    IEigenPodManager public eigenPodManager;
+    IEigenPodManagerV0 public eigenPodManager;
 
     /// @notice The owner of this EigenPod
     address public podOwner;
@@ -80,7 +80,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
     }
 
     /// @notice Used to initialize the pointers to contracts crucial to the pod's functionality, in beacon proxy construction from EigenPodManager
-    function initialize(IEigenPodManager _eigenPodManager, address _podOwner) external initializer {
+    function initialize(IEigenPodManagerV0 _eigenPodManager, address _podOwner) external initializer {
         require(_podOwner != address(0), "EigenPod.initialize: podOwner cannot be zero address");
         eigenPodManager = _eigenPodManager;
         podOwner = _podOwner;
