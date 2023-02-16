@@ -431,68 +431,29 @@ contract InvestmentManager is
         external
         onlyWhenNotPaused(PAUSED_WITHDRAWALS)
         // check that the address that the staker *was delegated to* – at the time that they queued the withdrawal – is not frozen
-        onlyNotFrozen(queuedWithdrawal.delegatedAddress)
         nonReentrant
     {
-        // find the withdrawalRoot
-        bytes32 withdrawalRoot = calculateWithdrawalRoot(queuedWithdrawal);
+        _completeQueuedWithdrawal(queuedWithdrawal, tokens, middlewareTimesIndex, receiveAsTokens);
+    }
 
-        // verify that the queued withdrawal is pending
-        require(
-            withdrawalRootPending[withdrawalRoot],
-            "InvestmentManager.completeQueuedWithdrawal: withdrawal is not pending"
-        );
-
-        require(
-            slasher.canWithdraw(queuedWithdrawal.delegatedAddress, queuedWithdrawal.withdrawalStartBlock, middlewareTimesIndex),
-            "InvestmentManager.completeQueuedWithdrawal: shares pending withdrawal are still slashable"
-        );
-
-        // enforce minimum delay lag (not applied to withdrawals of 'beaconChainETH', since the EigenPods enforce their own delay)
-        require(queuedWithdrawal.withdrawalStartBlock + withdrawalDelayBlocks <= block.number 
-                || queuedWithdrawal.strategies[0] == beaconChainETHStrategy,
-            "InvestmentManager.completeQueuedWithdrawal: withdrawalDelayBlocks period has not yet passed"
-        );
-
-        require(
-            msg.sender == queuedWithdrawal.withdrawerAndNonce.withdrawer,
-            "InvestmentManager.completeQueuedWithdrawal: only specified withdrawer can complete a queued withdrawal"
-        );
-
-        // reset the storage slot in mapping of queued withdrawals
-        withdrawalRootPending[withdrawalRoot] = false;
-
-        // store length for gas savings
-        uint256 strategiesLength = queuedWithdrawal.strategies.length;
-        // if the withdrawer has flagged to receive the funds as tokens, withdraw from strategies
-        if (receiveAsTokens) {
-            require(tokens.length == queuedWithdrawal.strategies.length, "InvestmentManager.completeQueuedWithdrawal: input length mismatch");
-            // actually withdraw the funds
-            for (uint256 i = 0; i < strategiesLength;) {
-                if (queuedWithdrawal.strategies[i] == beaconChainETHStrategy) {
-
-                    // if the strategy is the beaconchaineth strat, then withdraw through the EigenPod flow
-                    _withdrawBeaconChainETH(queuedWithdrawal.depositor, msg.sender, queuedWithdrawal.shares[i]);
-                } else {
-                    // tell the strategy to send the appropriate amount of funds to the depositor
-                    queuedWithdrawal.strategies[i].withdraw(
-                        msg.sender, tokens[i], queuedWithdrawal.shares[i]
-                    );
-                }
-                unchecked {
-                    ++i;
-                }
-            }
-        } else {
-            // else increase their shares
-            for (uint256 i = 0; i < strategiesLength;) {
-                _addShares(msg.sender, queuedWithdrawal.strategies[i], queuedWithdrawal.shares[i]);
-                unchecked {
-                    ++i;
-                }
-            }
+    /**
+     * @notice Used to complete the specified `queuedWithdrawals`. The function caller must match `queuedWithdrawals[...].withdrawer`
+     * @dev Array-ified version of `completeQueuedWithdrawal`
+     * @dev middlewareTimesIndex should be calculated off chain before calling this function by finding the first index that satisfies `slasher.canWithdraw`
+     */
+    function completeQueuedWithdrawals(
+        QueuedWithdrawal[] calldata queuedWithdrawals,
+        IERC20[][] calldata tokens,
+        uint256[] calldata middlewareTimesIndexes,
+        bool[] calldata receiveAsTokens
+    ) external
+        onlyWhenNotPaused(PAUSED_WITHDRAWALS)
+        // check that the address that the staker *was delegated to* – at the time that they queued the withdrawal – is not frozen
+        nonReentrant
+    {
+        for(uint256 i = 0; i < queuedWithdrawals.length; i++) {
+            _completeQueuedWithdrawal(queuedWithdrawals[i], tokens[i], middlewareTimesIndexes[i], receiveAsTokens[i]);
         }
-        emit WithdrawalCompleted(queuedWithdrawal.depositor, msg.sender, withdrawalRoot);
     }
 
     /**
@@ -765,6 +726,71 @@ contract InvestmentManager is
         }
         // pop off the last entry in the list of strategies
         investorStrats[depositor].pop();
+    }
+
+    /**
+     * @notice Internal function for completeing the given `queuedWithdrawal`.
+     */
+    function _completeQueuedWithdrawal(QueuedWithdrawal calldata queuedWithdrawal, IERC20[] calldata tokens, uint256 middlewareTimesIndex, bool receiveAsTokens) onlyNotFrozen(queuedWithdrawal.delegatedAddress) internal {
+        // find the withdrawalRoot
+        bytes32 withdrawalRoot = calculateWithdrawalRoot(queuedWithdrawal);
+
+        // verify that the queued withdrawal is pending
+        require(
+            withdrawalRootPending[withdrawalRoot],
+            "InvestmentManager.completeQueuedWithdrawal: withdrawal is not pending"
+        );
+
+        require(
+            slasher.canWithdraw(queuedWithdrawal.delegatedAddress, queuedWithdrawal.withdrawalStartBlock, middlewareTimesIndex),
+            "InvestmentManager.completeQueuedWithdrawal: shares pending withdrawal are still slashable"
+        );
+
+        // enforce minimum delay lag (not applied to withdrawals of 'beaconChainETH', since the EigenPods enforce their own delay)
+        require(queuedWithdrawal.withdrawalStartBlock + withdrawalDelayBlocks <= block.number 
+                || queuedWithdrawal.strategies[0] == beaconChainETHStrategy,
+            "InvestmentManager.completeQueuedWithdrawal: withdrawalDelayBlocks period has not yet passed"
+        );
+
+        require(
+            msg.sender == queuedWithdrawal.withdrawerAndNonce.withdrawer,
+            "InvestmentManager.completeQueuedWithdrawal: only specified withdrawer can complete a queued withdrawal"
+        );
+
+        // reset the storage slot in mapping of queued withdrawals
+        withdrawalRootPending[withdrawalRoot] = false;
+
+        // store length for gas savings
+        uint256 strategiesLength = queuedWithdrawal.strategies.length;
+        // if the withdrawer has flagged to receive the funds as tokens, withdraw from strategies
+        if (receiveAsTokens) {
+            require(tokens.length == queuedWithdrawal.strategies.length, "InvestmentManager.completeQueuedWithdrawal: input length mismatch");
+            // actually withdraw the funds
+            for (uint256 i = 0; i < strategiesLength;) {
+                if (queuedWithdrawal.strategies[i] == beaconChainETHStrategy) {
+
+                    // if the strategy is the beaconchaineth strat, then withdraw through the EigenPod flow
+                    _withdrawBeaconChainETH(queuedWithdrawal.depositor, msg.sender, queuedWithdrawal.shares[i]);
+                } else {
+                    // tell the strategy to send the appropriate amount of funds to the depositor
+                    queuedWithdrawal.strategies[i].withdraw(
+                        msg.sender, tokens[i], queuedWithdrawal.shares[i]
+                    );
+                }
+                unchecked {
+                    ++i;
+                }
+            }
+        } else {
+            // else increase their shares
+            for (uint256 i = 0; i < strategiesLength;) {
+                _addShares(msg.sender, queuedWithdrawal.strategies[i], queuedWithdrawal.shares[i]);
+                unchecked {
+                    ++i;
+                }
+            }
+        }
+        emit WithdrawalCompleted(queuedWithdrawal.depositor, msg.sender, withdrawalRoot);
     }
 
     /**

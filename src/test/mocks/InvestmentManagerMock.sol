@@ -90,6 +90,14 @@ contract InvestmentManagerMock is
     )
         external{}
 
+    function completeQueuedWithdrawals(
+        QueuedWithdrawal[] calldata queuedWithdrawals,
+        IERC20[][] calldata tokens,
+        uint256[] calldata middlewareTimesIndexes,
+        bool[] calldata receiveAsTokens
+    )
+        external{}
+
 
     function slashShares(
         address slashedAddress,

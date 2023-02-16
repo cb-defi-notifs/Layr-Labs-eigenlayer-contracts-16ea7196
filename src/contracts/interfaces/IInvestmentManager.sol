@@ -151,6 +151,19 @@ interface IInvestmentManager {
         bool receiveAsTokens
     )
         external;
+    
+    /**
+     * @notice Used to complete the specified `queuedWithdrawals`. The function caller must match `queuedWithdrawal.withdrawer`
+     * @dev Array-ified version of `completeQueuedWithdrawal`
+     * @dev middlewareTimesIndex should be calculated off chain before calling this function by finding the first index that satisfies `slasher.canWithdraw`
+     */
+    function completeQueuedWithdrawals(
+        QueuedWithdrawal[] calldata queuedWithdrawals,
+        IERC20[][] calldata tokens,
+        uint256[] calldata middlewareTimesIndexes,
+        bool[] calldata receiveAsTokens
+    )
+        external;
 
     /**
      * @notice Slashes the shares of a 'frozen' operator (or a staker delegated to one)
