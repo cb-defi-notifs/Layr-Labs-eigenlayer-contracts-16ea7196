@@ -18,8 +18,8 @@ import "../src/contracts/core/InvestmentManager.sol";
 import "../src/contracts/strategies/InvestmentStrategyBase.sol";
 import "../src/contracts/core/Slasher.sol";
 
-import "../src/contracts/pods/EigenPod.sol";
-import "../src/contracts/pods/EigenPodManager.sol";
+import "../src/contracts/pods/EigenPodD2.sol";
+import "../src/contracts/pods/EigenPodManagerD2.sol";
 import "../src/contracts/pods/EigenPodPaymentEscrow.sol";
 
 import "../src/contracts/permissions/PauserRegistry.sol";
