@@ -65,6 +65,9 @@ contract InvestmentManagerMock is
      */
     function getDeposits(address depositor) external view returns (IInvestmentStrategy[] memory, uint256[] memory){}
 
+    /// @notice Returns the array of strategies in which `staker` has nonzero shares
+    function investorStrats(address staker) external view returns (IInvestmentStrategy[] memory){}
+
     /// @notice Simple getter function that returns `investorStrats[staker].length`.
     function investorStratsLength(address staker) external view returns (uint256){}
 
@@ -120,6 +123,8 @@ contract InvestmentManagerMock is
 
     /// @notice returns the enshrined beaconChainETH Strategy
     function beaconChainETHStrategy() external view returns (IInvestmentStrategy){}
+
+    function withdrawalDelayBlocks() external view returns (uint256){}
 
     function addStrategiesToDepositWhitelist(IInvestmentStrategy[] calldata /*strategiesToWhitelist*/) external pure {}
 
