@@ -121,7 +121,6 @@ library BeaconChainProofs {
         bytes32 executionPayloadRoot;
     }
 
-
     function computePhase0BeaconBlockHeaderRoot(bytes32[NUM_BEACON_BLOCK_HEADER_FIELDS] calldata blockHeaderFields) internal pure returns(bytes32) {
         bytes32[] memory paddedHeaderFields = new bytes32[](2**BEACON_BLOCK_HEADER_FIELD_TREE_HEIGHT);
         
@@ -200,11 +199,9 @@ library BeaconChainProofs {
         require(withdrawalFields.length == 2**WITHDRAWAL_FIELD_TREE_HEIGHT, "BeaconChainProofs.verifySlotAndWithdrawalFields: withdrawalFields has incorrect length");
         require(validatorFields.length == 2**VALIDATOR_FIELD_TREE_HEIGHT, "BeaconChainProofs.verifySlotAndWithdrawalFields: validatorFields has incorrect length");
 
-
         require(proofs.blockHeaderRootIndex < 2**BLOCK_ROOTS_TREE_HEIGHT, "BeaconChainProofs.verifySlotAndWithdrawalFields: blockRootIndex is too large");
         require(proofs.withdrawalIndex < 2**WITHDRAWALS_TREE_HEIGHT, "BeaconChainProofs.verifySlotAndWithdrawalFields: withdrawalIndex is too large");
         require(proofs.validatorIndex < 2**VALIDATOR_TREE_HEIGHT, "BeaconChainProofs.verifySlotAndWithdrawalFields: validatorIndex is too large");
-
        
         // verify the block header proof length
         require(proofs.blockHeaderProof.length == 32 * (BEACON_STATE_FIELD_TREE_HEIGHT + BLOCK_ROOTS_TREE_HEIGHT), "BeaconChainProofs.verifySlotAndWithdrawalFields: blockHeaderProof has incorrect length");
@@ -238,7 +235,6 @@ library BeaconChainProofs {
         uint256 withdrawalIndex = WITHDRAWALS_INDEX << (WITHDRAWALS_TREE_HEIGHT + 1) | uint256(proofs.withdrawalIndex);
         bytes32 withdrawalRoot = Merkle.merkleizeSha256(withdrawalFields);
         require(Merkle.verifyInclusionSha256(proofs.withdrawalProof, proofs.executionPayloadRoot, withdrawalRoot, withdrawalIndex), "BeaconChainProofs.verifySlotAndWithdrawalFields: Invalid withdrawal merkle proof");
-
 
         //Next we verify the validator fields against the beaconStateRoot (for the withdrawable epoch proof)
         verifyValidatorFields(proofs.validatorIndex, beaconStateRoot, proofs.validatorProof, validatorFields);
