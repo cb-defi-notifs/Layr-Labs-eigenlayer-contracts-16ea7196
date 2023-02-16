@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity =0.8.12;
 
-import "./IEigenPodManagerV0.sol";
+import "./IEigenPodManager.sol";
 
 /**
  * @title The implementation contract used for restaking beacon chain ETH on EigenLayer 
@@ -12,7 +12,7 @@ import "./IEigenPodManagerV0.sol";
  */
 interface IEigenPodV0 {
     /// @notice Used to initialize the pointers to contracts crucial to the pod's functionality, in beacon proxy construction from EigenPodManager
-    function initialize(IEigenPodManagerV0 _eigenPodManager, address owner) external;
+    function initialize(IEigenPodManager _eigenPodManager, address owner) external;
 
     /// @notice Called by EigenPodManager when the owner wants to create another ETH validator.
     function stake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable;
@@ -21,7 +21,7 @@ interface IEigenPodV0 {
     function withdraw() external;
 
     /// @notice The single EigenPodManager for EigenLayer
-    function eigenPodManager() external view returns (IEigenPodManagerV0);
+    function eigenPodManager() external view returns (IEigenPodManager);
 
     /// @notice The owner of this EigenPod
     function podOwner() external view returns (address);

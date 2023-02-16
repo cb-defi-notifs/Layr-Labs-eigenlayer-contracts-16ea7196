@@ -7,7 +7,7 @@ import "@openzeppelin-upgrades/contracts/security/ReentrancyGuardUpgradeable.sol
 import "@openzeppelin-upgrades/contracts/utils/AddressUpgradeable.sol";
 
 import "../interfaces/IETHPOSDeposit.sol";
-import "../interfaces/IEigenPodManagerV0.sol";
+import "../interfaces/IEigenPodManager.sol";
 import "../interfaces/IEigenPodV0.sol";
 import "../interfaces/IEigenPodPaymentEscrow.sol";
 import "../interfaces/IPausable.sol";
@@ -39,7 +39,7 @@ contract EigenPodV0 is IEigenPodV0, Initializable, ReentrancyGuardUpgradeable, E
     IEigenPodPaymentEscrow immutable public eigenPodPaymentEscrow;
 
     /// @notice The single EigenPodManager for EigenLayer
-    IEigenPodManagerV0 public eigenPodManager;
+    IEigenPodManager public eigenPodManager;
 
     /// @notice The owner of this EigenPod
     address public podOwner;
@@ -80,7 +80,7 @@ contract EigenPodV0 is IEigenPodV0, Initializable, ReentrancyGuardUpgradeable, E
     }
 
     /// @notice Used to initialize the pointers to contracts crucial to the pod's functionality, in beacon proxy construction from EigenPodManager
-    function initialize(IEigenPodManagerV0 _eigenPodManager, address _podOwner) external initializer {
+    function initialize(IEigenPodManager _eigenPodManager, address _podOwner) external initializer {
         require(_podOwner != address(0), "EigenPod.initialize: podOwner cannot be zero address");
         eigenPodManager = _eigenPodManager;
         podOwner = _podOwner;
