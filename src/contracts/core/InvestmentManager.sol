@@ -79,7 +79,7 @@ contract InvestmentManager is
     );
 
     /// @notice Emitted when a queued withdrawal is completed
-    event WithdrawalCompleted(address indexed depositor, address indexed withdrawer, bytes32 withdrawalRoot);
+    event WithdrawalCompleted(address indexed depositor, uint96 nonce, address indexed withdrawer, bytes32 withdrawalRoot);
 
     /// @notice Emitted when the `strategyWhitelister` is changed
     event StrategyWhitelisterChanged(address previousAddress, address newAddress);
@@ -790,7 +790,7 @@ contract InvestmentManager is
                 }
             }
         }
-        emit WithdrawalCompleted(queuedWithdrawal.depositor, msg.sender, withdrawalRoot);
+        emit WithdrawalCompleted(queuedWithdrawal.depositor, queuedWithdrawal.withdrawerAndNonce.nonce, msg.sender, withdrawalRoot);
     }
 
     /**
