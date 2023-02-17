@@ -6,20 +6,20 @@ pragma solidity =0.8.12;
  * @author Layr Labs, Inc.
  */
 interface IBeaconChainOracle {
-    /// @notice Largest slot that has been confirmed by the oracle.
-    function latestConfirmedOracleSlot() external view returns(uint64);
-    /// @notice Mapping: Beacon Chain slot => the Beacon Chain state root at the specified slot.
-    /// @dev This will return `bytes32(0)` if the state root is not yet finalized at the slot.
-    function beaconStateRoot(uint64 slot) external view returns(bytes32);
+    /// @notice Largest blockNumber that has been confirmed by the oracle.
+    function latestConfirmedOracleBlockNumber() external view returns(uint64);
+    /// @notice Mapping: Beacon Chain blockNumber => the Beacon Chain state root at the specified blockNumber.
+    /// @dev This will return `bytes32(0)` if the state root is not yet finalized at the blockNumber.
+    function beaconStateRoot(uint64 blockNumber) external view returns(bytes32);
 
     /// @notice Mapping: address => whether or not the address is in the set of oracle signers.
     function isOracleSigner(address _oracleSigner) external view returns(bool);
 
-    /// @notice Mapping: Beacon Chain slot => oracle signer address => whether or not the oracle signer has voted on the state root at the slot.
-    function hasVoted(uint64 slot, address oracleSigner) external view returns(bool);
+    /// @notice Mapping: Beacon Chain blockNumber => oracle signer address => whether or not the oracle signer has voted on the state root at the blockNumber.
+    function hasVoted(uint64 blockNumber, address oracleSigner) external view returns(bool);
 
-    /// @notice Mapping: Beacon Chain slot => state root => total number of oracle signer votes for the state root at the slot. 
-    function stateRootVotes(uint64 slot, bytes32 stateRoot) external view returns(uint256);
+    /// @notice Mapping: Beacon Chain blockNumber => state root => total number of oracle signer votes for the state root at the blockNumber. 
+    function stateRootVotes(uint64 blockNumber, bytes32 stateRoot) external view returns(uint256);
 
     /// @notice Total number of members of the set of oracle signers.
     function totalOracleSigners() external view returns(uint256);
@@ -53,10 +53,10 @@ interface IBeaconChainOracle {
     function removeOracleSigners(address[] memory _oracleSigners) external;
 
     /**
-     * @notice Called by a member of the set of oracle signers to assert that the Beacon Chain state root is `stateRoot` at `slot`.
-     * @dev The state root will be finalized once the total number of votes *for this exact state root at this exact slot* meets the `threshold` value.
-     * @param slot The Beacon Chain slot of interest.
-     * @param stateRoot The Beacon Chain state root that the caller asserts was the correct root, at the specified `slot`.
+     * @notice Called by a member of the set of oracle signers to assert that the Beacon Chain state root is `stateRoot` at `blockNumber`.
+     * @dev The state root will be finalized once the total number of votes *for this exact state root at this exact blockNumber* meets the `threshold` value.
+     * @param blockNumber The Beacon Chain blockNumber of interest.
+     * @param stateRoot The Beacon Chain state root that the caller asserts was the correct root, at the specified `blockNumber`.
      */
-    function voteForBeaconChainStateRoot(uint64 slot, bytes32 stateRoot) external;
+    function voteForBeaconChainStateRoot(uint64 blockNumber, bytes32 stateRoot) external;
 }

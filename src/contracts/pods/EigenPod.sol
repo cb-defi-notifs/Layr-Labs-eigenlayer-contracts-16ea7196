@@ -144,18 +144,19 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
      * @notice This function verifies that the withdrawal credentials of the podOwner are pointed to
      * this contract. It verifies the provided proof of the ETH validator against the beacon chain state
      * root, marks the validator as 'active' in EigenLayer, and credits the restaked ETH in Eigenlayer.
-     * @param slot The Beacon Chain slot whose state root the `proof` will be proven against.
+     * @param blockNumber The Beacon Chain blockNumber whose state root the `proof` will be proven against.
      * @param validatorIndex is the index of the validator being proven, refer to consensus specs 
      * @param proof is the bytes that prove the ETH validator's metadata against a beacon chain state root
      * @param validatorFields are the fields of the "Validator Container", refer to consensus specs 
      * for details: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
      */
     function verifyCorrectWithdrawalCredentials(
-        uint64 slot,
+        uint64 blockNumber,
         uint40 validatorIndex,
         bytes calldata proof, 
         bytes32[] calldata validatorFields
     ) external onlyWhenNotPaused(PAUSED_EIGENPODS_VERIFY_CREDENTIALS) {
+        require(blockNumber > mostRecentWithdrawalBlockNumber, "EigenPod.verifyCorrectWithdrawalCredentials: cannot prove withdrawal credentials for block number before mostRecentWithdrawalBlockNumber");
         require(validatorStatus[validatorIndex] == VALIDATOR_STATUS.INACTIVE, "EigenPod.verifyCorrectWithdrawalCredentials: Validator not inactive");
         require(validatorFields[BeaconChainProofs.VALIDATOR_WITHDRAWAL_CREDENTIALS_INDEX] == _podWithdrawalCredentials().toBytes32(0),
             "EigenPod.verifyCorrectWithdrawalCredentials: Proof is not for this EigenPod");
@@ -165,7 +166,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         require(validatorBalanceGwei >= REQUIRED_BALANCE_GWEI,
             "EigenPod.verifyCorrectWithdrawalCredentials: ETH validator's balance must be greater than or equal to the restaked balance per validator");
 
-        bytes32 beaconStateRoot = eigenPodManager.getBeaconChainStateRoot(slot);
+        bytes32 beaconStateRoot = eigenPodManager.getBeaconChainStateRoot(blockNumber);
 
         // verify ETH validator proof
         BeaconChainProofs.verifyValidatorFields(
@@ -187,7 +188,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
      * @notice This function records an overcommitment of stake to EigenLayer on behalf of a certain ETH validator.
      *         If successful, the overcommitted balance is penalized (available for withdrawal whenever the pod's balance allows).
      *         The ETH validator's shares in the enshrined beaconChainETH strategy are also removed from the InvestmentManager and undelegated.
-     * @param slot The Beacon Chain slot whose state root the `proof` will be proven against.
+     * @param blockNumber The Beacon Chain blockNumber whose state root the `proof` will be proven against.
      * @param validatorIndex is the index of the validator being proven, refer to consensus specs 
      * @param proof is the bytes that prove the ETH validator's metadata against a beacon state root
      * @param validatorFields are the fields of the "Validator Container", refer to consensus specs 
@@ -196,7 +197,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
      * @dev For more details on the Beacon Chain spec, see: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
      */
     function verifyOvercommittedStake(
-        uint64 slot,
+        uint64 blockNumber,
         uint40 validatorIndex,
         bytes calldata proof, 
         bytes32[] calldata validatorFields,
@@ -212,7 +213,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         require(validatorBalance < REQUIRED_BALANCE_GWEI,
             "EigenPod.verifyCorrectWithdrawalCredentials: validator's balance must be less than the restaked balance per validator");
 
-        bytes32 beaconStateRoot = eigenPodManager.getBeaconChainStateRoot(slot);
+        bytes32 beaconStateRoot = eigenPodManager.getBeaconChainStateRoot(blockNumber);
         // verify ETH validator proof
         BeaconChainProofs.verifyValidatorFields(
             validatorIndex,
