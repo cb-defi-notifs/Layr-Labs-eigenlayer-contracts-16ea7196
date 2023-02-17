@@ -218,8 +218,7 @@ library BeaconChainProofs {
         require(Merkle.verifyInclusionSha256(proofs.blockHeaderProof, beaconStateRoot, proofs.blockHeaderRoot, block_header_index), "BeaconChainProofs.verifySlotAndWithdrawalFields: Invalid block header merkle proof");
 
         //Next we verify the slot against the blockHeaderRoot
-        uint256 slot_index = uint256(SLOT_INDEX);
-        require(Merkle.verifyInclusionSha256(proofs.slotProof, proofs.blockHeaderRoot, proofs.slotRoot, slot_index), "BeaconChainProofs.verifySlotAndWithdrawalFields: Invalid slot merkle proof");
+        require(Merkle.verifyInclusionSha256(proofs.slotProof, proofs.blockHeaderRoot, proofs.slotRoot, SLOT_INDEX), "BeaconChainProofs.verifySlotAndWithdrawalFields: Invalid slot merkle proof");
 
         // //Next we verify the executionPayloadHeader against the blockHeaderRoot
         uint256 executionPayloadIndex = BODY_ROOT_INDEX << (BEACON_BLOCK_BODY_FIELD_TREE_HEIGHT)| EXECUTION_PAYLOAD_INDEX ;

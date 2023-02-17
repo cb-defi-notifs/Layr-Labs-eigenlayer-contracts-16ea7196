@@ -45,7 +45,7 @@ contract EigenPodV0 is IEigenPodV0, Initializable, ReentrancyGuardUpgradeable, E
     address public podOwner;
 
     /// @notice The latest block number at which the pod owner withdrew the balance of the pod
-    uint32 public latestWithdrawalBlock;
+    uint64 public mostRecentWithdrawalBlockNumber;
 
     /// @notice Emitted when an ETH validator stakes via this eigenPod
     event EigenPodStaked(bytes pubkey);
@@ -96,7 +96,7 @@ contract EigenPodV0 is IEigenPodV0, Initializable, ReentrancyGuardUpgradeable, E
 
     /// @notice Called by the pod owner to withdraw the balance of the pod
     function withdraw() external onlyEigenPodOwner {
-        latestWithdrawalBlock = uint32(block.number);
+        mostRecentWithdrawalBlockNumber = uint32(block.number);
         _sendETH(podOwner, address(this).balance);
     }
 
