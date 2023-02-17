@@ -36,6 +36,7 @@ import "forge-std/Test.sol";
 contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, EigenPodPausingConstants {
     using BytesLib for bytes;
 
+    // V0 CONSTANTS + IMMUTABLES
     uint256 internal constant GWEI_TO_WEI = 1e9;
 
     /// @notice This is the beacon chain deposit contract
@@ -44,11 +45,13 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
     /// @notice Escrow contract used for payment routing, to provide an extra "safety net"
     IEigenPodPaymentEscrow immutable public eigenPodPaymentEscrow;
 
-    /// @notice The most recent block number at which a withdrawal was processed
-    uint64 public mostRecentWithdrawalBlockNumber;
+    // V0 STORAGE VARIABLES
+    /// @notice The single EigenPodManager for EigenLayer
+    IEigenPodManager public eigenPodManager;
 
+    // V1 CONSTANTS + IMMUTABLES
     /// @notice The length, in blocks, of the fraudproof period following a claim on the amount of partial withdrawals in an EigenPod
-    uint32 immutable public PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS;
+    uint32 public immutable PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS;
 
     /// @notice The amount of eth, in gwei, that is restaked per validator
     uint64 public immutable REQUIRED_BALANCE_GWEI;
@@ -59,20 +62,25 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
     /// @notice The minimum amount of eth, in gwei, that can be part of a full withdrawal
     uint64 public immutable MIN_FULL_WITHDRAWAL_AMOUNT_GWEI;
 
-    /// @notice The single EigenPodManager for EigenLayer
-    IEigenPodManager public eigenPodManager;
-
     /// @notice The owner of this EigenPod
     address public podOwner;
+
+    /**
+     * @notice The latest block number at which the pod owner withdrew the balance of the pod.
+     * @dev This variable is only updated in the V0 version of this contract, but is referenced in V1, as proofs are only valid against
+     * Beacon Chain state roots corresponding to blocks after the stored `mostRecentWithdrawalBlockNumber`.
+     */
+    uint64 public mostRecentWithdrawalBlockNumber;
+
+    // V1 STORAGE VARIABLES
+    /// @notice the amount of execution layer ETH in this contract that is staked in EigenLayer (i.e. withdrawn from the Beacon Chain but not from EigenLayer), 
+    uint64 public restakedExecutionLayerGwei;
 
     /// @notice this is a mapping of validator indices to a Validator struct containing pertinent info about the validator
     mapping(uint40 => VALIDATOR_STATUS) public validatorStatus;
 
     /// @notice This is a mapping of validatorIndex to withdrawalIndex to whether or not they have proven a withdrawal for that index
     mapping(uint40 => mapping(uint64 => bool)) public provenPartialWithdrawal;
-
-    /// @notice the amount of execution layer ETH in this contract that is staked in EigenLayer (i.e. withdrawn from the Beacon Chain but not from EigenLayer), 
-    uint64 public restakedExecutionLayerGwei;
 
     /// @notice Emitted when an ETH validator stakes via this eigenPod
     event EigenPodStaked(bytes pubkey);
@@ -234,16 +242,13 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
      * @param withdrawalFields are the fields of the withdrawal being proven
      * @param validatorFields are the fields of the validator being proven
      * @param beaconChainETHStrategyIndex is the index of the beaconChainETHStrategy for the pod owner for the callback to 
-     *                                    the EigenPodManager to the InvestmentManager in case it must be removed from the 
-     *                                    podOwner's list of strategies
-     * @param recipient is the address to which the full/partial withdrawal will be sent
+     *        the EigenPodManager to the InvestmentManager in case it must be removed from the podOwner's list of strategies
      */
     function verifyAndProcessWithdrawal(
         BeaconChainProofs.WithdrawalProofs calldata proofs, 
         bytes32[] calldata validatorFields,
         bytes32[] calldata withdrawalFields,
-        uint256 beaconChainETHStrategyIndex,
-        address recipient
+        uint256 beaconChainETHStrategyIndex
     ) external onlyWhenNotPaused(PAUSED_EIGENPODS_VERIFY_WITHDRAWAL) {
         uint64 slot = Endian.fromLittleEndianUint64(proofs.slotRoot);
         bytes32 beaconStateRoot = eigenPodManager.getBeaconChainStateRoot(slot);
@@ -258,9 +263,9 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         uint64 withdrawalBlockNumber = Endian.fromLittleEndianUint64(proofs.blockNumberRoot);
         require(withdrawalBlockNumber > mostRecentWithdrawalBlockNumber, "EigenPod.verifyAndCompleteWithdrawal: attempting to withdraw a previously claimed withdrawal");
         if (withdrawableEpoch <= slot/BeaconChainProofs.SLOTS_PER_EPOCH) {
-            _processFullWithdrawal(withdrawalAmountGwei, validatorIndex, beaconChainETHStrategyIndex, recipient);
+            _processFullWithdrawal(withdrawalAmountGwei, validatorIndex, beaconChainETHStrategyIndex, podOwner);
         } else {
-            _processPartialWithdrawal(slot, withdrawalAmountGwei, validatorIndex, recipient);
+            _processPartialWithdrawal(slot, withdrawalAmountGwei, validatorIndex, podOwner);
         }
     }
 
@@ -304,8 +309,11 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
                  */
                 eigenPodManager.restakeBeaconChainETH(podOwner, withdrawalAmountGwei * GWEI_TO_WEI);
             }
-        //If the validator status is inactive, they never verified their withdrawal credentials and thus never restaked their beacon chain ETH.  They are free to withdraw "withdrawalAmountGwei"
-        } else if (status == VALIDATOR_STATUS.INACTIVE){
+        /**
+         * If the validator status is inactive, they never verified their withdrawal credentials and thus never restaked their beacon chain ETH.
+         * They are thus free to withdraw the full "withdrawalAmountGwei" immediately.
+         */
+        } else if (status == VALIDATOR_STATUS.INACTIVE) {
             amountToSend = uint256(withdrawalAmountGwei) * uint256(GWEI_TO_WEI);
         } else {
             // If the validator status is withdrawn, they have already processed their ETH withdrawal
@@ -355,7 +363,6 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
     }
 
     // INTERNAL FUNCTIONS
-
     function _podWithdrawalCredentials() internal view returns(bytes memory) {
         return abi.encodePacked(bytes1(uint8(1)), bytes11(0), address(this));
     }
@@ -369,5 +376,5 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
      * variables without shifting down storage in the inheritance chain.
      * See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
      */
-    uint256[45] private __gap;
+    uint256[44] private __gap;
 }
