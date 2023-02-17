@@ -268,7 +268,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         if (withdrawableEpoch <= slot/BeaconChainProofs.SLOTS_PER_EPOCH) {
             _processFullWithdrawal(withdrawalAmountGwei, validatorIndex, beaconChainETHStrategyIndex, recipient);
         } else {
-            _processPartialWithdrawal(slot, validatorIndex, recipient);
+            _processPartialWithdrawal(slot, withdrawalAmountGwei, validatorIndex, recipient);
         }
     }
 
@@ -312,7 +312,9 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
                  */
                 eigenPodManager.restakeBeaconChainETH(podOwner, withdrawalAmountGwei * GWEI_TO_WEI);
             }
-        } else {
+        } else if (status == VALIDATOR_STATUS.WITHDRAWN || status == VALIDATOR_STATUS.INACTIVE){
+            amountToSend = uint256(withdrawalAmountGwei - REQUIRED_BALANCE_GWEI) * uint256(GWEI_TO_WEI);
+        }else {
             // this code should never be reached
             revert("EigenPod.verifyBeaconChainFullWithdrawal: invalid VALIDATOR_STATUS");
         }
@@ -326,10 +328,9 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         }
     }
 
-    function _processPartialWithdrawal(uint64 withdrawalHappenedSlot, uint40 validatorIndex, address recipient) internal {
+    function _processPartialWithdrawal(uint64 withdrawalHappenedSlot, uint64 partialWithdrawalAmountGwei, uint40 validatorIndex, address recipient) internal {
         require(!provenPartialWithdrawal[validatorIndex][withdrawalHappenedSlot], "partial withdrawal has already been proven for this slot");
 
-        uint64 partialWithdrawalAmountGwei = uint64(address(this).balance / GWEI_TO_WEI) - restakedExecutionLayerGwei;
         provenPartialWithdrawal[validatorIndex][withdrawalHappenedSlot] = true;
         emit PartialWithdrawalRedeemed(recipient, partialWithdrawalAmountGwei);
 
