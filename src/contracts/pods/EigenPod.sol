@@ -303,12 +303,12 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
                  */
                 eigenPodManager.restakeBeaconChainETH(podOwner, withdrawalAmountGwei * GWEI_TO_WEI);
             }
+        //If the validator status is inactive, they never verified their withdrawal credentials and thus never restaked their beacon chain ETH.  They are free to withdraw "withdrawalAmountGwei"
         } else if (status == VALIDATOR_STATUS.INACTIVE){
             amountToSend = uint256(withdrawalAmountGwei) * uint256(GWEI_TO_WEI);
-        } 
-        else {
-            // this code should never be reached
-            revert("EigenPod.verifyBeaconChainFullWithdrawal: invalid VALIDATOR_STATUS");
+        } else {
+            // If the validator status is withdrawn, they have already processed their ETH withdrawal
+            revert("EigenPod.verifyBeaconChainFullWithdrawal: VALIDATOR_STATUS is WITHDRAWN or invalid VALIDATOR_STATUS");
         }
 
         // set the ETH validator status to withdrawn
