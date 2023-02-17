@@ -71,20 +71,11 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
     /// @notice This is a mapping of validatorIndex to withdrawalIndex to whether or not they have proven a withdrawal for that index
     mapping(uint40 => mapping(uint64 => bool)) public provenPartialWithdrawal;
 
-    /**
-     * @notice the claims on the amount of deserved partial withdrawals for the ETH validators of this EigenPod
-     * @dev this array is marked as internal because of how Solidity handles structs in storage. Use the `getPartialWithdrawalClaim` getter function to fetch from this array.
-     */
-    PartialWithdrawalClaim[] internal _partialWithdrawalClaims;
-
     /// @notice the amount of execution layer ETH in this contract that is staked in EigenLayer (i.e. withdrawn from the Beacon Chain but not from EigenLayer), 
     uint64 public restakedExecutionLayerGwei;
 
     /// @notice Emitted when an ETH validator stakes via this eigenPod
     event EigenPodStaked(bytes pubkey);
-
-    /// @notice Emmitted when a partial withdrawal claim is made on the EigenPod
-    event PartialWithdrawalClaimRecorded(uint32 currBlockNumber, uint64 partialWithdrawalAmountGwei);
 
     /// @notice Emitted when a partial withdrawal claim is successfully redeemed
     event PartialWithdrawalRedeemed(address indexed recipient, uint64 partialWithdrawalAmountGwei);
