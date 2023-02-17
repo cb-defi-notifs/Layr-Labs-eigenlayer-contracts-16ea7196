@@ -51,7 +51,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
 
     // V1 CONSTANTS + IMMUTABLES
     /// @notice The length, in blocks, of the fraudproof period following a claim on the amount of partial withdrawals in an EigenPod
-    uint32 immutable public PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS;
+    uint32 public immutable PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS;
 
     /// @notice The amount of eth, in gwei, that is restaked per validator
     uint64 public immutable REQUIRED_BALANCE_GWEI;
@@ -307,8 +307,11 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
                  */
                 eigenPodManager.restakeBeaconChainETH(podOwner, withdrawalAmountGwei * GWEI_TO_WEI);
             }
-        //If the validator status is inactive, they never verified their withdrawal credentials and thus never restaked their beacon chain ETH.  They are free to withdraw "withdrawalAmountGwei"
-        } else if (status == VALIDATOR_STATUS.INACTIVE){
+        /**
+         * If the validator status is inactive, they never verified their withdrawal credentials and thus never restaked their beacon chain ETH.
+         * They are thus free to withdraw the full "withdrawalAmountGwei" immediately.
+         */
+        } else if (status == VALIDATOR_STATUS.INACTIVE) {
             amountToSend = uint256(withdrawalAmountGwei) * uint256(GWEI_TO_WEI);
         } else {
             // If the validator status is withdrawn, they have already processed their ETH withdrawal
@@ -358,7 +361,6 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
     }
 
     // INTERNAL FUNCTIONS
-
     function _podWithdrawalCredentials() internal view returns(bytes memory) {
         return abi.encodePacked(bytes1(uint8(1)), bytes11(0), address(this));
     }
