@@ -36,6 +36,7 @@ import "forge-std/Test.sol";
 contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, EigenPodPausingConstants {
     using BytesLib for bytes;
 
+    // V0 CONSTANTS + IMMUTABLES
     uint256 internal constant GWEI_TO_WEI = 1e9;
 
     /// @notice This is the beacon chain deposit contract
@@ -44,9 +45,11 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
     /// @notice Escrow contract used for payment routing, to provide an extra "safety net"
     IEigenPodPaymentEscrow immutable public eigenPodPaymentEscrow;
 
-    /// @notice The most recent block number at which a withdrawal was processed
-    uint64 public mostRecentWithdrawalBlockNumber;
+    // V0 STORAGE VARIABLES
+    /// @notice The single EigenPodManager for EigenLayer
+    IEigenPodManager public eigenPodManager;
 
+    // V1 CONSTANTS + IMMUTABLES
     /// @notice The length, in blocks, of the fraudproof period following a claim on the amount of partial withdrawals in an EigenPod
     uint32 immutable public PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS;
 
@@ -59,20 +62,21 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
     /// @notice The minimum amount of eth, in gwei, that can be part of a full withdrawal
     uint64 public immutable MIN_FULL_WITHDRAWAL_AMOUNT_GWEI;
 
-    /// @notice The single EigenPodManager for EigenLayer
-    IEigenPodManager public eigenPodManager;
-
     /// @notice The owner of this EigenPod
     address public podOwner;
+
+    /// @notice The latest block number at which the pod owner withdrew the balance of the pod
+    uint64 public mostRecentWithdrawalBlockNumber;
+
+    // V1 STORAGE VARIABLES
+    /// @notice the amount of execution layer ETH in this contract that is staked in EigenLayer (i.e. withdrawn from the Beacon Chain but not from EigenLayer), 
+    uint64 public restakedExecutionLayerGwei;
 
     /// @notice this is a mapping of validator indices to a Validator struct containing pertinent info about the validator
     mapping(uint40 => VALIDATOR_STATUS) public validatorStatus;
 
     /// @notice This is a mapping of validatorIndex to withdrawalIndex to whether or not they have proven a withdrawal for that index
     mapping(uint40 => mapping(uint64 => bool)) public provenPartialWithdrawal;
-
-    /// @notice the amount of execution layer ETH in this contract that is staked in EigenLayer (i.e. withdrawn from the Beacon Chain but not from EigenLayer), 
-    uint64 public restakedExecutionLayerGwei;
 
     /// @notice Emitted when an ETH validator stakes via this eigenPod
     event EigenPodStaked(bytes pubkey);
