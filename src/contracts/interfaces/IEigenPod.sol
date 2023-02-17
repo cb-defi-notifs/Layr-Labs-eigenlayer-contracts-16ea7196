@@ -122,8 +122,7 @@ interface IEigenPod {
      * @param withdrawalFields are the fields of the withdrawal being proven
      * @param validatorFields are the fields of the validator being proven
      * @param beaconChainETHStrategyIndex is the index of the beaconChainETHStrategy for the pod owner for the callback to 
-     *                                    the EigenPodManager to the InvestmentManager in case it must be removed from the 
-     *                                    podOwner's list of strategies
+     *        the EigenPodManager to the InvestmentManager in case it must be removed from the podOwner's list of strategies
      */
     function verifyAndProcessWithdrawal(
         BeaconChainProofs.WithdrawalProofs calldata proofs, 

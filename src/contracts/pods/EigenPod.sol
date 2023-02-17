@@ -65,7 +65,11 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
     /// @notice The owner of this EigenPod
     address public podOwner;
 
-    /// @notice The latest block number at which the pod owner withdrew the balance of the pod
+    /**
+     * @notice The latest block number at which the pod owner withdrew the balance of the pod.
+     * @dev This variable is only updated in the V0 version of this contract, but is referenced in V1, as proofs are only valid against
+     * Beacon Chain state roots corresponding to blocks after the stored `mostRecentWithdrawalBlockNumber`.
+     */
     uint64 public mostRecentWithdrawalBlockNumber;
 
     // V1 STORAGE VARIABLES
@@ -237,8 +241,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
      * @param withdrawalFields are the fields of the withdrawal being proven
      * @param validatorFields are the fields of the validator being proven
      * @param beaconChainETHStrategyIndex is the index of the beaconChainETHStrategy for the pod owner for the callback to 
-     *                                    the EigenPodManager to the InvestmentManager in case it must be removed from the 
-     *                                    podOwner's list of strategies
+     *        the EigenPodManager to the InvestmentManager in case it must be removed from the podOwner's list of strategies
      */
     function verifyAndProcessWithdrawal(
         BeaconChainProofs.WithdrawalProofs calldata proofs, 
@@ -372,5 +375,5 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
      * variables without shifting down storage in the inheritance chain.
      * See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
      */
-    uint256[45] private __gap;
+    uint256[44] private __gap;
 }
