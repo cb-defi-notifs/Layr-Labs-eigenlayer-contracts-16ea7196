@@ -318,7 +318,7 @@ library BN254 {
             // Use "invalid" to make gas estimation work
             switch success case 0 { invalid() }
         }
-        require(success);
+        require(success, "BN254.expMod: call failure");
         return output[0];
     }
 }

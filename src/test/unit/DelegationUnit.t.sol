@@ -34,7 +34,7 @@ contract DelegationUnitTests is EigenLayerTestHelper {
         slasherMock = new SlasherMock();
         delegationTermsMock = new DelegationTermsMock();
         delegationMock = EigenLayerDelegation(address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayerProxyAdmin), "")));
-        investmentManagerMock = new InvestmentManagerMock(delegationMock, eigenPodManager, slasherMock);
+        investmentManagerMock = new InvestmentManagerMock();
 
         delegationMockImplementation = new EigenLayerDelegation(investmentManagerMock, slasherMock);
 

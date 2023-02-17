@@ -29,7 +29,7 @@ import "./EigenPodPausingConstants.sol";
  * - withdrawing eth when withdrawals are initiated
  */
 contract EigenPodManager is Initializable, OwnableUpgradeable, Pausable, IEigenPodManager, EigenPodPausingConstants {
-    //TODO: change this to constant in prod
+    /// @notice The ETH2 Deposit Contract
     IETHPOSDeposit public immutable ethPOS;
     
     /// @notice Beacon proxy to which the EigenPods point
@@ -79,7 +79,7 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, Pausable, IEigenP
         address initialOwner,
         IPauserRegistry _pauserRegistry,
         uint256 _initPausedStatus
-    ) public initializer {
+    ) external initializer {
         _updateBeaconChainOracle(_beaconChainOracle);
         _transferOwnership(initialOwner);
         _initializePauser(_pauserRegistry, _initPausedStatus);
@@ -201,7 +201,17 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, Pausable, IEigenP
         return address(_podByOwner[podOwner]) != address(0);
     }
 
-    function getBeaconChainStateRoot() external view returns(bytes32){
-        return beaconChainOracle.getBeaconChainStateRoot();
+    /// @notice Returns the Beacon Chain state root at `slot`. Reverts if the Beacon Chain state root at `slot` has not yet been finalized.
+    function getBeaconChainStateRoot(uint64 slot) external view returns(bytes32) {
+        bytes32 stateRoot = beaconChainOracle.beaconStateRoot(slot);
+        require(stateRoot != bytes32(0), "EigenPodManager.getBeaconChainStateRoot: state root at slot not yet finalized");
+        return stateRoot;
     }
+
+    /**
+     * @dev This empty reserved space is put in place to allow future versions to add new
+     * variables without shifting down storage in the inheritance chain.
+     * See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
+     */
+    uint256[48] private __gap;
 }

@@ -69,7 +69,7 @@ the 0 indexed `index`'th leaf from the bottom left of the tree.
 
 _Available since v4.4._
 
-Note this is for a Merkle tree using the keccak/sha3 hash function_
+Note this is for a Merkle tree using the sha256 hash function_
 
 ### merkleizeSha256
 

@@ -21,6 +21,7 @@ import "../src/contracts/core/Slasher.sol";
 import "../src/contracts/pods/EigenPod.sol";
 import "../src/contracts/pods/EigenPodManager.sol";
 import "../src/contracts/pods/EigenPodPaymentEscrow.sol";
+import "../src/contracts/pods/BeaconChainOracle.sol";
 
 import "../src/contracts/permissions/PauserRegistry.sol";
 import "../src/contracts/middleware/BLSPublicKeyCompendium.sol";
@@ -28,7 +29,6 @@ import "../src/contracts/middleware/BLSPublicKeyCompendium.sol";
 import "../src/contracts/libraries/BytesLib.sol";
 
 import "../src/test/mocks/EmptyContract.sol";
-import "../src/test/mocks/BeaconChainOracleMock.sol";
 import "../src/test/mocks/ETHDepositMock.sol";
 import "../src/test/utils/Owners.sol";
 
@@ -101,6 +101,8 @@ contract EigenLayerDeployer is Script, Owners {
 
     uint256 public gasLimit = 750000;
 
+    uint256 public initialBeaconChainOracleThreshold = 3;
+
     function run() external {
         vm.startBroadcast();
 
@@ -138,8 +140,8 @@ contract EigenLayerDeployer is Script, Owners {
             address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayerProxyAdmin), ""))
         );
 
-        beaconChainOracle = new BeaconChainOracleMock();
-        beaconChainOracle.setBeaconChainStateRoot(0xb08d5a1454de19ac44d523962096d73b85542f81822c5e25b8634e4e86235413);
+        address[] memory initialOracleSignersArray = new address[](0);
+        beaconChainOracle = new BeaconChainOracle(address(eigenLayerReputedMultisig), initialBeaconChainOracleThreshold, initialOracleSignersArray);
 
         ethPOSDeposit = new ETHPOSDepositMock();
         pod = new EigenPod(ethPOSDeposit, eigenPodPaymentEscrow, PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS, REQUIRED_BALANCE_WEI, MAX_PARTIAL_WTIHDRAWAL_AMOUNT_GWEI);

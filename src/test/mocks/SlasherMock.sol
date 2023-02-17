@@ -48,11 +48,29 @@ contract SlasherMock is ISlasher, Test {
         return _canWithdraw;
     }
 
+    /**
+     * operator => 
+     *  [
+     *      (
+     *          the least recent update block of all of the middlewares it's serving/served, 
+     *          latest time that the stake bonded at that update needed to serve until
+     *      )
+     *  ]
+     */
+    function operatorToMiddlewareTimes(address operator, uint256 arrayIndex) external view returns (MiddlewareTimes memory) {}
+
+    /// @notice Getter function for fetching `operatorToMiddlewareTimes[operator].length`
+    function middlewareTimesLength(address operator) external view returns (uint256) {}
+
     /// @notice Getter function for fetching `operatorToMiddlewareTimes[operator][index].stalestUpdateBlock`.
     function getMiddlewareTimesIndexBlock(address operator, uint32 index) external view returns(uint32){}
 
     /// @notice Getter function for fetching `operatorToMiddlewareTimes[operator][index].latestServeUntil`.
     function getMiddlewareTimesIndexServeUntil(address operator, uint32 index) external view returns(uint32){}
 
+    /// @notice Getter function for fetching `_operatorToWhitelistedContractsByUpdate[operator].size`.
+    function operatorWhitelistedContractsLinkedListSize(address operator) external view returns (uint256) {}
 
+    /// @notice Getter function for fetching a single node in the operator's linked list (`_operatorToWhitelistedContractsByUpdate[operator]`).
+    function operatorWhitelistedContractsLinkedListEntry(address operator, address node) external view returns (bool, uint256, uint256) {}
 }

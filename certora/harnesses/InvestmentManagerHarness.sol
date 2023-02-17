@@ -47,4 +47,8 @@ contract InvestmentManagerHarness is InvestmentManager {
         }
         return true;
     }
+
+    function totalShares(address strategy) public view returns (uint256) {
+        return  IInvestmentStrategy(strategy).totalShares();
+    }
 }

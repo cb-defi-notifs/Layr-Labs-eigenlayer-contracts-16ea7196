@@ -11,6 +11,7 @@ import "./EigenLayerDeployer.t.sol";
 import "./mocks/MiddlewareRegistryMock.sol";
 import "./mocks/ServiceManagerMock.sol";
 import "../contracts/libraries/BeaconChainProofs.sol";
+import "./mocks/BeaconChainOracleMock.sol";
 
 
 contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingConstants {
@@ -225,7 +226,7 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
     }
 
     function testDeployAndVerifyNewEigenPod() public returns(IEigenPod){
-        beaconChainOracle.setBeaconChainStateRoot(0xaf3bf0770df5dd35b984eda6586e6f6eb20af904a5fb840fe65df9a6415293bd);
+        BeaconChainOracleMock(address(beaconChainOracle)).setBeaconChainStateRoot(0xaf3bf0770df5dd35b984eda6586e6f6eb20af904a5fb840fe65df9a6415293bd);
         return _testDeployAndVerifyNewEigenPod(podOwner, signature, depositDataRoot, false, validatorIndex0);
     }
 
@@ -251,7 +252,7 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
         
         (beaconStateRoot, beaconStateMerkleProofForValidators, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) =
             getInitialDepositProof(validatorIndex0);
-        beaconChainOracle.setBeaconChainStateRoot(beaconStateRoot);
+        BeaconChainOracleMock(address(beaconChainOracle)).setBeaconChainStateRoot(beaconStateRoot);
 
 
         cheats.startPrank(podOwner);
@@ -261,15 +262,16 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
         validatorContainerFields[1] = abi.encodePacked(bytes1(uint8(1)), bytes11(0), wrongWithdrawalAddress).toBytes32(0);
 
         bytes memory proofs = abi.encodePacked(validatorMerkleProof, beaconStateMerkleProofForValidators);
-        cheats.expectRevert(bytes("BeaconChainProofs.verifyValidatorFields: Invalid merkle proof"));
-        newPod.verifyCorrectWithdrawalCredentials(validatorIndex0, proofs, validatorContainerFields);
+        cheats.expectRevert(bytes("EigenPod.verifyCorrectWithdrawalCredentials: Proof is not for this EigenPod"));
+        uint64 slot = 0;
+        newPod.verifyCorrectWithdrawalCredentials(slot, validatorIndex0, proofs, validatorContainerFields);
     }
 
     //test that when withdrawal credentials are verified more than once, it reverts
     function testDeployNewEigenPodWithActiveValidator() public {
         (beaconStateRoot, beaconStateMerkleProofForValidators, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) =
             getInitialDepositProof(validatorIndex0);
-        beaconChainOracle.setBeaconChainStateRoot(beaconStateRoot);        
+        BeaconChainOracleMock(address(beaconChainOracle)).setBeaconChainStateRoot(beaconStateRoot);        
 
         cheats.startPrank(podOwner);
         eigenPodManager.stake{value: stakeAmount}(pubkey, signature, depositDataRoot);
@@ -280,10 +282,11 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
 
         // bytes32 validatorIndexBytes = bytes32(uint256(validatorIndex0));
         bytes memory proofs = abi.encodePacked(validatorMerkleProof, beaconStateMerkleProofForValidators);
-        newPod.verifyCorrectWithdrawalCredentials(validatorIndex0, proofs, validatorContainerFields);
+        uint64 slot = 0;
+        newPod.verifyCorrectWithdrawalCredentials(slot, validatorIndex0, proofs, validatorContainerFields);
 
         cheats.expectRevert(bytes("EigenPod.verifyCorrectWithdrawalCredentials: Validator not inactive"));
-        newPod.verifyCorrectWithdrawalCredentials(validatorIndex0, proofs, validatorContainerFields);
+        newPod.verifyCorrectWithdrawalCredentials(slot, validatorIndex0, proofs, validatorContainerFields);
     }
 
     function getBeaconChainETHShares(address staker) internal view returns(uint256) {
@@ -367,7 +370,8 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
         cheats.stopPrank();
 
         cheats.expectRevert(bytes("EigenPod.onlyWhenNotPaused: index is paused in EigenPodManager"));
-        pod.verifyCorrectWithdrawalCredentials(validatorIndex, proofs, validatorContainerFields);
+        uint64 slot = 0;
+        pod.verifyCorrectWithdrawalCredentials(slot, validatorIndex, proofs, validatorContainerFields);
     }
 
     function testVerifyOvercommittedStakeRevertsWhenPaused() external {
@@ -383,7 +387,7 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
             validatorRoot
         ) = getSlashedDepositProof(validatorIndex);
 
-        beaconChainOracle.setBeaconChainStateRoot(beaconStateRoot);
+        BeaconChainOracleMock(address(beaconChainOracle)).setBeaconChainStateRoot(beaconStateRoot);
         
         // bytes32 validatorIndexBytes = bytes32(uint256(validatorIndex));
         bytes memory proofs = abi.encodePacked(validatorMerkleProof, beaconStateMerkleProofForValidators);
@@ -394,7 +398,8 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
         cheats.stopPrank();
 
         cheats.expectRevert(bytes("EigenPod.onlyWhenNotPaused: index is paused in EigenPodManager"));
-        pod.verifyOvercommittedStake(validatorIndex, proofs, validatorContainerFields, 0);
+        uint64 slot = 0;
+        pod.verifyOvercommittedStake(slot, validatorIndex, proofs, validatorContainerFields, 0);
     }
 
     // simply tries to register 'sender' as a delegate, setting their 'DelegationTerms' contract in EigenLayerDelegation to 'dt'
@@ -475,7 +480,7 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
         eigenPodManager.stake{value: stakeAmount}(pubkey, _signature, _depositDataRoot);
         cheats.stopPrank();
 
-        beaconChainOracle.setBeaconChainStateRoot(beaconStateRoot);
+        BeaconChainOracleMock(address(beaconChainOracle)).setBeaconChainStateRoot(beaconStateRoot);
 
         IEigenPod newPod;
 
@@ -483,7 +488,8 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
 
         bytes memory proofs = abi.encodePacked(validatorMerkleProof, beaconStateMerkleProofForValidators);
 
-        newPod.verifyCorrectWithdrawalCredentials(validatorIndex, proofs, validatorContainerFields);
+        uint64 slot = 0;
+        newPod.verifyCorrectWithdrawalCredentials(slot, validatorIndex, proofs, validatorContainerFields);
 
         IInvestmentStrategy beaconChainETHStrategy = investmentManager.beaconChainETHStrategy();
 
@@ -497,10 +503,9 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
             getInitialDepositProof(validatorIndex);
         bytes memory proofs = abi.encodePacked(validatorMerkleProof, beaconStateMerkleProofForValidators);
 
-        pod.verifyCorrectWithdrawalCredentials(validatorIndex, proofs, validatorContainerFields);
+        uint64 slot = 0;
+        pod.verifyCorrectWithdrawalCredentials(slot, validatorIndex, proofs, validatorContainerFields);
     }
-
-    
 
     function _proveOvercommittedStake(IEigenPod pod, uint40 validatorIndex) internal {
         (
@@ -512,11 +517,12 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
             validatorRoot
         ) = getSlashedDepositProof(validatorIndex);
 
-        beaconChainOracle.setBeaconChainStateRoot(beaconStateRoot);
+        BeaconChainOracleMock(address(beaconChainOracle)).setBeaconChainStateRoot(beaconStateRoot);
         
         // bytes32 validatorIndexBytes = bytes32(uint256(validatorIndex));
         bytes memory proofs = abi.encodePacked(validatorMerkleProof, beaconStateMerkleProofForValidators);
-        pod.verifyOvercommittedStake(validatorIndex, proofs, validatorContainerFields, 0);
+        uint64 slot = 0;
+        pod.verifyOvercommittedStake(slot, validatorIndex, proofs, validatorContainerFields, 0);
     }
 
     function _testQueueWithdrawal(

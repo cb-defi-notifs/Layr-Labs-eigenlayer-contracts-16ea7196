@@ -94,7 +94,7 @@ library Merkle {
      *
      * _Available since v4.4._
      * 
-     * Note this is for a Merkle tree using the keccak/sha3 hash function
+     * Note this is for a Merkle tree using the sha256 hash function
      */
     function processInclusionProofSha256(bytes memory proof, bytes32 leaf, uint256 index) internal view returns (bytes32) {
         bytes32[1] memory computedHash = [leaf];

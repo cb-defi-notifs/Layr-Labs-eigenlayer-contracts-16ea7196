@@ -83,13 +83,15 @@ interface IEigenPod {
 
     /**
      * @notice This function verifies that the withdrawal credentials of the podOwner are pointed to
-     * this contract.  It verifies the provided proof of the ETH validator against the beacon chain state
+     * this contract. It verifies the provided proof of the ETH validator against the beacon chain state
      * root, marks the validator as 'active' in EigenLayer, and credits the restaked ETH in Eigenlayer.
+     * @param slot The Beacon Chain slot whose state root the `proof` will be proven against.
      * @param proof is the bytes that prove the ETH validator's metadata against a beacon chain state root
      * @param validatorFields are the fields of the "Validator Container", refer to consensus specs 
      * for details: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
      */
     function verifyCorrectWithdrawalCredentials(
+        uint64 slot,
         uint40 validatorIndex,
         bytes calldata proof, 
         bytes32[] calldata validatorFields
@@ -99,6 +101,7 @@ interface IEigenPod {
      * @notice This function records an overcommitment of stake to EigenLayer on behalf of a certain ETH validator.
      *         If successful, the overcommitted balance is penalized (available for withdrawal whenever the pod's balance allows).
      *         The ETH validator's shares in the enshrined beaconChainETH strategy are also removed from the InvestmentManager and undelegated.
+     * @param slot The Beacon Chain slot whose state root the `proof` will be proven against.
      * @param proof is the bytes that prove the ETH validator's metadata against a beacon state root
      * @param validatorFields are the fields of the "Validator Container", refer to consensus specs 
      * @param beaconChainETHStrategyIndex is the index of the beaconChainETHStrategy for the pod owner for the callback to 
@@ -106,6 +109,7 @@ interface IEigenPod {
      * @dev For more details on the Beacon Chain spec, see: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
      */
     function verifyOvercommittedStake(
+        uint64 slot,
         uint40 validatorIndex,
         bytes calldata proof, 
         bytes32[] calldata validatorFields,
@@ -122,8 +126,6 @@ interface IEigenPod {
      *                                    podOwner's list of strategies
      * @param recipient is the address to which the full/partial withdrawal will be sent
      */
-
-
     function verifyAndProcessWithdrawal(
         BeaconChainProofs.WithdrawalProofs calldata proofs, 
         bytes32[] calldata validatorFields,

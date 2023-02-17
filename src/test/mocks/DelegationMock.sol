@@ -6,6 +6,12 @@ import "../../contracts/interfaces/IEigenLayerDelegation.sol";
 
 
 contract DelegationMock is IEigenLayerDelegation, Test {
+    mapping(address => bool) public isOperator;
+
+    function setIsOperator(address operator, bool _isOperatorReturnValue) external {
+        isOperator[operator] = _isOperatorReturnValue;
+    }
+
     mapping (address => address) public delegatedTo;
 
     function registerAsOperator(IDelegationTerms /*dt*/) external {}
@@ -42,8 +48,4 @@ contract DelegationMock is IEigenLayerDelegation, Test {
     }
 
     function isNotDelegated(address /*staker*/) external pure returns (bool) {}
-
-    function isOperator(address /*staker*/) external view returns (bool) {}
-
-
 }
