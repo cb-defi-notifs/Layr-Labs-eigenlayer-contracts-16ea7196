@@ -130,4 +130,7 @@ interface IEigenPod {
         bytes32[] calldata withdrawalFields,
         uint256 beaconChainETHStrategyIndex
     ) external;
+
+     /// @notice Called by the pod owner to withdraw the balance of the pod
+    function withdraw() external;
 }
