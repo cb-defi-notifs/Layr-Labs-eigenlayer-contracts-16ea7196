@@ -74,6 +74,9 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
     /// @notice the amount of execution layer ETH in this contract that is staked in EigenLayer (i.e. withdrawn from the Beacon Chain but not from EigenLayer), 
     uint64 public restakedExecutionLayerGwei;
 
+    /// @notice an indiciator of whether or not the podOwner has opted into restaking
+    bool public restakingEnabled;
+
     /// @notice this is a mapping of validator indices to a Validator struct containing pertinent info about the validator
     mapping(uint40 => VALIDATOR_STATUS) public validatorStatus;
 
@@ -101,6 +104,11 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
 
     modifier onlyNotFrozen {
         require(!eigenPodManager.slasher().isFrozen(podOwner), "EigenPod.onlyNotFrozen: pod owner is frozen");
+        _;
+    }
+
+    modifier isNotRestaking{
+        require(!restakingEnabled, "EigenPod.isNotRestaking: restaking is enabled");
         _;
     }
 
@@ -359,6 +367,20 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
 
         emit RestakedBeaconChainETHWithdrawn(recipient, amountWei);
     }
+
+    /// @notice Called by the pod owner to withdraw the balance of the pod when "restakingEnabled" is set to false
+    function withdraw() external onlyEigenPodOwner isNotRestaking {
+        mostRecentWithdrawalBlockNumber = uint32(block.number);
+        _sendETH(podOwner, address(this).balance);
+    }
+
+    /**
+     * @notice sets restakingEnabled flag to true to indicate that the EigenPod is ready to restake its beacon chain ETH
+     * @dev Callable by the pod owner
+     */
+    function enableRestaking() external onlyPodOwner {
+        restakingEnabled = true;
+    } 
 
     // INTERNAL FUNCTIONS
     function _podWithdrawalCredentials() internal view returns(bytes memory) {
