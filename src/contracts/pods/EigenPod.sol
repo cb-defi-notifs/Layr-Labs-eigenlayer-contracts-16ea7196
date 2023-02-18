@@ -378,7 +378,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
      * @notice sets restakingEnabled flag to true to indicate that the EigenPod is ready to restake its beacon chain ETH
      * @dev Callable by the pod owner
      */
-    function enableRestaking() external onlyPodOwner {
+    function enableRestaking() external onlyEigenPodOwner {
         restakingEnabled = true;
     } 
 
