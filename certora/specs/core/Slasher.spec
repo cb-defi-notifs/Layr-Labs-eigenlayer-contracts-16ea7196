@@ -173,3 +173,15 @@ rule cannotAddSameContractTwice(address operator, address contractAddress) {
 	}
 }
 */
+/*
+## Slashing
+
+- slashing happens if and only if a provably malicious action by an operator took place
+- operator may be slashed only if allowToSlash() for that particular contract was called
+- slashing cannot happen after bondedUntil[operator][contractAddress] timestamp
+- bondedUntil[operator][contractAddress] changed  => allowToSlash() or recordLastStakeUpdateAndRevokeSlashingAbility() was called
+- recordLastStakeUpdateAndRevokeSlashingAbility() should only be callable when bondedUntil[operator][contractAddress] == MAX_BONDED_UNTIL, and only by the contractAddress
+- Any contractAddress for which bondedUntil[operator][contractAddress] > current time can call freezeOperator(operator).
+- frozen operator cannot make deposits/withdrawals, cannot complete queued withdrawals
+- slashing and unfreezing is performed by the InvestmentManager contract owner (is it permanent or configurable?)
+- frozenStatus[operator] changed => freezeOperator() or resetFrozenStatus() were called
