@@ -76,6 +76,14 @@ contract Pausable is IPausable {
     }
 
     /**
+     * @notice Alias for `pause(type(uint256).max)`.
+     */
+    function pauseAll() external onlyPauser {
+        _paused = type(uint256).max;
+        emit Paused(msg.sender, type(uint256).max);
+    }
+
+    /**
      * @notice This function is used to unpause an EigenLayer/DataLayercontract's functionality.
      * It is permissioned to the `unpauser` address, which is expected to be a high threshold multisig or goverance contract.
      * @param newPausedStatus represents the new value for `_paused` to take, which means it may flip several bits at once.
