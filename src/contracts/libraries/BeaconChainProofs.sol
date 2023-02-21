@@ -211,8 +211,8 @@ library BeaconChainProofs {
 
         //Compute the block_header_index relative to the beaconStateRoot.  It concatenates the indexes of all the
         // intermediate root indexes from the bottom of the sub trees (the block header container) to the top of the tree
-        uint256 block_header_index = BLOCK_ROOTS_INDEX << (BLOCK_ROOTS_TREE_HEIGHT)  | uint256(proofs.blockHeaderRootIndex);
-        require(Merkle.verifyInclusionSha256(proofs.blockHeaderProof, beaconStateRoot, proofs.blockHeaderRoot, block_header_index), "BeaconChainProofs.verifyBlockNumberAndWithdrawalFields: Invalid block header merkle proof");
+        uint256 blockHeaderIndex = BLOCK_ROOTS_INDEX << (BLOCK_ROOTS_TREE_HEIGHT)  | uint256(proofs.blockHeaderRootIndex);
+        require(Merkle.verifyInclusionSha256(proofs.blockHeaderProof, beaconStateRoot, proofs.blockHeaderRoot, blockHeaderIndex), "BeaconChainProofs.verifyBlockNumberAndWithdrawalFields: Invalid block header merkle proof");
 
         // //Next we verify the executionPayloadHeader against the blockHeaderRoot
         uint256 executionPayloadIndex = BODY_ROOT_INDEX << (BEACON_BLOCK_BODY_FIELD_TREE_HEIGHT)| EXECUTION_PAYLOAD_INDEX ;

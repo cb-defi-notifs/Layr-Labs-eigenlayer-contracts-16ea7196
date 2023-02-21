@@ -128,7 +128,8 @@ interface IEigenPod {
         BeaconChainProofs.WithdrawalProofs calldata proofs, 
         bytes32[] calldata validatorFields,
         bytes32[] calldata withdrawalFields,
-        uint256 beaconChainETHStrategyIndex
+        uint256 beaconChainETHStrategyIndex,
+        uint64 oracleBlockNumber
     ) external;
 
      /// @notice Called by the pod owner to withdraw the balance of the pod

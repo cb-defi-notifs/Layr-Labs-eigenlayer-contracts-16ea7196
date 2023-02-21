@@ -255,11 +255,13 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         bytes32[] calldata validatorFields,
         bytes32[] calldata withdrawalFields,
         uint256 beaconChainETHStrategyIndex,
-        uint64 oracleSlot
+        uint64 oracleBlockNumber
     ) external onlyWhenNotPaused(PAUSED_EIGENPODS_VERIFY_WITHDRAWAL) {
-        uint64 slot = Endian.fromLittleEndianUint64(proofs.slotRoot);
-        require(slot <= oracleSlot, "EigenPod.verifyAndCompleteWithdrawal: withdrawal slot must be from before or at the oracle slot");
-        bytes32 beaconStateRoot = eigenPodManager.getBeaconChainStateRoot(oracleSlot);
+        uint64 withdrawalBlockNumber = Endian.fromLittleEndianUint64(proofs.blockNumberRoot);
+        require(withdrawalBlockNumber > mostRecentWithdrawalBlockNumber, "EigenPod.verifyAndCompleteWithdrawal: attempting to withdraw a previously claimed withdrawal");
+
+        require(withdrawalBlockNumber <= oracleBlockNumber, "EigenPod.verifyAndCompleteWithdrawal: withdrawal slot must be from before or at the oracle slot");
+        bytes32 beaconStateRoot = eigenPodManager.getBeaconChainStateRoot(oracleBlockNumber);
 
         BeaconChainProofs.verifyBlockNumberAndWithdrawalFields(beaconStateRoot, proofs, withdrawalFields, validatorFields);
 
@@ -268,8 +270,8 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         uint40 validatorIndex = uint40(Endian.fromLittleEndianUint64(withdrawalFields[BeaconChainProofs.WITHDRAWAL_VALIDATOR_INDEX_INDEX]));
 
         //check if the withdrawal occured after mostRecentWithdrawalBlockNumber
-        uint64 withdrawalBlockNumber = Endian.fromLittleEndianUint64(proofs.blockNumberRoot);
-        require(withdrawalBlockNumber > mostRecentWithdrawalBlockNumber, "EigenPod.verifyAndCompleteWithdrawal: attempting to withdraw a previously claimed withdrawal");
+        
+        uint64 slot = Endian.fromLittleEndianUint64(proofs.slotRoot);
         if (withdrawableEpoch <= slot/BeaconChainProofs.SLOTS_PER_EPOCH) {
             _processFullWithdrawal(withdrawalAmountGwei, validatorIndex, beaconChainETHStrategyIndex, podOwner);
         } else {
