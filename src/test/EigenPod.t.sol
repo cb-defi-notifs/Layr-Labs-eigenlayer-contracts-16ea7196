@@ -222,7 +222,7 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
 
         emit log_named_uint("proofs.validatorIndex", proofs.validatorIndex);
 
-        relay.verifySlotAndWithdrawalFields(beaconStateRoot, proofs, withdrawalFields, validatorFields);
+        relay.verifyBlockNumberAndWithdrawalFields(beaconStateRoot, proofs, withdrawalFields, validatorFields);
     }
 
     function testDeployAndVerifyNewEigenPod() public returns(IEigenPod){
@@ -277,8 +277,7 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
         eigenPodManager.stake{value: stakeAmount}(pubkey, signature, depositDataRoot);
         cheats.stopPrank();
 
-        IEigenPod newPod;
-        newPod = eigenPodManager.getPod(podOwner);
+        IEigenPod newPod = eigenPodManager.getPod(podOwner);
 
         // bytes32 validatorIndexBytes = bytes32(uint256(validatorIndex0));
         bytes memory proofs = abi.encodePacked(validatorMerkleProof, beaconStateMerkleProofForValidators);
@@ -561,12 +560,12 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
 
 
  contract Relayer is Test {
-    function verifySlotAndWithdrawalFields(
+    function verifyBlockNumberAndWithdrawalFields(
         bytes32 beaconStateRoot,
         BeaconChainProofs.WithdrawalProofs calldata proofs,
         bytes32[] calldata withdrawalFields,
         bytes32[] calldata validatorFields
     ) public view {
-        BeaconChainProofs.verifySlotAndWithdrawalFields(beaconStateRoot, proofs, withdrawalFields, validatorFields);
+        BeaconChainProofs.verifyBlockNumberAndWithdrawalFields(beaconStateRoot, proofs, withdrawalFields, validatorFields);
     }
  }
