@@ -14,7 +14,6 @@ import "../interfaces/IEigenLayerDelegation.sol";
 import "../interfaces/IEigenPodManager.sol";
 import "../interfaces/IETHPOSDeposit.sol";
 import "../interfaces/IEigenPod.sol";
-import "../interfaces/IEigenPodV0.sol";
 
 import "../interfaces/IBeaconChainOracle.sol";
 
