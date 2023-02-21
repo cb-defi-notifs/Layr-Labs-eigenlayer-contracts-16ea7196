@@ -20,6 +20,11 @@ interface IPausable {
     function pause(uint256 newPausedStatus) external;
 
     /**
+     * @notice Alias for `pause(type(uint256).max)`.
+     */
+    function pauseEverything() external;
+
+    /**
      * @notice This function is used to unpause an EigenLayer/DataLayercontract's functionality.
      * It is permissioned to the `unpauser` address, which is expected to be a high threshold multisig or goverance contract.
      * @param newPausedStatus represents the new value for `_paused` to take, which means it may flip several bits at once.
