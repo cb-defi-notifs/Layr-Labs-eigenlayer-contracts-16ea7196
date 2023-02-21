@@ -254,10 +254,12 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         BeaconChainProofs.WithdrawalProofs calldata proofs, 
         bytes32[] calldata validatorFields,
         bytes32[] calldata withdrawalFields,
-        uint256 beaconChainETHStrategyIndex
+        uint256 beaconChainETHStrategyIndex,
+        uint64 oracleSlot
     ) external onlyWhenNotPaused(PAUSED_EIGENPODS_VERIFY_WITHDRAWAL) {
         uint64 slot = Endian.fromLittleEndianUint64(proofs.slotRoot);
-        bytes32 beaconStateRoot = eigenPodManager.getBeaconChainStateRoot(slot);
+        require(slot <= oracleSlot, "EigenPod.verifyAndCompleteWithdrawal: withdrawal slot must be from before or at the oracle slot");
+        bytes32 beaconStateRoot = eigenPodManager.getBeaconChainStateRoot(oracleSlot);
 
         BeaconChainProofs.verifyBlockNumberAndWithdrawalFields(beaconStateRoot, proofs, withdrawalFields, validatorFields);
 
