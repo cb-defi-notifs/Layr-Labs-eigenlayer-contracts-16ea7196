@@ -63,6 +63,29 @@ contract PausableUnitTests is Test {
         cheats.stopPrank();
     }
 
+    function testPauseAll(uint256 previousPausedStatus) public {
+        cheats.startPrank(pausable.pauserRegistry().pauser());
+        pausable.pause(previousPausedStatus);
+        cheats.stopPrank();
+
+        require(pausable.paused() == previousPausedStatus, "previousPausedStatus not set correctly");
+
+        cheats.startPrank(pausable.pauserRegistry().pauser());
+        pausable.pauseAll();
+        cheats.stopPrank();
+
+        require(pausable.paused() == type(uint256).max, "newPausedStatus not set correctly");
+    }
+
+    function testPauseAll_RevertsWhenCalledByNotPauser(address notPauser) public {
+        cheats.assume(notPauser != pausable.pauserRegistry().pauser());
+
+        cheats.startPrank(notPauser);
+        cheats.expectRevert(bytes("msg.sender is not permissioned as pauser"));
+        pausable.pauseAll();
+        cheats.stopPrank();
+    }
+
     function testPause_RevertsWhenTryingToUnpause(uint256 previousPausedStatus, uint256 newPausedStatus) public {
         // filter to only fuzzed inputs which would (improperly) flip any bits to '0'.
         cheats.assume(previousPausedStatus & newPausedStatus != previousPausedStatus);

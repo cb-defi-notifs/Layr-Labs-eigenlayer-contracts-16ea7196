@@ -22,7 +22,7 @@ interface IPausable {
     /**
      * @notice Alias for `pause(type(uint256).max)`.
      */
-    function pauseEverything() external;
+    function pauseAll() external;
 
     /**
      * @notice This function is used to unpause an EigenLayer/DataLayercontract's functionality.

@@ -78,7 +78,7 @@ contract Pausable is IPausable {
     /**
      * @notice Alias for `pause(type(uint256).max)`.
      */
-    function pauseEverything() external onlyPauser {
+    function pauseAll() external onlyPauser {
         _paused = type(uint256).max;
         emit Paused(msg.sender, type(uint256).max);
     }
