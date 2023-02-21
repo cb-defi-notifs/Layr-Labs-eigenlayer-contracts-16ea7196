@@ -112,6 +112,11 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         _;
     }
 
+    modifier isRestaking{
+        require(restakingEnabled, "EigenPod.isNotRestaking: restaking is enabled");
+        _;
+    }
+
     /**
      * @notice Based on 'Pausable' code, but uses the storage of the EigenPodManager instead of this contract. This construction
      * is necessary for enabling pausing all EigenPods at the same time (due to EigenPods being Beacon Proxies).
@@ -196,6 +201,9 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         // deposit RESTAKED_BALANCE_PER_VALIDATOR for new ETH validator
         // @dev balances are in GWEI so need to convert
         eigenPodManager.restakeBeaconChainETH(podOwner, REQUIRED_BALANCE_WEI);
+        if(!restakingEnabled){
+            restakingEnabled = true;
+        }
     }
 
     /**
@@ -372,19 +380,13 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         emit RestakedBeaconChainETHWithdrawn(recipient, amountWei);
     }
 
+
     /// @notice Called by the pod owner to withdraw the balance of the pod when "restakingEnabled" is set to false
     function withdraw() external onlyEigenPodOwner isNotRestaking {
         mostRecentWithdrawalBlockNumber = uint32(block.number);
         _sendETH(podOwner, address(this).balance);
     }
 
-    /**
-     * @notice sets restakingEnabled flag to true to indicate that the EigenPod is ready to restake its beacon chain ETH
-     * @dev Callable by the pod owner
-     */
-    function enableRestaking() external onlyEigenPodOwner {
-        restakingEnabled = true;
-    } 
 
     // INTERNAL FUNCTIONS
     function _podWithdrawalCredentials() internal view returns(bytes memory) {
