@@ -3,7 +3,7 @@ then
     RULE="--rule $2"
 fi
 
-solc-select use 0.8.9
+solc-select use 0.8.12
 
 certoraRun certora/harnesses/StructuredLinkedListHarness.sol \
     --verify StructuredLinkedListHarness:certora/specs/libraries/StructuredLinkedList.spec \
@@ -12,6 +12,6 @@ certoraRun certora/harnesses/StructuredLinkedListHarness.sol \
     --settings -optimisticFallback=true \
     $RULE \
     --rule_sanity \
-    --staging master \
+    # --staging master \
     --loop_iter 3 \
     --msg "StructuredLinkedList $1 $2" \
