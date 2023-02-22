@@ -222,7 +222,7 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
 
         emit log_named_uint("proofs.validatorIndex", proofs.validatorIndex);
 
-        relay.verifyBlockNumberAndWithdrawalFields(beaconStateRoot, proofs, withdrawalFields, validatorFields);
+        relay.verifyBlockNumberAndWithdrawalFields(beaconStateRoot, proofs, withdrawalFields);
     }
 
     function testDeployAndVerifyNewEigenPod() public returns(IEigenPod){
@@ -563,9 +563,8 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
     function verifyBlockNumberAndWithdrawalFields(
         bytes32 beaconStateRoot,
         BeaconChainProofs.WithdrawalProofs calldata proofs,
-        bytes32[] calldata withdrawalFields,
-        bytes32[] calldata validatorFields
+        bytes32[] calldata withdrawalFields
     ) public view {
-        BeaconChainProofs.verifyBlockNumberAndWithdrawalFields(beaconStateRoot, proofs, withdrawalFields, validatorFields);
+        BeaconChainProofs.verifyBlockNumberAndWithdrawalFields(beaconStateRoot, proofs, withdrawalFields);
     }
  }

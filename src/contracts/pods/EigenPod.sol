@@ -268,10 +268,11 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         uint64 withdrawalBlockNumber = Endian.fromLittleEndianUint64(proofs.blockNumberRoot);
         require(withdrawalBlockNumber > mostRecentWithdrawalBlockNumber, "EigenPod.verifyAndCompleteWithdrawal: attempting to withdraw a previously claimed withdrawal");
 
-        require(withdrawalBlockNumber <= oracleBlockNumber, "EigenPod.verifyAndCompleteWithdrawal: withdrawal slot must be from before or at the oracle slot");
         bytes32 beaconStateRoot = eigenPodManager.getBeaconChainStateRoot(oracleBlockNumber);
 
-        BeaconChainProofs.verifyBlockNumberAndWithdrawalFields(beaconStateRoot, proofs, withdrawalFields, validatorFields);
+        BeaconChainProofs.verifyBlockNumberAndWithdrawalFields(beaconStateRoot, proofs, withdrawalFields);
+        BeaconChainProofs.verifyValidatorFields(proofs.validatorIndex, beaconStateRoot, proofs.validatorProof, validatorFields);
+
 
         uint64 withdrawableEpoch = Endian.fromLittleEndianUint64(validatorFields[BeaconChainProofs.VALIDATOR_WITHDRAWABLE_EPOCH_INDEX]);
         uint64 withdrawalAmountGwei = Endian.fromLittleEndianUint64(withdrawalFields[BeaconChainProofs.WITHDRAWAL_VALIDATOR_AMOUNT_INDEX]);

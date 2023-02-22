@@ -193,11 +193,9 @@ library BeaconChainProofs {
     function verifyBlockNumberAndWithdrawalFields(
         bytes32 beaconStateRoot,
         WithdrawalProofs calldata proofs,
-        bytes32[] calldata withdrawalFields,
-        bytes32[] calldata validatorFields
+        bytes32[] calldata withdrawalFields
     ) internal view {
         require(withdrawalFields.length == 2**WITHDRAWAL_FIELD_TREE_HEIGHT, "BeaconChainProofs.verifyBlockNumberAndWithdrawalFields: withdrawalFields has incorrect length");
-        require(validatorFields.length == 2**VALIDATOR_FIELD_TREE_HEIGHT, "BeaconChainProofs.verifyBlockNumberAndWithdrawalFields: validatorFields has incorrect length");
 
         require(proofs.blockHeaderRootIndex < 2**BLOCK_ROOTS_TREE_HEIGHT, "BeaconChainProofs.verifyBlockNumberAndWithdrawalFields: blockRootIndex is too large");
         require(proofs.withdrawalIndex < 2**WITHDRAWALS_TREE_HEIGHT, "BeaconChainProofs.verifyBlockNumberAndWithdrawalFields: withdrawalIndex is too large");
@@ -228,9 +226,6 @@ library BeaconChainProofs {
         uint256 withdrawalIndex = WITHDRAWALS_INDEX << (WITHDRAWALS_TREE_HEIGHT + 1) | uint256(proofs.withdrawalIndex);
         bytes32 withdrawalRoot = Merkle.merkleizeSha256(withdrawalFields);
         require(Merkle.verifyInclusionSha256(proofs.withdrawalProof, proofs.executionPayloadRoot, withdrawalRoot, withdrawalIndex), "BeaconChainProofs.verifyBlockNumberAndWithdrawalFields: Invalid withdrawal merkle proof");
-
-        //Next we verify the validator fields against the beaconStateRoot (for the withdrawable epoch proof)
-        verifyValidatorFields(proofs.validatorIndex, beaconStateRoot, proofs.validatorProof, validatorFields);
     }
 
 }
