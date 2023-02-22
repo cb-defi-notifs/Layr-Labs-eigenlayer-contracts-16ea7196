@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity =0.8.12;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/interfaces/IERC1271.sol";
@@ -21,7 +21,7 @@ import "./Slasher.sol";
  * - enabling any staker to delegate its stake to the operator of its choice
  * - enabling a staker to undelegate its assets from an operator (performed as part of the withdrawal process, initiated through the InvestmentManager)
  */
-contract EigenLayerDelegation is Initializable, OwnableUpgradeable, EigenLayerDelegationStorage, Pausable {
+contract EigenLayerDelegation is Initializable, OwnableUpgradeable, Pausable, EigenLayerDelegationStorage {
     // index for flag that pauses new delegations when set
     uint8 internal constant PAUSED_NEW_DELEGATION = 0;
     // bytes4(keccak256("isValidSignature(bytes32,bytes)")
@@ -90,7 +90,7 @@ contract EigenLayerDelegation is Initializable, OwnableUpgradeable, EigenLayerDe
     function delegateToBySignature(address staker, address operator, uint256 expiry, bytes memory signature)
         external
     {
-        require(expiry >= block.timestamp, "delegation signature expired");
+        require(expiry >= block.timestamp, "EigenLayerDelegation.delegateToBySignature: delegation signature expired");
 
         // calculate struct hash, then increment `staker`'s nonce
         uint256 nonce = nonces[staker];
@@ -219,7 +219,7 @@ contract EigenLayerDelegation is Initializable, OwnableUpgradeable, EigenLayerDe
                 // value in wei for call
                 0,
                 // memory location to copy for calldata
-                lowLevelCalldata,
+                add(lowLevelCalldata, 32),
                 // length of memory to copy for calldata
                 mload(lowLevelCalldata),
                 // memory location to copy return data
@@ -267,7 +267,7 @@ contract EigenLayerDelegation is Initializable, OwnableUpgradeable, EigenLayerDe
                 // value in wei for call
                 0,
                 // memory location to copy for calldata
-                lowLevelCalldata,
+                add(lowLevelCalldata, 32),
                 // length of memory to copy for calldata
                 mload(lowLevelCalldata),
                 // memory location to copy return data

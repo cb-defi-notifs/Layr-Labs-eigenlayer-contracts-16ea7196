@@ -1,10 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 
-pragma solidity ^0.8.9;
+pragma solidity =0.8.12;
 
-import "../interfaces/IPauserRegistry.sol";
-
-// import "forge-std/Test.sol";
+import "../interfaces/IPausable.sol";
 
 /**
  * @title Adds pausability to a contract.
@@ -14,7 +12,7 @@ import "../interfaces/IPauserRegistry.sol";
  * @dev Pausability is implemented using a uint256, which allows up to 256 different bit-flags; each bit can potentially pause different functionality.
  * Inspiration is taken from the NearBridge design here https://etherscan.io/address/0x3FEFc5A4B1c02f21cBc8D3613643ba0635b9a873#code
  */
-contract Pausable {
+contract Pausable is IPausable {
     /// @notice Address of the `PauserRegistry` contract that this contract defers to for determining access control (for pausing).
     IPauserRegistry public pauserRegistry;
 
@@ -78,6 +76,14 @@ contract Pausable {
     }
 
     /**
+     * @notice Alias for `pause(type(uint256).max)`.
+     */
+    function pauseAll() external onlyPauser {
+        _paused = type(uint256).max;
+        emit Paused(msg.sender, type(uint256).max);
+    }
+
+    /**
      * @notice This function is used to unpause an EigenLayer/DataLayercontract's functionality.
      * It is permissioned to the `unpauser` address, which is expected to be a high threshold multisig or goverance contract.
      * @param newPausedStatus represents the new value for `_paused` to take, which means it may flip several bits at once.
@@ -100,4 +106,11 @@ contract Pausable {
         uint256 mask = 1 << index;
         return ((_paused & mask) == mask);
     }
+
+    /**
+     * @dev This empty reserved space is put in place to allow future versions to add new
+     * variables without shifting down storage in the inheritance chain.
+     * See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
+     */
+    uint256[48] private __gap;
 }

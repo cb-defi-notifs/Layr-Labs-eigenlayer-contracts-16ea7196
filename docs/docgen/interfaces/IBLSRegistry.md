@@ -46,3 +46,39 @@ function apkUpdateBlockNumbers(uint256 index) external view returns (uint32)
 
 returns the block number at which the `index`th APK update occurred
 
+### whitelister
+
+```solidity
+function whitelister() external view returns (address)
+```
+
+### whitelistEnabled
+
+```solidity
+function whitelistEnabled() external view returns (bool)
+```
+
+### whitelisted
+
+```solidity
+function whitelisted(address) external view returns (bool)
+```
+
+### setWhitelistStatus
+
+```solidity
+function setWhitelistStatus(bool _whitelistEnabled) external
+```
+
+### addToWhitelist
+
+```solidity
+function addToWhitelist(address[]) external
+```
+
+### removeFromWhitelist
+
+```solidity
+function removeFromWhitelist(address[] operators) external
+```
+

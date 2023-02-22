@@ -1,13 +1,10 @@
 // SPDX-License-Identifier: UNLICENCED
 
-pragma solidity ^0.8.9;
+pragma solidity =0.8.12;
 
 import "./Merkle.sol";
 import "./BytesLib.sol";
 import "../libraries/Endian.sol";
-
-
-//TODO: Validate this entire library
 
 //Utility library for parsing and PHASE0 beacon chain block headers
 //SSZ Spec: https://github.com/ethereum/consensus-specs/blob/dev/ssz/simple-serialize.md#merkleization
@@ -86,8 +83,6 @@ library BeaconChainProofs{
         bytes blockNumberProof;
     }
 
-
-    //TODO: Merklization can be optimized by supplying zero hashes. later on tho
     function computePhase0BeaconBlockHeaderRoot(bytes32[NUM_BEACON_BLOCK_HEADER_FIELDS] calldata blockHeaderFields) internal pure returns(bytes32) {
         bytes32[] memory paddedHeaderFields = new bytes32[](2**BEACON_BLOCK_HEADER_FIELD_TREE_HEIGHT);
         

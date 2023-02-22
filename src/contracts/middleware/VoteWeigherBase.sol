@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity =0.8.12;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../interfaces/IInvestmentManager.sol";
 import "./VoteWeigherBaseStorage.sol";
-
-// import "forge-std/Test.sol";
 
 /**
  * @title A simple implementation of the `IVoteWeigher` interface.
@@ -29,7 +27,7 @@ abstract contract VoteWeigherBase is VoteWeigherBaseStorage {
         _;
     }
 
-    /// @notice Sets the (immutable) `delegation` and `investmentManager` addresses, as well as the (immutable) `NUMBER_OF_QUORUMS` variable
+    /// @notice Sets the (immutable) `investmentManager` and `serviceManager` addresses, as well as the (immutable) `NUMBER_OF_QUORUMS` variable
     constructor(
         IInvestmentManager _investmentManager,
         IServiceManager _serviceManager,

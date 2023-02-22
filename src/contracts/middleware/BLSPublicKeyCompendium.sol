@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity =0.8.12;
 
 import "../interfaces/IBLSPublicKeyCompendium.sol";
 import "../libraries/BN254.sol";
-import "forge-std/Test.sol";
 
 /**
  * @title A shared contract for EigenLayer operators to register their BLS public keys.
  * @author Layr Labs, Inc.
  */
-contract BLSPublicKeyCompendium is IBLSPublicKeyCompendium, DSTest {
+contract BLSPublicKeyCompendium is IBLSPublicKeyCompendium {
     //Hash of the zero public key: BN254.hashG1Point(G1Point(0,0))
     bytes32 internal constant ZERO_PK_HASH = hex"ad3228b676f7d3cd4284a5443f17f1962b36e491b30a40b2405849e597ba5fb5";
 

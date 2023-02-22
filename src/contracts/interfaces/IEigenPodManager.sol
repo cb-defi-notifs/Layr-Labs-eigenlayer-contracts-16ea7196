@@ -1,16 +1,17 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity =0.8.12;
 
 import "./IInvestmentManager.sol";
 import "./IEigenPod.sol";
 import "./IBeaconChainOracle.sol";
+import "./IPausable.sol";
 
 /**
  * @title Interface for factory that creates and manages solo staking pods that have their withdrawal credentials pointed to EigenLayer.
  * @author Layr Labs, Inc.
  */
 
-interface IEigenPodManager {
+interface IEigenPodManager is IPausable {
     /**
      * @notice Creates an EigenPod for the sender.
      * @dev Function will revert if the `msg.sender` already has an EigenPod.
@@ -53,21 +54,6 @@ interface IEigenPodManager {
     function withdrawRestakedBeaconChainETH(address podOwner, address recipient, uint256 amount) external;
 
     /**
-     * @notice Records receiving ETH from the `PodOwner`'s EigenPod, paid in order to fullfill the EigenPod's penalties to EigenLayer
-     * @param podOwner The owner of the pod whose balance is being sent.
-     * @dev Callable only by the podOwner's EigenPod contract.
-     */
-    function payPenalties(address podOwner) external payable;
-
-    /**
-     * @notice Withdraws paid penalties of the `podOwner`'s EigenPod, to the `recipient` address
-     * @param recipient The recipient of withdrawn ETH.
-     * @param amount The amount of ETH to withdraw.
-     * @dev Callable only by the investmentManager.owner().
-     */
-    function withdrawPenalties(address podOwner, address recipient, uint256 amount) external;
-
-    /**
      * @notice Updates the oracle contract that provides the beacon chain state root
      * @param newBeaconChainOracle is the new oracle contract being pointed to
      * @dev Callable only by the owner of this contract (i.e. governance)
@@ -80,11 +66,14 @@ interface IEigenPodManager {
     /// @notice Oracle contract that provides updates to the beacon chain's state
     function beaconChainOracle() external view returns(IBeaconChainOracle);    
 
-    /// @notice Returns the latest beacon chain state root posted to the beaconChainOracle.
-    function getBeaconChainStateRoot() external view returns(bytes32);
+    /// @notice Returns the Beacon Chain state root at `slot`. Reverts if the Beacon Chain state root at `slot` has not yet been finalized.
+    function getBeaconChainStateRoot(uint64 slot) external view returns(bytes32);
 
     /// @notice EigenLayer's InvestmentManager contract
     function investmentManager() external view returns(IInvestmentManager);
+
+    /// @notice EigenLayer's Slasher contract
+    function slasher() external view returns(ISlasher);
 
     function hasPod(address podOwner) external view returns (bool);
 }

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity =0.8.12;
 
 import "../interfaces/IPauserRegistry.sol";
 
@@ -17,11 +17,6 @@ contract PauserRegistry is IPauserRegistry {
     event PauserChanged(address previousPauser, address newPauser);
 
     event UnpauserChanged(address previousUnpauser, address newUnpauser);
-
-    modifier onlyPauser() {
-        require(msg.sender == pauser, "msg.sender is not permissioned as pauser");
-        _;
-    }
 
     modifier onlyUnpauser() {
         require(msg.sender == unpauser, "msg.sender is not permissioned as unpauser");

@@ -19,7 +19,7 @@
 
 // The remainder of the code is written by LayrLabs Inc. and UNLICENSED
 
-pragma solidity ^0.8.12;
+pragma solidity =0.8.12;
 
 /**
  * @title Library for operations on the BN254 elliptic curve.
@@ -318,7 +318,7 @@ library BN254 {
             // Use "invalid" to make gas estimation work
             switch success case 0 { invalid() }
         }
-        require(success);
+        require(success, "BN254.expMod: call failure");
         return output[0];
     }
 }

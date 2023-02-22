@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity =0.8.12;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -9,8 +9,6 @@ import "../interfaces/IQuorumRegistry.sol";
 import "../interfaces/IEigenLayerDelegation.sol";
 import "../interfaces/IPaymentManager.sol";
 import "../permissions/Pausable.sol";
-
-// import "forge-std/Test.sol";
 
 /**
  * @title Controls 'rolled-up' middleware payments.
@@ -285,7 +283,7 @@ abstract contract PaymentManager is Initializable, IPaymentManager, Pausable {
                 // value in wei for call
                 0,
                 // memory location to copy for calldata
-                lowLevelCalldata,
+                add(lowLevelCalldata, 32),
                 // length of memory to copy for calldata
                 mload(lowLevelCalldata),
                 // memory location to copy return data

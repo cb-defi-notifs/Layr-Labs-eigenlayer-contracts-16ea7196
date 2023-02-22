@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 
-pragma solidity ^0.8.9;
+pragma solidity =0.8.12;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -138,7 +138,7 @@ contract MerkleDelegationTerms is Ownable, IDelegationTerms {
         address,
         IInvestmentStrategy[] memory,
         uint256[] memory
-    ) external pure 
+    ) external pure returns(bytes memory)
     // solhint-disable-next-line no-empty-blocks
     {}
 
@@ -147,7 +147,7 @@ contract MerkleDelegationTerms is Ownable, IDelegationTerms {
         address,
         IInvestmentStrategy[] memory,
         uint256[] memory
-    ) external pure 
+    ) external pure returns(bytes memory)
     // solhint-disable-next-line no-empty-blocks
     {}
 }

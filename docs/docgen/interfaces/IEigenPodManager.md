@@ -83,40 +83,6 @@ _Callable only by the InvestmentManager contract._
 | recipient | address | The recipient of the withdrawn ETH. |
 | amount | uint256 | The amount of ETH to withdraw. |
 
-### payPenalties
-
-```solidity
-function payPenalties(address podOwner) external payable
-```
-
-Records receiving ETH from the `PodOwner`'s EigenPod, paid in order to fullfill the EigenPod's penalties to EigenLayer
-
-_Callable only by the podOwner's EigenPod contract._
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| podOwner | address | The owner of the pod whose balance is being sent. |
-
-### withdrawPenalties
-
-```solidity
-function withdrawPenalties(address podOwner, address recipient, uint256 amount) external
-```
-
-Withdraws paid penalties of the `podOwner`'s EigenPod, to the `recipient` address
-
-_Callable only by the investmentManager.owner()._
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| podOwner | address |  |
-| recipient | address | The recipient of withdrawn ETH. |
-| amount | uint256 | The amount of ETH to withdraw. |
-
 ### updateBeaconChainOracle
 
 ```solidity
@@ -152,10 +118,10 @@ Oracle contract that provides updates to the beacon chain's state
 ### getBeaconChainStateRoot
 
 ```solidity
-function getBeaconChainStateRoot() external view returns (bytes32)
+function getBeaconChainStateRoot(uint64 slot) external view returns (bytes32)
 ```
 
-Returns the latest beacon chain state root posted to the beaconChainOracle.
+Returns the Beacon Chain state root at `slot`. Reverts if the Beacon Chain state root at `slot` has not yet been finalized.
 
 ### investmentManager
 
@@ -164,6 +130,14 @@ function investmentManager() external view returns (contract IInvestmentManager)
 ```
 
 EigenLayer's InvestmentManager contract
+
+### slasher
+
+```solidity
+function slasher() external view returns (contract ISlasher)
+```
+
+EigenLayer's Slasher contract
 
 ### hasPod
 

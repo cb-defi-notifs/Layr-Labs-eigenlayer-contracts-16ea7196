@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity =0.8.12;
 
 import "./EigenLayerTestHelper.t.sol";
 import "../contracts/core/InvestmentManagerStorage.sol";
@@ -10,6 +10,8 @@ contract InvestmentTests is EigenLayerTestHelper {
      * @param amountToDeposit Fuzzed input for amount of WETH to deposit
      */
     function testWethDeposit(uint256 amountToDeposit) public returns (uint256 amountDeposited) {
+        // if first deposit amount to base strategy is too small, it will revert. ignore that case here.
+        cheats.assume(amountToDeposit >= 1e9);
         return _testDepositWeth(getOperatorAddress(0), amountToDeposit);
     }
 
@@ -72,6 +74,8 @@ contract InvestmentTests is EigenLayerTestHelper {
     function testDepositEigen(uint96 eigenToDeposit) public {
         // sanity check for inputs; keeps fuzzed tests from failing
         cheats.assume(eigenToDeposit < eigenTotalSupply);
+        // if first deposit amount to base strategy is too small, it will revert. ignore that case here.
+        cheats.assume(eigenToDeposit >= 1e9);
         _testDepositEigen(getOperatorAddress(0), eigenToDeposit);
     }
 
@@ -87,6 +91,14 @@ contract InvestmentTests is EigenLayerTestHelper {
             address(this)
         );
         token.approve(address(investmentManager), type(uint256).max);
+
+        // whitelist the strategy for deposit
+        cheats.startPrank(investmentManager.owner());
+        IInvestmentStrategy[] memory _strategy = new IInvestmentStrategy[](1);
+        _strategy[0] = wethStrat;
+        investmentManager.addStrategiesToDepositWhitelist(_strategy);
+        cheats.stopPrank();
+
         cheats.expectRevert(bytes("InvestmentStrategyBase.deposit: Can only deposit underlyingToken"));
         investmentManager.depositIntoStrategy(wethStrat, token, 10);
     }
@@ -115,13 +127,28 @@ contract InvestmentTests is EigenLayerTestHelper {
             address(this)
         );
         token.approve(address(investmentManager), type(uint256).max);
+
+        // whitelist the strategy for deposit
+        cheats.startPrank(investmentManager.owner());
+        IInvestmentStrategy[] memory _strategy = new IInvestmentStrategy[](1);
+        _strategy[0] = IInvestmentStrategy(nonexistentStrategy);
+        investmentManager.addStrategiesToDepositWhitelist(_strategy);
+        cheats.stopPrank();
+
         cheats.expectRevert();
         investmentManager.depositIntoStrategy(IInvestmentStrategy(nonexistentStrategy), token, testDepositAmount);
     }
 
     /// @notice verify that trying to deposit an amount of zero will correctly revert
     function testRevertOnZeroDeposit() public {
-        cheats.expectRevert(bytes("InvestmentManager._addShares: shares should not be zero!"));
+        // whitelist the strategy for deposit
+        cheats.startPrank(investmentManager.owner());
+        IInvestmentStrategy[] memory _strategy = new IInvestmentStrategy[](1);
+        _strategy[0] = wethStrat;
+        investmentManager.addStrategiesToDepositWhitelist(_strategy);
+        cheats.stopPrank();
+
+        cheats.expectRevert(bytes("InvestmentStrategyBase.deposit: newShares cannot be zero"));
         investmentManager.depositIntoStrategy(wethStrat, weth, 0);
         cheats.stopPrank();
     }

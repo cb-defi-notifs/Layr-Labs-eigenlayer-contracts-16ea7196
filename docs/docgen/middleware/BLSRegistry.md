@@ -40,6 +40,30 @@ used for storing current aggregate public key
 
 _Initialized value of APK is the point at infinity: (0, 0)_
 
+### whitelister
+
+```solidity
+address whitelister
+```
+
+the address that can whitelist people
+
+### whitelistEnabled
+
+```solidity
+bool whitelistEnabled
+```
+
+toggle of whether the operator whitelist is on or off
+
+### whitelisted
+
+```solidity
+mapping(address => bool) whitelisted
+```
+
+operator => are they whitelisted (can they register with the middleware)
+
 ### Registration
 
 ```solidity
@@ -68,10 +92,52 @@ constructor(contract IInvestmentManager _investmentManager, contract IServiceMan
 ### initialize
 
 ```solidity
-function initialize(uint256[] _quorumBips, struct VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[] _firstQuorumStrategiesConsideredAndMultipliers, struct VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[] _secondQuorumStrategiesConsideredAndMultipliers) public virtual
+function initialize(address _whitelister, bool _whitelistEnabled, uint256[] _quorumBips, struct VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[] _firstQuorumStrategiesConsideredAndMultipliers, struct VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[] _secondQuorumStrategiesConsideredAndMultipliers) public virtual
 ```
 
 Initialize the APK, the payment split between quorums, and the quorum strategies + multipliers.
+
+### setWhitelistStatus
+
+```solidity
+function setWhitelistStatus(bool _whitelistEnabled) external
+```
+
+Called by the whitelister, this function toggles the whitelist on or off
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| _whitelistEnabled | bool | true if turning whitelist on, false otherwise |
+
+### addToWhitelist
+
+```solidity
+function addToWhitelist(address[] operators) external
+```
+
+Called by the whitelister, adds a list of operators to the whitelist
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| operators | address[] | the operators to add to the whitelist |
+
+### removeFromWhitelist
+
+```solidity
+function removeFromWhitelist(address[] operators) external
+```
+
+Called by the whitelister, removes a list of operators to the whitelist
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| operators | address[] | the operators to remove from the whitelist |
 
 ### registerOperator
 
