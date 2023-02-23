@@ -118,6 +118,9 @@ contract DelegationTests is EigenLayerTestHelper {
         cheats.assume(ethAmount >= 1e9);
         cheats.assume(eigenAmount >= 1e9);
 
+        // use storage to solve stack-too-deep
+        operator = _operator;
+
         SigPDelegationTerms dt = new SigPDelegationTerms();
         
         if (!delegation.isOperator(operator)) {
