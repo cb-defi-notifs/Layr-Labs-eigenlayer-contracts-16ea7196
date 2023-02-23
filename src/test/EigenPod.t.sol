@@ -782,17 +782,17 @@ contract EigenPodTests is BeaconChainProofUtils, EigenPodPausingConstants, DSTes
         pod.verifyBeaconChainFullWithdrawal(slot, proof, blockNumberRoot, withdrawalContainerFields,  0);
     }
 
-    function testStake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) public {
+    function testStake(bytes calldata _pubkey, bytes calldata _signature, bytes32 _depositDataRoot) public {
         //should fail if no/wrong value is provided
         cheats.startPrank(podOwner);
         cheats.expectRevert("EigenPod.stake: must initially stake for any validator with 32 ether");
-        eigenPodManager.stake(pubkey, signature, depositDataRoot);
+        eigenPodManager.stake(_pubkey, _signature, _depositDataRoot);
         cheats.expectRevert("EigenPod.stake: must initially stake for any validator with 32 ether");
-        eigenPodManager.stake{value: 12 ether}(pubkey, signature, depositDataRoot);
+        eigenPodManager.stake{value: 12 ether}(_pubkey, _signature, _depositDataRoot);
         
 
         //successful call
-        eigenPodManager.stake{value: 32 ether}(pubkey, signature, depositDataRoot);
+        eigenPodManager.stake{value: 32 ether}(_pubkey, _signature, _depositDataRoot);
         cheats.stopPrank();
     }
 
