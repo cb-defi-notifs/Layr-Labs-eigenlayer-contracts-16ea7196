@@ -140,7 +140,7 @@ contract SlasherTests is EigenLayerTestHelper {
 
         cheats.startPrank(middleware_2);
         //unapproved slasher calls should fail
-        cheats.expectRevert("Slasher.onlyCanSlash: only slashing contracts");
+        cheats.expectRevert("Slasher.onlyRegisteredForService: Operator has not opted into slashing by caller");
         slasher.recordFirstStakeUpdate(operator, serveUntil);
         cheats.stopPrank();
 
@@ -187,7 +187,7 @@ contract SlasherTests is EigenLayerTestHelper {
 
         cheats.startPrank(middleware_2);
         //calling from unapproved middleware should fail
-        cheats.expectRevert("Slasher.onlyCanSlash: only slashing contracts");
+        cheats.expectRevert("Slasher.onlyRegisteredForService: Operator has not opted into slashing by caller");
         slasher.recordStakeUpdate(operator,1, serveUntil, insertAfter);
         cheats.stopPrank();
 
@@ -222,27 +222,27 @@ contract SlasherTests is EigenLayerTestHelper {
         //calling recordStakeUpdate() before recordFirstStakeUpdate() for middleware_3 should fail 
         cheats.startPrank(middleware_3);
         sizeOf = slasher.operatorWhitelistedContractsLinkedListSize(operator);
-        cheats.expectRevert("Slasher.recordStakeUpdate: Callter is not the list entrant");
+        cheats.expectRevert("Slasher.recordStakeUpdate: Caller is not the list entrant");
         slasher.recordStakeUpdate(operator,1, serveUntil, insertAfter);
         cheats.stopPrank();
         
     }
 
-    function testOnlyCanSlash(address _slasher, uint32 _serveUntil) public {
+    function testOnlyRegisteredForService(address _slasher, uint32 _serveUntil) public {
         cheats.prank(operator);
         delegation.registerAsOperator(delegationTerms);
 
         //slasher cannot call stake update unless operator has oped in
         cheats.prank(_slasher);
-        cheats.expectRevert("Slasher.onlyCanSlash: only slashing contracts");
+        cheats.expectRevert("Slasher.onlyRegisteredForService: Operator has not opted into slashing by caller");
         slasher.recordFirstStakeUpdate(operator, _serveUntil);
 
         cheats.prank(_slasher);
-        cheats.expectRevert("Slasher.onlyCanSlash: only slashing contracts");
+        cheats.expectRevert("Slasher.onlyRegisteredForService: Operator has not opted into slashing by caller");
         slasher.recordStakeUpdate(operator, 1,_serveUntil,1);
 
         cheats.prank(_slasher);
-        cheats.expectRevert("Slasher.onlyCanSlash: only slashing contracts");
+        cheats.expectRevert("Slasher.onlyRegisteredForService: Operator has not opted into slashing by caller");
         slasher.recordLastStakeUpdateAndRevokeSlashingAbility(operator, _serveUntil);
     }
 
