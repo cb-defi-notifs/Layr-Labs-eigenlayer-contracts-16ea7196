@@ -166,7 +166,7 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, Pausable, IEigenP
                     // set the beacon address to the eigenPodBeacon and initialize it
                     abi.encodePacked(
                         type(BeaconProxy).creationCode, 
-                        abi.encode(eigenPodBeacon, abi.encodeWithSelector(IEigenPod.initialize.selector, IEigenPodManager(address(this)), msg.sender))
+                        abi.encode(eigenPodBeacon, abi.encodeWithSelector(IEigenPod.initialize.selector, msg.sender))
                     )
                 )
             );
@@ -190,7 +190,7 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, Pausable, IEigenP
                     bytes32(uint256(uint160(podOwner))), //salt
                     keccak256(abi.encodePacked(
                         type(BeaconProxy).creationCode, 
-                        abi.encode(eigenPodBeacon, abi.encodeWithSelector(IEigenPod.initialize.selector, IEigenPodManager(address(this)), podOwner))
+                        abi.encode(eigenPodBeacon, abi.encodeWithSelector(IEigenPod.initialize.selector, podOwner))
                     )) //bytecode
                 ));
         }
