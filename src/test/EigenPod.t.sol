@@ -104,7 +104,6 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
                 REQUIRED_BALANCE_WEI,
                 MIN_FULL_WITHDRAWAL_AMOUNT_GWEI
         );
-
         eigenPodBeacon = new UpgradeableBeacon(address(podImplementation));
 
         // this contract is deployed later to keep its address the same (for these tests)
