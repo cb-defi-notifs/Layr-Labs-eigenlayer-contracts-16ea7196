@@ -57,7 +57,7 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
     bytes32 depositDataRoot;
 
     event EigenPodStaked(bytes pubkey);
-    event PaymentCreated(address podOwner, address recipient, uint256 amount);
+    event PaymentCreated(address podOwner, address recipient, uint256 amount, uint256 index);
 
 
 
@@ -198,7 +198,7 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
 
         cheats.startPrank(podOwner);
         cheats.expectEmit(true, false, false, false);
-        emit PaymentCreated(podOwner, podOwner, balance);
+        emit PaymentCreated(podOwner, podOwner, balance, eigenPodPaymentEscrow.userPaymentsLength(podOwner));
         pod.withdraw();
         cheats.stopPrank();
         require(address(pod).balance == 0, "Pod balance should be 0");
