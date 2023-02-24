@@ -92,6 +92,18 @@ contract EigenPodPaymentEscrow is Initializable, OwnableUpgradeable, ReentrancyG
         return _userPayments[user];
     }
 
+    /// @notice Getter function to get all payments that are currently claimable by the `user`
+    function claimableUserPayments(address user) external view returns (Payment[] memory) {
+        uint256 paymentsCompleted = _userPayments[user].paymentsCompleted;
+        uint256 paymentsLength = _userPayments[user].payments.length;
+        uint256 claimablePaymentsLength = paymentsLength - paymentsCompleted;
+        Payment[] memory claimablePayments = new Payment[](claimablePaymentsLength);
+        for (uint256 i = 0; i < claimablePaymentsLength; i++) {
+            claimablePayments[i] = _userPayments[user].payments[paymentsCompleted + i];
+        }
+        return claimablePayments;
+    }
+
     /// @notice Getter function for fetching the payment at the `index`th entry from the `_userPayments[user].payments` array
     function userPaymentByIndex(address user, uint256 index) external view returns (Payment memory) {
         return _userPayments[user].payments[index];
