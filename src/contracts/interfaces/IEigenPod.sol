@@ -62,7 +62,7 @@ interface IEigenPod {
     function restakedExecutionLayerGwei() external view returns(uint64);
 
     /// @notice Used to initialize the pointers to contracts crucial to the pod's functionality, in beacon proxy construction from EigenPodManager
-    function initialize(IEigenPodManager _eigenPodManager, address owner) external;
+    function initialize(address owner) external;
 
     /// @notice Called by EigenPodManager when the owner wants to create another ETH validator.
     function stake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable;

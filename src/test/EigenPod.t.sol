@@ -104,11 +104,11 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
         podImplementation = new EigenPod(
                 ethPOSDeposit, 
                 eigenPodPaymentEscrow,
+                IEigenPodManager(podManagerAddress),
                 PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS, 
                 REQUIRED_BALANCE_WEI,
                 MIN_FULL_WITHDRAWAL_AMOUNT_GWEI
         );
-
         eigenPodBeacon = new UpgradeableBeacon(address(podImplementation));
 
         // this contract is deployed later to keep its address the same (for these tests)

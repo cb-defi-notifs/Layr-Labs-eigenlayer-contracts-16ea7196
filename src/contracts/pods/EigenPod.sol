@@ -41,11 +41,10 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
     IETHPOSDeposit internal immutable ethPOS;
 
     /// @notice Escrow contract used for payment routing, to provide an extra "safety net"
-    IEigenPodPaymentEscrow immutable public eigenPodPaymentEscrow;
+    IEigenPodPaymentEscrow public immutable eigenPodPaymentEscrow;
 
-    // V0 STORAGE VARIABLES
     /// @notice The single EigenPodManager for EigenLayer
-    IEigenPodManager public eigenPodManager;
+    IEigenPodManager public immutable eigenPodManager;
 
     // V1 CONSTANTS + IMMUTABLES
     /// @notice The length, in blocks, of the fraudproof period following a claim on the amount of partial withdrawals in an EigenPod
@@ -130,12 +129,14 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
     constructor(
         IETHPOSDeposit _ethPOS,
         IEigenPodPaymentEscrow _eigenPodPaymentEscrow,
+        IEigenPodManager _eigenPodManager,
         uint32 _PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS,
         uint256 _REQUIRED_BALANCE_WEI,
         uint64 _MIN_FULL_WITHDRAWAL_AMOUNT_GWEI
     ) {
         ethPOS = _ethPOS;
         eigenPodPaymentEscrow = _eigenPodPaymentEscrow;
+        eigenPodManager = _eigenPodManager;
         PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS = _PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS;
         REQUIRED_BALANCE_WEI = _REQUIRED_BALANCE_WEI;
         REQUIRED_BALANCE_GWEI = uint64(_REQUIRED_BALANCE_WEI / GWEI_TO_WEI);
@@ -145,9 +146,8 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
     }
 
     /// @notice Used to initialize the pointers to contracts crucial to the pod's functionality, in beacon proxy construction from EigenPodManager
-    function initialize(IEigenPodManager _eigenPodManager, address _podOwner) external initializer {
+    function initialize(address _podOwner) external initializer {
         require(_podOwner != address(0), "EigenPod.initialize: podOwner cannot be zero address");
-        eigenPodManager = _eigenPodManager;
         podOwner = _podOwner;
     }
 
