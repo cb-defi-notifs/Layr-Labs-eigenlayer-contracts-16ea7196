@@ -36,7 +36,7 @@ import "forge-std/Test.sol";
 contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, EigenPodPausingConstants, Test {
     using BytesLib for bytes;
 
-    // V0 CONSTANTS + IMMUTABLES
+    // CONSTANTS + IMMUTABLES
     uint256 internal constant GWEI_TO_WEI = 1e9;
 
     /// @notice This is the beacon chain deposit contract
@@ -48,7 +48,6 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
     /// @notice The single EigenPodManager for EigenLayer
     IEigenPodManager public immutable eigenPodManager;
 
-    // V1 CONSTANTS + IMMUTABLES
     /// @notice The length, in blocks, of the fraudproof period following a claim on the amount of partial withdrawals in an EigenPod
     uint32 public immutable PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS;
 
@@ -63,17 +62,17 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
 
     /**
      * @notice The latest block number at which the pod owner withdrew the balance of the pod.
-     * @dev This variable is only updated in the V0 version of this contract, but is referenced in V1, as proofs are only valid against
-     * Beacon Chain state roots corresponding to blocks after the stored `mostRecentWithdrawalBlockNumber`.
+     * @dev This variable is only updated when the `withdraw` function is called, which can only occur before `hasRestaked` is set to true for this pod.
+     * Proofs for this pod are only valid against Beacon Chain state roots corresponding to blocks after the stored `mostRecentWithdrawalBlockNumber`.
      */
     uint64 public mostRecentWithdrawalBlockNumber;
 
-    // V1 STORAGE VARIABLES
+    // STORAGE VARIABLES
     /// @notice the amount of execution layer ETH in this contract that is staked in EigenLayer (i.e. withdrawn from the Beacon Chain but not from EigenLayer), 
     uint64 public restakedExecutionLayerGwei;
 
-    /// @notice an indiciator of whether or not the podOwner has opted into restaking
-    bool public restakingEnabled;
+    /// @notice an indicator of whether or not the podOwner has ever "fully restaked" by successfully calling `verifyCorrectWithdrawalCredentials`.
+    bool public hasRestaked;
 
     /// @notice this is a mapping of validator indices to a Validator struct containing pertinent info about the validator
     mapping(uint40 => VALIDATOR_STATUS) public validatorStatus;
@@ -105,13 +104,8 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         _;
     }
 
-    modifier isNotRestaking{
-        require(!restakingEnabled, "EigenPod.isNotRestaking: restaking is enabled");
-        _;
-    }
-
-    modifier isRestaking{
-        require(restakingEnabled, "EigenPod.isRestaking: restaking is not enabled");
+    modifier hasNeverRestaked {
+        require(!hasRestaked, "EigenPod.hasNeverRestaked: restaking is enabled");
         _;
     }
 
@@ -142,7 +136,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         _disableInitializers();
     }
 
-    /// @notice Used to initialize the pointers to contracts crucial to the pod's functionality, in beacon proxy construction from EigenPodManager
+    /// @notice Used to initialize the pointers to addresses crucial to the pod's functionality. Called on construction by the EigenPodManager.
     function initialize(address _podOwner) external initializer {
         require(_podOwner != address(0), "EigenPod.initialize: podOwner cannot be zero address");
         podOwner = _podOwner;
@@ -172,7 +166,8 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         bytes calldata proof, 
         bytes32[] calldata validatorFields
     ) external onlyWhenNotPaused(PAUSED_EIGENPODS_VERIFY_CREDENTIALS) {
-        require(blockNumber > mostRecentWithdrawalBlockNumber, "EigenPod.verifyCorrectWithdrawalCredentials: cannot prove withdrawal credentials for block number before mostRecentWithdrawalBlockNumber");
+        require(blockNumber > mostRecentWithdrawalBlockNumber,
+            "EigenPod.verifyCorrectWithdrawalCredentials: must prove withdrawal credentials for block number after mostRecentWithdrawalBlockNumber");
         require(validatorStatus[validatorIndex] == VALIDATOR_STATUS.INACTIVE, "EigenPod.verifyCorrectWithdrawalCredentials: Validator not inactive");
 
         require(validatorFields[BeaconChainProofs.VALIDATOR_WITHDRAWAL_CREDENTIALS_INDEX] == _podWithdrawalCredentials().toBytes32(0),
@@ -201,8 +196,8 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         eigenPodManager.restakeBeaconChainETH(podOwner, REQUIRED_BALANCE_WEI);
 
         // Sets "restkaingEnabled" to true if it hasn't been set yet. 
-        if(!restakingEnabled){
-            restakingEnabled = true;
+        if(!hasRestaked){
+            hasRestaked = true;
         }
     }
 
@@ -225,14 +220,15 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         bytes32[] calldata validatorFields,
         uint256 beaconChainETHStrategyIndex
     ) external onlyWhenNotPaused(PAUSED_EIGENPODS_VERIFY_OVERCOMMITTED) {
+        require(blockNumber > mostRecentWithdrawalBlockNumber,
+            "EigenPod.verifyCorrectWithdrawalCredentials: must prove withdrawal credentials for block number after mostRecentWithdrawalBlockNumber");
 
         require(validatorStatus[validatorIndex] == VALIDATOR_STATUS.ACTIVE, "EigenPod.verifyOvercommittedStake: Validator not active");
         // convert the balance field from 8 bytes of little endian to uint64 big endian 💪
         uint64 validatorBalance = Endian.fromLittleEndianUint64(validatorFields[BeaconChainProofs.VALIDATOR_BALANCE_INDEX]);
 
-        // if the validatorBalance is zero *and* the validator is overcommitted, then overcommitement should be proved through `verifyBeaconChainFullWithdrawal`
+        // if the validatorBalance is zero *and* the validator is overcommitted, then overcommitment should be proved through `verifyBeaconChainFullWithdrawal`
         require(validatorBalance != 0, "EigenPod.verifyOvercommittedStake: cannot prove overcommitment on a full withdrawal");
-        
 
         require(validatorBalance < REQUIRED_BALANCE_GWEI,
             "EigenPod.verifyOvercommittedStake: validator's balance must be less than the restaked balance per validator");
@@ -384,8 +380,8 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
     }
 
 
-    /// @notice Called by the pod owner to withdraw the balance of the pod when "restakingEnabled" is set to false
-    function withdraw() external onlyEigenPodOwner isNotRestaking {
+    /// @notice Called by the pod owner to withdraw the balance of the pod when "hasRestaked" is set to false
+    function withdraw() external onlyEigenPodOwner hasNeverRestaked {
         mostRecentWithdrawalBlockNumber = uint32(block.number);
         _sendETH(podOwner, address(this).balance);
     }

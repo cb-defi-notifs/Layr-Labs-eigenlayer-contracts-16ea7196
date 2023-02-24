@@ -78,8 +78,8 @@ interface IEigenPod {
     /// @notice The owner of this EigenPod
     function podOwner() external view returns (address);
 
-    /// @notice restaking switch
-    function restakingEnabled() external view returns (bool);
+    /// @notice an indicator of whether or not the podOwner has ever "fully restaked" by successfully calling `verifyCorrectWithdrawalCredentials`.
+    function hasRestaked() external view returns (bool);
 
     /**
      * @notice This function verifies that the withdrawal credentials of the podOwner are pointed to
