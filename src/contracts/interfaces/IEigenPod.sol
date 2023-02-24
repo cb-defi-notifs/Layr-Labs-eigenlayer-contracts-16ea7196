@@ -43,9 +43,6 @@ interface IEigenPod {
         FAILED
     }
 
-    /// @notice The length, in blocks, if the fraud proof period following a claim on the amount of partial withdrawals in an EigenPod
-    function PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS() external view returns(uint32);
-
     /// @notice The amount of eth, in gwei, that is restaked per validator
     function REQUIRED_BALANCE_GWEI() external view returns(uint64);
 

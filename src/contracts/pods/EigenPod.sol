@@ -80,8 +80,17 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
     /// @notice Emitted when an ETH validator stakes via this eigenPod
     event EigenPodStaked(bytes pubkey);
 
+    /// @notice Emitted when an ETH validator's withdrawal credentials are successfully verified to be pointed to this eigenPod
+    event ValidatorRestaked(uint40 validatorIndex);
+
+    /// @notice Emitted when an ETH validator is proven to have a balance less than `REQUIRED_BALANCE_GWEI` in the beacon chain
+    event ValidatorOvercommitted(uint40 validatorIndex);
+    
+    /// @notice Emitted when an ETH validator is prove to have withdrawn from the beacon chain
+    event FullWithdrawalRedeemed(uint40 validatorIndex, address indexed recipient, uint64 withdrawalAmountGwei);
+
     /// @notice Emitted when a partial withdrawal claim is successfully redeemed
-    event PartialWithdrawalRedeemed(address indexed recipient, uint64 partialWithdrawalAmountGwei);
+    event PartialWithdrawalRedeemed(uint40 validatorIndex, address indexed recipient, uint64 partialWithdrawalAmountGwei);
 
     /// @notice Emitted when restaked beacon chain ETH is withdrawn from the eigenPod.
     event RestakedBeaconChainETHWithdrawn(address indexed recipient, uint256 amount);
@@ -120,13 +129,11 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         IETHPOSDeposit _ethPOS,
         IEigenPodPaymentEscrow _eigenPodPaymentEscrow,
         IEigenPodManager _eigenPodManager,
-        uint32 _PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS,
         uint256 _REQUIRED_BALANCE_WEI
     ) {
         ethPOS = _ethPOS;
         eigenPodPaymentEscrow = _eigenPodPaymentEscrow;
         eigenPodManager = _eigenPodManager;
-        PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS = _PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS;
         REQUIRED_BALANCE_WEI = _REQUIRED_BALANCE_WEI;
         REQUIRED_BALANCE_GWEI = uint64(_REQUIRED_BALANCE_WEI / GWEI_TO_WEI);
         require(_REQUIRED_BALANCE_WEI % GWEI_TO_WEI == 0, "EigenPod.contructor: _REQUIRED_BALANCE_WEI is not a whole number of gwei");
@@ -196,6 +203,8 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         if(!hasRestaked){
             hasRestaked = true;
         }
+
+        emit ValidatorRestaked(validatorIndex);
     }
 
     /**
@@ -218,7 +227,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         uint256 beaconChainETHStrategyIndex
     ) external onlyWhenNotPaused(PAUSED_EIGENPODS_VERIFY_OVERCOMMITTED) {
         require(blockNumber > mostRecentWithdrawalBlockNumber,
-            "EigenPod.verifyCorrectWithdrawalCredentials: must prove withdrawal credentials for block number after mostRecentWithdrawalBlockNumber");
+            "EigenPod.verifyCorrectWithdrawalCredentials: must prove overcommitted for block number after mostRecentWithdrawalBlockNumber");
 
         require(validatorStatus[validatorIndex] == VALIDATOR_STATUS.ACTIVE, "EigenPod.verifyOvercommittedStake: Validator not active");
         // convert the balance field from 8 bytes of little endian to uint64 big endian 💪
@@ -243,6 +252,8 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         validatorStatus[validatorIndex] = VALIDATOR_STATUS.OVERCOMMITTED;
         // remove and undelegate shares in EigenLayer
         eigenPodManager.recordOvercommittedBeaconChainETH(podOwner, beaconChainETHStrategyIndex, REQUIRED_BALANCE_WEI);
+
+        emit ValidatorOvercommitted(validatorIndex);
     }
 
     /**
@@ -339,13 +350,15 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         if (amountToSend != 0) {
             _sendETH(recipient, amountToSend);
         }
+
+        emit FullWithdrawalRedeemed(validatorIndex, recipient, withdrawalAmountGwei);
     }
 
     function _processPartialWithdrawal(uint64 withdrawalHappenedSlot, uint64 partialWithdrawalAmountGwei, uint40 validatorIndex, address recipient) internal {
         require(!provenPartialWithdrawal[validatorIndex][withdrawalHappenedSlot], "partial withdrawal has already been proven for this slot");
 
         provenPartialWithdrawal[validatorIndex][withdrawalHappenedSlot] = true;
-        emit PartialWithdrawalRedeemed(recipient, partialWithdrawalAmountGwei);
+        emit PartialWithdrawalRedeemed(validatorIndex, recipient, partialWithdrawalAmountGwei);
 
         // send the ETH to the `recipient`
         _sendETH(recipient, uint256(partialWithdrawalAmountGwei) * uint256(GWEI_TO_WEI));
