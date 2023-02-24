@@ -208,7 +208,7 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
         testDeployAndVerifyNewEigenPod();
         IEigenPod pod = eigenPodManager.getPod(podOwner);
         cheats.startPrank(podOwner);
-        cheats.expectRevert(bytes("EigenPod.isNotRestaking: restaking is enabled"));
+        cheats.expectRevert(bytes("EigenPod.hasNeverRestaked: restaking is enabled"));
         IEigenPod(pod).withdraw();
         cheats.stopPrank();
     }
