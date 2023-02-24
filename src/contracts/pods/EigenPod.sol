@@ -57,9 +57,6 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
     /// @notice The amount of eth, in wei, that is restaked per ETH validator into EigenLayer
     uint256 public immutable REQUIRED_BALANCE_WEI;
 
-    /// @notice The minimum amount of eth, in gwei, that can be part of a full withdrawal
-    uint64 public immutable MIN_FULL_WITHDRAWAL_AMOUNT_GWEI;
-
     /// @notice The owner of this EigenPod
     address public podOwner;
 
@@ -127,8 +124,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         IEigenPodPaymentEscrow _eigenPodPaymentEscrow,
         IEigenPodManager _eigenPodManager,
         uint32 _PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS,
-        uint256 _REQUIRED_BALANCE_WEI,
-        uint64 _MIN_FULL_WITHDRAWAL_AMOUNT_GWEI
+        uint256 _REQUIRED_BALANCE_WEI
     ) {
         ethPOS = _ethPOS;
         eigenPodPaymentEscrow = _eigenPodPaymentEscrow;
@@ -137,7 +133,6 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         REQUIRED_BALANCE_WEI = _REQUIRED_BALANCE_WEI;
         REQUIRED_BALANCE_GWEI = uint64(_REQUIRED_BALANCE_WEI / GWEI_TO_WEI);
         require(_REQUIRED_BALANCE_WEI % GWEI_TO_WEI == 0, "EigenPod.contructor: _REQUIRED_BALANCE_WEI is not a whole number of gwei");
-        MIN_FULL_WITHDRAWAL_AMOUNT_GWEI = _MIN_FULL_WITHDRAWAL_AMOUNT_GWEI;
         _disableInitializers();
     }
 
