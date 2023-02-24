@@ -48,9 +48,6 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
     /// @notice The single EigenPodManager for EigenLayer
     IEigenPodManager public immutable eigenPodManager;
 
-    /// @notice The length, in blocks, of the fraudproof period following a claim on the amount of partial withdrawals in an EigenPod
-    uint32 public immutable PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS;
-
     /// @notice The amount of eth, in gwei, that is restaked per validator
     uint64 public immutable REQUIRED_BALANCE_GWEI;
 
@@ -195,7 +192,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         // @dev balances are in GWEI so need to convert
         eigenPodManager.restakeBeaconChainETH(podOwner, REQUIRED_BALANCE_WEI);
 
-        // Sets "restkaingEnabled" to true if it hasn't been set yet. 
+        // Sets "hasRestaked" to true if it hasn't been set yet. 
         if(!hasRestaked){
             hasRestaked = true;
         }
@@ -271,13 +268,11 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         BeaconChainProofs.verifyBlockNumberAndWithdrawalFields(beaconStateRoot, proofs, withdrawalFields);
         BeaconChainProofs.verifyValidatorFields(proofs.validatorIndex, beaconStateRoot, proofs.validatorProof, validatorFields);
 
-
         uint64 withdrawableEpoch = Endian.fromLittleEndianUint64(validatorFields[BeaconChainProofs.VALIDATOR_WITHDRAWABLE_EPOCH_INDEX]);
         uint64 withdrawalAmountGwei = Endian.fromLittleEndianUint64(withdrawalFields[BeaconChainProofs.WITHDRAWAL_VALIDATOR_AMOUNT_INDEX]);
         uint40 validatorIndex = uint40(Endian.fromLittleEndianUint64(withdrawalFields[BeaconChainProofs.WITHDRAWAL_VALIDATOR_INDEX_INDEX]));
 
         //check if the withdrawal occured after mostRecentWithdrawalBlockNumber
-        
         uint64 slot = Endian.fromLittleEndianUint64(proofs.slotRoot);
         if (withdrawableEpoch <= slot/BeaconChainProofs.SLOTS_PER_EPOCH) {
             _processFullWithdrawal(withdrawalAmountGwei, validatorIndex, beaconChainETHStrategyIndex, podOwner);
