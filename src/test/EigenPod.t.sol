@@ -70,7 +70,6 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
 
     uint32 PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS = 7 days / 12 seconds;
     uint256 REQUIRED_BALANCE_WEI = 31.4 ether;
-    uint64 MIN_FULL_WITHDRAWAL_AMOUNT_GWEI = 1 ether / 1e9;
 
     //performs basic deployment before each test
     function setUp() public {
@@ -106,8 +105,7 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
                 eigenPodPaymentEscrow,
                 IEigenPodManager(podManagerAddress),
                 PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS, 
-                REQUIRED_BALANCE_WEI,
-                MIN_FULL_WITHDRAWAL_AMOUNT_GWEI
+                REQUIRED_BALANCE_WEI
         );
         eigenPodBeacon = new UpgradeableBeacon(address(podImplementation));
 

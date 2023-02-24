@@ -52,9 +52,6 @@ interface IEigenPod {
     /// @notice The amount of eth, in wei, that is restaked per validator
     function REQUIRED_BALANCE_WEI() external view returns(uint256);
 
-    /// @notice The amount of eth, in gwei, that can be part of a full withdrawal at the minimum
-    function MIN_FULL_WITHDRAWAL_AMOUNT_GWEI() external view returns(uint64);
-
     /// @notice this is a mapping of validator indices to a Validator struct containing pertinent info about the validator
     function validatorStatus(uint40 validatorIndex) external view returns(VALIDATOR_STATUS);
 
