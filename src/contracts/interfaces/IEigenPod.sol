@@ -81,6 +81,9 @@ interface IEigenPod {
     /// @notice The owner of this EigenPod
     function podOwner() external view returns (address);
 
+    /// @notice restaking switch
+    function restakingEnabled() external view returns (bool);
+
     /**
      * @notice This function verifies that the withdrawal credentials of the podOwner are pointed to
      * this contract. It verifies the provided proof of the ETH validator against the beacon chain state

@@ -21,6 +21,8 @@ contract ProofParsing is Test{
 
     bytes32[] executionPayloadProof;
     bytes32[] blockNumberProofs;
+    bytes32[] withdrawalCredentialProof;
+
 
     bytes32 slotRoot;
     bytes32 executionPayloadRoot;
@@ -135,9 +137,4 @@ contract ProofParsing is Test{
         }
         return validatorFields;
     }
-
-
-
-
-
 }
