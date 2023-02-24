@@ -547,6 +547,8 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
     }
 
     function _proveOvercommittedStake(IEigenPod pod, uint40 validatorIndex) internal {
+        
+        emit log("hello");
         (
             beaconStateRoot, 
             beaconStateMerkleProofForValidators, 
@@ -555,6 +557,8 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
             validatorTreeRoot, 
             validatorRoot
         ) = getSlashedDepositProof(validatorIndex);
+
+        emit log_named_uint("validatorContainerFields", Endian.fromLittleEndianUint64(validatorContainerFields[2]));
 
         BeaconChainOracleMock(address(beaconChainOracle)).setBeaconChainStateRoot(beaconStateRoot);
         
