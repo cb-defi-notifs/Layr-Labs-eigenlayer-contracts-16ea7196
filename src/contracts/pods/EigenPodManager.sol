@@ -60,7 +60,7 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, Pausable, IEigenP
     event BeaconChainETHDeposited(address indexed podOwner, uint256 amount);
 
     modifier onlyEigenPod(address podOwner) {
-        require(address(getPod(podOwner)) == msg.sender, "EigenPodManager.onlyEigenPod: not a pod");
+        require(address(_podByOwner[podOwner]) == msg.sender, "EigenPodManager.onlyEigenPod: not a pod");
         _;
     }
 
@@ -106,8 +106,8 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, Pausable, IEigenP
      * @param depositDataRoot The root/hash of the deposit data for the validator's deposit.
      */
     function stake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable {
-        IEigenPod pod = getPod(msg.sender);
-        if(!hasPod(msg.sender)) {
+        IEigenPod pod = _podByOwner[msg.sender];
+        if(address(pod) == address(0)) {
             //deploy a pod if the sender doesn't have one already
             pod = _deployPod();
         }
@@ -146,7 +146,7 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, Pausable, IEigenP
     function withdrawRestakedBeaconChainETH(address podOwner, address recipient, uint256 amount)
         external onlyInvestmentManager onlyWhenNotPaused(PAUSED_WITHDRAW_RESTAKED_ETH)
     {
-        getPod(podOwner).withdrawRestakedBeaconChainETH(recipient, amount);
+        _podByOwner[podOwner].withdrawRestakedBeaconChainETH(recipient, amount);
     }
 
     /**
