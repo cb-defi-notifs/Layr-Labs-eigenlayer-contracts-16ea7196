@@ -230,9 +230,9 @@ contract BeaconChainOracleUnitTests is Test {
         require(votesAfter == votesBefore + 1, "votesAfter != votesBefore + 1");
         require(beaconChainOracle.hasVoted(_blockNumber, oracleSigner), "vote not recorded as being cast");
         if (votesAfter == beaconChainOracle.threshold()) {
-            assertEq(beaconChainOracle.beaconStateRoot(_blockNumber), _stateRoot, "state root not confirmed when it should be");
+            assertEq(beaconChainOracle.beaconStateRootAtBlockNumber(_blockNumber), _stateRoot, "state root not confirmed when it should be");
         } else {
-            require(beaconChainOracle.beaconStateRoot(_blockNumber) == bytes32(0), "state root improperly confirmed");
+            require(beaconChainOracle.beaconStateRootAtBlockNumber(_blockNumber) == bytes32(0), "state root improperly confirmed");
         }
     }
 
@@ -251,7 +251,7 @@ contract BeaconChainOracleUnitTests is Test {
             testVoteForBeaconChainStateRoot(potentialOracleSigners[i], _blockNumber, _stateRoot);
         }
 
-        assertEq(beaconChainOracle.beaconStateRoot(_blockNumber), _stateRoot, "state root not confirmed when it should be");
+        assertEq(beaconChainOracle.beaconStateRootAtBlockNumber(_blockNumber), _stateRoot, "state root not confirmed when it should be");
         assertEq(beaconChainOracle.threshold(), beaconChainOracle.stateRootVotes(_blockNumber, _stateRoot), "state root confirmed with incorrect votes");
 
         if (_blockNumber > latestConfirmedOracleBlockNumberBefore) {

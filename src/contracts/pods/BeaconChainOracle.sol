@@ -28,7 +28,7 @@ contract BeaconChainOracle is IBeaconChainOracle, Ownable {
 
     /// @notice Mapping: Beacon Chain blockNumber => the Beacon Chain state root at the specified blockNumber.
     /// @dev This will return `bytes32(0)` if the state root is not yet confirmed at the blockNumber.
-    mapping(uint64 => bytes32) public beaconStateRoot;
+    mapping(uint64 => bytes32) public beaconStateRootAtBlockNumber;
     /// @notice Mapping: address => whether or not the address is in the set of oracle signers.
     mapping(address => bool) public isOracleSigner; 
     /// @notice Mapping: Beacon Chain blockNumber => oracle signer address => whether or not the oracle signer has voted on the state root at the blockNumber.
@@ -103,7 +103,7 @@ contract BeaconChainOracle is IBeaconChainOracle, Ownable {
      */
     function voteForBeaconChainStateRoot(uint64 blockNumber, bytes32 stateRoot) external onlyOracleSigner {
         require(!hasVoted[blockNumber][msg.sender], "BeaconChainOracle.voteForBeaconChainStateRoot: Signer has already voted");
-        require(beaconStateRoot[blockNumber] == bytes32(0), "BeaconChainOracle.voteForBeaconChainStateRoot: State root already confirmed");
+        require(beaconStateRootAtBlockNumber[blockNumber] == bytes32(0), "BeaconChainOracle.voteForBeaconChainStateRoot: State root already confirmed");
         // Mark the signer as having voted
         hasVoted[blockNumber][msg.sender] = true;
         // Increment the vote count for the state root
@@ -111,7 +111,7 @@ contract BeaconChainOracle is IBeaconChainOracle, Ownable {
         // If the state root has enough votes, confirm it as the beacon state root
         if (stateRootVotes[blockNumber][stateRoot] >= threshold) {
             emit StateRootConfirmed(blockNumber, stateRoot);
-            beaconStateRoot[blockNumber] = stateRoot;
+            beaconStateRootAtBlockNumber[blockNumber] = stateRoot;
             // update latestConfirmedOracleBlockNumber if necessary
             if (blockNumber > latestConfirmedOracleBlockNumber) {
                 latestConfirmedOracleBlockNumber = blockNumber;
