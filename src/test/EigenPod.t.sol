@@ -56,6 +56,11 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
     bytes signature;
     bytes32 depositDataRoot;
 
+    event EigenPodStaked(bytes pubkey);
+    event PaymentCreated(address podOwner, address recipient, uint256 amount);
+
+
+
 
     modifier fuzzedAddress(address addr) virtual {
         cheats.assume(fuzzedAddressMapping[addr] == false);
@@ -174,6 +179,44 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
 
     }
 
+    function testStaking() public {
+        cheats.startPrank(podOwner);
+        cheats.expectEmit(true, false, false, false);
+        emit EigenPodStaked(pubkey);
+        eigenPodManager.stake{value: stakeAmount}(pubkey, signature, depositDataRoot);
+        cheats.stopPrank();
+        revert();
+
+    }
+
+    function testWithdrawFromPod() public {
+        cheats.startPrank(podOwner);
+        eigenPodManager.stake{value: stakeAmount}(pubkey, signature, depositDataRoot);
+        cheats.stopPrank();
+
+        IEigenPod pod = eigenPodManager.getPod(podOwner);
+        uint256 balance = address(pod).balance;
+        cheats.deal(address(pod), stakeAmount);
+
+        cheats.startPrank(podOwner);
+        cheats.expectEmit(true, false, false, false);
+        emit PaymentCreated(podOwner, podOwner, balance);
+        pod.withdraw();
+        cheats.stopPrank();
+        require(address(pod).balance == 0, "Pod balance should be 0");
+    }
+
+    function testAttemptedWithdrawalAfterVerifyingWithdrawalCredentials() public {
+        testDeployAndVerifyNewEigenPod();
+        IEigenPod pod = eigenPodManager.getPod(podOwner);
+        cheats.startPrank(podOwner);
+        cheats.expectRevert(bytes("EigenPod.isNotRestaking: restaking is enabled"));
+        IEigenPod(pod).withdraw();
+        cheats.stopPrank();
+
+
+    }
+
     function testVerifyFullWithdrawal() public {
         //make initial deposit
         bytes32 beaconStateRoot = getBeaconStateRoot();
@@ -217,11 +260,6 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
         );
 
         Relayer relay = new Relayer();
-
-        emit log_named_uint("length withdrawal firle", withdrawalFields.length);
-
-        emit log_named_uint("proofs.validatorIndex", proofs.validatorIndex);
-
         relay.verifyBlockNumberAndWithdrawalFields(beaconStateRoot, proofs, withdrawalFields);
     }
 
@@ -402,6 +440,8 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
         uint64 blockNumber = 0;
         pod.verifyOvercommittedStake(blockNumber, validatorIndex, proofs, validatorContainerFields, 0);
     }
+
+
 
     // simply tries to register 'sender' as a delegate, setting their 'DelegationTerms' contract in EigenLayerDelegation to 'dt'
     // verifies that the storage of EigenLayerDelegation contract is updated appropriately

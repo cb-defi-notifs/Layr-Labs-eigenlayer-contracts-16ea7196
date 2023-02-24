@@ -201,6 +201,8 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         // deposit RESTAKED_BALANCE_PER_VALIDATOR for new ETH validator
         // @dev balances are in GWEI so need to convert
         eigenPodManager.restakeBeaconChainETH(podOwner, REQUIRED_BALANCE_WEI);
+
+        // Sets "restkaingEnabled" to true if it hasn't been set yet. 
         if(!restakingEnabled){
             restakingEnabled = true;
         }
