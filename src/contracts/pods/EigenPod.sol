@@ -18,6 +18,8 @@ import "../interfaces/IPausable.sol";
 
 import "./EigenPodPausingConstants.sol";
 
+import "forge-std/Test.sol";
+
 /**
  * @title The implementation contract used for restaking beacon chain ETH on EigenLayer 
  * @author Layr Labs, Inc.
@@ -31,7 +33,7 @@ import "./EigenPodPausingConstants.sol";
  * @dev Note that all beacon chain balances are stored as gwei within the beacon chain datastructures. We choose
  *   to account balances in terms of gwei in the EigenPod contract and convert to wei when making calls to other contracts
  */
-contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, EigenPodPausingConstants {
+contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, EigenPodPausingConstants, Test {
     using BytesLib for bytes;
 
     // V0 CONSTANTS + IMMUTABLES
@@ -177,6 +179,8 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
     ) external onlyWhenNotPaused(PAUSED_EIGENPODS_VERIFY_CREDENTIALS) {
         require(blockNumber > mostRecentWithdrawalBlockNumber, "EigenPod.verifyCorrectWithdrawalCredentials: cannot prove withdrawal credentials for block number before mostRecentWithdrawalBlockNumber");
         require(validatorStatus[validatorIndex] == VALIDATOR_STATUS.INACTIVE, "EigenPod.verifyCorrectWithdrawalCredentials: Validator not inactive");
+        emit log_named_bytes32("withdrawal credential", _podWithdrawalCredentials().toBytes32(0));
+
         require(validatorFields[BeaconChainProofs.VALIDATOR_WITHDRAWAL_CREDENTIALS_INDEX] == _podWithdrawalCredentials().toBytes32(0),
             "EigenPod.verifyCorrectWithdrawalCredentials: Proof is not for this EigenPod");
         // convert the balance field from 8 bytes of little endian to uint64 big endian 💪

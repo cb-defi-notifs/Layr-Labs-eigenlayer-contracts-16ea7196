@@ -213,8 +213,6 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
         cheats.expectRevert(bytes("EigenPod.isNotRestaking: restaking is enabled"));
         IEigenPod(pod).withdraw();
         cheats.stopPrank();
-
-
     }
 
     function testVerifyFullWithdrawal() public {
