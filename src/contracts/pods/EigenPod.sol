@@ -238,8 +238,6 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         // if the validatorBalance is zero *and* the validator is overcommitted, then overcommitement should be proved through `verifyBeaconChainFullWithdrawal`
         require(validatorBalance != 0, "EigenPod.verifyOvercommittedStake: cannot prove overcommitment on a full withdrawal");
         
-        emit log_named_uint("REQUIRED_BALANCE_GWEI", REQUIRED_BALANCE_GWEI);
-        emit log_named_uint("validatorBalance", validatorBalance);
 
         require(validatorBalance < REQUIRED_BALANCE_GWEI,
             "EigenPod.verifyOvercommittedStake: validator's balance must be less than the restaked balance per validator");
