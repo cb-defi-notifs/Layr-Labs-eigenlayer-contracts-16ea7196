@@ -39,6 +39,9 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
     // CONSTANTS + IMMUTABLES
     uint256 internal constant GWEI_TO_WEI = 1e9;
 
+    /// @notice Maximum "staleness" of a Beacon Chain state root against which `verifyOvercommittedStake` may be proven. 7 days in blocks.
+    uint256 internal constant VERIFY_OVERCOMMITTED_WINDOW_BLOCKS = 50400;
+
     /// @notice This is the beacon chain deposit contract
     IETHPOSDeposit internal immutable ethPOS;
 
@@ -109,12 +112,6 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         _;
     }
 
-    modifier proofIsForValidBlockNumber(uint64 blockNumber) {
-        require(blockNumber > mostRecentWithdrawalBlockNumber,
-            "EigenPod.proofIsForValidBlockNumber: beacon chain proof must be for block number after mostRecentWithdrawalBlockNumber");
-        _;
-    }
-
     /**
      * @notice Based on 'Pausable' code, but uses the storage of the EigenPodManager instead of this contract. This construction
      * is necessary for enabling pausing all EigenPods at the same time (due to EigenPods being Beacon Proxies).
@@ -171,7 +168,10 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         uint40 validatorIndex,
         bytes calldata proof, 
         bytes32[] calldata validatorFields
-    ) external onlyWhenNotPaused(PAUSED_EIGENPODS_VERIFY_CREDENTIALS) proofIsForValidBlockNumber(blockNumber) {
+    ) external onlyWhenNotPaused(PAUSED_EIGENPODS_VERIFY_CREDENTIALS) {
+        require(blockNumber > mostRecentWithdrawalBlockNumber,
+            "EigenPod.verifyCorrectWithdrawalCredentials: must prove withdrawal credentials for block number after mostRecentWithdrawalBlockNumber");
+
         require(validatorStatus[validatorIndex] == VALIDATOR_STATUS.INACTIVE, "EigenPod.verifyCorrectWithdrawalCredentials: Validator not inactive");
 
         require(validatorFields[BeaconChainProofs.VALIDATOR_WITHDRAWAL_CREDENTIALS_INDEX] == _podWithdrawalCredentials().toBytes32(0),
@@ -182,9 +182,8 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         require(validatorBalanceGwei >= REQUIRED_BALANCE_GWEI,
             "EigenPod.verifyCorrectWithdrawalCredentials: ETH validator's balance must be greater than or equal to the restaked balance per validator");
 
-        bytes32 beaconStateRoot = eigenPodManager.getBeaconChainStateRoot(blockNumber);
-
         // verify ETH validator proof
+        bytes32 beaconStateRoot = eigenPodManager.getBeaconChainStateRoot(blockNumber);
         BeaconChainProofs.verifyValidatorFields(
             validatorIndex,
             beaconStateRoot,
@@ -192,7 +191,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
             validatorFields
         );
 
-        // set the status to active
+        // set the ETH validator's status to active
         validatorStatus[validatorIndex] = VALIDATOR_STATUS.ACTIVE;
 
         // Sets `hasRestaked` to true if it hasn't been set yet. 
@@ -223,7 +222,11 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         bytes calldata proof, 
         bytes32[] calldata validatorFields,
         uint256 beaconChainETHStrategyIndex
-    ) external onlyWhenNotPaused(PAUSED_EIGENPODS_VERIFY_OVERCOMMITTED) proofIsForValidBlockNumber(blockNumber) {
+    ) external onlyWhenNotPaused(PAUSED_EIGENPODS_VERIFY_OVERCOMMITTED) {
+        // ensure that the blockNumber being proven against is not "too stale".
+        require(blockNumber + VERIFY_OVERCOMMITTED_WINDOW_BLOCKS >= block.number,
+            "EigenPod.verifyOvercommittedStake: specified blockNumber is too far in past");
+
         require(validatorStatus[validatorIndex] == VALIDATOR_STATUS.ACTIVE, "EigenPod.verifyOvercommittedStake: Validator not active");
         // convert the balance field from 8 bytes of little endian to uint64 big endian 💪
         uint64 validatorBalance = Endian.fromLittleEndianUint64(validatorFields[BeaconChainProofs.VALIDATOR_BALANCE_INDEX]);
@@ -234,8 +237,8 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         require(validatorBalance < REQUIRED_BALANCE_GWEI,
             "EigenPod.verifyOvercommittedStake: validator's balance must be less than the restaked balance per validator");
 
-        bytes32 beaconStateRoot = eigenPodManager.getBeaconChainStateRoot(blockNumber);
         // verify ETH validator proof
+        bytes32 beaconStateRoot = eigenPodManager.getBeaconChainStateRoot(blockNumber);
         BeaconChainProofs.verifyValidatorFields(
             validatorIndex,
             beaconStateRoot,
@@ -266,8 +269,8 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
     )
         external
         onlyWhenNotPaused(PAUSED_EIGENPODS_VERIFY_WITHDRAWAL)
-        proofIsForValidBlockNumber(Endian.fromLittleEndianUint64(proofs.blockNumberRoot))
     {
+        // fetch the beacon state root for the specified block
         bytes32 beaconStateRoot = eigenPodManager.getBeaconChainStateRoot(oracleBlockNumber);
 
         BeaconChainProofs.verifyBlockNumberAndWithdrawalFields(beaconStateRoot, proofs, withdrawalFields);
