@@ -11,8 +11,8 @@ methods {
     _delegationWithdrawnHook(address,address,address[],uint256[]) => NONDET
 
 	// external calls to Slasher
-    isFrozen(address) returns (bool) => DISPATCHER(true)
-	canWithdraw(address,uint32,uint256) returns (bool) => DISPATCHER(true)
+    isFrozen(address) returns (bool) envfree 
+	canWithdraw(address,uint32,uint256) returns (bool) 
 
 	// external calls to InvestmentManager
     getDeposits(address) returns (address[],uint256[]) => DISPATCHER(true)
@@ -49,6 +49,7 @@ methods {
 	get_lastest_update_block_at_node(address, uint256) returns (uint256) envfree
 	get_lastest_update_block_at_head(address) returns (uint256) envfree
 	get_linked_list_entry(address operator, uint256 node, bool direction) returns (uint256) envfree
+
 	// nodeDoesExist(address operator, uint256 node) returns (bool) envfree
 	nodeIsWellLinked(address operator, uint256 node) returns (bool) envfree
 	
@@ -87,7 +88,6 @@ rule cantBeUnfrozen(method f) {
 	bool frozen_ = isFrozen(staker);
 	assert frozen_, "frozen stakers must stay frozen";
 }
-*/
 
 /*
 verifies that `bondedUntil[operator][contractAddress]` only changes when either:
@@ -176,4 +176,17 @@ rule cannotAddSameContractTwice(address operator, address contractAddress) {
 		}
 	}
 }
+*/
+/*
+## Slashing
+
+- slashing happens if and only if a provably malicious action by an operator took place
+- operator may be slashed only if allowToSlash() for that particular contract was called
+- slashing cannot happen after bondedUntil[operator][contractAddress] timestamp
+- bondedUntil[operator][contractAddress] changed  => allowToSlash() or recordLastStakeUpdateAndRevokeSlashingAbility() was called
+- recordLastStakeUpdateAndRevokeSlashingAbility() should only be callable when bondedUntil[operator][contractAddress] == MAX_BONDED_UNTIL, and only by the contractAddress
+- Any contractAddress for which bondedUntil[operator][contractAddress] > current time can call freezeOperator(operator).
+- frozen operator cannot make deposits/withdrawals, cannot complete queued withdrawals
+- slashing and unfreezing is performed by the InvestmentManager contract owner (is it permanent or configurable?)
+- frozenStatus[operator] changed => freezeOperator() or resetFrozenStatus() were called
 */

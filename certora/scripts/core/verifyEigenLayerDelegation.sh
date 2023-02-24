@@ -14,6 +14,7 @@ certoraRun certora/harnesses/EigenLayerDelegationHarness.sol \
     --send_only \
     --settings -optimisticFallback=true \
     $RULE \
+    --cloud master \
     --loop_iter 3 \
     --packages @openzeppelin=lib/openzeppelin-contracts @openzeppelin-upgrades=lib/openzeppelin-contracts-upgradeable \
     --msg "EigenLayerDelegation $1 $2" \
