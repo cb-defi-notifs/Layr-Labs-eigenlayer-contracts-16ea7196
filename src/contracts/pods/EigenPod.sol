@@ -114,7 +114,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
     }
 
     modifier isRestaking{
-        require(restakingEnabled, "EigenPod.isNotRestaking: restaking is enabled");
+        require(restakingEnabled, "EigenPod.isRestaking: restaking is not enabled");
         _;
     }
 
