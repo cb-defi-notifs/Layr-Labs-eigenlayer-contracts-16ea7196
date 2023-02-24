@@ -30,7 +30,7 @@ contract EigenPodPaymentEscrow is Initializable, OwnableUpgradeable, ReentrancyG
     mapping(address => UserPayments) internal _userPayments;
 
     /// @notice event for payment creation
-    event PaymentCreated(address podOwner, address recipient, uint256 amount);
+    event PaymentCreated(address podOwner, address recipient, uint256 amount, uint256 index);
 
     /// @notice Modifier used to permission a function to only be called by the EigenPod of the specified `podOwner`
     modifier onlyEigenPod(address podOwner) {
@@ -61,7 +61,7 @@ contract EigenPodPaymentEscrow is Initializable, OwnableUpgradeable, ReentrancyG
                 blockCreated: uint32(block.number)
             });
             _userPayments[recipient].payments.push(payment);
-            emit PaymentCreated(podOwner, recipient, paymentAmount);
+            emit PaymentCreated(podOwner, recipient, paymentAmount, _userPayments[recipient].payments.length - 1);
         }
     }
 
