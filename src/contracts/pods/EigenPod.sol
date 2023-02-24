@@ -196,14 +196,14 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         // set the status to active
         validatorStatus[validatorIndex] = VALIDATOR_STATUS.ACTIVE;
 
+        // Sets `hasRestaked` to true if it hasn't been set yet. 
+        if (!hasRestaked) {
+            hasRestaked = true;
+        }
+
         // deposit RESTAKED_BALANCE_PER_VALIDATOR for new ETH validator
         // @dev balances are in GWEI so need to convert
         eigenPodManager.restakeBeaconChainETH(podOwner, REQUIRED_BALANCE_WEI);
-
-        // Sets "restkaingEnabled" to true if it hasn't been set yet. 
-        if(!hasRestaked){
-            hasRestaked = true;
-        }
     }
 
     /**
