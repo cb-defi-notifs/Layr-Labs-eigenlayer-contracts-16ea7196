@@ -144,7 +144,7 @@ contract EigenLayerDeployer is Script, Owners {
         beaconChainOracle = new BeaconChainOracle(address(eigenLayerReputedMultisig), initialBeaconChainOracleThreshold, initialOracleSignersArray);
 
         ethPOSDeposit = new ETHPOSDepositMock();
-        pod = new EigenPod(ethPOSDeposit, eigenPodPaymentEscrow, eigenPodManager, PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS, REQUIRED_BALANCE_WEI);
+        pod = new EigenPod(ethPOSDeposit, eigenPodPaymentEscrow, eigenPodManager, REQUIRED_BALANCE_WEI);
 
         eigenPodBeacon = new UpgradeableBeacon(address(pod));
 
