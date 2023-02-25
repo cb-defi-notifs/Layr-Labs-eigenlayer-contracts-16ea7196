@@ -43,7 +43,7 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
     IEigenPodPaymentEscrow public eigenPodPaymentEscrow;
     IETHPOSDeposit public ethPOSDeposit;
     IBeacon public eigenPodBeacon;
-    IBeaconChainOracle public beaconChainOracle;
+    IBeaconChainOracleMock public beaconChainOracle;
     MiddlewareRegistryMock public generalReg1;
     ServiceManagerMock public generalServiceManager1;
     address[] public slashingContracts;
@@ -55,6 +55,9 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
     mapping (address => bool) fuzzedAddressMapping;
     bytes signature;
     bytes32 depositDataRoot;
+
+    bytes32[] withdrawalFields;
+    bytes32[] validatorFields;
 
     event EigenPodStaked(bytes pubkey);
     event PaymentCreated(address podOwner, address recipient, uint256 amount, uint256 index);
@@ -69,7 +72,7 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
 
 
     uint32 PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS = 7 days / 12 seconds;
-    uint256 REQUIRED_BALANCE_WEI = 31.4 ether;
+    uint256 REQUIRED_BALANCE_WEI = 31 ether;
 
     //performs basic deployment before each test
     function setUp() public {
@@ -174,7 +177,6 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
         fuzzedAddressMapping[address(slasher)] = true;
         fuzzedAddressMapping[address(generalServiceManager1)] = true;
         fuzzedAddressMapping[address(generalReg1)] = true;
-
     }
 
     function testStaking() public {
@@ -211,51 +213,24 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
         cheats.stopPrank();
     }
 
-    function testVerifyFullWithdrawal() public {
-        //make initial deposit
-        bytes32 beaconStateRoot = getBeaconStateRoot();
-        bytes32 blockHeaderRoot = getBlockHeaderRoot();
-        bytes32 blockBodyRoot = getBlockBodyRoot();
-        slotRoot = getSlotRoot();
-        blockNumberRoot = getBlockNumberRoot();
-        executionPayloadRoot = getExecutionPayloadRoot();
-
-        uint256 validatorIndex = getValidatorIndex(); 
-
-        uint256 withdrawalIndex = getWithdrawalIndex();
-        uint256 blockHeaderRootIndex = getBlockHeaderRootIndex();
-
-        blockHeaderProof = getBlockHeaderProof();
-        withdrawalProof = getWithdrawalProof();
-        slotProof = getSlotProof();
-        validatorProof = getValidatorProof();
-        executionPayloadProof = getExecutionPayloadProof();
-        blockNumberProof = getBlockNumberProof();
-
+    function testFullWithdrawal() public {
+        BeaconChainProofs.WithdrawalProofs memory proofs = _getProof();
         withdrawalFields = getWithdrawalFields();   
         validatorFields = getValidatorFields();
 
-
-        BeaconChainProofs.WithdrawalProofs memory proofs = BeaconChainProofs.WithdrawalProofs(
-            abi.encodePacked(blockHeaderProof),
-            abi.encodePacked(withdrawalProof),
-            abi.encodePacked(slotProof),
-            abi.encodePacked(validatorProof),
-            abi.encodePacked(executionPayloadProof),
-            abi.encodePacked(blockNumberProof),
-            uint16(blockHeaderRootIndex),
-            uint8(withdrawalIndex),
-            uint8(validatorIndex),
-            blockHeaderRoot,
-            blockBodyRoot,
-            slotRoot,
-            blockNumberRoot,
-            executionPayloadRoot
-        );
-
         Relayer relay = new Relayer();
-        relay.verifyBlockNumberAndWithdrawalFields(beaconStateRoot, proofs, withdrawalFields);
+
+        bytes32 beaconStateRoot = getBeaconStateRoot();
+
+
+        IEigenPod pod = eigenPodManager.getPod(podOwner);
+
+        pod.verifyBlockNumberAndWithdrawalFields(beaconStateRoot, proofs, withdrawalFields);
+        //relay.verifyBlockNumberAndWithdrawalFields(beaconStateRoot, proofs, withdrawalFields);
+
+
     }
+
 
     function testDeployAndVerifyNewEigenPod() public returns(IEigenPod){
         BeaconChainOracleMock(address(beaconChainOracle)).setBeaconChainStateRoot(0xaf3bf0770df5dd35b984eda6586e6f6eb20af904a5fb840fe65df9a6415293bd);
@@ -553,12 +528,12 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
             validatorRoot
         ) = getSlashedDepositProof(validatorIndex);
 
-
         BeaconChainOracleMock(address(beaconChainOracle)).setBeaconChainStateRoot(beaconStateRoot);
         
         // bytes32 validatorIndexBytes = bytes32(uint256(validatorIndex));
         bytes memory proofs = abi.encodePacked(validatorMerkleProof, beaconStateMerkleProofForValidators);
         uint64 blockNumber = 0;
+
         pod.verifyOvercommittedStake(blockNumber, validatorIndex, proofs, validatorContainerFields, 0);
     }
 
@@ -590,6 +565,50 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
 
     function _getLatestPaymentAmount(address recipient) internal view returns (uint256) {
         return eigenPodPaymentEscrow.userPaymentByIndex(recipient, eigenPodPaymentEscrow.userPaymentsLength(recipient) - 1).amount;
+    }
+
+    /// @notice this function just generates a valid proof so that we can test other functionalities of the withdrawal flow
+    function _getProof() internal returns(BeaconChainProofs.WithdrawalProofs memory) {
+        //make initial deposit
+        cheats.startPrank(podOwner);
+        eigenPodManager.stake{value: stakeAmount}(pubkey, signature, depositDataRoot);
+        cheats.stopPrank();
+
+        
+        {
+            bytes32 beaconStateRoot = getBeaconStateRoot();
+            //set beaconStateRoot
+            beaconChainOracle.setBeaconChainStateRoot(beaconStateRoot);
+            bytes32 blockHeaderRoot = getBlockHeaderRoot();
+            bytes32 blockBodyRoot = getBlockBodyRoot();
+            slotRoot = getSlotRoot();
+            blockNumberRoot = getBlockNumberRoot();
+            executionPayloadRoot = getExecutionPayloadRoot();
+
+            uint256 validatorIndex = getValidatorIndex(); 
+
+            uint256 withdrawalIndex = getWithdrawalIndex();
+            uint256 blockHeaderRootIndex = getBlockHeaderRootIndex();
+
+
+            BeaconChainProofs.WithdrawalProofs memory proofs = BeaconChainProofs.WithdrawalProofs(
+                abi.encodePacked(getBlockHeaderProof()),
+                abi.encodePacked(getWithdrawalProof()),
+                abi.encodePacked(getSlotProof()),
+                abi.encodePacked(getValidatorProof()),
+                abi.encodePacked(getExecutionPayloadProof()),
+                abi.encodePacked(getBlockNumberProof()),
+                uint16(blockHeaderRootIndex),
+                uint8(withdrawalIndex),
+                uint8(validatorIndex),
+                blockHeaderRoot,
+                blockBodyRoot,
+                slotRoot,
+                blockNumberRoot,
+                executionPayloadRoot
+            );
+            return proofs;
+        }
     }
 
  }

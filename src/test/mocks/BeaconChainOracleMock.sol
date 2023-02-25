@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity =0.8.12;
 
-import "../../contracts/interfaces/IBeaconChainOracle.sol";
+import "./IBeaconChainOracleMock.sol";
 
 
 
-contract BeaconChainOracleMock is IBeaconChainOracle {
+contract BeaconChainOracleMock is IBeaconChainOracleMock {
 
     bytes32 public mockBeaconChainStateRoot;
 

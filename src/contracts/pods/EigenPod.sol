@@ -112,6 +112,11 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         _;
     }
 
+    modifier isRestaked {
+        require(hasRestaked, "EigenPod.hasNeverRestaked: restaking is enabled");
+        _;
+    }
+
     /**
      * @notice Based on 'Pausable' code, but uses the storage of the EigenPodManager instead of this contract. This construction
      * is necessary for enabling pausing all EigenPods at the same time (due to EigenPods being Beacon Proxies).
@@ -268,6 +273,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         uint64 oracleBlockNumber
     )
         external
+        isRestaked
         onlyWhenNotPaused(PAUSED_EIGENPODS_VERIFY_WITHDRAWAL)
     {
         // fetch the beacon state root for the specified block
