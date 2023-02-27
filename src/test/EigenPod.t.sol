@@ -166,7 +166,7 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
              investmentManager
         );
 
-        cheats.deal(address(podOwner), stakeAmount);     
+        cheats.deal(address(podOwner), 5*stakeAmount);     
 
         fuzzedAddressMapping[address(0)] = true;
         fuzzedAddressMapping[address(eigenLayerProxyAdmin)] = true;
@@ -212,7 +212,7 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
         cheats.stopPrank();
     }
 
-    function testFullWithdrawal() public {
+    function testProof() public {
         BeaconChainProofs.WithdrawalProofs memory proofs = _getProof();
         withdrawalFields = getWithdrawalFields();   
         validatorFields = getValidatorFields();
@@ -220,15 +220,50 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
         Relayer relay = new Relayer();
 
         bytes32 beaconStateRoot = getBeaconStateRoot();
-
-
-        IEigenPod pod = eigenPodManager.getPod(podOwner);
-
-        pod.verifyBlockNumberAndWithdrawalFields(beaconStateRoot, proofs, withdrawalFields);
-        //relay.verifyBlockNumberAndWithdrawalFields(beaconStateRoot, proofs, withdrawalFields);
-
+        relay.verifyBlockNumberAndWithdrawalFields(beaconStateRoot, proofs, withdrawalFields);
 
     }
+
+    function testFullWithdrawalFlow() public {
+        //this call is to ensure that validatorContainerFields and validatorMerkleProof in BeaconChainUtils get set
+        testDeployAndVerifyNewEigenPod();
+
+       (beaconStateRoot, beaconStateMerkleProofForValidators, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) =
+            getFullWithdrawalValidatorProof();
+
+        cheats.startPrank(podOwner);
+        eigenPodManager.stake{value: stakeAmount}(pubkey, signature, depositDataRoot);
+        cheats.stopPrank();
+
+        BeaconChainOracleMock(address(beaconChainOracle)).setBeaconChainStateRoot(beaconStateRoot);
+
+        IEigenPod newPod;
+
+        newPod = eigenPodManager.getPod(podOwner);
+
+        bytes memory proofs = abi.encodePacked(validatorMerkleProof, beaconStateMerkleProofForValidators);
+
+        uint64 blockNumber = 1;
+        uint40 validatorIndex = 61336;
+        newPod.verifyCorrectWithdrawalCredentials(blockNumber, validatorIndex, proofs, validatorContainerFields);
+
+
+        setJSON("./src/test/test-data/fullWithdrawalProof.json");
+        BeaconChainProofs.WithdrawalProofs memory withdrawalProofs = _getProof();
+        withdrawalFields = getWithdrawalFields();   
+        validatorFields = getValidatorFields();
+        bytes32 newBeaconStateRoot = getBeaconStateRoot();
+        BeaconChainOracleMock(address(beaconChainOracle)).setBeaconChainStateRoot(newBeaconStateRoot);
+
+        uint64 restakedExecutionLayerGweiBefore = newPod.restakedExecutionLayerGwei();
+        uint64 withdrawalAmountGwei = Endian.fromLittleEndianUint64(withdrawalFields[BeaconChainProofs.WITHDRAWAL_VALIDATOR_AMOUNT_INDEX]);
+        uint64 leftOverBalanceWEI = uint64(withdrawalAmountGwei - newPod.REQUIRED_BALANCE_GWEI()) * uint64(GWEI_TO_WEI);
+        cheats.deal(address(newPod), leftOverBalanceWEI);
+        
+        newPod.verifyAndProcessWithdrawal(withdrawalProofs, validatorFields, withdrawalFields, 0, 0);
+        require(newPod.restakedExecutionLayerGwei() -  restakedExecutionLayerGweiBefore == newPod.REQUIRED_BALANCE_GWEI(), "restakedExecutionLayerGwei has not been incremented correctly");
+    }
+
 
 
     function testDeployAndVerifyNewEigenPod() public returns(IEigenPod){
@@ -585,6 +620,8 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
             executionPayloadRoot = getExecutionPayloadRoot();
 
             uint256 validatorIndex = getValidatorIndex(); 
+                    emit log_named_uint("INT TEST validatorIndex", uint8(validatorIndex));
+
 
             uint256 withdrawalIndex = getWithdrawalIndex();
             uint256 blockHeaderRootIndex = getBlockHeaderRootIndex();
@@ -597,9 +634,9 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
                 abi.encodePacked(getValidatorProof()),
                 abi.encodePacked(getExecutionPayloadProof()),
                 abi.encodePacked(getBlockNumberProof()),
-                uint16(blockHeaderRootIndex),
-                uint8(withdrawalIndex),
-                uint8(validatorIndex),
+                uint64(blockHeaderRootIndex),
+                uint64(withdrawalIndex),
+                uint40(validatorIndex),
                 blockHeaderRoot,
                 blockBodyRoot,
                 slotRoot,

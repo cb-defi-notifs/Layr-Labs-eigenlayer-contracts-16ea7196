@@ -111,9 +111,9 @@ library BeaconChainProofs {
         bytes validatorProof;
         bytes executionPayloadProof;
         bytes blockNumberProof;
-        uint16 blockHeaderRootIndex;
-        uint8 withdrawalIndex;
-        uint8 validatorIndex;
+        uint64 blockHeaderRootIndex;
+        uint64 withdrawalIndex;
+        uint40 validatorIndex;
         bytes32 blockHeaderRoot;
         bytes32 blockBodyRoot;
         bytes32 slotRoot;
