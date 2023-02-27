@@ -78,6 +78,10 @@ interface IEigenPod {
     /// @notice an indicator of whether or not the podOwner has ever "fully restaked" by successfully calling `verifyCorrectWithdrawalCredentials`.
     function hasRestaked() external view returns (bool);
 
+
+    ///@notice mapping that trackes proven partial withdrawals
+    function provenPartialWithdrawal(uint40 validatorIndex, uint64 slot) external view returns (bool);
+
     /**
      * @notice This function verifies that the withdrawal credentials of the podOwner are pointed to
      * this contract. It verifies the provided proof of the ETH validator against the beacon chain state

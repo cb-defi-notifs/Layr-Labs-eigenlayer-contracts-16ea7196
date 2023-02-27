@@ -95,15 +95,6 @@ library BeaconChainProofs {
     //Misc Constants
     uint256 internal constant SLOTS_PER_EPOCH = 32;
 
-    struct WithdrawalAndBlockNumberProof {
-        uint16 stateRootIndex;
-        bytes32 executionPayloadHeaderRoot;
-        bytes executionPayloadHeaderProof;
-        uint8 withdrawalIndex;
-        bytes withdrawalProof;
-        bytes blockNumberProof;
-    }
-
     struct WithdrawalProofs {
         bytes blockHeaderProof;
         bytes withdrawalProof;
