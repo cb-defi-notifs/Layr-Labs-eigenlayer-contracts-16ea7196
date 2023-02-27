@@ -198,7 +198,7 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
         cheats.startPrank(podOwner);
         cheats.expectEmit(true, false, false, false);
         emit PaymentCreated(podOwner, podOwner, balance, eigenPodPaymentEscrow.userPaymentsLength(podOwner));
-        pod.withdraw();
+        pod.withdrawBeforeRestaking();
         cheats.stopPrank();
         require(address(pod).balance == 0, "Pod balance should be 0");
     }
@@ -208,7 +208,7 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
         IEigenPod pod = eigenPodManager.getPod(podOwner);
         cheats.startPrank(podOwner);
         cheats.expectRevert(bytes("EigenPod.hasNeverRestaked: restaking is enabled"));
-        IEigenPod(pod).withdraw();
+        IEigenPod(pod).withdrawBeforeRestaking();
         cheats.stopPrank();
     }
 

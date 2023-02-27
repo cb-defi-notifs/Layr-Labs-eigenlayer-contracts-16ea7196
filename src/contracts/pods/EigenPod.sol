@@ -416,8 +416,8 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
     }
 
 
-    /// @notice Called by the pod owner to withdraw the balance of the pod when "hasRestaked" is set to false
-    function withdraw() external onlyEigenPodOwner hasNeverRestaked {
+    /// @notice Called by the pod owner to withdraw the balance of the pod when `hasRestaked` is set to false
+    function withdrawBeforeRestaking() external onlyEigenPodOwner hasNeverRestaked {
         mostRecentWithdrawalBlockNumber = uint32(block.number);
         _sendETH(podOwner, address(this).balance);
     }

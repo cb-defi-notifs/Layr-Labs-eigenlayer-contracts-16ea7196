@@ -133,6 +133,6 @@ interface IEigenPod {
         uint64 oracleBlockNumber
     ) external;
 
-     /// @notice Called by the pod owner to withdraw the balance of the pod
-    function withdraw() external;
+    /// @notice Called by the pod owner to withdraw the balance of the pod when `hasRestaked` is set to false
+    function withdrawBeforeRestaking() external;
 }
