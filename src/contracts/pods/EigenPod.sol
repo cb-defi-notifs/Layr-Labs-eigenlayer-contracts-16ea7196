@@ -374,12 +374,12 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         // set the ETH validator status to withdrawn
         validatorStatus[validatorIndex] = VALIDATOR_STATUS.WITHDRAWN;
 
+        emit FullWithdrawalRedeemed(validatorIndex, recipient, withdrawalAmountGwei);
+
         // send ETH to the `recipient`, if applicable
         if (amountToSend != 0) {
             _sendETH(recipient, amountToSend);
         }
-
-        emit FullWithdrawalRedeemed(validatorIndex, recipient, withdrawalAmountGwei);
     }
 
     function _processPartialWithdrawal(uint64 withdrawalHappenedSlot, uint64 partialWithdrawalAmountGwei, uint40 validatorIndex, address recipient) internal {
@@ -408,11 +408,11 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
     {
         // reduce the restakedExecutionLayerGwei
         restakedExecutionLayerGwei -= uint64(amountWei / GWEI_TO_WEI);
-        
-        // transfer ETH from pod to `recipient`
-        _sendETH(recipient, amountWei);
 
         emit RestakedBeaconChainETHWithdrawn(recipient, amountWei);
+
+        // transfer ETH from pod to `recipient`
+        _sendETH(recipient, amountWei);
     }
 
 
