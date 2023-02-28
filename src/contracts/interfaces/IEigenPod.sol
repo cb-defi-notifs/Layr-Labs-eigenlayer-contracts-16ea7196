@@ -94,7 +94,7 @@ interface IEigenPod {
     function verifyCorrectWithdrawalCredentials(
         uint64 slot,
         uint40 validatorIndex,
-        BeaconChainProofs.ValidatorFieldsAndBalanceProof calldata proof, 
+        bytes calldata proof, 
         bytes32[] calldata validatorFields
     ) external;
     
@@ -112,7 +112,7 @@ interface IEigenPod {
     function verifyOvercommittedStake(
         uint64 slot,
         uint40 validatorIndex,
-        BeaconChainProofs.ValidatorFieldsAndBalanceProof calldata proof, 
+        bytes calldata proof, 
         bytes32[] calldata validatorFields,
         uint256 beaconChainETHStrategyIndex
     ) external;

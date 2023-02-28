@@ -181,7 +181,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
     function verifyCorrectWithdrawalCredentials(
         uint64 oracleBlockNumber,
         uint40 validatorIndex,
-        BeaconChainProofs.ValidatorFieldsAndBalanceProof calldata proof, 
+        bytes calldata proof, 
         bytes32[] calldata validatorFields
     )
         external
@@ -240,7 +240,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
     function verifyOvercommittedStake(
         uint64 blockNumber,
         uint40 validatorIndex,
-        BeaconChainProofs.ValidatorFieldsAndBalanceProof calldata proof, 
+        bytes calldata proof, 
         bytes32[] calldata validatorFields,
         uint256 beaconChainETHStrategyIndex
     ) external onlyWhenNotPaused(PAUSED_EIGENPODS_VERIFY_OVERCOMMITTED) {
