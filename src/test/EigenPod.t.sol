@@ -271,6 +271,53 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
         require(address(podOwner).balance - podOwnerBalanceBefore == leftOverBalanceWEI, "Pod owner balance hasn't been updated correctly");
     }
 
+    function testFullWithdrawalForOvercommitedValidator() public {
+        //this call is to ensure that validatorContainerFields and validatorMerkleProof in BeaconChainUtils get set
+        testDeployAndVerifyNewEigenPod();
+
+       (beaconStateRoot, beaconStateMerkleProofForValidators, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) =
+            getFullWithdrawalValidatorProof();
+
+        cheats.startPrank(podOwner);
+        eigenPodManager.stake{value: stakeAmount}(pubkey, signature, depositDataRoot);
+        cheats.stopPrank();
+
+        BeaconChainOracleMock(address(beaconChainOracle)).setBeaconChainStateRoot(beaconStateRoot);
+
+        IEigenPod newPod;
+
+        newPod = eigenPodManager.getPod(podOwner);
+
+        bytes memory proofs = abi.encodePacked(validatorMerkleProof, beaconStateMerkleProofForValidators);
+
+        uint64 blockNumber = 1;
+        uint40 validatorIndex = 61336;
+        newPod.verifyCorrectWithdrawalCredentials(blockNumber, validatorIndex, proofs, validatorContainerFields);
+
+
+        setJSON("./src/test/test-data/fullWithdrawalProof.json");
+        BeaconChainProofs.WithdrawalProofs memory withdrawalProofs = _getProof();
+        withdrawalFields = getWithdrawalFields();   
+        validatorFields = getValidatorFields();
+        bytes32 newBeaconStateRoot = getBeaconStateRoot();
+        BeaconChainOracleMock(address(beaconChainOracle)).setBeaconChainStateRoot(newBeaconStateRoot);
+
+        uint64 restakedExecutionLayerGweiBefore = newPod.restakedExecutionLayerGwei();
+        uint64 withdrawalAmountGwei = Endian.fromLittleEndianUint64(withdrawalFields[BeaconChainProofs.WITHDRAWAL_VALIDATOR_AMOUNT_INDEX]);
+        uint64 leftOverBalanceWEI = uint64(withdrawalAmountGwei - newPod.REQUIRED_BALANCE_GWEI()) * uint64(GWEI_TO_WEI);
+        cheats.deal(address(newPod), leftOverBalanceWEI);
+        
+        uint256 escrowContractBalanceBefore = address(eigenPodPaymentEscrow).balance;
+        newPod.verifyAndProcessWithdrawal(withdrawalProofs, validatorFields, withdrawalFields, 0, 0);
+        require(newPod.restakedExecutionLayerGwei() -  restakedExecutionLayerGweiBefore == newPod.REQUIRED_BALANCE_GWEI(), "restakedExecutionLayerGwei has not been incremented correctly");
+        require(address(eigenPodPaymentEscrow).balance - escrowContractBalanceBefore == leftOverBalanceWEI, "Escrow pod payment balance hasn't ben updated correctly");
+
+        cheats.roll(block.number + PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS + 1);
+        uint podOwnerBalanceBefore = address(podOwner).balance;
+        eigenPodPaymentEscrow.claimPayments(podOwner, 1);
+        require(address(podOwner).balance - podOwnerBalanceBefore == leftOverBalanceWEI, "Pod owner balance hasn't been updated correctly");
+    }
+
     function testPartialWithdrawalFlow() public {
         //this call is to ensure that validatorContainerFields and validatorMerkleProof in BeaconChainUtils get set
         testDeployAndVerifyNewEigenPod();
