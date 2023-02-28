@@ -45,7 +45,7 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, Pausable, IEigenP
     IBeaconChainOracle public beaconChainOracle;
     
     /// @notice Pod owner to deployed EigenPod address
-    mapping(address => IEigenPod) public podByOwner;
+    mapping(address => IEigenPod) public ownerToPod;
 
     /// @notice Emitted to notify the update of the beaconChainOracle address
     event BeaconOracleUpdated(address indexed newOracleAddress);
@@ -65,7 +65,7 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, Pausable, IEigenP
         require(msg.sender == address(investmentManager), "EigenPodManager.onlyInvestmentManager: not investmentManager");
         _;
     }
-
+    
     constructor(IETHPOSDeposit _ethPOS, IBeacon _eigenPodBeacon, IInvestmentManager _investmentManager, ISlasher _slasher) {
         ethPOS = _ethPOS;
         eigenPodBeacon = _eigenPodBeacon;
@@ -169,6 +169,7 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, Pausable, IEigenP
                     )
                 )
             );
+        ownerToPod[msg.sender] = pod;
         emit PodDeployed(address(pod), msg.sender);
         return pod;
     }
@@ -181,7 +182,7 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, Pausable, IEigenP
     // VIEW FUNCTIONS
     /// @notice Returns the address of the `podOwner`'s EigenPod (whether it is deployed yet or not).
     function getPod(address podOwner) public view returns (IEigenPod) {
-        IEigenPod pod = podByOwner[podOwner];
+        IEigenPod pod = ownerToPod[podOwner];
         // if pod does not exist already, calculate what its address *will be* once it is deployed
         if (address(pod) == address(0)) {
             pod = IEigenPod(
@@ -198,7 +199,7 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, Pausable, IEigenP
 
     /// @notice Returns 'true' if the `podOwner` has created an EigenPod, and 'false' otherwise.
     function hasPod(address podOwner) public view returns (bool) {
-        return address(podByOwner[podOwner]) != address(0);
+        return address(ownerToPod[podOwner]) != address(0);
     }
 
     /// @notice Returns the Beacon Chain state root at `slot`. Reverts if the Beacon Chain state root at `slot` has not yet been finalized.

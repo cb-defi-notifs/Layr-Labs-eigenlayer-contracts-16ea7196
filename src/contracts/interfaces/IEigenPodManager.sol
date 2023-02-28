@@ -61,7 +61,7 @@ interface IEigenPodManager is IPausable {
     function updateBeaconChainOracle(IBeaconChainOracle newBeaconChainOracle) external;
 
     /// @notice Returns the address of the `podOwner`'s EigenPod if it has been deployed.
-    function podByOwner(address podOwner) external view returns(IEigenPod);
+    function ownerToPod(address podOwner) external view returns(IEigenPod);
 
     /// @notice Returns the address of the `podOwner`'s EigenPod (whether it is deployed yet or not).
     function getPod(address podOwner) external view returns(IEigenPod);
