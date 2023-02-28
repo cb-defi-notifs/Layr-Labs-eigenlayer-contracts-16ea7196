@@ -194,9 +194,10 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         require(validatorFields[BeaconChainProofs.VALIDATOR_WITHDRAWAL_CREDENTIALS_INDEX] == _podWithdrawalCredentials().toBytes32(0),
             "EigenPod.verifyCorrectWithdrawalCredentials: Proof is not for this EigenPod");
         // convert the balance field from 8 bytes of little endian to uint64 big endian 💪
-        uint64 validatorBalanceGwei = Endian.fromLittleEndianUint64(validatorFields[BeaconChainProofs.VALIDATOR_BALANCE_INDEX]);
+        uint64 validatorCurrentBalanceGwei = Endian.fromLittleEndianUint64(proof.balanceRoot);
+
         // make sure the balance is greater than the amount restaked per validator
-        require(validatorBalanceGwei >= REQUIRED_BALANCE_GWEI,
+        require(validatorCurrentBalanceGwei >= REQUIRED_BALANCE_GWEI,
             "EigenPod.verifyCorrectWithdrawalCredentials: ETH validator's balance must be greater than or equal to the restaked balance per validator");
 
         // verify ETH validator proof
@@ -249,12 +250,12 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
 
         require(validatorStatus[validatorIndex] == VALIDATOR_STATUS.ACTIVE, "EigenPod.verifyOvercommittedStake: Validator not active");
         // convert the balance field from 8 bytes of little endian to uint64 big endian 💪
-        uint64 validatorBalance = Endian.fromLittleEndianUint64(validatorFields[BeaconChainProofs.VALIDATOR_BALANCE_INDEX]);
+        uint64 validatorCurrentBalanceGwei = Endian.fromLittleEndianUint64(proof.balanceRoot);
 
-        // if the validatorBalance is zero *and* the validator is overcommitted, then overcommitment should be proved through `verifyBeaconChainFullWithdrawal`
-        require(validatorBalance != 0, "EigenPod.verifyOvercommittedStake: cannot prove overcommitment on a full withdrawal");
+        // if the validatorCurrentBalanceGwei is zero *and* the validator is overcommitted, then overcommitment should be proved through `verifyBeaconChainFullWithdrawal`
+        require(validatorCurrentBalanceGwei != 0, "EigenPod.verifyOvercommittedStake: cannot prove overcommitment on a full withdrawal");
 
-        require(validatorBalance < REQUIRED_BALANCE_GWEI,
+        require(validatorCurrentBalanceGwei < REQUIRED_BALANCE_GWEI,
             "EigenPod.verifyOvercommittedStake: validator's balance must be less than the restaked balance per validator");
 
         // verify ETH validator proof
