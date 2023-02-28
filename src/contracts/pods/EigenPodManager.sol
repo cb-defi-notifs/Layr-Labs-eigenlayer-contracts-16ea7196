@@ -45,7 +45,7 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, Pausable, IEigenP
     IBeaconChainOracle public beaconChainOracle;
     
     /// @notice Pod owner to deployed EigenPod address
-    mapping(address => IEigenPod) internal _podByOwner;
+    mapping(address => IEigenPod) public podByOwner;
 
     /// @notice Emitted to notify the update of the beaconChainOracle address
     event BeaconOracleUpdated(address indexed newOracleAddress);
@@ -181,7 +181,7 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, Pausable, IEigenP
     // VIEW FUNCTIONS
     /// @notice Returns the address of the `podOwner`'s EigenPod (whether it is deployed yet or not).
     function getPod(address podOwner) public view returns (IEigenPod) {
-        IEigenPod pod = _podByOwner[podOwner];
+        IEigenPod pod = podByOwner[podOwner];
         // if pod does not exist already, calculate what its address *will be* once it is deployed
         if (address(pod) == address(0)) {
             pod = IEigenPod(
@@ -198,7 +198,7 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, Pausable, IEigenP
 
     /// @notice Returns 'true' if the `podOwner` has created an EigenPod, and 'false' otherwise.
     function hasPod(address podOwner) public view returns (bool) {
-        return address(_podByOwner[podOwner]) != address(0);
+        return address(podByOwner[podOwner]) != address(0);
     }
 
     /// @notice Returns the Beacon Chain state root at `slot`. Reverts if the Beacon Chain state root at `slot` has not yet been finalized.
