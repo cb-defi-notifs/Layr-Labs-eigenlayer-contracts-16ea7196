@@ -174,15 +174,19 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
      * root, marks the validator as 'active' in EigenLayer, and credits the restaked ETH in Eigenlayer.
      * @param oracleBlockNumber is the Beacon Chain blockNumber whose state root the `proof` will be proven against.
      * @param validatorIndex is the index of the validator being proven, refer to consensus specs 
-     * @param proof is the bytes that prove the ETH validator's metadata against a beacon chain state root
+     * @param withdrawaCredentialProof is the bytes that prove the ETH validator's metadata against a beacon chain state root
+     * @param validatorBalanceProof is the bytes that prove the ETH validator's balance against a beacon chain state root
      * @param validatorFields are the fields of the "Validator Container", refer to consensus specs 
+     * @param balanceRoot is the root of the balance tree, refer to consensus specs
      * for details: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
      */
     function verifyCorrectWithdrawalCredentials(
         uint64 oracleBlockNumber,
         uint40 validatorIndex,
-        bytes calldata proof, 
-        bytes32[] calldata validatorFields
+        bytes calldata withdrawaCredentialProof, 
+        bytes calldata validatorBalanceProof, 
+        bytes32[] calldata validatorFields,
+        bytes32 balanceRoot
     )
         external
         onlyWhenNotPaused(PAUSED_EIGENPODS_VERIFY_CREDENTIALS)
@@ -194,9 +198,9 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         require(validatorFields[BeaconChainProofs.VALIDATOR_WITHDRAWAL_CREDENTIALS_INDEX] == _podWithdrawalCredentials().toBytes32(0),
             "EigenPod.verifyCorrectWithdrawalCredentials: Proof is not for this EigenPod");
         // convert the balance field from 8 bytes of little endian to uint64 big endian 💪
-        uint64 validatorBalanceGwei = Endian.fromLittleEndianUint64(validatorFields[BeaconChainProofs.VALIDATOR_BALANCE_INDEX]);
+        uint64 validatorCurrentBalanceGwei = Endian.fromLittleEndianUint64(balanceRoot);
         // make sure the balance is greater than the amount restaked per validator
-        require(validatorBalanceGwei >= REQUIRED_BALANCE_GWEI,
+        require(validatorCurrentBalanceGwei >= REQUIRED_BALANCE_GWEI,
             "EigenPod.verifyCorrectWithdrawalCredentials: ETH validator's balance must be greater than or equal to the restaked balance per validator");
 
         // verify ETH validator proof
@@ -204,10 +208,17 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         BeaconChainProofs.verifyValidatorFields(
             validatorIndex,
             beaconStateRoot,
-            proof,
+            withdrawaCredentialProof,
             validatorFields
         );
 
+        BeaconChainProofs.verifyValidatorBalance(
+            validatorIndex,
+            beaconStateRoot,
+            validatorBalanceProof,
+            balanceRoot
+        );
+        
         // set the status to active
         validatorStatus[validatorIndex] = VALIDATOR_STATUS.ACTIVE;
 
@@ -230,8 +241,8 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
      * @param blockNumber The Beacon Chain blockNumber whose state root the `proof` will be proven against.
      *        Must be within `VERIFY_OVERCOMMITTED_WINDOW_BLOCKS` of the current block.
      * @param validatorIndex is the index of the validator being proven, refer to consensus specs 
-     * @param proof is the bytes that prove the ETH validator's metadata against a beacon state root
-     * @param validatorFields are the fields of the "Validator Container", refer to consensus specs 
+     * @param validatorBalanceProof is the bytes that prove the ETH validator's metadata against a beacon state root
+     * @param balanceRoot is the root of the balance tree, refer to consensus specs
      * @param beaconChainETHStrategyIndex is the index of the beaconChainETHStrategy for the pod owner for the callback to 
      *                                    the InvestmentManger in case it must be removed from the list of the podOwners strategies
      * @dev For more details on the Beacon Chain spec, see: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
@@ -239,8 +250,8 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
     function verifyOvercommittedStake(
         uint64 blockNumber,
         uint40 validatorIndex,
-        bytes calldata proof, 
-        bytes32[] calldata validatorFields,
+        bytes calldata validatorBalanceProof, 
+        bytes32 balanceRoot,
         uint256 beaconChainETHStrategyIndex
     ) external onlyWhenNotPaused(PAUSED_EIGENPODS_VERIFY_OVERCOMMITTED) {
        // ensure that the blockNumber being proven against is not "too stale".
@@ -248,23 +259,25 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
             "EigenPod.verifyOvercommittedStake: specified blockNumber is too far in past");
 
         require(validatorStatus[validatorIndex] == VALIDATOR_STATUS.ACTIVE, "EigenPod.verifyOvercommittedStake: Validator not active");
-        // convert the balance field from 8 bytes of little endian to uint64 big endian 💪
-        uint64 validatorBalance = Endian.fromLittleEndianUint64(validatorFields[BeaconChainProofs.VALIDATOR_BALANCE_INDEX]);
-
-        // if the validatorBalance is zero *and* the validator is overcommitted, then overcommitment should be proved through `verifyBeaconChainFullWithdrawal`
-        require(validatorBalance != 0, "EigenPod.verifyOvercommittedStake: cannot prove overcommitment on a full withdrawal");
-
-        require(validatorBalance < REQUIRED_BALANCE_GWEI,
-            "EigenPod.verifyOvercommittedStake: validator's balance must be less than the restaked balance per validator");
 
         // verify ETH validator proof
         bytes32 beaconStateRoot = eigenPodManager.getBeaconChainStateRoot(blockNumber);
-        BeaconChainProofs.verifyValidatorFields(
+        BeaconChainProofs.verifyValidatorBalance(
             validatorIndex,
             beaconStateRoot,
-            proof,
-            validatorFields
+            validatorBalanceProof,
+            balanceRoot
         );
+
+        // convert the balance field from 8 bytes of little endian to uint64 big endian 💪
+        uint64 validatorCurrentBalanceGwei = Endian.fromLittleEndianUint64(balanceRoot);
+
+        // if the validatorBalance is zero *and* the validator is overcommitted, then overcommitment should be proved through `verifyBeaconChainFullWithdrawal`
+        require(validatorCurrentBalanceGwei != 0, "EigenPod.verifyOvercommittedStake: cannot prove overcommitment on a full withdrawal");
+
+        require(validatorCurrentBalanceGwei < REQUIRED_BALANCE_GWEI,
+            "EigenPod.verifyOvercommittedStake: validator's balance must be less than the restaked balance per validator");
+
 
         // mark the ETH validator as overcommitted
         validatorStatus[validatorIndex] = VALIDATOR_STATUS.OVERCOMMITTED;

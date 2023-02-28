@@ -52,6 +52,7 @@ library BeaconChainProofs {
     uint256 internal constant WITHDRAWAL_FIELD_TREE_HEIGHT = 2;
 
     uint256 internal constant VALIDATOR_TREE_HEIGHT = 40;
+    uint256 internal constant BALANCE_TREE_HEIGHT = 40;
 
     // MAX_WITHDRAWALS_PER_PAYLOAD = 2**4, making tree height = 4
     uint256 internal constant WITHDRAWALS_TREE_HEIGHT = 4;
@@ -70,6 +71,7 @@ library BeaconChainProofs {
     uint256 internal constant HISTORICAL_ROOTS_INDEX = 7;
     uint256 internal constant ETH_1_ROOT_INDEX = 8;
     uint256 internal constant VALIDATOR_TREE_ROOT_INDEX = 11;
+    uint256 internal constant BALANCE_INDEX = 12;
     uint256 internal constant EXECUTION_PAYLOAD_HEADER_INDEX = 24;
     uint256 internal constant HISTORICAL_BATCH_STATE_ROOT_INDEX = 1;
 
@@ -180,6 +182,20 @@ library BeaconChainProofs {
         // verify the proof
         require(Merkle.verifyInclusionSha256(proof, beaconStateRoot, validatorRoot, index), "BeaconChainProofs.verifyValidatorFields: Invalid merkle proof");
     }
+
+    function verifyValidatorBalance(
+        uint40 validatorIndex,
+        bytes32 beaconStateRoot,
+        bytes calldata proof,
+        bytes32 balanceRoot
+    ) internal view {
+        require(proof.length == 32 * ((BALANCE_TREE_HEIGHT + 1) + BEACON_STATE_FIELD_TREE_HEIGHT), "BeaconChainProofs.verifyValidatorBalance: Proof has incorrect length");
+
+        uint256 balanceIndex = (BALANCE_INDEX << (BALANCE_TREE_HEIGHT + 1)) | uint256(validatorIndex);
+
+        require(Merkle.verifyInclusionSha256(proof, beaconStateRoot, balanceRoot, balanceIndex), "BeaconChainProofs.verifyValidatorBalance: Invalid merkle proof");
+    }
+
 
     function verifyBlockNumberAndWithdrawalFields(
         bytes32 beaconStateRoot,

@@ -86,34 +86,38 @@ interface IEigenPod {
      * @notice This function verifies that the withdrawal credentials of the podOwner are pointed to
      * this contract. It verifies the provided proof of the ETH validator against the beacon chain state
      * root, marks the validator as 'active' in EigenLayer, and credits the restaked ETH in Eigenlayer.
-     * @param slot The Beacon Chain slot whose state root the `proof` will be proven against.
-     * @param proof is the bytes that prove the ETH validator's metadata against a beacon chain state root
+     * @param oracleBlockNumber The Beacon Chain slot whose state root the `proof` will be proven against.
+     * @param withdrawaCredentialProof is the bytes that prove the ETH validator's metadata against a beacon chain state root
+     * @param validatorBalanceProof is the bytes that prove the ETH validator's metadata against a beacon state root
      * @param validatorFields are the fields of the "Validator Container", refer to consensus specs 
+     * @param balanceRoot is the root of the balance tree in the beacon chain state
      * for details: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
      */
     function verifyCorrectWithdrawalCredentials(
-        uint64 slot,
+        uint64 oracleBlockNumber,
         uint40 validatorIndex,
-        bytes calldata proof, 
-        bytes32[] calldata validatorFields
+        bytes calldata withdrawaCredentialProof, 
+        bytes calldata validatorBalanceProof, 
+        bytes32[] calldata validatorFields,
+        bytes32 balanceRoot
     ) external;
     
     /**
      * @notice This function records an overcommitment of stake to EigenLayer on behalf of a certain ETH validator.
      *         If successful, the overcommitted balance is penalized (available for withdrawal whenever the pod's balance allows).
      *         The ETH validator's shares in the enshrined beaconChainETH strategy are also removed from the InvestmentManager and undelegated.
-     * @param slot The Beacon Chain slot whose state root the `proof` will be proven against.
-     * @param proof is the bytes that prove the ETH validator's metadata against a beacon state root
-     * @param validatorFields are the fields of the "Validator Container", refer to consensus specs 
+     * @param blockNumber The Beacon Chain slot whose state root the `proof` will be proven against.
+     * @param validatorBalanceProof is the bytes that prove the ETH validator's metadata against a beacon state root
+     * @param balanceRoot is the root of the balance tree in the beacon chain state
      * @param beaconChainETHStrategyIndex is the index of the beaconChainETHStrategy for the pod owner for the callback to 
      *                                    the InvestmentManger in case it must be removed from the list of the podOwners strategies
      * @dev For more details on the Beacon Chain spec, see: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
      */
     function verifyOvercommittedStake(
-        uint64 slot,
+        uint64 blockNumber,
         uint40 validatorIndex,
-        bytes calldata proof, 
-        bytes32[] calldata validatorFields,
+        bytes calldata validatorBalanceProof, 
+        bytes32 balanceRoot,
         uint256 beaconChainETHStrategyIndex
     ) external;
 
