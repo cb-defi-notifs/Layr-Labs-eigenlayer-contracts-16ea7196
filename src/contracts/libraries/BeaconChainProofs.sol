@@ -114,6 +114,12 @@ library BeaconChainProofs {
         bytes32 executionPayloadRoot;
     }
 
+    struct WithdrawalCredentialAndBalanceProofs {
+        bytes withdrawaCredentialProof;
+        bytes validatorBalanceProof;
+        bytes32 balanceRoot;
+    }
+
     function computePhase0BeaconBlockHeaderRoot(bytes32[NUM_BEACON_BLOCK_HEADER_FIELDS] calldata blockHeaderFields) internal pure returns(bytes32) {
         bytes32[] memory paddedHeaderFields = new bytes32[](2**BEACON_BLOCK_HEADER_FIELD_TREE_HEIGHT);
         

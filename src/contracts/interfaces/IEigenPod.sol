@@ -86,20 +86,17 @@ interface IEigenPod {
      * @notice This function verifies that the withdrawal credentials of the podOwner are pointed to
      * this contract. It verifies the provided proof of the ETH validator against the beacon chain state
      * root, marks the validator as 'active' in EigenLayer, and credits the restaked ETH in Eigenlayer.
-     * @param oracleBlockNumber The Beacon Chain slot whose state root the `proof` will be proven against.
-     * @param withdrawaCredentialProof is the bytes that prove the ETH validator's metadata against a beacon chain state root
-     * @param validatorBalanceProof is the bytes that prove the ETH validator's metadata against a beacon state root
+     * @param oracleBlockNumber is the Beacon Chain blockNumber whose state root the `proof` will be proven against.
+     * @param validatorIndex is the index of the validator being proven, refer to consensus specs 
+     * @param proofs is the bytes that prove the ETH validator's balance and withdrawal credentials against a beacon chain state root
      * @param validatorFields are the fields of the "Validator Container", refer to consensus specs 
-     * @param balanceRoot is the root of the balance tree in the beacon chain state
      * for details: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
      */
     function verifyCorrectWithdrawalCredentials(
         uint64 oracleBlockNumber,
         uint40 validatorIndex,
-        bytes calldata withdrawaCredentialProof, 
-        bytes calldata validatorBalanceProof, 
-        bytes32[] calldata validatorFields,
-        bytes32 balanceRoot
+        BeaconChainProofs.WithdrawalCredentialAndBalanceProofs memory proofs,
+        bytes32[] calldata validatorFields
     ) external;
     
     /**
@@ -107,6 +104,7 @@ interface IEigenPod {
      *         If successful, the overcommitted balance is penalized (available for withdrawal whenever the pod's balance allows).
      *         The ETH validator's shares in the enshrined beaconChainETH strategy are also removed from the InvestmentManager and undelegated.
      * @param blockNumber The Beacon Chain slot whose state root the `proof` will be proven against.
+     * @param validatorIndex is the index of the validator being proven, refer to consensus specs
      * @param validatorBalanceProof is the bytes that prove the ETH validator's metadata against a beacon state root
      * @param balanceRoot is the root of the balance tree in the beacon chain state
      * @param beaconChainETHStrategyIndex is the index of the beaconChainETHStrategy for the pod owner for the callback to 

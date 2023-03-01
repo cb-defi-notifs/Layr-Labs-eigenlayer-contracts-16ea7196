@@ -66,6 +66,10 @@ contract ProofParsing is Test{
         return stdJson.readBytes32(proofConfigJson, ".slotRoot");
     }
 
+    function getBalanceRoot() public returns(bytes32){
+        return stdJson.readBytes32(proofConfigJson, ".balanceRoot");
+    }
+
     function getBlockNumberRoot() public returns(bytes32){
         return stdJson.readBytes32(proofConfigJson, ".blockNumberRoot");
     }
@@ -140,5 +144,23 @@ contract ProofParsing is Test{
             validatorFields[i] = (stdJson.readBytes32(proofConfigJson, prefix)); 
         }
         return validatorFields;
+    }
+
+    function getValidatorBalanceProof() public returns(bytes32[] memory){
+        bytes32[] memory validatorBalanceProof = new bytes32[](44);
+        for (uint i = 0; i < 44; i++) {
+            prefix = string.concat(".ValidatorBalanceProof[", string.concat(vm.toString(i), "]"));
+            validatorBalanceProof[i] = (stdJson.readBytes32(proofConfigJson, prefix)); 
+        }
+        return validatorBalanceProof;
+    }
+
+    function getWithdrawalCredentialProof() public returns(bytes32[] memory){
+        bytes32[] memory withdrawalCredenitalProof = new bytes32[](46);
+        for (uint i = 0; i < 46; i++) {
+            prefix = string.concat(".WithdrawalCredenitalProof[", string.concat(vm.toString(i), "]"));
+            withdrawalCredenitalProof[i] = (stdJson.readBytes32(proofConfigJson, prefix)); 
+        }
+        return withdrawalCredenitalProof;
     }
 }

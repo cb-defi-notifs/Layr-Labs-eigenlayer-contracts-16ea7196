@@ -213,7 +213,7 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
     }
 
     function testProof() public {
-        BeaconChainProofs.WithdrawalProofs memory proofs = _getProof();
+        BeaconChainProofs.WithdrawalProofs memory proofs = _getWithdrawalProof();
         withdrawalFields = getWithdrawalFields();   
         validatorFields = getValidatorFields();
 
@@ -249,7 +249,7 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
 
 
         setJSON("./src/test/test-data/fullWithdrawalProof.json");
-        BeaconChainProofs.WithdrawalProofs memory withdrawalProofs = _getProof();
+        BeaconChainProofs.WithdrawalProofs memory withdrawalProofs = _getWithdrawalProof();
         withdrawalFields = getWithdrawalFields();   
         validatorFields = getValidatorFields();
         bytes32 newBeaconStateRoot = getBeaconStateRoot();
@@ -296,7 +296,7 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
 
 
         setJSON("./src/test/test-data/partialWithdrawalProof.json");
-        BeaconChainProofs.WithdrawalProofs memory withdrawalProofs = _getProof();
+        BeaconChainProofs.WithdrawalProofs memory withdrawalProofs = _getWithdrawalProof();
         withdrawalFields = getWithdrawalFields();   
         validatorFields = getValidatorFields();
         bytes32 newBeaconStateRoot = getBeaconStateRoot();
@@ -321,7 +321,7 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
 
 
     function testDeployAndVerifyNewEigenPod() public returns(IEigenPod){
-        BeaconChainOracleMock(address(beaconChainOracle)).setBeaconChainStateRoot(0xaf3bf0770df5dd35b984eda6586e6f6eb20af904a5fb840fe65df9a6415293bd);
+        setJSON("./src/test/test-data/withdrawalCredentialAndBalanceProof.json");
         return _testDeployAndVerifyNewEigenPod(podOwner, signature, depositDataRoot, false, validatorIndex0);
     }
 
@@ -568,23 +568,25 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
             investmentManager.getDeposits(staker);
     }
 
-    function _testDeployAndVerifyNewEigenPod(address _podOwner, bytes memory _signature, bytes32 _depositDataRoot, bool /*isContract*/, uint40 validatorIndex)
+    function _testDeployAndVerifyNewEigenPod(address _podOwner, bytes memory _signature, bytes32 _depositDataRoot)
         internal returns (IEigenPod)
     {
-        (beaconStateRoot, beaconStateMerkleProofForValidators, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) =
-            getInitialDepositProof(validatorIndex);
+        // (beaconStateRoot, beaconStateMerkleProofForValidators, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) =
+        //     getInitialDepositProof(validatorIndex);
+
+        BeaconChainProofs.WithdrawalCredentialAndBalanceProofs memory proofs = _getWithdrawalCredentialAndBalanceProof();
+        validatorFields = getValidatorFields();
+        bytes32 newBeaconStateRoot = getBeaconStateRoot();
+        uint256 validatorIndex = getValidatorIndex();
+        BeaconChainOracleMock(address(beaconChainOracle)).setBeaconChainStateRoot(newBeaconStateRoot);
+
 
         cheats.startPrank(_podOwner);
         eigenPodManager.stake{value: stakeAmount}(pubkey, _signature, _depositDataRoot);
         cheats.stopPrank();
 
-        BeaconChainOracleMock(address(beaconChainOracle)).setBeaconChainStateRoot(beaconStateRoot);
-
         IEigenPod newPod;
-
         newPod = eigenPodManager.getPod(_podOwner);
-
-        bytes memory proofs = abi.encodePacked(validatorMerkleProof, beaconStateMerkleProofForValidators);
 
         uint64 blockNumber = 1;
         newPod.verifyCorrectWithdrawalCredentials(blockNumber, validatorIndex, proofs, validatorContainerFields);
@@ -655,8 +657,20 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
         return eigenPodPaymentEscrow.userPaymentByIndex(recipient, eigenPodPaymentEscrow.userPaymentsLength(recipient) - 1).amount;
     }
 
+    function _getWithdrawalCredentialAndBalanceProof() internal returns (BeaconChainProofs.WithdrawalCredentialAndBalanceProofs memory){
+
+        bytes32 balanceRoot = getBalanceRoot();
+        BeaconChainProofs.WithdrawalCredentialAndBalanceProofs memory proofs = BeaconChainProofs.WithdrawalCredentialAndBalanceProofs(
+            abi.encodePacked(getWithdrawalCredentialProof()),
+            abi.encodePacked(getValidatorBalanceProof()),
+            balanceRoot
+        );
+
+        return proofs;
+    }
+
     /// @notice this function just generates a valid proof so that we can test other functionalities of the withdrawal flow
-    function _getProof() internal returns(BeaconChainProofs.WithdrawalProofs memory) {
+    function _getWithdrawalProof() internal returns(BeaconChainProofs.WithdrawalProofs memory) {
         //make initial deposit
         cheats.startPrank(podOwner);
         eigenPodManager.stake{value: stakeAmount}(pubkey, signature, depositDataRoot);
