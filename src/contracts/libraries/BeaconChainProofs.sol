@@ -52,7 +52,8 @@ library BeaconChainProofs {
     uint256 internal constant WITHDRAWAL_FIELD_TREE_HEIGHT = 2;
 
     uint256 internal constant VALIDATOR_TREE_HEIGHT = 40;
-    uint256 internal constant BALANCE_TREE_HEIGHT = 40;
+    //refer to the eigenlayer-cli proof library.  Despite being the same dimensions as the validator tree, the balance tree is merkleized differently
+    uint256 internal constant BALANCE_TREE_HEIGHT = 38;
 
     // MAX_WITHDRAWALS_PER_PAYLOAD = 2**4, making tree height = 4
     uint256 internal constant WITHDRAWALS_TREE_HEIGHT = 4;
@@ -197,7 +198,12 @@ library BeaconChainProofs {
     ) internal view {
         require(proof.length == 32 * ((BALANCE_TREE_HEIGHT + 1) + BEACON_STATE_FIELD_TREE_HEIGHT), "BeaconChainProofs.verifyValidatorBalance: Proof has incorrect length");
 
-        uint256 balanceIndex = (BALANCE_INDEX << (BALANCE_TREE_HEIGHT + 1)) | uint256(validatorIndex);
+        /**
+        * the beacon state's balance list is a list of uint64 values, and these are grouped together in 4s when merkleized.  
+        * Therefore, the index of the balance of a validator is validatorIndex/4
+        */
+        uint256 balanceIndex = uint256(validatorIndex/4);
+        balanceIndex = (BALANCE_INDEX << (BALANCE_TREE_HEIGHT + 1)) | balanceIndex;
 
         require(Merkle.verifyInclusionSha256(proof, beaconStateRoot, balanceRoot, balanceIndex), "BeaconChainProofs.verifyValidatorBalance: Invalid merkle proof");
     }
