@@ -43,32 +43,20 @@ interface IEigenPod {
         FAILED
     }
 
-    /// @notice The length, in blocks, if the fraud proof period following a claim on the amount of partial withdrawals in an EigenPod
-    function PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS() external view returns(uint32);
-
     /// @notice The amount of eth, in gwei, that is restaked per validator
     function REQUIRED_BALANCE_GWEI() external view returns(uint64);
 
     /// @notice The amount of eth, in wei, that is restaked per validator
     function REQUIRED_BALANCE_WEI() external view returns(uint256);
 
-    /// @notice The amount of eth, in gwei, that can be part of a full withdrawal at the minimum
-    function MIN_FULL_WITHDRAWAL_AMOUNT_GWEI() external view returns(uint64);
-
     /// @notice this is a mapping of validator indices to a Validator struct containing pertinent info about the validator
     function validatorStatus(uint40 validatorIndex) external view returns(VALIDATOR_STATUS);
-
-    /// @return claim is the partial withdrawal claim at the provided index
-    function getPartialWithdrawalClaim(uint256 index) external view returns(PartialWithdrawalClaim memory);
-        
-    /// @return length : the number of partial withdrawal claims ever made for this EigenPod
-    function getPartialWithdrawalClaimsLength() external view returns(uint256);
 
     /// @notice the amount of execution layer ETH in this contract that is staked in EigenLayer (i.e. withdrawn from beaconchain but not EigenLayer), 
     function restakedExecutionLayerGwei() external view returns(uint64);
 
     /// @notice Used to initialize the pointers to contracts crucial to the pod's functionality, in beacon proxy construction from EigenPodManager
-    function initialize(IEigenPodManager _eigenPodManager, address owner) external;
+    function initialize(address owner) external;
 
     /// @notice Called by EigenPodManager when the owner wants to create another ETH validator.
     function stake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable;
@@ -86,6 +74,13 @@ interface IEigenPod {
 
     /// @notice The owner of this EigenPod
     function podOwner() external view returns (address);
+
+    /// @notice an indicator of whether or not the podOwner has ever "fully restaked" by successfully calling `verifyCorrectWithdrawalCredentials`.
+    function hasRestaked() external view returns (bool);
+
+
+    ///@notice mapping that trackes proven partial withdrawals
+    function provenPartialWithdrawal(uint40 validatorIndex, uint64 slot) external view returns (bool);
 
     /**
      * @notice This function verifies that the withdrawal credentials of the podOwner are pointed to
@@ -124,39 +119,20 @@ interface IEigenPod {
 
     /**
      * @notice This function records a full withdrawal on behalf of one of the Ethereum validators for this EigenPod
-     * @param slot The Beacon Chain slot whose state root the `proof` will be proven against.
-     * @param proof is the information needed to check the veracity of the block number and withdrawal being proven
-     * @param blockNumberRoot is block number at which the withdrawal being proven is claimed to have happened
+     * @param proofs is the information needed to check the veracity of the block number and withdrawal being proven
      * @param withdrawalFields are the fields of the withdrawal being proven
+     * @param validatorFields are the fields of the validator being proven
      * @param beaconChainETHStrategyIndex is the index of the beaconChainETHStrategy for the pod owner for the callback to 
-     *                                    the EigenPodManager to the InvestmentManager in case it must be removed from the 
-     *                                    podOwner's list of strategies
+     *        the EigenPodManager to the InvestmentManager in case it must be removed from the podOwner's list of strategies
      */
-    function verifyBeaconChainFullWithdrawal(
-        uint64 slot,
-        BeaconChainProofs.WithdrawalAndBlockNumberProof calldata proof,
-        bytes32 blockNumberRoot,
+    function verifyAndProcessWithdrawal(
+        BeaconChainProofs.WithdrawalProofs calldata proofs, 
+        bytes32[] calldata validatorFields,
         bytes32[] calldata withdrawalFields,
-        uint256 beaconChainETHStrategyIndex
+        uint256 beaconChainETHStrategyIndex,
+        uint64 oracleBlockNumber
     ) external;
 
-    /**
-     * @notice This function records a balance snapshot for the EigenPod. Its main functionality is to begin an optimistic
-     *         claim process on the partial withdrawable balance for the EigenPod owner. The owner is claiming that they have 
-     *         proven all full withdrawals until block.number, allowing their partial withdrawal balance to be easily calculated 
-     *         via  
-     *              address(this).balance / GWEI_TO_WEI = 
-     *                  restakedExecutionLayerGwei + 
-     *                  instantlyWithdrawableBalanceGwei + 
-     *                  partialWithdrawalsGwei
-     *         If any other full withdrawals are proven to have happened before block.number, the partial withdrawal is marked as failed
-     * @param expireBlockNumber this is the block number before which the call to this function must be mined. To avoid race conditions with pending withdrawals,
-     *                          if there are any pending full withrawals to this Eigenpod, this parameter should be set to the blockNumber at which the next full withdrawal
-     *                          for a validator on this EigenPod is going to occur.
-     * @dev The sender should be able to safely set the value of `expireBlockNumber` to type(uint32).max if there are no pending full withdrawals to this Eigenpod.
-     */
-    function recordPartialWithdrawalClaim(uint32 expireBlockNumber) external;
-
-    /// @notice This function allows pod owners to redeem their partial withdrawals after the fraudproof period has elapsed
-    function redeemLatestPartialWithdrawal(address recipient) external;
+     /// @notice Called by the pod owner to withdraw the balance of the pod
+    function withdraw() external;
 }

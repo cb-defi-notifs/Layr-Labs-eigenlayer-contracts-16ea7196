@@ -43,17 +43,18 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
      * the operator is serving. Sorted by the block at which they were last updated (content of updates below) in ascending order.
      * This means the 'HEAD' (i.e. start) of the linked list will have the stalest 'updateBlock' value.
      */
-    mapping(address => StructuredLinkedList.List) public operatorToWhitelistedContractsByUpdate;
+    mapping(address => StructuredLinkedList.List) internal _operatorToWhitelistedContractsByUpdate;
+
     /**
      * operator => 
      *  [
      *      (
      *          the least recent update block of all of the middlewares it's serving/served, 
-     *          latest time the the stake bonded at that update needed to serve until
+     *          latest time that the stake bonded at that update needed to serve until
      *      )
      *  ]
      */
-    mapping(address => MiddlewareTimes[]) public operatorToMiddlewareTimes;
+    mapping(address => MiddlewareTimes[]) internal _operatorToMiddlewareTimes;
 
     /// @notice Emitted when a middleware times is added to `operator`'s array.
     event MiddlewareTimesAdded(address operator, uint256 index, uint32 stalestUpdateBlock, uint32 latestServeUntil);
@@ -79,9 +80,10 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
         _disableInitializers();
     }
 
-    /// @notice Ensures that the caller is allowed to slash the operator.
-    modifier onlyCanSlash(address operator) {
-        require(canSlash(operator, msg.sender), "Slasher.onlyCanSlash: only slashing contracts");
+    /// @notice Ensures that the operator has opted into slashing by the caller, and that the caller has never revoked its slashing ability.
+    modifier onlyRegisteredForService(address operator) {
+        require(_whitelistedContractDetails[operator][msg.sender].bondedUntil == MAX_BONDED_UNTIL,
+            "Slasher.onlyRegisteredForService: Operator has not opted into slashing by caller");
         _;
     }
 
@@ -140,14 +142,13 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
     function recordFirstStakeUpdate(address operator, uint32 serveUntil) 
         external 
         onlyWhenNotPaused(PAUSED_FIRST_STAKE_UPDATE)
-        onlyCanSlash(operator) 
+        onlyRegisteredForService(operator)
     {
-
         // update the 'stalest' stakes update time + latest 'serveUntil' time of the `operator`
         _recordUpdateAndAddToMiddlewareTimes(operator, uint32(block.number), serveUntil);
 
         // Push the middleware to the end of the update list. This will fail if the caller *is* already in the list.
-        require(operatorToWhitelistedContractsByUpdate[operator].pushBack(_addressToUint(msg.sender)), 
+        require(_operatorToWhitelistedContractsByUpdate[operator].pushBack(_addressToUint(msg.sender)), 
             "Slasher.recordFirstStakeUpdate: Appending middleware unsuccessful");
     }
 
@@ -163,7 +164,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
      */
     function recordStakeUpdate(address operator, uint32 updateBlock, uint32 serveUntil, uint256 insertAfter) 
         external 
-        onlyCanSlash(operator) 
+        onlyRegisteredForService(operator) 
     {
         // sanity check on input
         require(updateBlock <= block.number, "Slasher.recordStakeUpdate: cannot provide update for future block");
@@ -174,16 +175,16 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
          * Move the middleware to its correct update position, determined by `updateBlock` and indicated via `insertAfter`.
          * If the the middleware is the only one in the list, then no need to mutate the list
          */
-        if (operatorToWhitelistedContractsByUpdate[operator].sizeOf() != 1) {
+        if (_operatorToWhitelistedContractsByUpdate[operator].sizeOf() != 1) {
             // Remove the caller (middleware) from the list. This will fail if the caller is *not* already in the list.
-            require(operatorToWhitelistedContractsByUpdate[operator].remove(_addressToUint(msg.sender)) != 0, 
+            require(_operatorToWhitelistedContractsByUpdate[operator].remove(_addressToUint(msg.sender)) != 0, 
                 "Slasher.recordStakeUpdate: Removing middleware unsuccessful");
             // Run routine for updating the `operator`'s linked list of middlewares
             _updateMiddlewareList(operator, updateBlock, insertAfter);
         // if there is precisely one middleware in the list, then ensure that the caller is indeed the singular list entrant
         } else {
-            require(operatorToWhitelistedContractsByUpdate[operator].getHead() == _addressToUint(msg.sender),
-                "Slasher.recordStakeUpdate: Callter is not the list entrant");
+            require(_operatorToWhitelistedContractsByUpdate[operator].getHead() == _addressToUint(msg.sender),
+                "Slasher.recordStakeUpdate: Caller is not the list entrant");
         }
     }
 
@@ -195,11 +196,11 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
      * @dev removes the middleware's slashing contract to the operator's linked list and revokes the middleware's (i.e. caller's) ability to
      * slash `operator` once `serveUntil` is reached
      */
-    function recordLastStakeUpdateAndRevokeSlashingAbility(address operator, uint32 serveUntil) external onlyCanSlash(operator) {
+    function recordLastStakeUpdateAndRevokeSlashingAbility(address operator, uint32 serveUntil) external onlyRegisteredForService(operator) {
         // update the 'stalest' stakes update time + latest 'serveUntil' time of the `operator`
         _recordUpdateAndAddToMiddlewareTimes(operator, uint32(block.number), serveUntil);
         // remove the middleware from the list
-        require(operatorToWhitelistedContractsByUpdate[operator].remove(_addressToUint(msg.sender)) != 0,
+        require(_operatorToWhitelistedContractsByUpdate[operator].remove(_addressToUint(msg.sender)) != 0,
              "Slasher.recordLastStakeUpdateAndRevokeSlashingAbility: Removing middleware unsuccessful");
         // revoke the middleware's ability to slash `operator` after `serverUntil`
         _revokeSlashingAbility(operator, msg.sender, serveUntil);
@@ -219,7 +220,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
 
     /*
     * @notice Returns `_whitelistedContractDetails[operator][serviceContract]`.
-    * @dev A getter function like this appears to be necessary for returning a struct from storage
+    * @dev A getter function like this appears to be necessary for returning a struct from storage in struct form, rather than as a tuple.
     */
     function whitelistedContractDetails(address operator, address serviceContract) external view returns (MiddlewareDetails memory) {
         return _whitelistedContractDetails[operator][serviceContract];
@@ -255,24 +256,24 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
 
     /**
      * @notice Returns 'true' if `operator` can currently complete a withdrawal started at the `withdrawalStartBlock`, with `middlewareTimesIndex` used
-     * to specify the index of a `MiddlewareTimes` struct in the operator's list (i.e. an index in `operatorToMiddlewareTimes[operator]`). The specified
+     * to specify the index of a `MiddlewareTimes` struct in the operator's list (i.e. an index in `_operatorToMiddlewareTimes[operator]`). The specified
      * struct is consulted as proof of the `operator`'s ability (or lack thereof) to complete the withdrawal.
      * This function will return 'false' if the operator cannot currently complete a withdrawal started at the `withdrawalStartBlock`, *or* in the event
      * that an incorrect `middlewareTimesIndex` is supplied, even if one or more correct inputs exist.
      * @param operator Either the operator who queued the withdrawal themselves, or if the withdrawing party is a staker who delegated to an operator,
      * this address is the operator *who the staker was delegated to* at the time of the `withdrawalStartBlock`.
      * @param withdrawalStartBlock The block number at which the withdrawal was initiated.
-     * @param middlewareTimesIndex Indicates an index in `operatorToMiddlewareTimes[operator]` to consult as proof of the `operator`'s ability to withdraw
+     * @param middlewareTimesIndex Indicates an index in `_operatorToMiddlewareTimes[operator]` to consult as proof of the `operator`'s ability to withdraw
      * @dev The correct `middlewareTimesIndex` input should be computable off-chain.
      */
     function canWithdraw(address operator, uint32 withdrawalStartBlock, uint256 middlewareTimesIndex) external view returns (bool) {
         // if the operator has never registered for a middleware, just return 'true'
-        if (operatorToMiddlewareTimes[operator].length == 0) {
+        if (_operatorToMiddlewareTimes[operator].length == 0) {
             return true;
         }
 
-        // pull the MiddlewareTimes struct at the `middlewareTimesIndex`th position in `operatorToMiddlewareTimes[operator]`
-        MiddlewareTimes memory update = operatorToMiddlewareTimes[operator][middlewareTimesIndex];
+        // pull the MiddlewareTimes struct at the `middlewareTimesIndex`th position in `_operatorToMiddlewareTimes[operator]`
+        MiddlewareTimes memory update = _operatorToMiddlewareTimes[operator][middlewareTimesIndex];
         
         /**
          * Make sure the stalest update block at the time of the update is strictly after `withdrawalStartBlock` and ensure that the current time
@@ -286,14 +287,34 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
         );
     }
 
-    /// @notice Getter function for fetching `operatorToMiddlewareTimes[operator][index].stalestUpdateBlock`.
-    function getMiddlewareTimesIndexBlock(address operator, uint32 index) external view returns (uint32){
-        return operatorToMiddlewareTimes[operator][index].stalestUpdateBlock;
+    /// @notice Getter function for fetching `_operatorToMiddlewareTimes[operator][arrayIndex]`.
+    function operatorToMiddlewareTimes(address operator, uint256 arrayIndex) external view returns (MiddlewareTimes memory) {
+        return _operatorToMiddlewareTimes[operator][arrayIndex];
     }
 
-    /// @notice Getter function for fetching `operatorToMiddlewareTimes[operator][index].latestServeUntil`.
+    /// @notice Getter function for fetching `_operatorToMiddlewareTimes[operator].length`.
+    function middlewareTimesLength(address operator) external view returns (uint256) {
+        return _operatorToMiddlewareTimes[operator].length;
+    }
+
+    /// @notice Getter function for fetching `_operatorToMiddlewareTimes[operator][index].stalestUpdateBlock`.
+    function getMiddlewareTimesIndexBlock(address operator, uint32 index) external view returns (uint32) {
+        return _operatorToMiddlewareTimes[operator][index].stalestUpdateBlock;
+    }
+
+    /// @notice Getter function for fetching `_operatorToMiddlewareTimes[operator][index].latestServeUntil`.
     function getMiddlewareTimesIndexServeUntil(address operator, uint32 index) external view returns (uint32) {
-        return operatorToMiddlewareTimes[operator][index].latestServeUntil;
+        return _operatorToMiddlewareTimes[operator][index].latestServeUntil;
+    }
+
+    /// @notice Getter function for fetching `_operatorToWhitelistedContractsByUpdate[operator].size`.
+    function operatorWhitelistedContractsLinkedListSize(address operator) external view returns (uint256) {
+        return _operatorToWhitelistedContractsByUpdate[operator].size;
+    }
+
+    /// @notice Getter function for fetching a single node in the operator's linked list (`_operatorToWhitelistedContractsByUpdate[operator]`).
+    function operatorWhitelistedContractsLinkedListEntry(address operator, address node) external view returns (bool, uint256, uint256) {
+        return StructuredLinkedList.getNode(_operatorToWhitelistedContractsByUpdate[operator], _addressToUint(node));
     }
 
     /**
@@ -307,7 +328,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
      * `_whitelistedContractDetails[operator][nextNode].latestUpdateBlock > updateBlock`.
      */
     function getCorrectValueForInsertAfter(address operator, uint32 updateBlock) public view returns (uint256) {
-        uint256 node = operatorToWhitelistedContractsByUpdate[operator].getHead();
+        uint256 node = _operatorToWhitelistedContractsByUpdate[operator].getHead();
         /**
          * Special case:
          * If the node being inserted in the linked list has an `updateBlock` that is less than the HEAD of the list, then we set `insertAfter = HEAD`.
@@ -322,18 +343,18 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
          * we find a the *last* `node` for which `_whitelistedContractDetails[operator][node].latestUpdateBlock <= updateBlock`, or
          * otherwise reach the end of the list.
          */
-        (, uint256 nextNode) = operatorToWhitelistedContractsByUpdate[operator].getNextNode(node);
+        (, uint256 nextNode) = _operatorToWhitelistedContractsByUpdate[operator].getNextNode(node);
         while ((nextNode != HEAD) && (_whitelistedContractDetails[operator][_uintToAddress(node)].latestUpdateBlock <= updateBlock)) {
             node = nextNode;
-            (, nextNode) = operatorToWhitelistedContractsByUpdate[operator].getNextNode(node);
+            (, nextNode) = _operatorToWhitelistedContractsByUpdate[operator].getNextNode(node);
         }
         return node;
     }
 
     /// @notice gets the node previous to the given node in the operators middleware update linked list
     /// @dev used in offchain libs for updating stakes
-    function getPreviousWhitelistedContractByUpdate(address operator, uint256 node) public view returns (bool, uint256) {
-        return operatorToWhitelistedContractsByUpdate[operator].getPreviousNode(node);
+    function getPreviousWhitelistedContractByUpdate(address operator, uint256 node) external view returns (bool, uint256) {
+        return _operatorToWhitelistedContractsByUpdate[operator].getPreviousNode(node);
     }
 
     // INTERNAL FUNCTIONS
@@ -345,11 +366,10 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
     }
 
     function _revokeSlashingAbility(address operator, address contractAddress, uint32 serveUntil) internal {
-        if (_whitelistedContractDetails[operator][contractAddress].bondedUntil == MAX_BONDED_UNTIL) {
-            // contractAddress can now only slash operator before `serveUntil`
-            _whitelistedContractDetails[operator][contractAddress].bondedUntil = serveUntil;
-            emit SlashingAbilityRevoked(operator, contractAddress, serveUntil);
-        }
+        require(serveUntil != MAX_BONDED_UNTIL, "Slasher._revokeSlashingAbility: serveUntil time must be limited");
+        // contractAddress can now only slash operator before `serveUntil`
+        _whitelistedContractDetails[operator][contractAddress].bondedUntil = serveUntil;
+        emit SlashingAbilityRevoked(operator, contractAddress, serveUntil);
     }
 
     function _freezeOperator(address toBeFrozen, address slashingContract) internal {
@@ -381,8 +401,9 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
         _whitelistedContractDetails[operator][msg.sender].latestUpdateBlock = updateBlock;
         // get the latest recorded MiddlewareTimes, if the operator's list of MiddlwareTimes is non empty
         MiddlewareTimes memory curr;
-        if (operatorToMiddlewareTimes[operator].length != 0) {
-            curr = operatorToMiddlewareTimes[operator][operatorToMiddlewareTimes[operator].length - 1];
+        uint256 _operatorToMiddlewareTimesLength = _operatorToMiddlewareTimes[operator].length;
+        if (_operatorToMiddlewareTimesLength != 0) {
+            curr = _operatorToMiddlewareTimes[operator][_operatorToMiddlewareTimesLength - 1];
         }
         MiddlewareTimes memory next = curr;
         bool pushToMiddlewareTimes;
@@ -393,20 +414,20 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
             pushToMiddlewareTimes = true;
         } 
         
-        // If this is the very first middleware added to the operator's list of middleware, then we add an entry to operatorToMiddlewareTimes
-        if (operatorToWhitelistedContractsByUpdate[operator].size == 0) {
-            pushToMiddlewareTimes = true;
+        // If this is the very first middleware added to the operator's list of middleware, then we add an entry to _operatorToMiddlewareTimes
+        if (_operatorToWhitelistedContractsByUpdate[operator].size == 0) {
             next.stalestUpdateBlock = updateBlock;
+            pushToMiddlewareTimes = true;
         }
-        // If the middleware is the first in the list, we will update the `stalestUpdateBlock` field in MiddlwareTimes
-        else if (operatorToWhitelistedContractsByUpdate[operator].getHead() == _addressToUint(msg.sender)) {
+        // If the middleware is the first in the list, we will update the `stalestUpdateBlock` field in MiddlewareTimes
+        else if (_operatorToWhitelistedContractsByUpdate[operator].getHead() == _addressToUint(msg.sender)) {
             // if the updated middleware was the earliest update, set it to the 2nd earliest update's update time
-            (bool hasNext, uint256 nextNode) = operatorToWhitelistedContractsByUpdate[operator].getNextNode(_addressToUint(msg.sender));
+            (bool hasNext, uint256 nextNode) = _operatorToWhitelistedContractsByUpdate[operator].getNextNode(_addressToUint(msg.sender));
 
-            if(hasNext) {
-                // get the next middleware's most latest update block
+            if (hasNext) {
+                // get the next middleware's latest update block
                 uint32 nextMiddlewaresLeastRecentUpdateBlock = _whitelistedContractDetails[operator][_uintToAddress(nextNode)].latestUpdateBlock;
-                if(nextMiddlewaresLeastRecentUpdateBlock < updateBlock) {
+                if (nextMiddlewaresLeastRecentUpdateBlock < updateBlock) {
                     // if there is a next node, then set the stalestUpdateBlock to its recorded value
                     next.stalestUpdateBlock = nextMiddlewaresLeastRecentUpdateBlock;
                 } else {
@@ -417,14 +438,14 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
                 // otherwise this is the only middleware so right now is the stalestUpdateBlock
                 next.stalestUpdateBlock = updateBlock;
             }
-            // mark that we need push next to middleware times array because it contains new information
+            // mark that we need to push `next` to middleware times array because it contains new information
             pushToMiddlewareTimes = true;
         }
         
         // if `next` has new information, then push it
         if (pushToMiddlewareTimes) {
-            operatorToMiddlewareTimes[operator].push(next);
-            emit MiddlewareTimesAdded(operator, operatorToMiddlewareTimes[operator].length - 1, next.stalestUpdateBlock, next.latestServeUntil);
+            _operatorToMiddlewareTimes[operator].push(next);
+            emit MiddlewareTimesAdded(operator, _operatorToMiddlewareTimes[operator].length - 1, next.stalestUpdateBlock, next.latestServeUntil);
         }
     }
 
@@ -440,7 +461,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
         // If this condition is met, then the `updateBlock` input should be after `insertAfter`'s latest updateBlock
         if (insertAfter != HEAD) {
             // Check that `insertAfter` exists. If not, we will use the fallback routine to find the correct value for `insertAfter`.
-            if (!operatorToWhitelistedContractsByUpdate[operator].nodeExists(insertAfter)) {
+            if (!_operatorToWhitelistedContractsByUpdate[operator].nodeExists(insertAfter)) {
                 runFallbackRoutine = true;
             }
 
@@ -455,7 +476,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
             // if we have not marked `runFallbackRoutine` as 'true' yet, then that means the `insertAfter` input was correct so far
             if (!runFallbackRoutine) {
                 // Get `insertAfter`'s successor. `hasNext` will be false if `insertAfter` is the last node in the list
-                (bool hasNext, uint256 nextNode) = operatorToWhitelistedContractsByUpdate[operator].getNextNode(insertAfter);
+                (bool hasNext, uint256 nextNode) = _operatorToWhitelistedContractsByUpdate[operator].getNextNode(insertAfter);
                 if (hasNext) {
                     /**
                      * Make sure the element after `insertAfter`'s most recent updateBlock was *strictly after* `updateBlock`.
@@ -473,7 +494,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
                  * Insert the caller (middleware) after `insertAfter`.
                  * This will fail if `msg.sender` is already in the list, which they shouldn't be because they were removed from the list above.
                  */
-                require(operatorToWhitelistedContractsByUpdate[operator].insertAfter(insertAfter, _addressToUint(msg.sender)),
+                require(_operatorToWhitelistedContractsByUpdate[operator].insertAfter(insertAfter, _addressToUint(msg.sender)),
                     "Slasher.recordStakeUpdate: Inserting middleware unsuccessful");
             // in this case (runFallbackRoutine == true), we run a search routine to find the correct input value of `insertAfter` and then rerun this function
             } else {
@@ -487,7 +508,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
              * If not, use the fallback routine to find the correct value for `insertAfter`.
              */
             if (_whitelistedContractDetails[operator][
-                _uintToAddress(operatorToWhitelistedContractsByUpdate[operator].getHead()) ].latestUpdateBlock <= updateBlock)
+                _uintToAddress(_operatorToWhitelistedContractsByUpdate[operator].getHead()) ].latestUpdateBlock <= updateBlock)
             {
                 runFallbackRoutine = true;
             }
@@ -497,7 +518,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
                  * Insert the middleware at the start (i.e. HEAD) of the list.
                  * This will fail if `msg.sender` is already in the list, which they shouldn't be because they were removed from the list above.
                  */
-                require(operatorToWhitelistedContractsByUpdate[operator].pushFront(_addressToUint(msg.sender)), 
+                require(_operatorToWhitelistedContractsByUpdate[operator].pushFront(_addressToUint(msg.sender)), 
                     "Slasher.recordStakeUpdate: Preppending middleware unsuccessful");
             // in this case (runFallbackRoutine == true), we run a search routine to find the correct input value of `insertAfter` and then rerun this function
             } else {
@@ -513,5 +534,12 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
 
     function _uintToAddress(uint256 x) internal pure returns(address) {
         return address(uint160(x));
-    }    
+    }
+
+    /**
+     * @dev This empty reserved space is put in place to allow future versions to add new
+     * variables without shifting down storage in the inheritance chain.
+     * See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
+     */
+    uint256[46] private __gap;
 }

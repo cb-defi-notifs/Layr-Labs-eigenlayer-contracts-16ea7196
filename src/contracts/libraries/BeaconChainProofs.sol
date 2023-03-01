@@ -10,11 +10,14 @@ import "../libraries/Endian.sol";
 //SSZ Spec: https://github.com/ethereum/consensus-specs/blob/dev/ssz/simple-serialize.md#merkleization
 //BeaconBlockHeader Spec: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#beaconblockheader
 //BeaconState Spec: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#beaconstate
-library BeaconChainProofs{
+library BeaconChainProofs {
     using BytesLib for bytes;
     // constants are the number of fields and the heights of the different merkle trees used in merkleizing beacon chain containers
     uint256 internal constant NUM_BEACON_BLOCK_HEADER_FIELDS = 5;
     uint256 internal constant BEACON_BLOCK_HEADER_FIELD_TREE_HEIGHT = 3;
+
+    uint256 internal constant NUM_BEACON_BLOCK_BODY_FIELDS = 11;
+    uint256 internal constant BEACON_BLOCK_BODY_FIELD_TREE_HEIGHT = 4;
 
     uint256 internal constant NUM_BEACON_STATE_FIELDS = 21;
     uint256 internal constant BEACON_STATE_FIELD_TREE_HEIGHT = 5;
@@ -28,6 +31,11 @@ library BeaconChainProofs{
     uint256 internal constant NUM_EXECUTION_PAYLOAD_HEADER_FIELDS = 15;
     uint256 internal constant EXECUTION_PAYLOAD_HEADER_FIELD_TREE_HEIGHT = 4;
 
+
+    uint256 internal constant NUM_EXECUTION_PAYLOAD_FIELDS = 15;
+    uint256 internal constant EXECUTION_PAYLOAD_FIELD_TREE_HEIGHT = 4;
+
+
     // HISTORICAL_ROOTS_LIMIT	 = 2**24, so tree height is 24
     uint256 internal constant HISTORICAL_ROOTS_TREE_HEIGHT = 24;
 
@@ -36,6 +44,7 @@ library BeaconChainProofs{
 
     // SLOTS_PER_HISTORICAL_ROOT = 2**13, so tree height is 13
     uint256 internal constant STATE_ROOTS_TREE_HEIGHT = 13;
+    uint256 internal constant BLOCK_ROOTS_TREE_HEIGHT = 13;
 
 
     uint256 internal constant NUM_WITHDRAWAL_FIELDS = 4;
@@ -47,12 +56,17 @@ library BeaconChainProofs{
     // MAX_WITHDRAWALS_PER_PAYLOAD = 2**4, making tree height = 4
     uint256 internal constant WITHDRAWALS_TREE_HEIGHT = 4;
 
+    //in beacon block body
+    uint256 internal constant EXECUTION_PAYLOAD_INDEX = 9;
 
     // in beacon block header
     uint256 internal constant STATE_ROOT_INDEX = 3;
     uint256 internal constant PROPOSER_INDEX_INDEX = 1;
+    uint256 internal constant SLOT_INDEX = 0;
+    uint256 internal constant BODY_ROOT_INDEX = 4;
     // in beacon state
     uint256 internal constant STATE_ROOTS_INDEX = 6;
+    uint256 internal constant BLOCK_ROOTS_INDEX = 5;
     uint256 internal constant HISTORICAL_ROOTS_INDEX = 7;
     uint256 internal constant ETH_1_ROOT_INDEX = 8;
     uint256 internal constant VALIDATOR_TREE_ROOT_INDEX = 11;
@@ -62,10 +76,14 @@ library BeaconChainProofs{
     // in validator
     uint256 internal constant VALIDATOR_WITHDRAWAL_CREDENTIALS_INDEX = 1;
     uint256 internal constant VALIDATOR_BALANCE_INDEX = 2;
+    uint256 internal constant VALIDATOR_WITHDRAWABLE_EPOCH_INDEX = 7;
     
     // in exection payload header
     uint256 internal constant BLOCK_NUMBER_INDEX = 6;
     uint256 internal constant WITHDRAWALS_ROOT_INDEX = 14;
+
+    //in execution payload
+    uint256 internal constant WITHDRAWALS_INDEX = 14;
 
     // in withdrawal
     uint256 internal constant WITHDRAWAL_VALIDATOR_INDEX_INDEX = 1;
@@ -74,13 +92,24 @@ library BeaconChainProofs{
     //In historicalBatch
     uint256 internal constant HISTORICALBATCH_STATEROOTS_INDEX = 1;
 
-    struct WithdrawalAndBlockNumberProof {
-        uint16 stateRootIndex;
-        bytes32 executionPayloadHeaderRoot;
-        bytes executionPayloadHeaderProof;
-        uint8 withdrawalIndex;
+    //Misc Constants
+    uint256 internal constant SLOTS_PER_EPOCH = 32;
+
+    struct WithdrawalProofs {
+        bytes blockHeaderProof;
         bytes withdrawalProof;
+        bytes slotProof;
+        bytes validatorProof;
+        bytes executionPayloadProof;
         bytes blockNumberProof;
+        uint64 blockHeaderRootIndex;
+        uint64 withdrawalIndex;
+        uint40 validatorIndex;
+        bytes32 blockHeaderRoot;
+        bytes32 blockBodyRoot;
+        bytes32 slotRoot;
+        bytes32 blockNumberRoot;
+        bytes32 executionPayloadRoot;
     }
 
     function computePhase0BeaconBlockHeaderRoot(bytes32[NUM_BEACON_BLOCK_HEADER_FIELDS] calldata blockHeaderFields) internal pure returns(bytes32) {
@@ -152,62 +181,42 @@ library BeaconChainProofs{
         require(Merkle.verifyInclusionSha256(proof, beaconStateRoot, validatorRoot, index), "BeaconChainProofs.verifyValidatorFields: Invalid merkle proof");
     }
 
-    /// @param beaconStateRoot is the latest beaconStateRoot posted by the oracle
-    function verifyWithdrawalFieldsAndBlockNumber(
+    function verifyBlockNumberAndWithdrawalFields(
         bytes32 beaconStateRoot,
-        WithdrawalAndBlockNumberProof calldata proof,
-        bytes32 blockNumberRoot,
+        WithdrawalProofs calldata proofs,
         bytes32[] calldata withdrawalFields
     ) internal view {
-        require(proof.stateRootIndex < 2**STATE_ROOTS_TREE_HEIGHT, "BeaconChainProofs.verifyWithdrawalFields: stateRootIndex is too large");
-        require(proof.withdrawalIndex < 2**WITHDRAWALS_TREE_HEIGHT, "BeaconChainProofs.verifyWithdrawalFields: withdrawalIndex is too large");
-        require(withdrawalFields.length == 2**WITHDRAWAL_FIELD_TREE_HEIGHT, "BeaconChainProofs.verifyWithdrawalFields: withdrawalFields has incorrect length");
+        require(withdrawalFields.length == 2**WITHDRAWAL_FIELD_TREE_HEIGHT, "BeaconChainProofs.verifyBlockNumberAndWithdrawalFields: withdrawalFields has incorrect length");
 
-        // verify the executionPayloadHeaderProof first
-        require(
-            proof.executionPayloadHeaderProof.length == 32 * (
-                BEACON_STATE_FIELD_TREE_HEIGHT + STATE_ROOTS_TREE_HEIGHT + BEACON_STATE_FIELD_TREE_HEIGHT
-            ), 
-            "BeaconChainProofs.verifyWithdrawalFields: executionPayloadHeaderProof length is incorrect"
-        );
+        require(proofs.blockHeaderRootIndex < 2**BLOCK_ROOTS_TREE_HEIGHT, "BeaconChainProofs.verifyBlockNumberAndWithdrawalFields: blockRootIndex is too large");
+        require(proofs.withdrawalIndex < 2**WITHDRAWALS_TREE_HEIGHT, "BeaconChainProofs.verifyBlockNumberAndWithdrawalFields: withdrawalIndex is too large");
+        require(proofs.validatorIndex < 2**VALIDATOR_TREE_HEIGHT, "BeaconChainProofs.verifyBlockNumberAndWithdrawalFields: validatorIndex is too large");
+       
+        // verify the block header proof length
+        require(proofs.blockHeaderProof.length == 32 * (BEACON_STATE_FIELD_TREE_HEIGHT + BLOCK_ROOTS_TREE_HEIGHT), "BeaconChainProofs.verifyBlockNumberAndWithdrawalFields: blockHeaderProof has incorrect length");
+        require(proofs.withdrawalProof.length == 32 * (EXECUTION_PAYLOAD_HEADER_FIELD_TREE_HEIGHT + WITHDRAWALS_TREE_HEIGHT + 1), "BeaconChainProofs.verifyBlockNumberAndWithdrawalFields: withdrawalProof has incorrect length");
+        require(proofs.validatorProof.length == 32 * (BEACON_STATE_FIELD_TREE_HEIGHT + VALIDATOR_TREE_HEIGHT + 1), "BeaconChainProofs.verifyBlockNumberAndWithdrawalFields: validatorProof has incorrect length");
+        require(proofs.executionPayloadProof.length == 32 * (BEACON_BLOCK_HEADER_FIELD_TREE_HEIGHT + BEACON_BLOCK_BODY_FIELD_TREE_HEIGHT), "BeaconChainProofs.verifyBlockNumberAndWithdrawalFields: executionPayloadProof has incorrect length");
 
+        //Compute the block_header_index relative to the beaconStateRoot.  It concatenates the indexes of all the
+        // intermediate root indexes from the bottom of the sub trees (the block header container) to the top of the tree
+        uint256 blockHeaderIndex = BLOCK_ROOTS_INDEX << (BLOCK_ROOTS_TREE_HEIGHT)  | uint256(proofs.blockHeaderRootIndex);
+        require(Merkle.verifyInclusionSha256(proofs.blockHeaderProof, beaconStateRoot, proofs.blockHeaderRoot, blockHeaderIndex), "BeaconChainProofs.verifyBlockNumberAndWithdrawalFields: Invalid block header merkle proof");
 
-        uint256 index = 
-            (STATE_ROOTS_INDEX << (STATE_ROOTS_TREE_HEIGHT + BEACON_STATE_FIELD_TREE_HEIGHT)) 
-            | (uint256(proof.stateRootIndex) << BEACON_STATE_FIELD_TREE_HEIGHT) 
-            | EXECUTION_PAYLOAD_HEADER_INDEX;
+        // //Next we verify the executionPayloadHeader against the blockHeaderRoot
+        uint256 executionPayloadIndex = BODY_ROOT_INDEX << (BEACON_BLOCK_BODY_FIELD_TREE_HEIGHT)| EXECUTION_PAYLOAD_INDEX ;
+        require(Merkle.verifyInclusionSha256(proofs.executionPayloadProof, proofs.blockHeaderRoot, proofs.executionPayloadRoot, executionPayloadIndex), "BeaconChainProofs.verifyBlockNumberAndWithdrawalFields: Invalid executionPayload merkle proof");
 
-        
-        require(
-            Merkle.verifyInclusionSha256(proof.executionPayloadHeaderProof, beaconStateRoot, proof.executionPayloadHeaderRoot, index), 
-            "BeaconChainProofs.verifyWithdrawalFields: executionPayloadHeader merkle inclusion proof failed"
-        );
+        // Next we verify the blockNumber against the executionPayload root
+        uint256 blockNumberIndex = uint256(BLOCK_NUMBER_INDEX);
+        require(Merkle.verifyInclusionSha256(proofs.blockNumberProof, proofs.executionPayloadRoot, proofs.blockNumberRoot, blockNumberIndex));
 
-        // verify the blockNumber proof second
-        require(
-            proof.blockNumberProof.length == 32 * EXECUTION_PAYLOAD_HEADER_FIELD_TREE_HEIGHT, 
-            "BeaconChainProofs.verifyWithdrawalFields: blockNumberProof length is incorrect"
-        );
-
-        require(
-            Merkle.verifyInclusionSha256(proof.blockNumberProof, proof.executionPayloadHeaderRoot, blockNumberRoot, BLOCK_NUMBER_INDEX), 
-            "BeaconChainProofs.verifyWithdrawalFields: blockNumber merkle inclusion proof failed"
-        );
-
-
-        // Note: WITHDRAWALS_TREE_HEIGHT + 1 accounts for the hashing of the withdrawal list root with the number of withdrawals in the withdrawal list
-        require(
-            proof.withdrawalProof.length == 32 * (
-                EXECUTION_PAYLOAD_HEADER_FIELD_TREE_HEIGHT + WITHDRAWALS_TREE_HEIGHT + 1
-            ), "BeaconChainProofs.verifyWithdrawalFields: withdrawalProof length is incorrect");
-
-
-        index = (WITHDRAWALS_ROOT_INDEX << (WITHDRAWALS_TREE_HEIGHT + 1)) | proof.withdrawalIndex;
-
-        require(
-            Merkle.verifyInclusionSha256(proof.withdrawalProof, proof.executionPayloadHeaderRoot,  Merkle.merkleizeSha256(withdrawalFields), index), 
-            "BeaconChainProofs.verifyWithdrawalFields: Withdrawal merkle inclusion proof failed"
-        );
+        //Next we verify the withdrawal fields against the blockHeaderRoot
+        //This computes the withdrawal_index relative to the blockHeaderRoot.  It concatenates the indexes of all the 
+        // intermediate root indexes from the bottom of the sub trees (the withdrawal container) to the top, the blockHeaderRoot
+        uint256 withdrawalIndex = WITHDRAWALS_INDEX << (WITHDRAWALS_TREE_HEIGHT + 1) | uint256(proofs.withdrawalIndex);
+        bytes32 withdrawalRoot = Merkle.merkleizeSha256(withdrawalFields);
+        require(Merkle.verifyInclusionSha256(proofs.withdrawalProof, proofs.executionPayloadRoot, withdrawalRoot, withdrawalIndex), "BeaconChainProofs.verifyBlockNumberAndWithdrawalFields: Invalid withdrawal merkle proof");
     }
 
 }

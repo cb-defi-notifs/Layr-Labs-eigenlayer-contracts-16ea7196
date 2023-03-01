@@ -32,6 +32,9 @@ contract EigenPodPaymentEscrow is Initializable, OwnableUpgradeable, ReentrancyG
     /// @notice event for payment creation
     event PaymentCreated(address podOwner, address recipient, uint256 amount, uint256 index);
 
+    /// @notice event for the claiming of payments
+    event PaymentsClaimed(address recipient, uint256 amountClaimed, uint256 paymentsCompleted);
+
     /// @notice Modifier used to permission a function to only be called by the EigenPod of the specified `podOwner`
     modifier onlyEigenPod(address podOwner) {
         require(address(eigenPodManager.getPod(podOwner)) == msg.sender, "EigenPodPaymentEscrow.onlyEigenPod: not podOwner's EigenPod");
@@ -145,6 +148,7 @@ contract EigenPodPaymentEscrow is Initializable, OwnableUpgradeable, ReentrancyG
         if (amountToSend != 0) {
             AddressUpgradeable.sendValue(payable(recipient), amountToSend);
         }
+        emit PaymentsClaimed(recipient, amountToSend, paymentsCompletedBefore + i);
     }
 
     /// @notice internal function for changing the value of `withdrawalDelayBlocks`. Also performs sanity check and emits an event.
@@ -153,4 +157,11 @@ contract EigenPodPaymentEscrow is Initializable, OwnableUpgradeable, ReentrancyG
         emit WithdrawalDelayBlocksSet(withdrawalDelayBlocks, newValue);
         withdrawalDelayBlocks = newValue;
     }
+
+    /**
+     * @dev This empty reserved space is put in place to allow future versions to add new
+     * variables without shifting down storage in the inheritance chain.
+     * See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
+     */
+    uint256[48] private __gap;
 }

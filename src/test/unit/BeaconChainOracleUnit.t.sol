@@ -20,7 +20,7 @@ contract BeaconChainOracleUnitTests is Test {
     // static values reused across several tests
     uint256 numberPotentialOracleSigners = 16;
     address[] public potentialOracleSigners;
-    uint64 public slotToVoteFor = 5151;
+    uint64 public blockNumberToVoteFor = 5151;
     bytes32 public stateRootToVoteFor = bytes32(uint256(987));
 
     modifier filterFuzzedAddressInputs(address fuzzedAddress) {
@@ -218,81 +218,81 @@ contract BeaconChainOracleUnitTests is Test {
         require(!beaconChainOracle.isOracleSigner(oracleSigner), "signer improperly added");
     }
 
-    function testVoteForBeaconChainStateRoot(address oracleSigner, uint64 _slot, bytes32 _stateRoot) public {
-        uint256 votesBefore = beaconChainOracle.stateRootVotes(_slot, _stateRoot);
+    function testVoteForBeaconChainStateRoot(address oracleSigner, uint64 _blockNumber, bytes32 _stateRoot) public {
+        uint256 votesBefore = beaconChainOracle.stateRootVotes(_blockNumber, _stateRoot);
 
         testAddOracleSigner(oracleSigner);
         cheats.startPrank(oracleSigner);
-        beaconChainOracle.voteForBeaconChainStateRoot(_slot, _stateRoot);
+        beaconChainOracle.voteForBeaconChainStateRoot(_blockNumber, _stateRoot);
         cheats.stopPrank();
 
-        uint256 votesAfter = beaconChainOracle.stateRootVotes(_slot, _stateRoot);
+        uint256 votesAfter = beaconChainOracle.stateRootVotes(_blockNumber, _stateRoot);
         require(votesAfter == votesBefore + 1, "votesAfter != votesBefore + 1");
-        require(beaconChainOracle.hasVoted(_slot, oracleSigner), "vote not recorded as being cast");
+        require(beaconChainOracle.hasVoted(_blockNumber, oracleSigner), "vote not recorded as being cast");
         if (votesAfter == beaconChainOracle.threshold()) {
-            assertEq(beaconChainOracle.beaconStateRoot(_slot), _stateRoot, "state root not confirmed when it should be");
+            assertEq(beaconChainOracle.beaconStateRootAtBlockNumber(_blockNumber), _stateRoot, "state root not confirmed when it should be");
         } else {
-            require(beaconChainOracle.beaconStateRoot(_slot) == bytes32(0), "state root improperly confirmed");
+            require(beaconChainOracle.beaconStateRootAtBlockNumber(_blockNumber) == bytes32(0), "state root improperly confirmed");
         }
     }
 
     function testVoteForBeaconChainStateRoot_VoteDoesNotCauseConfirmation() public {
         address _oracleSigner = potentialOracleSigners[0];
-        testVoteForBeaconChainStateRoot(_oracleSigner, slotToVoteFor, stateRootToVoteFor);
+        testVoteForBeaconChainStateRoot(_oracleSigner, blockNumberToVoteFor, stateRootToVoteFor);
     }
 
-    function testVoteForBeaconChainStateRoot_VoteCausesConfirmation(uint64 _slot, bytes32 _stateRoot) public {
-        uint64 latestConfirmedOracleSlotBefore = beaconChainOracle.latestConfirmedOracleSlot();
+    function testVoteForBeaconChainStateRoot_VoteCausesConfirmation(uint64 _blockNumber, bytes32 _stateRoot) public {
+        uint64 latestConfirmedOracleBlockNumberBefore = beaconChainOracle.latestConfirmedOracleBlockNumber();
 
-        uint256 votesBefore = beaconChainOracle.stateRootVotes(_slot, _stateRoot);
+        uint256 votesBefore = beaconChainOracle.stateRootVotes(_blockNumber, _stateRoot);
         require(votesBefore == 0, "something is wrong, state root should have zero votes before voting");
 
         for (uint256 i = 0; i < beaconChainOracle.threshold(); ++i) {
-            testVoteForBeaconChainStateRoot(potentialOracleSigners[i], _slot, _stateRoot);
+            testVoteForBeaconChainStateRoot(potentialOracleSigners[i], _blockNumber, _stateRoot);
         }
 
-        assertEq(beaconChainOracle.beaconStateRoot(_slot), _stateRoot, "state root not confirmed when it should be");
-        assertEq(beaconChainOracle.threshold(), beaconChainOracle.stateRootVotes(_slot, _stateRoot), "state root confirmed with incorrect votes");
+        assertEq(beaconChainOracle.beaconStateRootAtBlockNumber(_blockNumber), _stateRoot, "state root not confirmed when it should be");
+        assertEq(beaconChainOracle.threshold(), beaconChainOracle.stateRootVotes(_blockNumber, _stateRoot), "state root confirmed with incorrect votes");
 
-        if (_slot > latestConfirmedOracleSlotBefore) {
-            assertEq(_slot, beaconChainOracle.latestConfirmedOracleSlot(), "latestConfirmedOracleSlot did not update appropriately");
+        if (_blockNumber > latestConfirmedOracleBlockNumberBefore) {
+            assertEq(_blockNumber, beaconChainOracle.latestConfirmedOracleBlockNumber(), "latestConfirmedOracleBlockNumber did not update appropriately");
         } else {
-            assertEq(latestConfirmedOracleSlotBefore, beaconChainOracle.latestConfirmedOracleSlot(), "latestConfirmedOracleSlot updated inappropriately");
+            assertEq(latestConfirmedOracleBlockNumberBefore, beaconChainOracle.latestConfirmedOracleBlockNumber(), "latestConfirmedOracleBlockNumber updated inappropriately");
         }
     }
 
-    function testVoteForBeaconChainStateRoot_VoteCausesConfirmation_latestOracleSlotDoesNotIncrease() external {
-        testVoteForBeaconChainStateRoot_VoteCausesConfirmation(slotToVoteFor + 1, stateRootToVoteFor);
-        uint64 latestConfirmedOracleSlotBefore = beaconChainOracle.latestConfirmedOracleSlot();
-        testVoteForBeaconChainStateRoot_VoteCausesConfirmation(slotToVoteFor, stateRootToVoteFor);
-        assertEq(latestConfirmedOracleSlotBefore, beaconChainOracle.latestConfirmedOracleSlot(), "latestConfirmedOracleSlot updated inappropriately");
+    function testVoteForBeaconChainStateRoot_VoteCausesConfirmation_latestOracleBlockNumberDoesNotIncrease() external {
+        testVoteForBeaconChainStateRoot_VoteCausesConfirmation(blockNumberToVoteFor + 1, stateRootToVoteFor);
+        uint64 latestConfirmedOracleBlockNumberBefore = beaconChainOracle.latestConfirmedOracleBlockNumber();
+        testVoteForBeaconChainStateRoot_VoteCausesConfirmation(blockNumberToVoteFor, stateRootToVoteFor);
+        assertEq(latestConfirmedOracleBlockNumberBefore, beaconChainOracle.latestConfirmedOracleBlockNumber(), "latestConfirmedOracleBlockNumber updated inappropriately");
     }
 
     function testVoteForBeaconChainStateRoot_RevertsWhenCallerHasVoted() external {
         address _oracleSigner = potentialOracleSigners[0];
-        testVoteForBeaconChainStateRoot(_oracleSigner, slotToVoteFor, stateRootToVoteFor);
+        testVoteForBeaconChainStateRoot(_oracleSigner, blockNumberToVoteFor, stateRootToVoteFor);
 
         cheats.startPrank(_oracleSigner);
         cheats.expectRevert(bytes("BeaconChainOracle.voteForBeaconChainStateRoot: Signer has already voted"));
-        beaconChainOracle.voteForBeaconChainStateRoot(slotToVoteFor, stateRootToVoteFor);
+        beaconChainOracle.voteForBeaconChainStateRoot(blockNumberToVoteFor, stateRootToVoteFor);
         cheats.stopPrank();
     }
 
     function testVoteForBeaconChainStateRoot_RevertsWhenStateRootAlreadyConfirmed() external {
         address _oracleSigner = potentialOracleSigners[potentialOracleSigners.length - 1];
         testAddOracleSigner(_oracleSigner);
-        testVoteForBeaconChainStateRoot_VoteCausesConfirmation(slotToVoteFor, stateRootToVoteFor);
+        testVoteForBeaconChainStateRoot_VoteCausesConfirmation(blockNumberToVoteFor, stateRootToVoteFor);
 
         cheats.startPrank(_oracleSigner);
         cheats.expectRevert(bytes("BeaconChainOracle.voteForBeaconChainStateRoot: State root already confirmed"));
-        beaconChainOracle.voteForBeaconChainStateRoot(slotToVoteFor, stateRootToVoteFor);
+        beaconChainOracle.voteForBeaconChainStateRoot(blockNumberToVoteFor, stateRootToVoteFor);
         cheats.stopPrank();
     }
 
     function testVoteForBeaconChainStateRoot_RevertsWhenCallingFromNotOracleSigner(address notOracleSigner) external {
         cheats.startPrank(notOracleSigner);
         cheats.expectRevert(bytes("BeaconChainOracle.onlyOracleSigner: Not an oracle signer"));
-        beaconChainOracle.voteForBeaconChainStateRoot(slotToVoteFor, stateRootToVoteFor);
+        beaconChainOracle.voteForBeaconChainStateRoot(blockNumberToVoteFor, stateRootToVoteFor);
         cheats.stopPrank();
     }
 }

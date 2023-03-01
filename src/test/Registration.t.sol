@@ -29,7 +29,6 @@ contract RegistrationTests is EigenLayerTestHelper {
     ServiceManagerMock public dlsm;
     InvestmentManagerMock public investmentManagerMock;
 
-
     function setUp() public virtual override {
         EigenLayerDeployer.setUp();
         initializeMiddlewares();
@@ -42,7 +41,8 @@ contract RegistrationTests is EigenLayerTestHelper {
 
         pubkeyCompendium = new BLSPublicKeyCompendiumMock();
 
-        investmentManagerMock = new InvestmentManagerMock(delegation, eigenPodManager, slasher);
+        investmentManagerMock = new InvestmentManagerMock();
+        investmentManagerMock.setAddresses(delegation, eigenPodManager, slasher);
 
         dlsm = new ServiceManagerMock(slasher);
 
@@ -86,12 +86,10 @@ contract RegistrationTests is EigenLayerTestHelper {
 
         //register as both ETH and EIGEN operator
         uint256 wethToDeposit = 1e18;
-        uint256 eigenToDeposit = 1e10;
+        uint256 eigenToDeposit = 1e18;
         _testDepositWeth(operator, wethToDeposit);
         _testDepositEigen(operator, eigenToDeposit);
         _testRegisterAsOperator(operator, IDelegationTerms(operator));
-
-
         
         cheats.startPrank(operator);
         slasher.optIntoSlashing(address(dlsm));

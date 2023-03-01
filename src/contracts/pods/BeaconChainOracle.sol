@@ -8,7 +8,7 @@ import "../interfaces/IBeaconChainOracle.sol";
  * @title Oracle contract used for bringing state roots of the Beacon Chain to the Execution Layer.
  * @author Layr Labs, Inc.
  * @notice The owner of this contract can edit a set of 'oracle signers', as well as changing the threshold number of oracle signers that must vote for a
- *  particular state root at a specified slot before the state root is considered 'confirmed'.
+ *  particular state root at a specified blockNumber before the state root is considered 'confirmed'.
  */
 contract BeaconChainOracle is IBeaconChainOracle, Ownable {
     /// @notice The minimum value which the `threshold` variable is allowed to take.
@@ -23,24 +23,24 @@ contract BeaconChainOracle is IBeaconChainOracle, Ownable {
      * the state root must still receive one additional vote from an oracle signer to be confirmed. This behavior is intended, to minimize unexpected root confirmations.
      */
     uint256 public threshold;
-    /// @notice Largest slot that has been confirmed by the oracle.
-    uint64 public latestConfirmedOracleSlot;
+    /// @notice Largest blockNumber that has been confirmed by the oracle.
+    uint64 public latestConfirmedOracleBlockNumber;
 
-    /// @notice Mapping: Beacon Chain slot => the Beacon Chain state root at the specified slot.
-    /// @dev This will return `bytes32(0)` if the state root is not yet confirmed at the slot.
-    mapping(uint64 => bytes32) public beaconStateRoot;
+    /// @notice Mapping: Beacon Chain blockNumber => the Beacon Chain state root at the specified blockNumber.
+    /// @dev This will return `bytes32(0)` if the state root is not yet confirmed at the blockNumber.
+    mapping(uint64 => bytes32) public beaconStateRootAtBlockNumber;
     /// @notice Mapping: address => whether or not the address is in the set of oracle signers.
     mapping(address => bool) public isOracleSigner; 
-    /// @notice Mapping: Beacon Chain slot => oracle signer address => whether or not the oracle signer has voted on the state root at the slot.
+    /// @notice Mapping: Beacon Chain blockNumber => oracle signer address => whether or not the oracle signer has voted on the state root at the blockNumber.
     mapping(uint64 => mapping(address => bool)) public hasVoted;
-    /// @notice Mapping: Beacon Chain slot => state root => total number of oracle signer votes for the state root at the slot. 
+    /// @notice Mapping: Beacon Chain blockNumber => state root => total number of oracle signer votes for the state root at the blockNumber. 
     mapping(uint64 => mapping(bytes32 => uint256)) public stateRootVotes;
 
     /// @notice Emitted when the value of the `threshold` variable is changed from `previousValue` to `newValue`.
     event ThresholdModified(uint256 previousValue, uint256 newValue);
 
-    /// @notice Emitted when the beacon chain state root at `slot` is confirmed to be `stateRoot`.
-    event StateRootConfirmed(uint64 slot, bytes32 stateRoot);
+    /// @notice Emitted when the beacon chain state root at `blockNumber` is confirmed to be `stateRoot`.
+    event StateRootConfirmed(uint64 blockNumber, bytes32 stateRoot);
 
     /// @notice Emitted when `addedOracleSigner` is added to the set of oracle signers.
     event OracleSignerAdded(address addedOracleSigner);
@@ -96,25 +96,25 @@ contract BeaconChainOracle is IBeaconChainOracle, Ownable {
     }
 
     /**
-     * @notice Called by a member of the set of oracle signers to assert that the Beacon Chain state root is `stateRoot` at `slot`.
-     * @dev The state root will be confirmed once the total number of votes *for this exact state root at this exact slot* meets the `threshold` value.
-     * @param slot The Beacon Chain slot of interest.
-     * @param stateRoot The Beacon Chain state root that the caller asserts was the correct root, at the specified `slot`.
+     * @notice Called by a member of the set of oracle signers to assert that the Beacon Chain state root is `stateRoot` at `blockNumber`.
+     * @dev The state root will be confirmed once the total number of votes *for this exact state root at this exact blockNumber* meets the `threshold` value.
+     * @param blockNumber The Beacon Chain blockNumber of interest.
+     * @param stateRoot The Beacon Chain state root that the caller asserts was the correct root, at the specified `blockNumber`.
      */
-    function voteForBeaconChainStateRoot(uint64 slot, bytes32 stateRoot) external onlyOracleSigner {
-        require(!hasVoted[slot][msg.sender], "BeaconChainOracle.voteForBeaconChainStateRoot: Signer has already voted");
-        require(beaconStateRoot[slot] == bytes32(0), "BeaconChainOracle.voteForBeaconChainStateRoot: State root already confirmed");
+    function voteForBeaconChainStateRoot(uint64 blockNumber, bytes32 stateRoot) external onlyOracleSigner {
+        require(!hasVoted[blockNumber][msg.sender], "BeaconChainOracle.voteForBeaconChainStateRoot: Signer has already voted");
+        require(beaconStateRootAtBlockNumber[blockNumber] == bytes32(0), "BeaconChainOracle.voteForBeaconChainStateRoot: State root already confirmed");
         // Mark the signer as having voted
-        hasVoted[slot][msg.sender] = true;
+        hasVoted[blockNumber][msg.sender] = true;
         // Increment the vote count for the state root
-        stateRootVotes[slot][stateRoot] += 1;
+        stateRootVotes[blockNumber][stateRoot] += 1;
         // If the state root has enough votes, confirm it as the beacon state root
-        if (stateRootVotes[slot][stateRoot] >= threshold) {
-            emit StateRootConfirmed(slot, stateRoot);
-            beaconStateRoot[slot] = stateRoot;
-            // update latestConfirmedOracleSlot if necessary
-            if (slot > latestConfirmedOracleSlot) {
-                latestConfirmedOracleSlot = slot;
+        if (stateRootVotes[blockNumber][stateRoot] >= threshold) {
+            emit StateRootConfirmed(blockNumber, stateRoot);
+            beaconStateRootAtBlockNumber[blockNumber] = stateRoot;
+            // update latestConfirmedOracleBlockNumber if necessary
+            if (blockNumber > latestConfirmedOracleBlockNumber) {
+                latestConfirmedOracleBlockNumber = blockNumber;
             }
         }
     }

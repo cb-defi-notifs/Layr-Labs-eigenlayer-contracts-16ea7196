@@ -101,7 +101,10 @@ The exception is the zero address, since by default an address is 'delegated to 
 
 // verify that anyone who is registered as an operator is also always delegated to themselves
 invariant operatorsAlwaysDelegatedToSelf(address operator)
-    (operator != 0 && isOperator(operator)) <=> operator != 0 && delegatedTo(operator) == operator
+    isOperator(operator) <=> delegatedTo(operator) == operator
+    { preserved {
+        require operator != 0;
+    } }
 
 // verify that once registered as an operator, a person cannot 'unregister' from being an operator
 // proving this rule in concert with 'operatorsAlwaysDelegatedToSelf' proves that an operator can never change their delegation
