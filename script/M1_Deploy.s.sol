@@ -58,6 +58,7 @@ contract EigenLayerDeployer is Script, Owners {
     EigenPodPaymentEscrow public eigenPodPaymentEscrowImplementation;
     UpgradeableBeacon public eigenPodBeacon;
     EigenPod public eigenPodImplementation;
+    InvestmentStrategyBase public baseStrategyImplementation;
 
     EmptyContract public emptyContract;
 
@@ -68,14 +69,9 @@ contract EigenLayerDeployer is Script, Owners {
     // TODO: set this correctly instead of using a mock (possibly dependent upon network)
     IETHPOSDeposit public ethPOSDeposit;
 
-    // TODO: don't deploy these to mainnet
-    // testing/mock contracts
-    IERC20 public eigenToken;
-    IERC20 public weth;
-    InvestmentStrategyBase public wethStrat;
-    InvestmentStrategyBase public eigenStrat;
-    InvestmentStrategyBase public baseStrategyImplementation;
-    uint256 wethInitialSupply = 10e50;
+    // TODO: add to this token array appropriately -- could include deploying a mock token on testnets
+    IERC20[] public tokensForStrategies;
+    InvestmentStrategyBase[] public strategyArray;
 
     // IMMUTABLES TO SET
     // one week in blocks
@@ -184,61 +180,32 @@ contract EigenLayerDeployer is Script, Owners {
             INIT_ESCROW_DELAY_BLOCKS)
         );
 
-        //simple ERC20 (**NOT** WETH-like!), used in a test investment strategy
-        weth = new ERC20PresetFixedSupply(
-            "weth",
-            "WETH",
-            wethInitialSupply,
-            msg.sender
-        );
-
         // deploy InvestmentStrategyBase contract implementation, then create upgradeable proxy that points to implementation and initialize it
         baseStrategyImplementation = new InvestmentStrategyBase(investmentManager);
-        wethStrat = InvestmentStrategyBase(
-            address(
-                new TransparentUpgradeableProxy(
-                    address(baseStrategyImplementation),
-                    address(eigenLayerProxyAdmin),
-                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, weth, eigenLayerPauserReg)
-                )
-            )
-        );
+        for (uint256 i = 0; i < tokensForStrategies.length; ++i) {
+            strategyArray.push(
+                InvestmentStrategyBase(address(
+                    new TransparentUpgradeableProxy(
+                        address(baseStrategyImplementation),
+                        address(eigenLayerProxyAdmin),
+                        abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, tokensForStrategies[i], eigenLayerPauserReg)
+                    )
+                ))
+            );
+        }
 
-        eigenToken = new ERC20PresetFixedSupply(
-            "eigen",
-            "EIGEN",
-            wethInitialSupply,
-            msg.sender
-        );
-
-        // deploy upgradeable proxy that points to InvestmentStrategyBase implementation and initialize it
-        eigenStrat = InvestmentStrategyBase(
-            address(
-                new TransparentUpgradeableProxy(
-                    address(baseStrategyImplementation),
-                    address(eigenLayerProxyAdmin),
-                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, eigenToken, eigenLayerPauserReg)
-                )
-            )
-        );
-
-        verifyContract(delegationImplementation, investmentManagerImplementation, slasherImplementation, eigenPodManagerImplementation);
-        verifyContract(delegation, investmentManager, slasher, eigenPodManager);
-        verifyOwners();
-        checkPauserInitializations();
+        _verifyContractsPointAtOneAnother(delegationImplementation, investmentManagerImplementation, slasherImplementation, eigenPodManagerImplementation);
+        _verifyContractsPointAtOneAnother(delegation, investmentManager, slasher, eigenPodManager);
+        _verifyInitialOwners();
+        _checkPauserInitializations();
         vm.stopBroadcast();
 
         vm.writeFile("data/investmentManager.addr", vm.toString(address(investmentManager)));
         vm.writeFile("data/delegation.addr", vm.toString(address(delegation)));
         vm.writeFile("data/slasher.addr", vm.toString(address(slasher)));
-        vm.writeFile("data/weth.addr", vm.toString(address(weth)));
-        vm.writeFile("data/wethStrat.addr", vm.toString(address(wethStrat)));
-        vm.writeFile("data/eigen.addr", vm.toString(address(eigenToken)));
-        vm.writeFile("data/eigenStrat.addr", vm.toString(address(eigenStrat)));
-        vm.writeFile("data/eigenStrat.addr", vm.toString(address(eigenStrat)));
     }
 
-    function verifyContract(
+    function _verifyContractsPointAtOneAnother(
         EigenLayerDelegation delegationContract,  
         InvestmentManager investmentManagerContract, 
         Slasher slasherContract,  
@@ -261,15 +228,15 @@ contract EigenLayerDeployer is Script, Owners {
 
     }
 
-    function verifyOwners()internal view {
-       
+    function _verifyInitialOwners()internal view {
         require(investmentManager.owner() == eigenLayerReputedMultisig, "investmentManager owner not set correctly");
         require(delegation.owner() == eigenLayerReputedMultisig, "delegation owner not set correctly");
         require(slasher.owner() == eigenLayerReputedMultisig, "slasher owner not set correctly");
         require(eigenPodManager.owner() == eigenLayerReputedMultisig, "delegation owner not set correctly");
 
     }
-    function checkPauserInitializations() internal view {
+
+    function _checkPauserInitializations() internal view {
         require(address(delegation.pauserRegistry()) == address(eigenLayerPauserReg), "delegation's pauser registry not set correctly");
         require(address(investmentManager.pauserRegistry()) == address(eigenLayerPauserReg), "investmentManager's pauser registry not set correctly");
         require(address(slasher.pauserRegistry()) == address(eigenLayerPauserReg), "slasher's pauser registry not set correctly");
