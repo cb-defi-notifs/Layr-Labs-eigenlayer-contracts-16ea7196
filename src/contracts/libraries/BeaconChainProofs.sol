@@ -165,13 +165,12 @@ library BeaconChainProofs {
         return Merkle.merkleizeSha256(paddedEth1DataFields);
     }
 
-    function getBalanceFromBalanceRoot(uint40 validatorIndex, bytes32 balanceRoot) internal returns(uint64){
-
+   function getBalanceFromBalanceRoot(uint40 validatorIndex, bytes32 balanceRoot) internal returns(uint64){
         uint256 bitShiftAmount = (validatorIndex % 4) * 64;
-
-        bytes8 validatorBalance = bytes8((balanceRoot << bitShiftAmount) & UINT64_MASK);
-
-        return abi.decode(abi.encodePacked(validatorBalance), (uint64));
+        uint256 balanceRoot = uint256(balanceRoot);
+        bytes32 validatorBalanceLittleEndian = bytes32((balanceRoot << bitShiftAmount));
+        uint64 validatorBalance = Endian.fromLittleEndianUint64(validatorBalanceLittleEndian);
+        return validatorBalance;
     }
 
     /**
