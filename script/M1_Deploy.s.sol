@@ -4,18 +4,16 @@ pragma solidity =0.8.12;
 import "@openzeppelin/contracts/token/ERC20/presets/ERC20PresetFixedSupply.sol";
 import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
-import "@openzeppelin/contracts/proxy/beacon/IBeacon.sol";
 import "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 
-import "../src/contracts/core/EigenLayerDelegation.sol";
-
-import "../src/contracts/interfaces/IEigenLayerDelegation.sol";
 import "../src/contracts/interfaces/IETHPOSDeposit.sol";
 import "../src/contracts/interfaces/IBeaconChainOracle.sol";
 
 import "../src/contracts/core/InvestmentManager.sol";
-import "../src/contracts/strategies/InvestmentStrategyBase.sol";
 import "../src/contracts/core/Slasher.sol";
+import "../src/contracts/core/EigenLayerDelegation.sol";
+
+import "../src/contracts/strategies/InvestmentStrategyBase.sol";
 
 import "../src/contracts/pods/EigenPod.sol";
 import "../src/contracts/pods/EigenPodManager.sol";
@@ -45,23 +43,30 @@ import "../src/contracts/libraries/BytesLib.sol";
 contract EigenLayerDeployer is Script, Owners {
     using BytesLib for bytes;
 
-    // EigenLayer contracts
+    // EigenLayer Contracts
     ProxyAdmin public eigenLayerProxyAdmin;
     PauserRegistry public eigenLayerPauserReg;
     Slasher public slasher;
+    Slasher public slasherImplementation;
     EigenLayerDelegation public delegation;
-    EigenPodManager public eigenPodManager;
+    EigenLayerDelegation public delegationImplementation;
     InvestmentManager public investmentManager;
-    IEigenPod public pod;
-    IEigenPodPaymentEscrow public eigenPodPaymentEscrow;
-    IETHPOSDeposit public ethPOSDeposit;
-    IBeacon public eigenPodBeacon;
+    InvestmentManager public investmentManagerImplementation;
+    EigenPodManager public eigenPodManager;
+    EigenPodManager public eigenPodManagerImplementation;
+    EigenPodPaymentEscrow public eigenPodPaymentEscrow;
+    EigenPodPaymentEscrow public eigenPodPaymentEscrowImplementation;
+    UpgradeableBeacon public eigenPodBeacon;
+    EigenPod public eigenPodImplementation;
 
     EmptyContract public emptyContract;
 
     // TODO: set these addresses
     address eigenLayerReputedMultisig;
     address eigenLayerTeamMultisig;
+
+    // TODO: set this correctly instead of using a mock (possibly dependent upon network)
+    IETHPOSDeposit public ethPOSDeposit;
 
     // TODO: don't deploy these to mainnet
     // testing/mock contracts
@@ -125,16 +130,22 @@ contract EigenLayerDeployer is Script, Owners {
         );
 
         ethPOSDeposit = new ETHPOSDepositMock();
-        pod = new EigenPod(ethPOSDeposit, eigenPodPaymentEscrow, PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS, REQUIRED_BALANCE_WEI, MAX_PARTIAL_WTIHDRAWAL_AMOUNT_GWEI);
+        eigenPodImplementation = new EigenPod(
+            ethPOSDeposit,
+            eigenPodPaymentEscrow,
+            PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS,
+            REQUIRED_BALANCE_WEI,
+            MAX_PARTIAL_WTIHDRAWAL_AMOUNT_GWEI
+        );
 
-        eigenPodBeacon = new UpgradeableBeacon(address(pod));
+        eigenPodBeacon = new UpgradeableBeacon(address(eigenPodImplementation));
 
         // Second, deploy the *implementation* contracts, using the *proxy contracts* as inputs
-        EigenLayerDelegation delegationImplementation = new EigenLayerDelegation(investmentManager, slasher);
-        InvestmentManager investmentManagerImplementation = new InvestmentManager(delegation, eigenPodManager, slasher);
-        Slasher slasherImplementation = new Slasher(investmentManager, delegation);
-        EigenPodManager eigenPodManagerImplementation = new EigenPodManager(ethPOSDeposit, eigenPodBeacon, investmentManager, slasher);
-        EigenPodPaymentEscrow eigenPodPaymentEscrowImplementation = new EigenPodPaymentEscrow(eigenPodManager);
+        delegationImplementation = new EigenLayerDelegation(investmentManager, slasher);
+        investmentManagerImplementation = new InvestmentManager(delegation, eigenPodManager, slasher);
+        slasherImplementation = new Slasher(investmentManager, delegation);
+        eigenPodManagerImplementation = new EigenPodManager(ethPOSDeposit, eigenPodBeacon, investmentManager, slasher);
+        eigenPodPaymentEscrowImplementation = new EigenPodPaymentEscrow(eigenPodManager);
 
         // Third, upgrade the proxy contracts to use the correct implementation contracts and initialize them.
         eigenLayerProxyAdmin.upgradeAndCall(
