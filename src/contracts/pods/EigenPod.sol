@@ -262,7 +262,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         );
 
         // convert the balance field from 8 bytes of little endian to uint64 big endian 💪
-        uint64 validatorCurrentBalanceGwei = Endian.fromLittleEndianUint64(balanceRoot);
+        uint64 validatorCurrentBalanceGwei = BeaconChainProofs.getBalanceFromBalanceRoot(validatorIndex, balanceRoot);
 
         // if the validatorBalance is zero *and* the validator is overcommitted, then overcommitment should be proved through `verifyBeaconChainFullWithdrawal`
         require(validatorCurrentBalanceGwei != 0, "EigenPod.verifyOvercommittedStake: cannot prove overcommitment on a full withdrawal");
