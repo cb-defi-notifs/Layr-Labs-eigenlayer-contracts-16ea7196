@@ -74,7 +74,13 @@ contract InvestmentManagerUnitTests is Test {
                 new TransparentUpgradeableProxy(
                     address(investmentManagerImplementation),
                     address(proxyAdmin),
-                    abi.encodeWithSelector(InvestmentManager.initialize.selector, pauserRegistry, initialOwner, 0)
+                    abi.encodeWithSelector(
+                        InvestmentManager.initialize.selector,
+                        initialOwner,
+                        pauserRegistry,
+                        0/*initialPausedStatus*/,
+                        0/*withdrawalDelayBlocks*/
+                    )
                 )
             )
         );
@@ -2104,7 +2110,7 @@ contract InvestmentManagerUnitTests is Test {
                 new TransparentUpgradeableProxy(
                     address(investmentManagerImplementation),
                     address(proxyAdmin),
-                    abi.encodeWithSelector(InvestmentManager.initialize.selector, pauserRegistry, initialOwner, 0)
+                    abi.encodeWithSelector(InvestmentManager.initialize.selector, initialOwner, pauserRegistry, 0, 0)
                 )
             )
         );

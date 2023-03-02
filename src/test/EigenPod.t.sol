@@ -127,22 +127,43 @@ contract EigenPodTests is BeaconChainProofUtils, EigenPodPausingConstants, DSTes
         eigenLayerProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(delegation))),
             address(delegationImplementation),
-            abi.encodeWithSelector(EigenLayerDelegation.initialize.selector, pauserReg, initialOwner)
+            abi.encodeWithSelector(
+                EigenLayerDelegation.initialize.selector,
+                initialOwner,
+                pauserReg,
+                0/*initialPausedStatus*/
+            )
         );
         eigenLayerProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(investmentManager))),
             address(investmentManagerImplementation),
-            abi.encodeWithSelector(InvestmentManager.initialize.selector, pauserReg, initialOwner, 0)
+            abi.encodeWithSelector(
+                InvestmentManager.initialize.selector,
+                initialOwner,
+                pauserReg,
+                0/*initialPausedStatus*/,
+                0/*withdrawalDelayBlocks*/
+            )
         );
         eigenLayerProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(slasher))),
             address(slasherImplementation),
-            abi.encodeWithSelector(Slasher.initialize.selector, pauserReg, initialOwner)
+            abi.encodeWithSelector(
+                Slasher.initialize.selector,
+                initialOwner,
+                pauserReg,
+                0/*initialPausedStatus*/
+            )
         );
         eigenLayerProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(eigenPodManager))),
             address(eigenPodManagerImplementation),
-            abi.encodeWithSelector(EigenPodManager.initialize.selector, beaconChainOracle, initialOwner, pauserReg, 0)
+            abi.encodeWithSelector(
+                EigenPodManager.initialize.selector, beaconChainOracle,
+                initialOwner,
+                pauserReg,
+                0/*initialPausedStatus*/
+            )
         );
         uint256 initPausedStatus = 0;
         uint256 withdrawalDelayBlocks = PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS;
