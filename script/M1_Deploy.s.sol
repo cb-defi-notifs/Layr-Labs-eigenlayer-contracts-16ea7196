@@ -35,8 +35,8 @@ import "forge-std/StdJson.sol";
 // source .env
 
 // # To deploy and verify our contract
-// forge script script/Deployer.s.sol:EigenLayerDeployer --rpc-url $RPC_URL  --private-key $PRIVATE_KEY --broadcast -vvvv
-contract EigenLayerDeployer is Script, Owners {
+// forge script script/M1_Deploy.s.sol:Deployer_M1 --rpc-url $RPC_URL  --private-key $PRIVATE_KEY --broadcast -vvvv
+contract Deployer_M1 is Script, Owners {
     // EigenLayer Contracts
     ProxyAdmin public eigenLayerProxyAdmin;
     PauserRegistry public eigenLayerPauserReg;
@@ -57,8 +57,8 @@ contract EigenLayerDeployer is Script, Owners {
     EmptyContract public emptyContract;
 
     // TODO: set these addresses
-    address eigenLayerReputedMultisig;
-    address eigenLayerTeamMultisig;
+    address eigenLayerReputedMultisig = address(2);
+    address eigenLayerTeamMultisig = address(3);
 
     // TODO: set this correctly instead of using a mock (possibly dependent upon network)
     IETHPOSDeposit public ethPOSDeposit;
@@ -92,8 +92,6 @@ contract EigenLayerDeployer is Script, Owners {
 
         // deploy proxy admin for ability to upgrade proxy contracts
         eigenLayerProxyAdmin = new ProxyAdmin();
-
-        eigenLayerProxyAdmin.transferOwnership(eigenLayerReputedMultisig);
 
         //deploy pauser registry
         eigenLayerPauserReg = new PauserRegistry(address(eigenLayerTeamMultisig), eigenLayerReputedMultisig);
@@ -151,7 +149,7 @@ contract EigenLayerDeployer is Script, Owners {
         eigenLayerProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(slasher))),
             address(slasherImplementation),
-            abi.encodeWithSelector(Slasher.initialize.selector, eigenLayerPauserReg, eigenLayerReputedMultisig)
+            abi.encodeWithSelector(Slasher.initialize.selector, eigenLayerPauserReg, eigenLayerReputedMultisig, SLASHER_INIT_PAUSED_STATUS)
         );
         eigenLayerProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(eigenPodManager))),
@@ -187,6 +185,9 @@ contract EigenLayerDeployer is Script, Owners {
                 ))
             );
         }
+
+        eigenLayerProxyAdmin.transferOwnership(eigenLayerReputedMultisig);
+
 
         _verifyContractsPointAtOneAnother(
             delegationImplementation,
@@ -243,6 +244,7 @@ contract EigenLayerDeployer is Script, Owners {
         require(slasher.owner() == eigenLayerReputedMultisig, "slasher: owner not set correctly");
         require(eigenPodManager.owner() == eigenLayerReputedMultisig, "delegation: owner not set correctly");
 
+        require(eigenLayerProxyAdmin.owner() == eigenLayerReputedMultisig, "investmentManager: owner not set correctly");
     }
 
     function _checkPauserInitializations() internal view {

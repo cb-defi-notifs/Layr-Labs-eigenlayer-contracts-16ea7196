@@ -167,22 +167,22 @@ contract EigenLayerDeployer is Operators {
         eigenLayerProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(delegation))),
             address(delegationImplementation),
-            abi.encodeWithSelector(EigenLayerDelegation.initialize.selector, eigenLayerPauserReg, eigenLayerReputedMultisig)
+            abi.encodeWithSelector(EigenLayerDelegation.initialize.selector, eigenLayerReputedMultisig, eigenLayerPauserReg, 0/*initialPausedStatus*/)
         );
         eigenLayerProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(investmentManager))),
             address(investmentManagerImplementation),
-            abi.encodeWithSelector(InvestmentManager.initialize.selector, eigenLayerPauserReg, eigenLayerReputedMultisig, 0)
+            abi.encodeWithSelector(InvestmentManager.initialize.selector, eigenLayerReputedMultisig, eigenLayerPauserReg, 0/*initialPausedStatus*/, 0/*withdrawalDelayBlocks*/)
         );
         eigenLayerProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(slasher))),
             address(slasherImplementation),
-            abi.encodeWithSelector(Slasher.initialize.selector, eigenLayerPauserReg, eigenLayerReputedMultisig)
+            abi.encodeWithSelector(Slasher.initialize.selector, eigenLayerReputedMultisig, eigenLayerPauserReg, 0/*initialPausedStatus*/)
         );
         eigenLayerProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(eigenPodManager))),
             address(eigenPodManagerImplementation),
-            abi.encodeWithSelector(EigenPodManager.initialize.selector, beaconChainOracle, eigenLayerReputedMultisig, eigenLayerPauserReg, 0)
+            abi.encodeWithSelector(EigenPodManager.initialize.selector, beaconChainOracle, eigenLayerReputedMultisig, eigenLayerPauserReg, 0/*initialPausedStatus*/)
         );
         uint256 initPausedStatus = 0;
         uint256 withdrawalDelayBlocks = PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS;

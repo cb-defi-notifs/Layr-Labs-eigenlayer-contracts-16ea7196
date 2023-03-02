@@ -98,7 +98,7 @@ contract InvestmentManagerUnitTests is Test {
 
     function testCannotReinitialize() public {
         cheats.expectRevert(bytes("Initializable: contract is already initialized"));
-        investmentManager.initialize(pauserRegistry, initialOwner, 0);
+        investmentManager.initialize(initialOwner, pauserRegistry, 0, 0);
     }
 
     function testDepositBeaconChainETHSuccessfully(address staker, uint256 amount) public filterFuzzedAddressInputs(staker) {
