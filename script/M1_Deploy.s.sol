@@ -188,8 +188,20 @@ contract EigenLayerDeployer is Script, Owners {
             );
         }
 
-        _verifyContractsPointAtOneAnother(delegationImplementation, investmentManagerImplementation, slasherImplementation, eigenPodManagerImplementation);
-        _verifyContractsPointAtOneAnother(delegation, investmentManager, slasher, eigenPodManager);
+        _verifyContractsPointAtOneAnother(
+            delegationImplementation,
+            investmentManagerImplementation,
+            slasherImplementation,
+            eigenPodManagerImplementation,
+            eigenPodPaymentEscrowImplementation
+        );
+        _verifyContractsPointAtOneAnother(
+            delegation,
+            investmentManager,
+            slasher,
+            eigenPodManager,
+            eigenPodPaymentEscrow
+        );
         _verifyInitialOwners();
         _checkPauserInitializations();
         vm.stopBroadcast();
@@ -203,40 +215,49 @@ contract EigenLayerDeployer is Script, Owners {
         EigenLayerDelegation delegationContract,  
         InvestmentManager investmentManagerContract, 
         Slasher slasherContract,  
-        EigenPodManager eigenPodManagerContract
+        EigenPodManager eigenPodManagerContract,
+        EigenPodPaymentEscrow eigenPodPaymentEscrowContract
     ) internal view {
-        require(delegationContract.slasher() == slasher, "delegation slasher address not set correctly");
-        require(delegationContract.investmentManager() == investmentManager, "delegation investmentManager address not set correctly");
+        require(delegationContract.slasher() == slasher, "delegation: slasher address not set correctly");
+        require(delegationContract.investmentManager() == investmentManager, "delegation: investmentManager address not set correctly");
 
-        require(investmentManagerContract.slasher() == slasher, "investmentManager slasher address not set correctly");
-        require(investmentManagerContract.delegation() == delegation, "investmentManager delegation address not set correctly");
-        require(investmentManagerContract.eigenPodManager() == eigenPodManager, "investmentManager eigenPodManager address not set correctly");
+        require(investmentManagerContract.slasher() == slasher, "investmentManager: slasher address not set correctly");
+        require(investmentManagerContract.delegation() == delegation, "investmentManager: delegation address not set correctly");
+        require(investmentManagerContract.eigenPodManager() == eigenPodManager, "investmentManager: eigenPodManager address not set correctly");
 
-        require(slasherContract.investmentManager() == investmentManager, "slasher's investmentManager not set correctly");
-        require(slasherContract.delegation() == delegation, "slasher's delegation not set correctly");
+        require(slasherContract.investmentManager() == investmentManager, "slasher: investmentManager not set correctly");
+        require(slasherContract.delegation() == delegation, "slasher: delegation not set correctly");
 
-        require(eigenPodManagerContract.ethPOS() == ethPOSDeposit, " eigenPodManagerethPOSDeposit contract address not set correctly");
-        require(eigenPodManagerContract.eigenPodBeacon() == eigenPodBeacon, "eigenPodManager eigenPodBeacon contract address not set correctly");
-        require(eigenPodManagerContract.investmentManager() == investmentManager, "eigenPodManager investmentManager contract address not set correctly");
-        require(eigenPodManagerContract.slasher() == slasher, "eigenPodManager slasher contract address not set correctly");
+        require(eigenPodManagerContract.ethPOS() == ethPOSDeposit, " eigenPodManager: ethPOSDeposit contract address not set correctly");
+        require(eigenPodManagerContract.eigenPodBeacon() == eigenPodBeacon, "eigenPodManager: eigenPodBeacon contract address not set correctly");
+        require(eigenPodManagerContract.investmentManager() == investmentManager, "eigenPodManager: investmentManager contract address not set correctly");
+        require(eigenPodManagerContract.slasher() == slasher, "eigenPodManager: slasher contract address not set correctly");
+        require(eigenPodManagerContract.beaconChainOracle() == IBeaconChainOracle(address(0)), "eigenPodManager: eigenPodBeacon contract address not set correctly");
 
+        require(eigenPodPaymentEscrowContract.eigenPodManager() == eigenPodManager, "eigenPodPaymentEscrowContract: eigenPodManager address not set correctly");
     }
 
     function _verifyInitialOwners()internal view {
-        require(investmentManager.owner() == eigenLayerReputedMultisig, "investmentManager owner not set correctly");
-        require(delegation.owner() == eigenLayerReputedMultisig, "delegation owner not set correctly");
-        require(slasher.owner() == eigenLayerReputedMultisig, "slasher owner not set correctly");
-        require(eigenPodManager.owner() == eigenLayerReputedMultisig, "delegation owner not set correctly");
+        require(investmentManager.owner() == eigenLayerReputedMultisig, "investmentManager: owner not set correctly");
+        require(delegation.owner() == eigenLayerReputedMultisig, "delegation: owner not set correctly");
+        require(slasher.owner() == eigenLayerReputedMultisig, "slasher: owner not set correctly");
+        require(eigenPodManager.owner() == eigenLayerReputedMultisig, "delegation: owner not set correctly");
 
     }
 
     function _checkPauserInitializations() internal view {
-        require(delegation.pauserRegistry() == eigenLayerPauserReg, "delegation's pauser registry not set correctly");
-        require(investmentManager.pauserRegistry() == eigenLayerPauserReg, "investmentManager's pauser registry not set correctly");
-        require(slasher.pauserRegistry() == eigenLayerPauserReg, "slasher's pauser registry not set correctly");
+        require(delegation.pauserRegistry() == eigenLayerPauserReg, "delegation: pauser registry not set correctly");
+        require(investmentManager.pauserRegistry() == eigenLayerPauserReg, "investmentManager: pauser registry not set correctly");
+        require(slasher.pauserRegistry() == eigenLayerPauserReg, "slasher: pauser registry not set correctly");
 
-        require(eigenLayerPauserReg.pauser() == eigenLayerTeamMultisig, "pauser not set correctly");
-        require(eigenLayerPauserReg.unpauser() == eigenLayerReputedMultisig, "pauser not set correctly");
+        require(eigenLayerPauserReg.pauser() == eigenLayerTeamMultisig, "pauserRegistry: pauser not set correctly");
+        require(eigenLayerPauserReg.unpauser() == eigenLayerReputedMultisig, "pauserRegistry: unpauser not set correctly");
+
+        require(investmentManager.paused() == INVESTMENT_MANAGER_INIT_PAUSED_STATUS, "investmentManager init paused status set incorrectly");
+        require(slasher.paused() == SLASHER_INIT_PAUSED_STATUS, "slasher init paused status set incorrectly");
+        require(delegation.paused() == DELEGATION_INIT_PAUSED_STATUS, "delegation init paused status set incorrectly");
+        require(eigenPodManager.paused() == EIGENPOD_MANAGER_INIT_PAUSED_STATUS, "eigenPodManager init paused status set incorrectly");
+        require(eigenPodPaymentEscrow.paused() == EIGENPOD_PAYMENT_ESCROW_INIT_PAUSED_STATUS, "eigenPodPaymentEscrow init paused status set incorrectly");
     }
 }
 
