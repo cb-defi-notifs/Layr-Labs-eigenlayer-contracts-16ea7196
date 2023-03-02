@@ -159,7 +159,8 @@ contract EigenPodTests is BeaconChainProofUtils, EigenPodPausingConstants, DSTes
             TransparentUpgradeableProxy(payable(address(eigenPodManager))),
             address(eigenPodManagerImplementation),
             abi.encodeWithSelector(
-                EigenPodManager.initialize.selector, beaconChainOracle,
+                EigenPodManager.initialize.selector,
+                beaconChainOracle,
                 initialOwner,
                 pauserReg,
                 0/*initialPausedStatus*/

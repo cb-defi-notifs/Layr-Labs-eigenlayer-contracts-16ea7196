@@ -76,14 +76,21 @@ contract Deployer_M1 is Script, Owners {
     // OTHER DEPLOYMENT PARAMETERS
     // pause *nothing*
     uint256 INVESTMENT_MANAGER_INIT_PAUSED_STATUS = 0;
+    // one week in blocks
+    uint32 WITHDRAWAL_DELAY_BLOCKS = 7 days / 12 seconds;
+
     // pause *everything*
     uint256 SLASHER_INIT_PAUSED_STATUS = type(uint256).max;
+
     // pause *everything*
     uint256 DELEGATION_INIT_PAUSED_STATUS = type(uint256).max;
+
     // pause *all of the proof-related functionality* (everything that can be paused other than creation of EigenPods)
     uint256 EIGENPOD_MANAGER_INIT_PAUSED_STATUS = (2**1) + (2**2) + (2**3) + (2**4);
+
     // pause *nothing*
     uint256 EIGENPOD_PAYMENT_ESCROW_INIT_PAUSED_STATUS = 0;
+
     // one week in blocks
     uint32 INIT_ESCROW_DELAY_BLOCKS = 7 days / 12 seconds;
 
@@ -139,24 +146,41 @@ contract Deployer_M1 is Script, Owners {
         eigenLayerProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(delegation))),
             address(delegationImplementation),
-            abi.encodeWithSelector(EigenLayerDelegation.initialize.selector, eigenLayerPauserReg, eigenLayerReputedMultisig)
+            abi.encodeWithSelector(
+                EigenLayerDelegation.initialize.selector,
+                eigenLayerReputedMultisig,
+                eigenLayerPauserReg,
+                DELEGATION_INIT_PAUSED_STATUS
+            )
         );
         eigenLayerProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(investmentManager))),
             address(investmentManagerImplementation),
-            abi.encodeWithSelector(InvestmentManager.initialize.selector, eigenLayerPauserReg, eigenLayerReputedMultisig, INVESTMENT_MANAGER_INIT_PAUSED_STATUS)
+            abi.encodeWithSelector(
+                InvestmentManager.initialize.selector,
+                eigenLayerReputedMultisig,
+                eigenLayerPauserReg,
+                INVESTMENT_MANAGER_INIT_PAUSED_STATUS,
+                WITHDRAWAL_DELAY_BLOCKS
+            )
         );
         eigenLayerProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(slasher))),
             address(slasherImplementation),
-            abi.encodeWithSelector(Slasher.initialize.selector, eigenLayerPauserReg, eigenLayerReputedMultisig, SLASHER_INIT_PAUSED_STATUS)
+            abi.encodeWithSelector(
+                Slasher.initialize.selector,
+                eigenLayerReputedMultisig,
+                eigenLayerPauserReg,
+                SLASHER_INIT_PAUSED_STATUS
+            )
         );
         eigenLayerProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(eigenPodManager))),
             address(eigenPodManagerImplementation),
             abi.encodeWithSelector(
                 EigenPodManager.initialize.selector,
-                 IBeaconChainOracle(address(0)),
+                // TODO: change this?
+                IBeaconChainOracle(address(0)),
                 eigenLayerReputedMultisig,
                 eigenLayerPauserReg,
                 EIGENPOD_MANAGER_INIT_PAUSED_STATUS

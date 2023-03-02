@@ -199,7 +199,8 @@ contract EigenLayerDeployer is Operators {
             TransparentUpgradeableProxy(payable(address(eigenPodManager))),
             address(eigenPodManagerImplementation),
             abi.encodeWithSelector(
-                EigenPodManager.initialize.selector, beaconChainOracle,
+                EigenPodManager.initialize.selector,
+                beaconChainOracle,
                 eigenLayerReputedMultisig,
                 eigenLayerPauserReg,
                 0/*initialPausedStatus*/
