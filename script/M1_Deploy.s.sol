@@ -73,9 +73,24 @@ contract EigenLayerDeployer is Script, Owners {
     uint256 wethInitialSupply = 10e50;
 
     // IMMUTABLES TO SET
+    // one week in blocks
     uint32 PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS = 7 days / 12 seconds;
     uint256 REQUIRED_BALANCE_WEI = 31 ether;
     uint64 MAX_PARTIAL_WTIHDRAWAL_AMOUNT_GWEI = 1 ether / 1e9;
+
+    // OTHER DEPLOYMENT PARAMETERS
+    // pause *nothing*
+    uint256 INVESTMENT_MANAGER_INIT_PAUSED_STATUS = 0;
+    // pause *everything*
+    uint256 SLASHER_INIT_PAUSED_STATUS = type(uint256).max;
+    // pause *everything*
+    uint256 DELEGATION_INIT_PAUSED_STATUS = type(uint256).max;
+    // pause *all of the proof-related functionality* (everything that can be paused other than creation of EigenPods)
+    uint256 EIGENPOD_MANAGER_INIT_PAUSED_STATUS = (2**1) + (2**2) + (2**3) + (2**4);
+    // pause *nothing*
+    uint256 EIGENPOD_PAYMENT_ESCROW_INIT_PAUSED_STATUS = 0;
+    // one week in blocks
+    uint32 INIT_ESCROW_DELAY_BLOCKS = 7 days / 12 seconds;
 
     function run() external {
         vm.startBroadcast();        
@@ -130,7 +145,7 @@ contract EigenLayerDeployer is Script, Owners {
         eigenLayerProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(investmentManager))),
             address(investmentManagerImplementation),
-            abi.encodeWithSelector(InvestmentManager.initialize.selector, eigenLayerPauserReg, eigenLayerReputedMultisig, 0)
+            abi.encodeWithSelector(InvestmentManager.initialize.selector, eigenLayerPauserReg, eigenLayerReputedMultisig, INVESTMENT_MANAGER_INIT_PAUSED_STATUS)
         );
         eigenLayerProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(slasher))),
@@ -140,7 +155,13 @@ contract EigenLayerDeployer is Script, Owners {
         eigenLayerProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(eigenPodManager))),
             address(eigenPodManagerImplementation),
-            abi.encodeWithSelector(EigenPodManager.initialize.selector, IBeaconChainOracle(address(0)), eigenLayerReputedMultisig, eigenLayerPauserReg, 0)
+            abi.encodeWithSelector(
+                EigenPodManager.initialize.selector,
+                 IBeaconChainOracle(address(0)),
+                eigenLayerReputedMultisig,
+                eigenLayerPauserReg,
+                EIGENPOD_MANAGER_INIT_PAUSED_STATUS
+            )
         );
         eigenLayerProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(eigenPodPaymentEscrow))),
@@ -148,8 +169,8 @@ contract EigenLayerDeployer is Script, Owners {
             abi.encodeWithSelector(EigenPodPaymentEscrow.initialize.selector,
             eigenLayerReputedMultisig,
             eigenLayerPauserReg,
-            0,
-            PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS)
+            EIGENPOD_PAYMENT_ESCROW_INIT_PAUSED_STATUS,
+            INIT_ESCROW_DELAY_BLOCKS)
         );
 
         //simple ERC20 (**NOT** WETH-like!), used in a test investment strategy
