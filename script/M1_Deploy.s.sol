@@ -28,12 +28,8 @@ import "../src/test/mocks/EmptyContract.sol";
 import "../src/test/mocks/ETHDepositMock.sol";
 import "../src/test/utils/Owners.sol";
 
-import "forge-std/Test.sol";
-
 import "forge-std/Script.sol";
 import "forge-std/StdJson.sol";
-
-import "../src/contracts/libraries/BytesLib.sol";
 
 // # To load the variables in the .env file
 // source .env
@@ -41,8 +37,6 @@ import "../src/contracts/libraries/BytesLib.sol";
 // # To deploy and verify our contract
 // forge script script/Deployer.s.sol:EigenLayerDeployer --rpc-url $RPC_URL  --private-key $PRIVATE_KEY --broadcast -vvvv
 contract EigenLayerDeployer is Script, Owners {
-    using BytesLib for bytes;
-
     // EigenLayer Contracts
     ProxyAdmin public eigenLayerProxyAdmin;
     PauserRegistry public eigenLayerPauserReg;
