@@ -163,6 +163,14 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         emit EigenPodStaked(pubkey);
     }
 
+    function getBalanceFromBalanceRoot(uint40 validatorIndex, bytes32 balanceRoot) internal returns(uint64){
+        uint256 bitShiftAmount = (validatorIndex % 4) * 64;
+        uint256 balanceRoot = uint256(balanceRoot);
+        bytes32 validatorBalanceLittleEndian = bytes32((balanceRoot << bitShiftAmount));
+        uint64 validatorBalance = Endian.fromLittleEndianUint64(validatorBalanceLittleEndian);
+        return validatorBalance;
+    }
+
     /**
      * @notice This function verifies that the withdrawal credentials of the podOwner are pointed to
      * this contract. It verifies the provided proof of the ETH validator against the beacon chain state
@@ -189,8 +197,11 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         require(validatorFields[BeaconChainProofs.VALIDATOR_WITHDRAWAL_CREDENTIALS_INDEX] == _podWithdrawalCredentials().toBytes32(0),
             "EigenPod.verifyCorrectWithdrawalCredentials: Proof is not for this EigenPod");
         // convert the balance field from 8 bytes of little endian to uint64 big endian 💪
-        uint64 validatorCurrentBalanceGwei = Endian.fromLittleEndianUint64(proofs.balanceRoot);
+        // uint64 validatorCurrentBalanceGwei = Endian.fromLittleEndianUint64(proofs.balanceRoot);
+        uint64 validatorCurrentBalanceGwei = getBalanceFromBalanceRoot(validatorIndex, proofs.balanceRoot);
         // make sure the balance is greater than the amount restaked per validator
+
+        emit log_named_uint("validatorCurrentBalanceGwei", validatorCurrentBalanceGwei);
 
         require(validatorCurrentBalanceGwei >= REQUIRED_BALANCE_GWEI,
             "EigenPod.verifyCorrectWithdrawalCredentials: ETH validator's balance must be greater than or equal to the restaked balance per validator");

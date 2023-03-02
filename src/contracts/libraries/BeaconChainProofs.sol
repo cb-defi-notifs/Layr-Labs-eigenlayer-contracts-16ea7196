@@ -98,6 +98,10 @@ library BeaconChainProofs {
     //Misc Constants
     uint256 internal constant SLOTS_PER_EPOCH = 32;
 
+    bytes8 internal constant UINT64_MASK = 0xffffffffffffffff;
+
+
+
     struct WithdrawalProofs {
         bytes blockHeaderProof;
         bytes withdrawalProof;
@@ -159,6 +163,15 @@ library BeaconChainProofs {
         }
 
         return Merkle.merkleizeSha256(paddedEth1DataFields);
+    }
+
+    function getBalanceFromBalanceRoot(uint40 validatorIndex, bytes32 balanceRoot) internal returns(uint64){
+
+        uint256 bitShiftAmount = (validatorIndex % 4) * 64;
+
+        bytes8 validatorBalance = bytes8((balanceRoot << bitShiftAmount) & UINT64_MASK);
+
+        return abi.decode(abi.encodePacked(validatorBalance), (uint64));
     }
 
     /**
