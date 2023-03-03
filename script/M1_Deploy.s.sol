@@ -57,8 +57,8 @@ contract Deployer_M1 is Script, Owners {
     EmptyContract public emptyContract;
 
     // TODO: set these addresses
-    address eigenLayerReputedMultisig = address(2);
-    address eigenLayerTeamMultisig = address(3);
+    address communityMultisig = address(2);
+    address teamMultisig = address(3);
 
     // TODO: set this correctly instead of using a mock (possibly dependent upon network)
     IETHPOSDeposit public ethPOSDeposit;
@@ -101,7 +101,7 @@ contract Deployer_M1 is Script, Owners {
         eigenLayerProxyAdmin = new ProxyAdmin();
 
         //deploy pauser registry
-        eigenLayerPauserReg = new PauserRegistry(address(eigenLayerTeamMultisig), eigenLayerReputedMultisig);
+        eigenLayerPauserReg = new PauserRegistry(teamMultisig, communityMultisig);
 
         /**
          * First, deploy upgradeable proxy contracts that **will point** to the implementations. Since the implementation contracts are
@@ -148,7 +148,7 @@ contract Deployer_M1 is Script, Owners {
             address(delegationImplementation),
             abi.encodeWithSelector(
                 EigenLayerDelegation.initialize.selector,
-                eigenLayerReputedMultisig,
+                communityMultisig,
                 eigenLayerPauserReg,
                 DELEGATION_INIT_PAUSED_STATUS
             )
@@ -158,7 +158,7 @@ contract Deployer_M1 is Script, Owners {
             address(investmentManagerImplementation),
             abi.encodeWithSelector(
                 InvestmentManager.initialize.selector,
-                eigenLayerReputedMultisig,
+                communityMultisig,
                 eigenLayerPauserReg,
                 INVESTMENT_MANAGER_INIT_PAUSED_STATUS,
                 WITHDRAWAL_DELAY_BLOCKS
@@ -169,7 +169,7 @@ contract Deployer_M1 is Script, Owners {
             address(slasherImplementation),
             abi.encodeWithSelector(
                 Slasher.initialize.selector,
-                eigenLayerReputedMultisig,
+                communityMultisig,
                 eigenLayerPauserReg,
                 SLASHER_INIT_PAUSED_STATUS
             )
@@ -181,7 +181,7 @@ contract Deployer_M1 is Script, Owners {
                 EigenPodManager.initialize.selector,
                 // TODO: change this?
                 IBeaconChainOracle(address(0)),
-                eigenLayerReputedMultisig,
+                communityMultisig,
                 eigenLayerPauserReg,
                 EIGENPOD_MANAGER_INIT_PAUSED_STATUS
             )
@@ -190,7 +190,7 @@ contract Deployer_M1 is Script, Owners {
             TransparentUpgradeableProxy(payable(address(eigenPodPaymentEscrow))),
             address(eigenPodPaymentEscrowImplementation),
             abi.encodeWithSelector(EigenPodPaymentEscrow.initialize.selector,
-            eigenLayerReputedMultisig,
+            communityMultisig,
             eigenLayerPauserReg,
             EIGENPOD_PAYMENT_ESCROW_INIT_PAUSED_STATUS,
             INIT_ESCROW_DELAY_BLOCKS)
@@ -210,8 +210,7 @@ contract Deployer_M1 is Script, Owners {
             );
         }
 
-        eigenLayerProxyAdmin.transferOwnership(eigenLayerReputedMultisig);
-
+        eigenLayerProxyAdmin.transferOwnership(communityMultisig);
 
         _verifyContractsPointAtOneAnother(
             delegationImplementation,
@@ -263,12 +262,12 @@ contract Deployer_M1 is Script, Owners {
     }
 
     function _verifyInitialOwners()internal view {
-        require(investmentManager.owner() == eigenLayerReputedMultisig, "investmentManager: owner not set correctly");
-        require(delegation.owner() == eigenLayerReputedMultisig, "delegation: owner not set correctly");
-        require(slasher.owner() == eigenLayerReputedMultisig, "slasher: owner not set correctly");
-        require(eigenPodManager.owner() == eigenLayerReputedMultisig, "delegation: owner not set correctly");
+        require(investmentManager.owner() == communityMultisig, "investmentManager: owner not set correctly");
+        require(delegation.owner() == communityMultisig, "delegation: owner not set correctly");
+        require(slasher.owner() == communityMultisig, "slasher: owner not set correctly");
+        require(eigenPodManager.owner() == communityMultisig, "delegation: owner not set correctly");
 
-        require(eigenLayerProxyAdmin.owner() == eigenLayerReputedMultisig, "investmentManager: owner not set correctly");
+        require(eigenLayerProxyAdmin.owner() == communityMultisig, "investmentManager: owner not set correctly");
     }
 
     function _checkPauserInitializations() internal view {
@@ -276,8 +275,8 @@ contract Deployer_M1 is Script, Owners {
         require(investmentManager.pauserRegistry() == eigenLayerPauserReg, "investmentManager: pauser registry not set correctly");
         require(slasher.pauserRegistry() == eigenLayerPauserReg, "slasher: pauser registry not set correctly");
 
-        require(eigenLayerPauserReg.pauser() == eigenLayerTeamMultisig, "pauserRegistry: pauser not set correctly");
-        require(eigenLayerPauserReg.unpauser() == eigenLayerReputedMultisig, "pauserRegistry: unpauser not set correctly");
+        require(eigenLayerPauserReg.pauser() == teamMultisig, "pauserRegistry: pauser not set correctly");
+        require(eigenLayerPauserReg.unpauser() == communityMultisig, "pauserRegistry: unpauser not set correctly");
 
         require(investmentManager.paused() == INVESTMENT_MANAGER_INIT_PAUSED_STATUS, "investmentManager init paused status set incorrectly");
         require(slasher.paused() == SLASHER_INIT_PAUSED_STATUS, "slasher init paused status set incorrectly");
