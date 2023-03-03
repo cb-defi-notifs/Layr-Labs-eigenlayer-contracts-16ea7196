@@ -210,7 +210,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
             beaconStateRoot,
             proofs.validatorBalanceProof,
             proofs.balanceRoot
-        );        
+        );
         // set the status to active
         validatorStatus[validatorIndex] = VALIDATOR_STATUS.ACTIVE;
 
@@ -305,9 +305,12 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         onlyWhenNotPaused(PAUSED_EIGENPODS_VERIFY_WITHDRAWAL)
         /** 
          * Check that the provided block number being proven against is after the `mostRecentWithdrawalBlockNumber`.
-         * Without this check, there is an edge case where a user proves a past withdrawal for a validator marked as 'INACTIVE' whose funds they already withdrew,
-         * as a way to "withdraw the same funds twice" without providing a proof. Note that this check is not made using the oracleBlockNumber as in the `verifyWithdrawalCredentials`
-         * proof.  This proof is made for the block number of the withdrawal, which may be within 8192 slots of the oracleBlockNumber.
+         * Without this check, there is an edge case where a user proves a past withdrawal for a validator whose funds they already withdrew,
+         * as a way to "withdraw the same funds twice" without providing adequate proof.
+         * Note that this check is not made using the oracleBlockNumber as in the `verifyWithdrawalCredentials` proof; instead this proof
+         * proof is made for the block number of the withdrawal, which may be within 8192 slots of the oracleBlockNumber. 
+         * This difference in modifier usage is OK, since it is still not possible to `verifyAndProcessWithdrawal` against a slot that occurred
+         * *prior* to the proof provided in the `verifyWithdrawalCredentials` function.
          */
         proofIsForValidBlockNumber(Endian.fromLittleEndianUint64(withdrawalProofs.blockNumberRoot))
     {
@@ -439,13 +442,11 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         _sendETH(recipient, amountWei);
     }
 
-
     /// @notice Called by the pod owner to withdraw the balance of the pod when `hasRestaked` is set to false
     function withdrawBeforeRestaking() external onlyEigenPodOwner hasNeverRestaked {
         mostRecentWithdrawalBlockNumber = uint32(block.number);
         _sendETH(podOwner, address(this).balance);
     }
-
 
     // INTERNAL FUNCTIONS
     function _podWithdrawalCredentials() internal view returns(bytes memory) {
