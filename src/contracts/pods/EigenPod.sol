@@ -263,6 +263,8 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
 
         // verify ETH validator proof
         bytes32 beaconStateRoot = eigenPodManager.getBeaconChainStateRoot(oracleBlockNumber);
+
+        //Verify the validator fields, which contain the validator's slashed status
         BeaconChainProofs.verifyValidatorFields(
             validatorIndex,
             beaconStateRoot,
