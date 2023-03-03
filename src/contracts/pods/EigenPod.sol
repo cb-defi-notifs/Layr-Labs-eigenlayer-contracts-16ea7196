@@ -301,7 +301,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
      */
     function verifyAndProcessWithdrawal(
         BeaconChainProofs.WithdrawalProofs calldata withdrawalProofs, 
-        BeaconChainProofs.ValidatorFieldsProof calldata validatorFieldsProof,
+        bytes calldata validatorFieldsProof,
         bytes32[] calldata validatorFields,
         bytes32[] calldata withdrawalFields,
         uint256 beaconChainETHStrategyIndex,
@@ -335,9 +335,8 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         //Verifying the withdrawal as well as the block number
         BeaconChainProofs.verifyBlockNumberAndWithdrawalFields(beaconStateRoot, withdrawalProofs, withdrawalFields);
         //Verifying the validator fields, specifically the withdrawable epoch
-        BeaconChainProofs.verifyValidatorFields(validatorFieldsProof.validatorIndex, beaconStateRoot, validatorFieldsProof.validatorProof, validatorFields);
+        BeaconChainProofs.verifyValidatorFields(validatorIndex, beaconStateRoot, validatorFieldsProof, validatorFields);
 
-        uint64 withdrawableEpoch = Endian.fromLittleEndianUint64(validatorFields[BeaconChainProofs.VALIDATOR_WITHDRAWABLE_EPOCH_INDEX]);
         uint64 withdrawalAmountGwei = Endian.fromLittleEndianUint64(withdrawalFields[BeaconChainProofs.WITHDRAWAL_VALIDATOR_AMOUNT_INDEX]);
 
         //check if the withdrawal occured after mostRecentWithdrawalBlockNumber
@@ -347,7 +346,8 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
          * if the validator's withdrawalble epoch is less than or equal to the slot's epoch, then the validator has fully withdrawn because
          * a full withdrawal is only processable after the withdrawable epoch has passed.
          */
-        if (withdrawableEpoch <= slot/BeaconChainProofs.SLOTS_PER_EPOCH) {
+        // uint64 withdrawableEpoch = Endian.fromLittleEndianUint64(validatorFields[BeaconChainProofs.VALIDATOR_WITHDRAWABLE_EPOCH_INDEX]);
+        if (Endian.fromLittleEndianUint64(validatorFields[BeaconChainProofs.VALIDATOR_WITHDRAWABLE_EPOCH_INDEX]) <= slot/BeaconChainProofs.SLOTS_PER_EPOCH) {
             _processFullWithdrawal(withdrawalAmountGwei, validatorIndex, beaconChainETHStrategyIndex, podOwner, validatorStatus[validatorIndex]);
         } else {
             _processPartialWithdrawal(slot, withdrawalAmountGwei, validatorIndex, podOwner);

@@ -131,7 +131,7 @@ interface IEigenPod {
      */
     function verifyAndProcessWithdrawal(
         BeaconChainProofs.WithdrawalProofs calldata withdrawalProofs, 
-        BeaconChainProofs.ValidatorFieldsProof calldata validatorFieldsProof,
+        bytes calldata validatorFieldsProof,
         bytes32[] calldata validatorFields,
         bytes32[] calldata withdrawalFields,
         uint256 beaconChainETHStrategyIndex,

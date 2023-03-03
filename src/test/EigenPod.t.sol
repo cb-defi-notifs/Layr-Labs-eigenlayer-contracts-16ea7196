@@ -233,7 +233,7 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
 
         setJSON("./src/test/test-data/fullWithdrawalProof.json");
         BeaconChainProofs.WithdrawalProofs memory withdrawalProofs = _getWithdrawalProof();
-        BeaconChainProofs.ValidatorFieldsProof memory validatorFieldsProof = _getValidatorFieldsProof();
+        bytes memory validatorFieldsProof = abi.encodePacked(getValidatorProof());
         withdrawalFields = getWithdrawalFields();   
         validatorFields = getValidatorFields();
         bytes32 newBeaconStateRoot = getBeaconStateRoot();
@@ -264,7 +264,7 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
 
         setJSON("./src/test/test-data/partialWithdrawalProof.json");
         BeaconChainProofs.WithdrawalProofs memory withdrawalProofs = _getWithdrawalProof();
-        BeaconChainProofs.ValidatorFieldsProof memory validatorFieldsProof = _getValidatorFieldsProof();
+        bytes memory validatorFieldsProof = abi.encodePacked(getValidatorProof());
 
         withdrawalFields = getWithdrawalFields();   
         validatorFields = getValidatorFields();
