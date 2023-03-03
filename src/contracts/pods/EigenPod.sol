@@ -210,7 +210,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
             beaconStateRoot,
             proofs.validatorBalanceProof,
             proofs.balanceRoot
-        );        
+        );
         // set the status to active
         validatorStatus[validatorIndex] = VALIDATOR_STATUS.ACTIVE;
 
@@ -278,8 +278,6 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         // virtually deposit REQUIRED_BALANCE_WEI for new ETH validator
         eigenPodManager.restakeBeaconChainETH(podOwner, REQUIRED_BALANCE_WEI);
     }
-
-
 
     /**
      * @notice This function records an overcommitment of stake to EigenLayer on behalf of a certain ETH validator.
@@ -490,13 +488,11 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         _sendETH(recipient, amountWei);
     }
 
-
     /// @notice Called by the pod owner to withdraw the balance of the pod when `hasRestaked` is set to false
     function withdrawBeforeRestaking() external onlyEigenPodOwner hasNeverRestaked {
         mostRecentWithdrawalBlockNumber = uint32(block.number);
         _sendETH(podOwner, address(this).balance);
     }
-
 
     // INTERNAL FUNCTIONS
     function _podWithdrawalCredentials() internal view returns(bytes memory) {
