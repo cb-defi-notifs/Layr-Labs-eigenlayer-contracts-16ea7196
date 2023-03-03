@@ -353,7 +353,8 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         /** 
          * Check that the provided block number being proven against is after the `mostRecentWithdrawalBlockNumber`.
          * Without this check, there is an edge case where a user proves a past withdrawal for a validator marked as 'INACTIVE' whose funds they already withdrew,
-         * as a way to "withdraw the same funds twice" without providing a proof.
+         * as a way to "withdraw the same funds twice" without providing a proof. Noe that this check is not made using the oracleBlockNumber as with the verifyWithdrawalCredentials
+         * proof.  This proof is made for the block number of the withdrawal, which may be within 8192 slots of the oracleBlockNumber.
          */
         proofIsForValidBlockNumber(Endian.fromLittleEndianUint64(proofs.blockNumberRoot))
     {

@@ -170,10 +170,17 @@ library BeaconChainProofs {
         return Merkle.merkleizeSha256(paddedEth1DataFields);
     }
 
+    /**
+     * 
+     * @param validatorIndex @notice This function is parses the balanceRoot to get the uint64 balance of a validator.  During merkleization of the
+     * beacon state balance tree, four uint64 values (making 32 bytes) are grouped together and treated as a single leaf in the merkle tree. Thus the
+     * validatorIndex mod 4 is used to determine which of the four uint64 values to extract from the balanceRoot.
+     * @param balanceRoot 
+     */
+
    function getBalanceFromBalanceRoot(uint40 validatorIndex, bytes32 balanceRoot) internal returns(uint64){
         uint256 bitShiftAmount = (validatorIndex % 4) * 64;
-        uint256 balanceRoot = uint256(balanceRoot);
-        bytes32 validatorBalanceLittleEndian = bytes32((balanceRoot << bitShiftAmount));
+        bytes32 validatorBalanceLittleEndian = bytes32((uint256(balanceRoot) << bitShiftAmount));
         uint64 validatorBalance = Endian.fromLittleEndianUint64(validatorBalanceLittleEndian);
         return validatorBalance;
     }
@@ -207,6 +214,14 @@ library BeaconChainProofs {
         require(Merkle.verifyInclusionSha256(proof, beaconStateRoot, validatorRoot, index), "BeaconChainProofs.verifyValidatorFields: Invalid merkle proof");
     }
 
+    /**
+     * @notice This function verifies merkle proofs the fields of a certain validator against a beacon chain state root
+     * @param validatorIndex the index of the proven validator
+     * @param beaconStateRoot is the beacon chain state root.
+     * @param proof is the proof of the balance against the beacon chain state root
+     * @param balanceRoot is the serialized balance used to prove the balance of the validator (refer to 
+     * getBalanceFromBalanceRoot() above for detailed explanation)
+     */
     function verifyValidatorBalance(
         uint40 validatorIndex,
         bytes32 beaconStateRoot,
