@@ -318,29 +318,25 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
         require(beaconChainETHShares == 0, "investmentManager shares not updated correctly");
     }
 
-    // //test deploying an eigen pod with mismatched withdrawal credentials between the proof and the actual pod's address
-    // function testDeployNewEigenPodWithWrongWithdrawalCreds(address wrongWithdrawalAddress) public {
-    //     IEigenPod newPod;
-    //     newPod = eigenPodManager.getPod(podOwner);
-    //     // make sure that wrongWithdrawalAddress is not set to actual pod address
-    //     cheats.assume(wrongWithdrawalAddress != address(newPod));
-        
-    //     (beaconStateRoot, beaconStateMerkleProofForValidators, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) =
-    //         getInitialDepositProof(validatorIndex0);
-    //     BeaconChainOracleMock(address(beaconChainOracle)).setBeaconChainStateRoot(beaconStateRoot);
+    //test deploying an eigen pod with mismatched withdrawal credentials between the proof and the actual pod's address
+    function testDeployNewEigenPodWithWrongWithdrawalCreds(address wrongWithdrawalAddress) public {
+        cheats.startPrank(podOwner);
+        eigenPodManager.stake{value: stakeAmount}(pubkey, signature, depositDataRoot);
+        cheats.stopPrank();
 
+        IEigenPod newPod;
+        newPod = eigenPodManager.getPod(podOwner);
+        // make sure that wrongWithdrawalAddress is not set to actual pod address
+        cheats.assume(wrongWithdrawalAddress != address(newPod));
 
-    //     cheats.startPrank(podOwner);
-    //     eigenPodManager.stake{value: stakeAmount}(pubkey, signature, depositDataRoot);
-    //     cheats.stopPrank();
+        validatorFields = getValidatorFields();
+        validatorFields[1] = abi.encodePacked(bytes1(uint8(1)), bytes11(0), wrongWithdrawalAddress).toBytes32(0);
+        BeaconChainProofs.ValidatorFieldsAndBalanceProofs memory proofs = _getValidatorFieldsAndBalanceProof();
+        uint64 blockNumber = 1;
 
-    //     validatorContainerFields[1] = abi.encodePacked(bytes1(uint8(1)), bytes11(0), wrongWithdrawalAddress).toBytes32(0);
-
-    //     bytes memory proofs = abi.encodePacked(validatorMerkleProof, beaconStateMerkleProofForValidators);
-    //     cheats.expectRevert(bytes("EigenPod.verifyCorrectWithdrawalCredentials: Proof is not for this EigenPod"));
-    //     uint64 blockNumber = 1;
-    //     newPod.verifyCorrectWithdrawalCredentials(blockNumber, validatorIndex0, proofs, validatorContainerFields);
-    // }
+        cheats.expectRevert(bytes("EigenPod.verifyCorrectWithdrawalCredentials: Proof is not for this EigenPod"));
+        newPod.verifyWithdrawalCredentialsAndBalance(blockNumber, validatorIndex0, proofs, validatorFields);
+    }
 
     // //test that when withdrawal credentials are verified more than once, it reverts
     // function testDeployNewEigenPodWithActiveValidator() public {
