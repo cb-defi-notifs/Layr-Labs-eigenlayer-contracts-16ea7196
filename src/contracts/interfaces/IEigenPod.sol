@@ -113,11 +113,11 @@ interface IEigenPod {
      * @dev For more details on the Beacon Chain spec, see: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
      */
     function verifyOvercommittedStake(
-        uint64 oracleBlockNumber,
         uint40 validatorIndex,
         BeaconChainProofs.ValidatorFieldsAndBalanceProofs calldata proofs,
+        bytes32[] calldata validatorFields,
         uint256 beaconChainETHStrategyIndex,
-        bytes32[] calldata validatorFields
+        uint64 oracleBlockNumber
     ) external;
 
     /**
