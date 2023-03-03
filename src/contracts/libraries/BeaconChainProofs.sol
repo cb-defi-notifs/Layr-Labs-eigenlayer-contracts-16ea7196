@@ -106,12 +106,10 @@ library BeaconChainProofs {
         bytes blockHeaderProof;
         bytes withdrawalProof;
         bytes slotProof;
-        bytes validatorProof;
         bytes executionPayloadProof;
         bytes blockNumberProof;
         uint64 blockHeaderRootIndex;
         uint64 withdrawalIndex;
-        uint40 validatorIndex;
         bytes32 blockHeaderRoot;
         bytes32 blockBodyRoot;
         bytes32 slotRoot;
@@ -128,6 +126,11 @@ library BeaconChainProofs {
     struct ValidatorBalanceProof {
         bytes validatorBalanceProof;
         bytes32 balanceRoot;
+    }
+
+    struct ValidatorFieldsProof {
+        bytes validatorProof;
+        uint40 validatorIndex;
     }
 
     function computePhase0BeaconBlockHeaderRoot(bytes32[NUM_BEACON_BLOCK_HEADER_FIELDS] calldata blockHeaderFields) internal pure returns(bytes32) {
@@ -250,12 +253,10 @@ library BeaconChainProofs {
 
         require(proofs.blockHeaderRootIndex < 2**BLOCK_ROOTS_TREE_HEIGHT, "BeaconChainProofs.verifyBlockNumberAndWithdrawalFields: blockRootIndex is too large");
         require(proofs.withdrawalIndex < 2**WITHDRAWALS_TREE_HEIGHT, "BeaconChainProofs.verifyBlockNumberAndWithdrawalFields: withdrawalIndex is too large");
-        require(proofs.validatorIndex < 2**VALIDATOR_TREE_HEIGHT, "BeaconChainProofs.verifyBlockNumberAndWithdrawalFields: validatorIndex is too large");
        
         // verify the block header proof length
         require(proofs.blockHeaderProof.length == 32 * (BEACON_STATE_FIELD_TREE_HEIGHT + BLOCK_ROOTS_TREE_HEIGHT), "BeaconChainProofs.verifyBlockNumberAndWithdrawalFields: blockHeaderProof has incorrect length");
         require(proofs.withdrawalProof.length == 32 * (EXECUTION_PAYLOAD_HEADER_FIELD_TREE_HEIGHT + WITHDRAWALS_TREE_HEIGHT + 1), "BeaconChainProofs.verifyBlockNumberAndWithdrawalFields: withdrawalProof has incorrect length");
-        require(proofs.validatorProof.length == 32 * (BEACON_STATE_FIELD_TREE_HEIGHT + VALIDATOR_TREE_HEIGHT + 1), "BeaconChainProofs.verifyBlockNumberAndWithdrawalFields: validatorProof has incorrect length");
         require(proofs.executionPayloadProof.length == 32 * (BEACON_BLOCK_HEADER_FIELD_TREE_HEIGHT + BEACON_BLOCK_BODY_FIELD_TREE_HEIGHT), "BeaconChainProofs.verifyBlockNumberAndWithdrawalFields: executionPayloadProof has incorrect length");
 
         //Compute the block_header_index relative to the beaconStateRoot.  It concatenates the indexes of all the

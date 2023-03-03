@@ -233,6 +233,7 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
 
         setJSON("./src/test/test-data/fullWithdrawalProof.json");
         BeaconChainProofs.WithdrawalProofs memory withdrawalProofs = _getWithdrawalProof();
+        BeaconChainProofs.ValidatorFieldsProof memory validatorFieldsProof = _getValidatorFieldsProof();
         withdrawalFields = getWithdrawalFields();   
         validatorFields = getValidatorFields();
         bytes32 newBeaconStateRoot = getBeaconStateRoot();
@@ -244,7 +245,7 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
         cheats.deal(address(newPod), leftOverBalanceWEI);
         
         uint256 escrowContractBalanceBefore = address(eigenPodPaymentEscrow).balance;
-        newPod.verifyAndProcessWithdrawal(withdrawalProofs, validatorFields, withdrawalFields, 0, 0);
+        newPod.verifyAndProcessWithdrawal(withdrawalProofs, validatorFieldsProof, validatorFields, withdrawalFields, 0, 0);
         require(newPod.restakedExecutionLayerGwei() -  restakedExecutionLayerGweiBefore == newPod.REQUIRED_BALANCE_GWEI(), "restakedExecutionLayerGwei has not been incremented correctly");
         require(address(eigenPodPaymentEscrow).balance - escrowContractBalanceBefore == leftOverBalanceWEI, "Escrow pod payment balance hasn't ben updated correctly");
 
@@ -263,6 +264,8 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
 
         setJSON("./src/test/test-data/partialWithdrawalProof.json");
         BeaconChainProofs.WithdrawalProofs memory withdrawalProofs = _getWithdrawalProof();
+        BeaconChainProofs.ValidatorFieldsProof memory validatorFieldsProof = _getValidatorFieldsProof();
+
         withdrawalFields = getWithdrawalFields();   
         validatorFields = getValidatorFields();
         bytes32 newBeaconStateRoot = getBeaconStateRoot();
@@ -273,7 +276,7 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
         cheats.deal(address(newPod), stakeAmount);    
 
         uint256 escrowContractBalanceBefore = address(eigenPodPaymentEscrow).balance;
-        newPod.verifyAndProcessWithdrawal(withdrawalProofs, validatorFields, withdrawalFields, 0, 0);
+        newPod.verifyAndProcessWithdrawal(withdrawalProofs, validatorFieldsProof, validatorFields, withdrawalFields, 0, 0);
         uint40 validatorIndex = uint40(getValidatorIndex());
         require(newPod.provenPartialWithdrawal(validatorIndex, slot), "provenPartialWithdrawal should be true");
         withdrawalAmountGwei = uint64(withdrawalAmountGwei*GWEI_TO_WEI);
@@ -659,7 +662,7 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
             blockNumberRoot = getBlockNumberRoot();
             executionPayloadRoot = getExecutionPayloadRoot();
 
-            uint256 validatorIndex = getValidatorIndex(); 
+
 
             uint256 withdrawalIndex = getWithdrawalIndex();
             uint256 blockHeaderRootIndex = getBlockHeaderRootIndex();
@@ -669,17 +672,35 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
                 abi.encodePacked(getBlockHeaderProof()),
                 abi.encodePacked(getWithdrawalProof()),
                 abi.encodePacked(getSlotProof()),
-                abi.encodePacked(getValidatorProof()),
                 abi.encodePacked(getExecutionPayloadProof()),
                 abi.encodePacked(getBlockNumberProof()),
                 uint64(blockHeaderRootIndex),
                 uint64(withdrawalIndex),
-                uint40(validatorIndex),
                 blockHeaderRoot,
                 blockBodyRoot,
                 slotRoot,
                 blockNumberRoot,
                 executionPayloadRoot
+            );
+            return proofs;
+        }
+    }
+
+    function _getValidatorFieldsProof() internal returns(BeaconChainProofs.ValidatorFieldsProof memory) {
+        //make initial deposit
+        cheats.startPrank(podOwner);
+        eigenPodManager.stake{value: stakeAmount}(pubkey, signature, depositDataRoot);
+        cheats.stopPrank();
+
+        
+        {
+            bytes32 beaconStateRoot = getBeaconStateRoot();
+            //set beaconStateRoot
+            beaconChainOracle.setBeaconChainStateRoot(beaconStateRoot);
+            uint256 validatorIndex = getValidatorIndex(); 
+            BeaconChainProofs.ValidatorFieldsProof memory proofs = BeaconChainProofs.ValidatorFieldsProof(
+                abi.encodePacked(getValidatorProof()),
+                uint40(validatorIndex)
             );
             return proofs;
         }
