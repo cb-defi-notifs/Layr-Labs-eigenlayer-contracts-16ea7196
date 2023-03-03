@@ -175,7 +175,7 @@ library BeaconChainProofs {
      * @param validatorIndex @notice This function is parses the balanceRoot to get the uint64 balance of a validator.  During merkleization of the
      * beacon state balance tree, four uint64 values (making 32 bytes) are grouped together and treated as a single leaf in the merkle tree. Thus the
      * validatorIndex mod 4 is used to determine which of the four uint64 values to extract from the balanceRoot.
-     * @param balanceRoot 
+     * @param balanceRoot is the combination of 4 validator balances being proven for.
      */
 
    function getBalanceFromBalanceRoot(uint40 validatorIndex, bytes32 balanceRoot) internal returns(uint64){
