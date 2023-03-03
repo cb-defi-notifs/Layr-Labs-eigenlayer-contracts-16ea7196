@@ -227,7 +227,7 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
     function testFullWithdrawalFlow() public {
         //this call is to ensure that validatorContainerFields and validatorMerkleProof in BeaconChainUtils get set
         setJSON("./src/test/test-data/withdrawalCredentialAndBalanceProof_61336.json");
-        _testDeployAndVerifyNewEigenPodWithBalanceProof(podOwner, signature, depositDataRoot);
+        _testDeployAndVerifyNewEigenPod(podOwner, signature, depositDataRoot);
         IEigenPod newPod = eigenPodManager.getPod(podOwner);
 
 
@@ -258,7 +258,7 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
     function testPartialWithdrawalFlow() public {
         //this call is to ensure that validatorContainerFields and validatorMerkleProof in BeaconChainUtils get set
         setJSON("./src/test/test-data/withdrawalCredentialAndBalanceProof_61068.json");
-        _testDeployAndVerifyNewEigenPodWithBalanceProof(podOwner, signature, depositDataRoot);
+        _testDeployAndVerifyNewEigenPod(podOwner, signature, depositDataRoot);
         IEigenPod newPod = eigenPodManager.getPod(podOwner);
 
 
@@ -292,25 +292,31 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
 
     function testDeployAndVerifyNewEigenPod() public returns(IEigenPod){
         setJSON("./src/test/test-data/withdrawalCredentialAndBalanceProof_61068.json");
-        return _testDeployAndVerifyNewEigenPodWithBalanceProof(podOwner, signature, depositDataRoot);
+        return _testDeployAndVerifyNewEigenPod(podOwner, signature, depositDataRoot);
     }
 
     // //test freezing operator after a beacon chain slashing event
-    // function testUpdateSlashedBeaconBalance() public {
-    //     //make initial deposit
-    //     setJSON("./src/test/test-data/withdrawalCredentialAndBalanceProof_61511.json");
-    //     _testDeployAndVerifyNewEigenPod(podOwner, signature, depositDataRoot);
-    //     IEigenPod newPod = eigenPodManager.getPod(podOwner);
+    function testUpdateSlashedBeaconBalance() public {
+        //make initial deposit
+        setJSON("./src/test/test-data/slashedProofs/notOvercommittedBalanceProof_61511.json");
+        _testDeployAndVerifyNewEigenPod(podOwner, signature, depositDataRoot);
+        IEigenPod newPod = eigenPodManager.getPod(podOwner);
 
-    //     IEigenPod eigenPod = testDeployAndVerifyNewEigenPod();
 
-    //     //get updated proof, set beaconchain state root
-    //     _proveOvercommittedStake(eigenPod, validatorIndex0);
+        setJSON("./src/test/test-data/slashedProofs/overcommittedBalanceProof_61511.json");
+        validatorFields = getValidatorFields();
+        uint40 validatorIndex = uint40(getValidatorIndex());
+        bytes32 newBeaconStateRoot = getBeaconStateRoot();
+        BeaconChainOracleMock(address(beaconChainOracle)).setBeaconChainStateRoot(newBeaconStateRoot);
+        BeaconChainProofs.ValidatorFieldsAndBalanceProofs memory proofs = _getValidatorFieldsAndBalanceProof();
+
+
+        newPod.verifyOvercommittedStake(validatorIndex, proofs, validatorFields, 0, 0);
         
-    //     uint256 beaconChainETHShares = investmentManager.investorStratShares(podOwner, investmentManager.beaconChainETHStrategy());
+        uint256 beaconChainETHShares = investmentManager.investorStratShares(podOwner, investmentManager.beaconChainETHStrategy());
 
-    //     require(beaconChainETHShares == 0, "investmentManager shares not updated correctly");
-    // }
+        require(beaconChainETHShares == 0, "investmentManager shares not updated correctly");
+    }
 
     // //test deploying an eigen pod with mismatched withdrawal credentials between the proof and the actual pod's address
     // function testDeployNewEigenPodWithWrongWithdrawalCreds(address wrongWithdrawalAddress) public {
@@ -542,13 +548,13 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
             investmentManager.getDeposits(staker);
     }
 
-    function _testDeployAndVerifyNewEigenPodWithBalanceProof(address _podOwner, bytes memory _signature, bytes32 _depositDataRoot)
+    function _testDeployAndVerifyNewEigenPod(address _podOwner, bytes memory _signature, bytes32 _depositDataRoot)
         internal returns (IEigenPod)
     {
         // (beaconStateRoot, beaconStateMerkleProofForValidators, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) =
         //     getInitialDepositProof(validatorIndex);
 
-        BeaconChainProofs.ValidatorFieldsAndBalanceProofs memory proofs = _getWithdrawalCredentialAndBalanceProof();
+        BeaconChainProofs.ValidatorFieldsAndBalanceProofs memory proofs = _getValidatorFieldsAndBalanceProof();
         validatorFields = getValidatorFields();
         bytes32 newBeaconStateRoot = getBeaconStateRoot();
         uint40 validatorIndex = uint40(getValidatorIndex());
@@ -583,6 +589,8 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
     // }
 
     // function _proveOvercommittedStake(IEigenPod pod, uint40 validatorIndex) internal {
+
+
         
     //     (
     //         beaconStateRoot, 
@@ -632,7 +640,7 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
         return eigenPodPaymentEscrow.userPaymentByIndex(recipient, eigenPodPaymentEscrow.userPaymentsLength(recipient) - 1).amount;
     }
 
-    function _getWithdrawalCredentialAndBalanceProof() internal returns (BeaconChainProofs.ValidatorFieldsAndBalanceProofs memory){
+    function _getValidatorFieldsAndBalanceProof() internal returns (BeaconChainProofs.ValidatorFieldsAndBalanceProofs memory){
 
         bytes32 balanceRoot = getBalanceRoot();
         BeaconChainProofs.ValidatorFieldsAndBalanceProofs memory proofs = BeaconChainProofs.ValidatorFieldsAndBalanceProofs(

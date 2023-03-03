@@ -237,11 +237,11 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
      * @dev For more details on the Beacon Chain spec, see: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
      */
     function verifyOvercommittedStake(
-        uint64 oracleBlockNumber,
         uint40 validatorIndex,
         BeaconChainProofs.ValidatorFieldsAndBalanceProofs calldata proofs,
+        bytes32[] calldata validatorFields,
         uint256 beaconChainETHStrategyIndex,
-        bytes32[] calldata validatorFields
+        uint64 oracleBlockNumber
     ) external onlyWhenNotPaused(PAUSED_EIGENPODS_VERIFY_OVERCOMMITTED) {
        // ensure that the blockNumber being proven against is not "too stale", i.e. that the validator was *recently* overcommitted.
         require(oracleBlockNumber + VERIFY_OVERCOMMITTED_WINDOW_BLOCKS >= block.number,
@@ -251,6 +251,9 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
 
         // deserialize the balance field from the balanceRoot
         uint64 validatorCurrentBalanceGwei = BeaconChainProofs.getBalanceFromBalanceRoot(validatorIndex, proofs.balanceRoot);        
+
+        uint64 slashedStatus = Endian.fromLittleEndianUint64(validatorFields[BeaconChainProofs.VALIDATOR_SLASHED_INDEX]);
+        require(slashedStatus == 1, "EigenPod.verifyOvercommittedStake: Validator must be slashed to be overcommitted");
 
         require(validatorCurrentBalanceGwei < REQUIRED_BALANCE_GWEI,
             "EigenPod.verifyOvercommittedStake: validator's balance must be less than the restaked balance per validator");
