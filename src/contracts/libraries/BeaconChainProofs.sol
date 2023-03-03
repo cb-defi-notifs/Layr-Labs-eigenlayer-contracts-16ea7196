@@ -180,7 +180,6 @@ library BeaconChainProofs {
      * validatorIndex mod 4 is used to determine which of the four uint64 values to extract from the balanceRoot.
      * @param balanceRoot is the combination of 4 validator balances being proven for.
      */
-
    function getBalanceFromBalanceRoot(uint40 validatorIndex, bytes32 balanceRoot) internal returns(uint64){
         uint256 bitShiftAmount = (validatorIndex % 4) * 64;
         bytes32 validatorBalanceLittleEndian = bytes32((uint256(balanceRoot) << bitShiftAmount));
