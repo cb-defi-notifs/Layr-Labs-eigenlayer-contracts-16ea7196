@@ -191,7 +191,7 @@ library BeaconChainProofs {
     /**
      * @notice This function verifies merkle proofs of the fields of a certain validator against a beacon chain state root
      * @param validatorIndex the index of the proven validator
-     * @param beaconStateRoot is the beacon chain state root.
+     * @param beaconStateRoot is the beacon chain state root to be proven against.
      * @param proof is the data used in proving the validator's fields
      * @param validatorFields the claimed fields of the validator
      */
@@ -220,10 +220,9 @@ library BeaconChainProofs {
     /**
      * @notice This function verifies merkle proofs of the balance of a certain validator against a beacon chain state root
      * @param validatorIndex the index of the proven validator
-     * @param beaconStateRoot is the beacon chain state root.
+     * @param beaconStateRoot is the beacon chain state root to be proven against.
      * @param proof is the proof of the balance against the beacon chain state root
-     * @param balanceRoot is the serialized balance used to prove the balance of the validator (refer to 
-     * getBalanceFromBalanceRoot() above for detailed explanation)
+     * @param balanceRoot is the serialized balance used to prove the balance of the validator (refer to `getBalanceFromBalanceRoot` above for detailed explanation)
      */
     function verifyValidatorBalance(
         uint40 validatorIndex,
@@ -243,7 +242,12 @@ library BeaconChainProofs {
         require(Merkle.verifyInclusionSha256(proof, beaconStateRoot, balanceRoot, balanceIndex), "BeaconChainProofs.verifyValidatorBalance: Invalid merkle proof");
     }
 
-
+    /**
+     * @notice This function verifies merkle proofs of the balance of a specific Beacon Chain withdrawal container against a beacon chain state root
+     * @param beaconStateRoot is the beacon chain state root to be proven against.
+     * @param proofs is the provided set of merkle proofs
+     * @param withdrawalFields is the serialized withdrawal container to be proven
+     */
     function verifyBlockNumberAndWithdrawalFields(
         bytes32 beaconStateRoot,
         WithdrawalProofs calldata proofs,
