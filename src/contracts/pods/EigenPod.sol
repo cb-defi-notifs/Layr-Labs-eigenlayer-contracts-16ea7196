@@ -214,16 +214,15 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         // set the status to active
         validatorStatus[validatorIndex] = VALIDATOR_STATUS.ACTIVE;
 
-        // deposit RESTAKED_BALANCE_PER_VALIDATOR for new ETH validator
-        // @dev balances are in GWEI so need to convert
-        eigenPodManager.restakeBeaconChainETH(podOwner, REQUIRED_BALANCE_WEI);
-
         // Sets "hasRestaked" to true if it hasn't been set yet. 
-        if(!hasRestaked){
+        if (!hasRestaked) {
             hasRestaked = true;
         }
 
         emit ValidatorRestaked(validatorIndex);
+
+        // virtually deposit REQUIRED_BALANCE_WEI for new ETH validator
+        eigenPodManager.restakeBeaconChainETH(podOwner, REQUIRED_BALANCE_WEI);
     }
 
     /**
@@ -269,15 +268,15 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         // set the status to active
         validatorStatus[validatorIndex] = VALIDATOR_STATUS.ACTIVE;
 
-        // deposit RESTAKED_BALANCE_PER_VALIDATOR for new ETH validator
-        // @dev balances are in GWEI so need to convert
-        eigenPodManager.restakeBeaconChainETH(podOwner, REQUIRED_BALANCE_WEI);
-
         // Sets "hasRestaked" to true if it hasn't been set yet. 
-        if(!hasRestaked){
+        if (!hasRestaked) {
             hasRestaked = true;
         }
+
         emit ValidatorRestaked(validatorIndex);
+
+        // virtually deposit REQUIRED_BALANCE_WEI for new ETH validator
+        eigenPodManager.restakeBeaconChainETH(podOwner, REQUIRED_BALANCE_WEI);
     }
 
 
@@ -324,13 +323,13 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
             proof.balanceRoot
         );
 
-
         // mark the ETH validator as overcommitted
         validatorStatus[validatorIndex] = VALIDATOR_STATUS.OVERCOMMITTED;
-        // remove and undelegate shares in EigenLayer
-        eigenPodManager.recordOvercommittedBeaconChainETH(podOwner, beaconChainETHStrategyIndex, REQUIRED_BALANCE_WEI);
 
         emit ValidatorOvercommitted(validatorIndex);
+
+        // remove and undelegate shares in EigenLayer
+        eigenPodManager.recordOvercommittedBeaconChainETH(podOwner, beaconChainETHStrategyIndex, REQUIRED_BALANCE_WEI);
     }
 
     /**
