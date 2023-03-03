@@ -117,8 +117,8 @@ library BeaconChainProofs {
         bytes32 executionPayloadRoot;
     }
 
-    struct WithdrawalCredentialAndBalanceProofs {
-        bytes withdrawalCredentialProof;
+    struct ValidatorFieldsAndBalanceProofs {
+        bytes validatorFieldsProof;
         bytes validatorBalanceProof;
         bytes32 balanceRoot;
     }
