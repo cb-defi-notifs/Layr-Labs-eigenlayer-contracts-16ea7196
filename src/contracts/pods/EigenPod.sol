@@ -332,9 +332,9 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         // fetch the beacon state root for the specified block
         bytes32 beaconStateRoot = eigenPodManager.getBeaconChainStateRoot(oracleBlockNumber);
 
-        //Verifying the withdrawal as well as the block number
+        // Verifying the withdrawal as well as the block number
         BeaconChainProofs.verifyBlockNumberAndWithdrawalFields(beaconStateRoot, withdrawalProofs, withdrawalFields);
-        //Verifying the validator fields, specifically the withdrawable epoch
+        // Verifying the validator fields, specifically the withdrawable epoch
         BeaconChainProofs.verifyValidatorFields(validatorIndex, beaconStateRoot, validatorFieldsProof, validatorFields);
 
         uint64 withdrawalAmountGwei = Endian.fromLittleEndianUint64(withdrawalFields[BeaconChainProofs.WITHDRAWAL_VALIDATOR_AMOUNT_INDEX]);
@@ -343,10 +343,10 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         uint64 slot = Endian.fromLittleEndianUint64(withdrawalProofs.slotRoot);
 
         /**
-         * if the validator's withdrawalble epoch is less than or equal to the slot's epoch, then the validator has fully withdrawn because
+         * if the validator's withdrawable epoch is less than or equal to the slot's epoch, then the validator has fully withdrawn because
          * a full withdrawal is only processable after the withdrawable epoch has passed.
          */
-        // uint64 withdrawableEpoch = Endian.fromLittleEndianUint64(validatorFields[BeaconChainProofs.VALIDATOR_WITHDRAWABLE_EPOCH_INDEX]);
+        // reference: uint64 withdrawableEpoch = Endian.fromLittleEndianUint64(validatorFields[BeaconChainProofs.VALIDATOR_WITHDRAWABLE_EPOCH_INDEX]);
         if (Endian.fromLittleEndianUint64(validatorFields[BeaconChainProofs.VALIDATOR_WITHDRAWABLE_EPOCH_INDEX]) <= slot/BeaconChainProofs.SLOTS_PER_EPOCH) {
             _processFullWithdrawal(withdrawalAmountGwei, validatorIndex, beaconChainETHStrategyIndex, podOwner, validatorStatus[validatorIndex]);
         } else {
