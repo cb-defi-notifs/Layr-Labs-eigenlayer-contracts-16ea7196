@@ -83,6 +83,22 @@ Emitted upon the registration of a new operator for the middleware
 | apkHash | bytes32 | The keccak256 hash of the new Aggregate Public Key |
 | socket | string |  |
 
+### WhitelisterTransferred
+
+```solidity
+event WhitelisterTransferred(address previousAddress, address newAddress)
+```
+
+Emitted when the `whitelister` role is transferred.
+
+### onlyWhitelister
+
+```solidity
+modifier onlyWhitelister()
+```
+
+Modifier that restricts a function to only be callable by the `whitelister` role.
+
 ### constructor
 
 ```solidity
@@ -97,13 +113,21 @@ function initialize(address _whitelister, bool _whitelistEnabled, uint256[] _quo
 
 Initialize the APK, the payment split between quorums, and the quorum strategies + multipliers.
 
+### setWhitelister
+
+```solidity
+function setWhitelister(address _whitelister) external
+```
+
+Called by the service manager owner to transfer the whitelister role to another address
+
 ### setWhitelistStatus
 
 ```solidity
 function setWhitelistStatus(bool _whitelistEnabled) external
 ```
 
-Called by the whitelister, this function toggles the whitelist on or off
+Callable only by the service manager owner, this function toggles the whitelist on or off
 
 #### Parameters
 
@@ -229,6 +253,12 @@ Updates the stored APK to `newApk`, calculates its hash, and pushes new entries 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | newApk | struct BN254.G1Point | The updated APK. This will be the `apk` after this function runs! |
+
+### _setWhitelister
+
+```solidity
+function _setWhitelister(address _whitelister) internal
+```
 
 ### getCorrectApkHash
 
