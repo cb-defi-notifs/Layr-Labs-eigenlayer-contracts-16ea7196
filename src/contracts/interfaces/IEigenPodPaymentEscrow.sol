@@ -45,6 +45,9 @@ interface IEigenPodPaymentEscrow {
     /// @notice Getter function for fetching the length of the payments array of a specific user
     function userPaymentsLength(address user) external view returns (uint256);
 
+    /// @notice Getter function to get all payments that are currently claimable by the `user`
+    function claimableUserPayments(address user) external view returns (Payment[] memory);
+
     /// @notice Convenience function for checking whethere or not the payment at the `index`th entry from the `_userPayments[user].payments` array is currently claimable
     function canClaimPayment(address user, uint256 index) external view returns (bool);
 
