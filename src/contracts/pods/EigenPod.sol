@@ -116,6 +116,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         _;
     }
 
+    /// @notice Checks that `blockNumber` is strictly greater than the value stored in `mostRecentWithdrawalBlockNumber`
     modifier proofIsForValidBlockNumber(uint64 blockNumber) {
         require(blockNumber > mostRecentWithdrawalBlockNumber,
             "EigenPod.proofIsForValidBlockNumber: beacon chain proof must be for block number after mostRecentWithdrawalBlockNumber");
