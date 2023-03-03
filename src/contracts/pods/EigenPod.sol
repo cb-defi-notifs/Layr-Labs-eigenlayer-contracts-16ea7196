@@ -214,16 +214,15 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         // set the status to active
         validatorStatus[validatorIndex] = VALIDATOR_STATUS.ACTIVE;
 
-        // deposit RESTAKED_BALANCE_PER_VALIDATOR for new ETH validator
-        // @dev balances are in GWEI so need to convert
-        eigenPodManager.restakeBeaconChainETH(podOwner, REQUIRED_BALANCE_WEI);
-
         // Sets "hasRestaked" to true if it hasn't been set yet. 
-        if(!hasRestaked){
+        if (!hasRestaked) {
             hasRestaked = true;
         }
 
         emit ValidatorRestaked(validatorIndex);
+
+        // virtually deposit REQUIRED_BALANCE_WEI for new ETH validator
+        eigenPodManager.restakeBeaconChainETH(podOwner, REQUIRED_BALANCE_WEI);
     }
 
     /**
@@ -274,13 +273,13 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
             proofs.balanceRoot
         );
 
-
         // mark the ETH validator as overcommitted
         validatorStatus[validatorIndex] = VALIDATOR_STATUS.OVERCOMMITTED;
-        // remove and undelegate shares in EigenLayer
-        eigenPodManager.recordOvercommittedBeaconChainETH(podOwner, beaconChainETHStrategyIndex, REQUIRED_BALANCE_WEI);
 
         emit ValidatorOvercommitted(validatorIndex);
+
+        // remove and undelegate shares in EigenLayer
+        eigenPodManager.recordOvercommittedBeaconChainETH(podOwner, beaconChainETHStrategyIndex, REQUIRED_BALANCE_WEI);
     }
 
     /**
@@ -305,7 +304,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         /** 
          * Check that the provided block number being proven against is after the `mostRecentWithdrawalBlockNumber`.
          * Without this check, there is an edge case where a user proves a past withdrawal for a validator marked as 'INACTIVE' whose funds they already withdrew,
-         * as a way to "withdraw the same funds twice" without providing a proof. Noe that this check is not made using the oracleBlockNumber as with the verifyWithdrawalCredentials
+         * as a way to "withdraw the same funds twice" without providing a proof. Note that this check is not made using the oracleBlockNumber as in the `verifyWithdrawalCredentials`
          * proof.  This proof is made for the block number of the withdrawal, which may be within 8192 slots of the oracleBlockNumber.
          */
         proofIsForValidBlockNumber(Endian.fromLittleEndianUint64(withdrawalProofs.blockNumberRoot))
