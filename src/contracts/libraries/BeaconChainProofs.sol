@@ -120,7 +120,7 @@ library BeaconChainProofs {
     }
 
     struct WithdrawalCredentialAndBalanceProofs {
-        bytes withdrawaCredentialProof;
+        bytes withdrawalCredentialProof;
         bytes validatorBalanceProof;
         bytes32 balanceRoot;
     }
@@ -269,7 +269,7 @@ library BeaconChainProofs {
 
         // Next we verify the blockNumber against the executionPayload root
         uint256 blockNumberIndex = uint256(BLOCK_NUMBER_INDEX);
-        require(Merkle.verifyInclusionSha256(proofs.blockNumberProof, proofs.executionPayloadRoot, proofs.blockNumberRoot, blockNumberIndex));
+        require(Merkle.verifyInclusionSha256(proofs.blockNumberProof, proofs.executionPayloadRoot, proofs.blockNumberRoot, blockNumberIndex), "BeaconChainProofs.verifyBlockNumberAndWithdrawalFields: Invalid blockNumber merkle proof");
 
         //Next we verify the withdrawal fields against the blockHeaderRoot
         //This computes the withdrawal_index relative to the blockHeaderRoot.  It concatenates the indexes of all the 

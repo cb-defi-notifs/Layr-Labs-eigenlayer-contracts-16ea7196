@@ -200,11 +200,11 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         BeaconChainProofs.verifyValidatorFields(
             validatorIndex,
             beaconStateRoot,
-            proofs.withdrawaCredentialProof,
+            proofs.withdrawalCredentialProof,
             validatorFields
         );
 
-        uint256 gas = gasleft();
+        // verify ETH validator's current balance, which is stored in the `balances` container of the beacon state
         BeaconChainProofs.verifyValidatorBalance(
             validatorIndex,
             beaconStateRoot,
@@ -370,7 +370,9 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         // fetch the beacon state root for the specified block
         bytes32 beaconStateRoot = eigenPodManager.getBeaconChainStateRoot(oracleBlockNumber);
 
+        //Verifying the withdrawal as well as the block number
         BeaconChainProofs.verifyBlockNumberAndWithdrawalFields(beaconStateRoot, proofs, withdrawalFields);
+        //Verifying the validator fields, specifically the withdrawable epoch
         BeaconChainProofs.verifyValidatorFields(uint40(proofs.validatorIndex), beaconStateRoot, proofs.validatorProof, validatorFields);
 
         uint64 withdrawableEpoch = Endian.fromLittleEndianUint64(validatorFields[BeaconChainProofs.VALIDATOR_WITHDRAWABLE_EPOCH_INDEX]);
@@ -379,6 +381,10 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         //check if the withdrawal occured after mostRecentWithdrawalBlockNumber
         uint64 slot = Endian.fromLittleEndianUint64(proofs.slotRoot);
 
+        /**
+         * if the validator's withdrawalble epoch is less than or equal to the slot's epoch, then the validator has fully withdrawn because
+         * a full withdrawal is only processable after the withdrawable epoch has passed.
+         */
         if (withdrawableEpoch <= slot/BeaconChainProofs.SLOTS_PER_EPOCH) {
             _processFullWithdrawal(withdrawalAmountGwei, validatorIndex, beaconChainETHStrategyIndex, podOwner, status);
         } else {
