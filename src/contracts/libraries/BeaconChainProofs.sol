@@ -79,6 +79,7 @@ library BeaconChainProofs {
     // in validator
     uint256 internal constant VALIDATOR_WITHDRAWAL_CREDENTIALS_INDEX = 1;
     uint256 internal constant VALIDATOR_BALANCE_INDEX = 2;
+    uint256 internal constant VALIDATOR_SLASHED_INDEX = 3;
     uint256 internal constant VALIDATOR_WITHDRAWABLE_EPOCH_INDEX = 7;
     
     // in exection payload header
@@ -119,11 +120,6 @@ library BeaconChainProofs {
 
     struct ValidatorFieldsAndBalanceProofs {
         bytes validatorFieldsProof;
-        bytes validatorBalanceProof;
-        bytes32 balanceRoot;
-    }
-
-    struct ValidatorBalanceProof {
         bytes validatorBalanceProof;
         bytes32 balanceRoot;
     }

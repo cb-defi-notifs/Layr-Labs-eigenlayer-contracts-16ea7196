@@ -253,6 +253,8 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
 
         // convert the balance field from 8 bytes of little endian to uint64 big endian 💪
         uint64 validatorCurrentBalanceGwei = BeaconChainProofs.getBalanceFromBalanceRoot(validatorIndex, proofs.balanceRoot);
+
+        emit log_named_uint("slashed status", uint256(validatorFields[BeaconChainProofs.VALIDATOR_SLASHED_INDEX]));
         
 
         require(validatorCurrentBalanceGwei < REQUIRED_BALANCE_GWEI,
