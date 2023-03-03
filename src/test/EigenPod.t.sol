@@ -548,7 +548,7 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
         // (beaconStateRoot, beaconStateMerkleProofForValidators, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) =
         //     getInitialDepositProof(validatorIndex);
 
-        BeaconChainProofs.WithdrawalCredentialAndBalanceProofs memory proofs = _getWithdrawalCredentialAndBalanceProof();
+        BeaconChainProofs.ValidatorFieldsAndBalanceProofs memory proofs = _getWithdrawalCredentialAndBalanceProof();
         validatorFields = getValidatorFields();
         bytes32 newBeaconStateRoot = getBeaconStateRoot();
         uint40 validatorIndex = uint40(getValidatorIndex());
@@ -632,10 +632,10 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
         return eigenPodPaymentEscrow.userPaymentByIndex(recipient, eigenPodPaymentEscrow.userPaymentsLength(recipient) - 1).amount;
     }
 
-    function _getWithdrawalCredentialAndBalanceProof() internal returns (BeaconChainProofs.WithdrawalCredentialAndBalanceProofs memory){
+    function _getWithdrawalCredentialAndBalanceProof() internal returns (BeaconChainProofs.ValidatorFieldsAndBalanceProofs memory){
 
         bytes32 balanceRoot = getBalanceRoot();
-        BeaconChainProofs.WithdrawalCredentialAndBalanceProofs memory proofs = BeaconChainProofs.WithdrawalCredentialAndBalanceProofs(
+        BeaconChainProofs.ValidatorFieldsAndBalanceProofs memory proofs = BeaconChainProofs.ValidatorFieldsAndBalanceProofs(
             abi.encodePacked(getWithdrawalCredentialProof()),
             abi.encodePacked(getValidatorBalanceProof()),
             balanceRoot

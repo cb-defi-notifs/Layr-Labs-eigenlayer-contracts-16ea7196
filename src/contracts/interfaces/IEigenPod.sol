@@ -84,7 +84,7 @@ interface IEigenPod {
 
     /**
      * @notice This function verifies that the withdrawal credentials of the podOwner are pointed to
-     * this contract. It verifies the provided proof of the ETH validator against the beacon chain state
+     * this contract. It also verifies the current (not effective) balance  of the validator.  It verifies the provided proof of the ETH validator against the beacon chain state
      * root, marks the validator as 'active' in EigenLayer, and credits the restaked ETH in Eigenlayer.
      * @param oracleBlockNumber is the Beacon Chain blockNumber whose state root the `proof` will be proven against.
      * @param validatorIndex is the index of the validator being proven, refer to consensus specs 
@@ -95,15 +95,7 @@ interface IEigenPod {
     function verifyWithdrawalCredentialsAndBalance(
         uint64 oracleBlockNumber,
         uint40 validatorIndex,
-        BeaconChainProofs.WithdrawalCredentialAndBalanceProofs memory proofs,
-        bytes32[] calldata validatorFields
-    ) external;
-
-
-    function verifyWithdrawalCredentials(
-        uint64 oracleBlockNumber,
-        uint40 validatorIndex,
-        bytes calldata proof, 
+        BeaconChainProofs.ValidatorFieldsAndBalanceProofs memory proofs,
         bytes32[] calldata validatorFields
     ) external;
     
@@ -111,18 +103,21 @@ interface IEigenPod {
      * @notice This function records an overcommitment of stake to EigenLayer on behalf of a certain ETH validator.
      *         If successful, the overcommitted balance is penalized (available for withdrawal whenever the pod's balance allows).
      *         The ETH validator's shares in the enshrined beaconChainETH strategy are also removed from the InvestmentManager and undelegated.
-     * @param blockNumber The Beacon Chain slot whose state root the `proof` will be proven against.
-     * @param validatorIndex is the index of the validator being proven, refer to consensus specs
-     * @param proof is the proof of the validator's balance in the balance tree and the balanceRoot to prove for
+     * @param oracleBlockNumber The oracleBlockNumber whose state root the `proof` will be proven against.
+     *        Must be within `VERIFY_OVERCOMMITTED_WINDOW_BLOCKS` of the current block.
+     * @param validatorIndex is the index of the validator being proven, refer to consensus specs 
+     * @param proofs is the proof of the validator's balance and validatorFields in the balance tree and the balanceRoot to prove for
      * @param beaconChainETHStrategyIndex is the index of the beaconChainETHStrategy for the pod owner for the callback to 
      *                                    the InvestmentManger in case it must be removed from the list of the podOwners strategies
+     * @param validatorFields are the fields of the "Validator Container", refer to consensus specs
      * @dev For more details on the Beacon Chain spec, see: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
      */
     function verifyOvercommittedStake(
-        uint64 blockNumber,
+        uint64 oracleBlockNumber,
         uint40 validatorIndex,
-        BeaconChainProofs.ValidatorBalanceProof calldata proof, 
-        uint256 beaconChainETHStrategyIndex
+        BeaconChainProofs.ValidatorFieldsAndBalanceProofs calldata proofs,
+        uint256 beaconChainETHStrategyIndex,
+        bytes32[] calldata validatorFields
     ) external;
 
     /**
