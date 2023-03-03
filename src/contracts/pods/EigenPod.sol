@@ -18,8 +18,6 @@ import "../interfaces/IPausable.sol";
 
 import "./EigenPodPausingConstants.sol";
 
-import "forge-std/Test.sol";
-
 /**
  * @title The implementation contract used for restaking beacon chain ETH on EigenLayer 
  * @author Layr Labs, Inc.
@@ -33,7 +31,7 @@ import "forge-std/Test.sol";
  * @dev Note that all beacon chain balances are stored as gwei within the beacon chain datastructures. We choose
  *   to account balances in terms of gwei in the EigenPod contract and convert to wei when making calls to other contracts
  */
-contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, EigenPodPausingConstants, Test {
+contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, EigenPodPausingConstants {
     using BytesLib for bytes;
 
     // CONSTANTS + IMMUTABLES
@@ -188,7 +186,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
 
         require(validatorFields[BeaconChainProofs.VALIDATOR_WITHDRAWAL_CREDENTIALS_INDEX] == _podWithdrawalCredentials().toBytes32(0),
             "EigenPod.verifyCorrectWithdrawalCredentials: Proof is not for this EigenPod");
-        // convert the balance field from 8 bytes of little endian to uint64 big endian 💪
+        // deserialize the balance field from the balanceRoot
         uint64 validatorCurrentBalanceGwei = BeaconChainProofs.getBalanceFromBalanceRoot(validatorIndex, proofs.balanceRoot);
         
         // make sure the balance is greater than the amount restaked per validator
@@ -245,17 +243,14 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         uint256 beaconChainETHStrategyIndex,
         bytes32[] calldata validatorFields
     ) external onlyWhenNotPaused(PAUSED_EIGENPODS_VERIFY_OVERCOMMITTED) {
-       // ensure that the blockNumber being proven against is not "too stale".
+       // ensure that the blockNumber being proven against is not "too stale", i.e. that the validator was *recently* overcommitted.
         require(oracleBlockNumber + VERIFY_OVERCOMMITTED_WINDOW_BLOCKS >= block.number,
             "EigenPod.verifyOvercommittedStake: specified blockNumber is too far in past");
 
         require(validatorStatus[validatorIndex] == VALIDATOR_STATUS.ACTIVE, "EigenPod.verifyOvercommittedStake: Validator not active");
 
-        // convert the balance field from 8 bytes of little endian to uint64 big endian 💪
-        uint64 validatorCurrentBalanceGwei = BeaconChainProofs.getBalanceFromBalanceRoot(validatorIndex, proofs.balanceRoot);
-
-        emit log_named_uint("slashed status", uint256(validatorFields[BeaconChainProofs.VALIDATOR_SLASHED_INDEX]));
-        
+        // deserialize the balance field from the balanceRoot
+        uint64 validatorCurrentBalanceGwei = BeaconChainProofs.getBalanceFromBalanceRoot(validatorIndex, proofs.balanceRoot);        
 
         require(validatorCurrentBalanceGwei < REQUIRED_BALANCE_GWEI,
             "EigenPod.verifyOvercommittedStake: validator's balance must be less than the restaked balance per validator");
@@ -268,7 +263,9 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
             proofs.validatorFieldsProof,
             validatorFields
         );
-        BeaconChainProofs.verifyValidatorBalance(
+ 
+        // verify ETH validator's current balance, which is stored in the `balances` container of the beacon state
+       BeaconChainProofs.verifyValidatorBalance(
             validatorIndex,
             beaconStateRoot,
             proofs.validatorBalanceProof,
