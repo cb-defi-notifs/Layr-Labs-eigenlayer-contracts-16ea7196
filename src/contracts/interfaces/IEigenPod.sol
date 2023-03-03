@@ -92,10 +92,18 @@ interface IEigenPod {
      * @param validatorFields are the fields of the "Validator Container", refer to consensus specs 
      * for details: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
      */
-    function verifyCorrectWithdrawalCredentials(
+    function verifyWithdrawalCredentialsAndBalance(
         uint64 oracleBlockNumber,
         uint40 validatorIndex,
         BeaconChainProofs.WithdrawalCredentialAndBalanceProofs memory proofs,
+        bytes32[] calldata validatorFields
+    ) external;
+
+
+    function verifyWithdrawalCredentials(
+        uint64 oracleBlockNumber,
+        uint40 validatorIndex,
+        bytes calldata proof, 
         bytes32[] calldata validatorFields
     ) external;
     
@@ -105,7 +113,7 @@ interface IEigenPod {
      *         The ETH validator's shares in the enshrined beaconChainETH strategy are also removed from the InvestmentManager and undelegated.
      * @param blockNumber The Beacon Chain slot whose state root the `proof` will be proven against.
      * @param validatorIndex is the index of the validator being proven, refer to consensus specs
-     * @param proof is the proof of the validator's balance in the balance tree
+     * @param proof is the proof of the validator's balance in the balance tree and the balanceRoot to prove for
      * @param beaconChainETHStrategyIndex is the index of the beaconChainETHStrategy for the pod owner for the callback to 
      *                                    the InvestmentManger in case it must be removed from the list of the podOwners strategies
      * @dev For more details on the Beacon Chain spec, see: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
