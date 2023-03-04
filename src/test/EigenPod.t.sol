@@ -362,16 +362,18 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
     // // Expected Behaviour: beaconChainETH shares should increment by REQUIRED_BALANCE_WEI
     // //                     validator status should be marked as ACTIVE
 
-    // function testProveSingleWithdrawalCredential(IEigenPod pod, uint40 validatorIndex) internal {
-    //     // get beaconChainETH shares
-    //     uint256 beaconChainETHBefore = getBeaconChainETHShares(pod.podOwner());
+    function testProveSingleWithdrawalCredential(IEigenPod pod) public {
+        // get beaconChainETH shares
+        uint256 beaconChainETHBefore = getBeaconChainETHShares(podOwner);
 
-    //     // pointed withdrawal credential
+        setJSON("./src/test/test-data/withdrawalCredentialAndBalanceProof_61068.json");
+        IEigenPod pod = _testDeployAndVerifyNewEigenPod(podOwner, signature, depositDataRoot);
+        uint40 validatorIndex = uint40(getValidatorIndex());
 
-    //     uint256 beaconChainETHAfter = getBeaconChainETHShares(pod.podOwner());
-    //     assertTrue(beaconChainETHAfter - beaconChainETHBefore == pod.REQUIRED_BALANCE_WEI());
-    //     assertTrue(pod.validatorStatus(validatorIndex) == IEigenPod.VALIDATOR_STATUS.ACTIVE);
-    // }
+        uint256 beaconChainETHAfter = getBeaconChainETHShares(pod.podOwner());
+        assertTrue(beaconChainETHAfter - beaconChainETHBefore == pod.REQUIRED_BALANCE_WEI());
+        assertTrue(pod.validatorStatus(validatorIndex) == IEigenPod.VALIDATOR_STATUS.ACTIVE);
+    }
 
     // // 5. Prove overcommitted balance
     // // Setup: Run (3). 
