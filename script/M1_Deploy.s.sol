@@ -250,15 +250,30 @@ contract Deployer_M1 is Script, Owners {
         string memory parent_object = "parent object";
 
         string memory deployed_addresses = "deployed addresses";
+        vm.serializeAddress(deployed_addresses, "eigenLayerProxyAdmin", address(eigenLayerProxyAdmin));
+        vm.serializeAddress(deployed_addresses, "eigenLayerPauserReg", address(eigenLayerPauserReg));
+        vm.serializeAddress(deployed_addresses, "slasher", address(slasher));
+        vm.serializeAddress(deployed_addresses, "slasherImplementation", address(slasherImplementation));
+        vm.serializeAddress(deployed_addresses, "delegation", address(delegation));
+        vm.serializeAddress(deployed_addresses, "delegationImplementation", address(delegationImplementation));
         vm.serializeAddress(deployed_addresses, "investmentManager", address(investmentManager));
-        string memory output = vm.serializeAddress(deployed_addresses, "delegation", address(delegation));
+        vm.serializeAddress(deployed_addresses, "investmentManagerImplementation", address(investmentManagerImplementation));
+        vm.serializeAddress(deployed_addresses, "eigenPodManager", address(eigenPodManager));
+        vm.serializeAddress(deployed_addresses, "eigenPodManagerImplementation", address(eigenPodManagerImplementation));
+        vm.serializeAddress(deployed_addresses, "eigenPodPaymentEscrow", address(eigenPodPaymentEscrow));
+        vm.serializeAddress(deployed_addresses, "eigenPodPaymentEscrowImplementation", address(eigenPodPaymentEscrowImplementation));
+        vm.serializeAddress(deployed_addresses, "eigenPodBeacon", address(eigenPodBeacon));
+        vm.serializeAddress(deployed_addresses, "eigenPodImplementation", address(eigenPodImplementation));
+        vm.serializeAddress(deployed_addresses, "baseStrategyImplementation", address(baseStrategyImplementation));
+        vm.serializeAddress(deployed_addresses, "emptyContract", address(emptyContract));
+        string memory deployed_addresses_output = vm.serializeAddress(deployed_addresses, "delegation", address(delegation));
 
         string memory parameters = "parameters";
         vm.serializeAddress(parameters, "communityMultisig", communityMultisig);
-        string memory output_2 = vm.serializeAddress(parameters, "teamMultisig", teamMultisig);
+        string memory parameters_output = vm.serializeAddress(parameters, "teamMultisig", teamMultisig);
 
-        vm.serializeString(parent_object, deployed_addresses, output);
-        string memory finalJson = vm.serializeString(parent_object, parameters, output_2);
+        vm.serializeString(parent_object, deployed_addresses, deployed_addresses_output);
+        string memory finalJson = vm.serializeString(parent_object, parameters, parameters_output);
         vm.writeJson(finalJson, "script/output/M1_deployment_data.json");
     }
 
