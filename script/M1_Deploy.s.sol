@@ -29,7 +29,6 @@ import "../src/test/mocks/ETHDepositMock.sol";
 import "../src/test/utils/Owners.sol";
 
 import "forge-std/Script.sol";
-import "forge-std/StdJson.sol";
 
 // # To load the variables in the .env file
 // source .env
@@ -37,11 +36,9 @@ import "forge-std/StdJson.sol";
 // # To deploy and verify our contract
 // forge script script/M1_Deploy.s.sol:Deployer_M1 --rpc-url $RPC_URL  --private-key $PRIVATE_KEY --broadcast -vvvv
 contract Deployer_M1 is Script, Owners {
-    using stdJson for string;
-
     Vm cheats = Vm(HEVM_ADDRESS);
 
-    string public deployConfigPath = string(bytes("./M1_deploy.config.json"));
+    string public deployConfigPath = string(bytes("script/M1_deploy.config.json"));
 
     // EigenLayer Contracts
     ProxyAdmin public eigenLayerProxyAdmin;
@@ -265,7 +262,7 @@ contract Deployer_M1 is Script, Owners {
         //   an output equal to '"ok": "asd" }' will just produce a normal string.
         string memory finalJson = vm.serializeString(obj1, "object", output);
 
-        vm.writeJson(finalJson, "./output/example.json");
+        vm.writeJson(finalJson, "script/output/M1_deployment_data.json");
         // vm.writeFile("data/investmentManager.addr", vm.toString(address(investmentManager)));
         // vm.writeFile("data/delegation.addr", vm.toString(address(delegation)));
         // vm.writeFile("data/slasher.addr", vm.toString(address(slasher)));

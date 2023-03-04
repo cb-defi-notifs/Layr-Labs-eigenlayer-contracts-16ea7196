@@ -3,7 +3,7 @@
    "strats": [
         {
              "token": "0x",
-             "deploy": true,
+             "deploy": true
         }
     ],
     "investmentManager": {
