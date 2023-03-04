@@ -338,32 +338,24 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
         newPod.verifyWithdrawalCredentialsAndBalance(blockNumber, validatorIndex0, proofs, validatorFields);
     }
 
-    // //test that when withdrawal credentials are verified more than once, it reverts
-    // function testDeployNewEigenPodWithActiveValidator() public {
-    //     (beaconStateRoot, beaconStateMerkleProofForValidators, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) =
-    //         getInitialDepositProof(validatorIndex0);
-    //     BeaconChainOracleMock(address(beaconChainOracle)).setBeaconChainStateRoot(beaconStateRoot);        
+    //test that when withdrawal credentials are verified more than once, it reverts
+    function testDeployNewEigenPodWithActiveValidator() public {
 
-    //     cheats.startPrank(podOwner);
-    //     eigenPodManager.stake{value: stakeAmount}(pubkey, signature, depositDataRoot);
-    //     cheats.stopPrank();
+        setJSON("./src/test/test-data/withdrawalCredentialAndBalanceProof_61068.json");
+        IEigenPod pod = _testDeployAndVerifyNewEigenPod(podOwner, signature, depositDataRoot);
 
-    //     IEigenPod newPod = eigenPodManager.getPod(podOwner);
+        // bytes32 validatorIndexBytes = bytes32(uint256(validatorIndex0));
+        uint64 blockNumber = 1;
+        uint40 validatorIndex = uint40(getValidatorIndex());
+        BeaconChainProofs.ValidatorFieldsAndBalanceProofs memory proofs = _getValidatorFieldsAndBalanceProof();
+        validatorFields = getValidatorFields();
+        cheats.expectRevert(bytes("EigenPod.verifyCorrectWithdrawalCredentials: Validator must be inactive to prove withdrawal credentials"));
+        pod.verifyWithdrawalCredentialsAndBalance(blockNumber, validatorIndex, proofs, validatorFields);
+    }
 
-    //     // bytes32 validatorIndexBytes = bytes32(uint256(validatorIndex0));
-    //     bytes memory proofs = abi.encodePacked(validatorMerkleProof, beaconStateMerkleProofForValidators);
-    //     uint64 blockNumber = 1;
-    //     newPod.verifyCorrectWithdrawalCredentials(blockNumber, validatorIndex0, proofs, validatorContainerFields);
-
-    //     cheats.expectRevert(bytes("EigenPod.verifyCorrectWithdrawalCredentials: Validator must be inactive to prove withdrawal credentials"));
-    //     newPod.verifyCorrectWithdrawalCredentials(blockNumber, validatorIndex0, proofs, validatorContainerFields);
-    // }
-
-    // function getBeaconChainETHShares(address staker) internal view returns(uint256) {
-    //     return investmentManager.investorStratShares(staker, investmentManager.beaconChainETHStrategy());
-    // }
-
-    // // TEST CASES:
+    function getBeaconChainETHShares(address staker) internal view returns(uint256) {
+        return investmentManager.investorStratShares(staker, investmentManager.beaconChainETHStrategy());
+    }
 
     // // 3. Single withdrawal credential
     // // Test: Owner proves an withdrawal credential.
