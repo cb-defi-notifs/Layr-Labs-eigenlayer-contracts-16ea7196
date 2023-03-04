@@ -183,7 +183,8 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         // check that the provided `oracleBlockNumber` is after the `mostRecentWithdrawalBlockNumber`
         proofIsForValidBlockNumber(oracleBlockNumber)
     {
-        require(validatorStatus[validatorIndex] == VALIDATOR_STATUS.INACTIVE, "EigenPod.verifyCorrectWithdrawalCredentials: Validator must be inactive to prove withdrawal credentials");
+        require(validatorStatus[validatorIndex] == VALIDATOR_STATUS.INACTIVE,
+            "EigenPod.verifyCorrectWithdrawalCredentials: Validator must be inactive to prove withdrawal credentials");
 
         require(validatorFields[BeaconChainProofs.VALIDATOR_WITHDRAWAL_CREDENTIALS_INDEX] == _podWithdrawalCredentials().toBytes32(0),
             "EigenPod.verifyCorrectWithdrawalCredentials: Proof is not for this EigenPod");
@@ -256,11 +257,15 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         require(validatorCurrentBalanceGwei < REQUIRED_BALANCE_GWEI,
             "EigenPod.verifyOvercommittedStake: validator's balance must be less than the restaked balance per validator");
         
-        if(validatorCurrentBalanceGwei == 0) {
+        /**
+         * If validator's balance is zero, then either they have fully withdrawn or they have been slashed down zero.
+         * If the validator *has* been slashed, then this function can proceed. If they have *not* been slashed, then
+         * the `verifyAndProcessWithdrawal` function should be called instead.
+         */
+        if (validatorCurrentBalanceGwei == 0) {
             uint64 slashedStatus = Endian.fromLittleEndianUint64(validatorFields[BeaconChainProofs.VALIDATOR_SLASHED_INDEX]);
             require(slashedStatus == 1, "EigenPod.verifyOvercommittedStake: Validator must be slashed to be overcommitted");
         }
-
 
         // verify ETH validator proof
         bytes32 beaconStateRoot = eigenPodManager.getBeaconChainStateRoot(oracleBlockNumber);
@@ -332,9 +337,9 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         // fetch the beacon state root for the specified block
         bytes32 beaconStateRoot = eigenPodManager.getBeaconChainStateRoot(oracleBlockNumber);
 
-        //Verifying the withdrawal as well as the block number
+        // Verifying the withdrawal as well as the block number
         BeaconChainProofs.verifyBlockNumberAndWithdrawalFields(beaconStateRoot, withdrawalProofs, withdrawalFields);
-        //Verifying the validator fields, specifically the withdrawable epoch
+        // Verifying the validator fields, specifically the withdrawable epoch
         BeaconChainProofs.verifyValidatorFields(validatorIndex, beaconStateRoot, validatorFieldsProof, validatorFields);
 
         uint64 withdrawalAmountGwei = Endian.fromLittleEndianUint64(withdrawalFields[BeaconChainProofs.WITHDRAWAL_VALIDATOR_AMOUNT_INDEX]);
@@ -343,10 +348,10 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         uint64 slot = Endian.fromLittleEndianUint64(withdrawalProofs.slotRoot);
 
         /**
-         * if the validator's withdrawalble epoch is less than or equal to the slot's epoch, then the validator has fully withdrawn because
+         * if the validator's withdrawable epoch is less than or equal to the slot's epoch, then the validator has fully withdrawn because
          * a full withdrawal is only processable after the withdrawable epoch has passed.
          */
-        // uint64 withdrawableEpoch = Endian.fromLittleEndianUint64(validatorFields[BeaconChainProofs.VALIDATOR_WITHDRAWABLE_EPOCH_INDEX]);
+        // reference: uint64 withdrawableEpoch = Endian.fromLittleEndianUint64(validatorFields[BeaconChainProofs.VALIDATOR_WITHDRAWABLE_EPOCH_INDEX]);
         if (Endian.fromLittleEndianUint64(validatorFields[BeaconChainProofs.VALIDATOR_WITHDRAWABLE_EPOCH_INDEX]) <= slot/BeaconChainProofs.SLOTS_PER_EPOCH) {
             _processFullWithdrawal(withdrawalAmountGwei, validatorIndex, beaconChainETHStrategyIndex, podOwner, validatorStatus[validatorIndex]);
         } else {
@@ -468,5 +473,5 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
      * variables without shifting down storage in the inheritance chain.
      * See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
      */
-    uint256[44] private __gap;
+    uint256[46] private __gap;
 }

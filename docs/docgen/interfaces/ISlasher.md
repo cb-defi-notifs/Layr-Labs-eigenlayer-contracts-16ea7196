@@ -187,6 +187,28 @@ _The correct `middlewareTimesIndex` input should be computable off-chain._
 | withdrawalStartBlock | uint32 | The block number at which the withdrawal was initiated. |
 | middlewareTimesIndex | uint256 | Indicates an index in `operatorToMiddlewareTimes[operator]` to consult as proof of the `operator`'s ability to withdraw |
 
+### operatorToMiddlewareTimes
+
+```solidity
+function operatorToMiddlewareTimes(address operator, uint256 arrayIndex) external view returns (struct ISlasher.MiddlewareTimes)
+```
+
+operator => 
+ [
+     (
+         the least recent update block of all of the middlewares it's serving/served, 
+         latest time that the stake bonded at that update needed to serve until
+     )
+ ]
+
+### middlewareTimesLength
+
+```solidity
+function middlewareTimesLength(address operator) external view returns (uint256)
+```
+
+Getter function for fetching `operatorToMiddlewareTimes[operator].length`
+
 ### getMiddlewareTimesIndexBlock
 
 ```solidity
@@ -202,4 +224,20 @@ function getMiddlewareTimesIndexServeUntil(address operator, uint32 index) exter
 ```
 
 Getter function for fetching `operatorToMiddlewareTimes[operator][index].latestServeUntil`.
+
+### operatorWhitelistedContractsLinkedListSize
+
+```solidity
+function operatorWhitelistedContractsLinkedListSize(address operator) external view returns (uint256)
+```
+
+Getter function for fetching `_operatorToWhitelistedContractsByUpdate[operator].size`.
+
+### operatorWhitelistedContractsLinkedListEntry
+
+```solidity
+function operatorWhitelistedContractsLinkedListEntry(address operator, address node) external view returns (bool, uint256, uint256)
+```
+
+Getter function for fetching a single node in the operator's linked list (`_operatorToWhitelistedContractsByUpdate[operator]`).
 
