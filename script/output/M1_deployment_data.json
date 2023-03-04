@@ -1,7 +1,10 @@
 {
-  "boolean": true,
-  "number": 342,
-  "object": {
-    "title": "finally json serialization"
+  "deployed addresses": {
+    "investmentManager": "0x50EEf481cae4250d252Ae577A09bF514f224C6C4",
+    "delegation": "0xDB8cFf278adCCF9E9b5da745B44E754fC4EE3C76"
+  },
+  "parameters": {
+    "teamMultisig": "0x0000000000000000000000000000000000000003",
+    "communityMultisig": "0x0000000000000000000000000000000000000002"
   }
 }

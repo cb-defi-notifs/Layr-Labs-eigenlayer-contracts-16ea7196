@@ -248,24 +248,49 @@ contract Deployer_M1 is Script, Owners {
         vm.stopBroadcast();
 
         // TODO: write to file using vm.writeJSON -- see https://github.com/foundry-rs/foundry/pull/3595 or https://book.getfoundry.sh/cheatcodes/serialize-json
-        string memory obj1 = "some key";
-        vm.serializeBool(obj1, "boolean", true);
-        vm.serializeUint(obj1, "number", uint256(342));
+        string memory parent_object = "parent object";
+        // vm.serializeAddress(parent_object, "investmentManager", address(investmentManager));
+        // vm.serializeAddress(parent_object, "delegation", address(delegation));
 
-        string memory obj2 = "some other key";
-        string memory output = vm.serializeString(obj2, "title", "finally json serialization");
+        // string memory serialized_addresses = "serialized addresses";
+        // vm.serializeAddress(serialized_addresses, "investmentManager", address(investmentManager));
+        // vm.serializeAddress(serialized_addresses, "delegation", address(delegation));
 
-        // IMPORTANT: This works because `serializeString` first tries to interpret `output` as
-        //   a stringified JSON object. If the parsing fails, then it treats it as a normal
-        //   string instead.
-        //   For instance, an `output` equal to '{ "ok": "asd" }' will produce an object, but
-        //   an output equal to '"ok": "asd" }' will just produce a normal string.
-        string memory finalJson = vm.serializeString(obj1, "object", output);
+        string memory deployed_addresses = "deployed addresses";
+        vm.serializeAddress(deployed_addresses, "investmentManager", address(investmentManager));
+        string memory output = vm.serializeAddress(deployed_addresses, "delegation", address(delegation));
 
+        string memory parameters = "parameters";
+        vm.serializeAddress(parameters, "communityMultisig", communityMultisig);
+        string memory output_2 = vm.serializeAddress(parameters, "teamMultisig", teamMultisig);
+
+        vm.serializeString(parent_object, deployed_addresses, output);
+        string memory finalJson = vm.serializeString(parent_object, parameters, output_2);
         vm.writeJson(finalJson, "script/output/M1_deployment_data.json");
-        // vm.writeFile("data/investmentManager.addr", vm.toString(address(investmentManager)));
-        // vm.writeFile("data/delegation.addr", vm.toString(address(delegation)));
-        // vm.writeFile("data/slasher.addr", vm.toString(address(slasher)));
+
+
+
+        // // TODO: write to file using vm.writeJSON -- see https://github.com/foundry-rs/foundry/pull/3595 or https://book.getfoundry.sh/cheatcodes/serialize-json
+        // string memory parent_object = "some key";
+        // string memory deployed_addresses = "some other key";
+        // string memory output = vm.serializeAddress(object_2, "investmentManager", address(investmentManager));
+        // emit log_named_string("output", output);
+        // vm.serializeAddress(output, "delegation", address(delegation));
+        // emit log_named_string("output", output);
+        // emit log_named_string("object_2", object_2);
+
+        // // IMPORTANT: This works because `serializeString` first tries to interpret `output` as
+        // //   a stringified JSON object. If the parsing fails, then it treats it as a normal
+        // //   string instead.
+        // //   For instance, an `output` equal to '{ "ok": "asd" }' will produce an object, but
+        // //   an output equal to '"ok": "asd" }' will just produce a normal string.
+        // string memory finalJson = vm.serializeString(parent_object, "deployed addresses", output);
+
+        // emit log_named_string("finalJson", finalJson);
+        // vm.writeJson(finalJson, "script/output/M1_deployment_data.json");
+        // // vm.writeFile("data/investmentManager.addr", vm.toString(address(investmentManager)));
+        // // vm.writeFile("data/delegation.addr", vm.toString(address(delegation)));
+        // // vm.writeFile("data/slasher.addr", vm.toString(address(slasher)));
     }
 
     function _verifyContractsPointAtOneAnother(
