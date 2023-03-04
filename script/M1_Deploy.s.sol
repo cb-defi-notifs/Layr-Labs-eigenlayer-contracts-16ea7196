@@ -37,6 +37,8 @@ import "forge-std/StdJson.sol";
 // # To deploy and verify our contract
 // forge script script/M1_Deploy.s.sol:Deployer_M1 --rpc-url $RPC_URL  --private-key $PRIVATE_KEY --broadcast -vvvv
 contract Deployer_M1 is Script, Owners {
+    using stdJson for string;
+
     Vm cheats = Vm(HEVM_ADDRESS);
 
     string public deployConfigPath = string(bytes("./M1_deploy.config.json"));
@@ -249,9 +251,24 @@ contract Deployer_M1 is Script, Owners {
         vm.stopBroadcast();
 
         // TODO: write to file using vm.writeJSON -- see https://github.com/foundry-rs/foundry/pull/3595 or https://book.getfoundry.sh/cheatcodes/serialize-json
-        vm.writeFile("data/investmentManager.addr", vm.toString(address(investmentManager)));
-        vm.writeFile("data/delegation.addr", vm.toString(address(delegation)));
-        vm.writeFile("data/slasher.addr", vm.toString(address(slasher)));
+        string memory obj1 = "some key";
+        vm.serializeBool(obj1, "boolean", true);
+        vm.serializeUint(obj1, "number", uint256(342));
+
+        string memory obj2 = "some other key";
+        string memory output = vm.serializeString(obj2, "title", "finally json serialization");
+
+        // IMPORTANT: This works because `serializeString` first tries to interpret `output` as
+        //   a stringified JSON object. If the parsing fails, then it treats it as a normal
+        //   string instead.
+        //   For instance, an `output` equal to '{ "ok": "asd" }' will produce an object, but
+        //   an output equal to '"ok": "asd" }' will just produce a normal string.
+        string memory finalJson = vm.serializeString(obj1, "object", output);
+
+        vm.writeJson(finalJson, "./output/example.json");
+        // vm.writeFile("data/investmentManager.addr", vm.toString(address(investmentManager)));
+        // vm.writeFile("data/delegation.addr", vm.toString(address(delegation)));
+        // vm.writeFile("data/slasher.addr", vm.toString(address(slasher)));
     }
 
     function _verifyContractsPointAtOneAnother(
