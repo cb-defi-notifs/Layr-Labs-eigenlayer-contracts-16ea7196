@@ -304,14 +304,7 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
 
 
         setJSON("./src/test/test-data/slashedProofs/overcommittedBalanceProof_61511.json");
-        validatorFields = getValidatorFields();
-        uint40 validatorIndex = uint40(getValidatorIndex());
-        bytes32 newBeaconStateRoot = getBeaconStateRoot();
-        BeaconChainOracleMock(address(beaconChainOracle)).setBeaconChainStateRoot(newBeaconStateRoot);
-        BeaconChainProofs.ValidatorFieldsAndBalanceProofs memory proofs = _getValidatorFieldsAndBalanceProof();
-
-
-        newPod.verifyOvercommittedStake(validatorIndex, proofs, validatorFields, 0, 0);
+        _proveOverCommittedStake(newPod);
         
         uint256 beaconChainETHShares = investmentManager.investorStratShares(podOwner, investmentManager.beaconChainETHStrategy());
 
@@ -381,17 +374,21 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
     // // Expected Behaviour: beaconChainETH shares should decrement by REQUIRED_BALANCE_WEI
     // //                     validator status should be marked as OVERCOMMITTED
 
-    // function testProveOverCommittedBalance(IEigenPod pod, uint40 validatorIndex) internal {
-    //     //IEigenPod pod = testDeployAndVerifyNewEigenPod(signature, depositDataRoot);
-    //     // get beaconChainETH shares
-    //     uint256 beaconChainETHBefore = getBeaconChainETHShares(pod.podOwner());
+    function testProveOverCommittedBalance(IEigenPod pod) public {
+        setJSON("./src/test/test-data/slashedProofs/notOvercommittedBalanceProof_61511.json");
+        IEigenPod newPod = _testDeployAndVerifyNewEigenPod(podOwner, signature, depositDataRoot);
+        // get beaconChainETH shares
+        uint256 beaconChainETHBefore = getBeaconChainETHShares(podOwner);
 
-    //     // prove overcommitted balance
-    //     _proveOvercommittedStake(pod, validatorIndex);
+        setJSON("./src/test/test-data/slashedProofs/overcommittedBalanceProof_61511.json");
+        // prove overcommitted balance
+        _proveOverCommittedStake(newPod);
 
-    //     assertTrue(beaconChainETHBefore - getBeaconChainETHShares(pod.podOwner()) == pod.REQUIRED_BALANCE_WEI(), "BeaconChainETHShares not updated");
-    //     assertTrue(pod.validatorStatus(validatorIndex) == IEigenPod.VALIDATOR_STATUS.OVERCOMMITTED, "validator status not set correctly");
-    // }
+        uint40 validatorIndex = uint40(getValidatorIndex());
+
+        assertTrue(beaconChainETHBefore - getBeaconChainETHShares(podOwner) == newPod.REQUIRED_BALANCE_WEI(), "BeaconChainETHShares not updated");
+        assertTrue(newPod.validatorStatus(validatorIndex) == IEigenPod.VALIDATOR_STATUS.OVERCOMMITTED, "validator status not set correctly");
+    }
 
     // function testDeployingEigenPodRevertsWhenPaused() external {
     //     // pause the contract
@@ -467,6 +464,15 @@ contract EigenPodTests is BeaconChainProofUtils, ProofParsing, EigenPodPausingCo
     //     uint64 blockNumber = 0;
     //     pod.verifyOvercommittedStake(blockNumber, validatorIndex, proofs, validatorContainerFields, 0);
     // }
+
+    function _proveOverCommittedStake(IEigenPod newPod) internal {
+        validatorFields = getValidatorFields();
+        uint40 validatorIndex = uint40(getValidatorIndex());
+        bytes32 newBeaconStateRoot = getBeaconStateRoot();
+        BeaconChainOracleMock(address(beaconChainOracle)).setBeaconChainStateRoot(newBeaconStateRoot);
+        BeaconChainProofs.ValidatorFieldsAndBalanceProofs memory proofs = _getValidatorFieldsAndBalanceProof();
+        newPod.verifyOvercommittedStake(validatorIndex, proofs, validatorFields, 0, 0);
+    }
 
 
 
