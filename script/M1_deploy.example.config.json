@@ -1,0 +1,12 @@
+{
+   "deployer_private_key": "0x",
+   "strats": [
+        {
+             "token": "0x",
+             "deploy": true,
+        }
+    ],
+    "investmentManager": {
+        "withdrawalDelayBlocks": 10
+    }
+}

@@ -37,6 +37,10 @@ import "forge-std/StdJson.sol";
 // # To deploy and verify our contract
 // forge script script/M1_Deploy.s.sol:Deployer_M1 --rpc-url $RPC_URL  --private-key $PRIVATE_KEY --broadcast -vvvv
 contract Deployer_M1 is Script, Owners {
+    Vm cheats = Vm(HEVM_ADDRESS);
+
+    string public deployConfigPath = string(bytes("./M1_deploy.config.json"));
+
     // EigenLayer Contracts
     ProxyAdmin public eigenLayerProxyAdmin;
     PauserRegistry public eigenLayerPauserReg;
@@ -95,7 +99,21 @@ contract Deployer_M1 is Script, Owners {
     uint32 INIT_ESCROW_DELAY_BLOCKS = 7 days / 12 seconds;
 
     function run() external {
-        vm.startBroadcast();        
+        string memory data = vm.readFile(deployConfigPath);
+        bytes memory parsedData = vm.parseJson(data);
+        // TODO: parse data -- see docs here https://book.getfoundry.sh/cheatcodes/parse-json#decoding-json-objects-into-solidity-structs
+
+        // RawEIP1559ScriptArtifact memory rawArtifact = abi.decode(parsedData, (RawEIP1559ScriptArtifact));
+        // EIP1559ScriptArtifact memory artifact;
+        // artifact.libraries = rawArtifact.libraries;
+        // artifact.path = rawArtifact.path;
+        // artifact.timestamp = rawArtifact.timestamp;
+        // artifact.pending = rawArtifact.pending;
+        // artifact.txReturns = rawArtifact.txReturns;
+        // artifact.receipts = rawToConvertedReceipts(rawArtifact.receipts);
+        // artifact.transactions = rawToConvertedEIPTx1559s(rawArtifact.transactions);
+
+        vm.startBroadcast();
 
         // deploy proxy admin for ability to upgrade proxy contracts
         eigenLayerProxyAdmin = new ProxyAdmin();
@@ -230,6 +248,7 @@ contract Deployer_M1 is Script, Owners {
         _checkPauserInitializations();
         vm.stopBroadcast();
 
+        // TODO: write to file using vm.writeJSON -- see https://github.com/foundry-rs/foundry/pull/3595 or https://book.getfoundry.sh/cheatcodes/serialize-json
         vm.writeFile("data/investmentManager.addr", vm.toString(address(investmentManager)));
         vm.writeFile("data/delegation.addr", vm.toString(address(delegation)));
         vm.writeFile("data/slasher.addr", vm.toString(address(slasher)));
