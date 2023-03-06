@@ -310,8 +310,8 @@ contract Deployer_M1 is Script, Test {
             vm.serializeAddress(deployed_strategies, strategyTokensAndNames[i].tokenName, strategyTokensAndNames[i].tokenAddress);
         }
         string memory deployed_strategies_output = vm.serializeAddress(
-            deployed_strategies, strategyTokensAndNames[strategyTokensAndNames.length-1].tokenName,
-            strategyTokensAndNames[strategyTokensAndNames.length-1].tokenAddress
+            deployed_strategies, strategyTokensAndNames[strategyTokensAndNames.length - 1].tokenName,
+            strategyTokensAndNames[strategyTokensAndNames.length - 1].tokenAddress
         );
 
         string memory deployed_addresses = "deployed addresses";
