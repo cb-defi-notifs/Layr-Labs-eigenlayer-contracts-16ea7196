@@ -38,6 +38,12 @@ import "forge-std/Test.sol";
 contract Deployer_M1 is Script, Test {
     Vm cheats = Vm(HEVM_ADDRESS);
 
+    // struct used to encode token info in config file
+    struct StrategyToken {
+        address tokenAddress;
+        string tokenName;
+    }
+
     string public deployConfigPath = string(bytes("script/M1_deploy.config.json"));
 
     // EigenLayer Contracts
@@ -66,8 +72,7 @@ contract Deployer_M1 is Script, Test {
     // the ETH2 deposit contract -- if not on mainnet, we deploy a mock as stand-in
     IETHPOSDeposit public ethPOSDeposit;
 
-    // TODO: add to this token array appropriately -- could include deploying a mock token on testnets
-    IERC20[] public tokensForStrategies;
+    // strategies deployed
     InvestmentStrategyBase[] public strategyArray;
 
     // IMMUTABLES TO SET
@@ -94,29 +99,39 @@ contract Deployer_M1 is Script, Test {
         emit log_named_uint("You are deploying on ChainID", chainId);
 
         // READ JSON CONFIG DATA
-        string memory data = vm.readFile(deployConfigPath);
-        // bytes memory parsedData = vm.parseJson(data);
+        string memory config_data = vm.readFile(deployConfigPath);
+        // bytes memory parsedData = vm.parseJson(config_data);
 
-        INVESTMENT_MANAGER_INIT_PAUSED_STATUS = stdJson.readUint(data, ".investmentManager.init_paused_status");
-        SLASHER_INIT_PAUSED_STATUS = stdJson.readUint(data, ".slasher.init_paused_status");
-        DELEGATION_INIT_PAUSED_STATUS = stdJson.readUint(data, ".delegation.init_paused_status");
-        EIGENPOD_MANAGER_INIT_PAUSED_STATUS = stdJson.readUint(data, ".eigenPodManager.init_paused_status");
-        EIGENPOD_PAYMENT_ESCROW_INIT_PAUSED_STATUS = stdJson.readUint(data, ".eigenPodPaymentEscrow.init_paused_status");
+        INVESTMENT_MANAGER_INIT_PAUSED_STATUS = stdJson.readUint(config_data, ".investmentManager.init_paused_status");
+        SLASHER_INIT_PAUSED_STATUS = stdJson.readUint(config_data, ".slasher.init_paused_status");
+        DELEGATION_INIT_PAUSED_STATUS = stdJson.readUint(config_data, ".delegation.init_paused_status");
+        EIGENPOD_MANAGER_INIT_PAUSED_STATUS = stdJson.readUint(config_data, ".eigenPodManager.init_paused_status");
+        EIGENPOD_PAYMENT_ESCROW_INIT_PAUSED_STATUS = stdJson.readUint(config_data, ".eigenPodPaymentEscrow.init_paused_status");
 
-        INVESTMENT_MANAGER_INIT_WITHDRAWAL_DELAY_BLOCKS = uint32(stdJson.readUint(data, ".investmentManager.init_withdrawal_delay_blocks"));
-        ESCROW_INIT_WITHDRAWAL_DELAY_BLOCKS = uint32(stdJson.readUint(data, ".investmentManager.init_withdrawal_delay_blocks"));
+        INVESTMENT_MANAGER_INIT_WITHDRAWAL_DELAY_BLOCKS = uint32(stdJson.readUint(config_data, ".investmentManager.init_withdrawal_delay_blocks"));
+        ESCROW_INIT_WITHDRAWAL_DELAY_BLOCKS = uint32(stdJson.readUint(config_data, ".investmentManager.init_withdrawal_delay_blocks"));
 
-        REQUIRED_BALANCE_WEI = stdJson.readUint(data, ".eigenPod.REQUIRED_BALANCE_WEI");
+        REQUIRED_BALANCE_WEI = stdJson.readUint(config_data, ".eigenPod.REQUIRED_BALANCE_WEI");
+
+        // tokens to deploy strategies for -- if not on mainnet, we deploy mock tokens to use with the provided names
+        StrategyToken[] memory strategyTokens;
 
         // if on mainnet, use mainnet config
         if (chainId == 1) {
-            communityMultisig = stdJson.readAddress(data, ".multisig_addresses.mainnet.communityMultisig");
-            teamMultisig = stdJson.readAddress(data, ".multisig_addresses.mainnet.teamMultisig");
+            communityMultisig = stdJson.readAddress(config_data, ".multisig_addresses.mainnet.communityMultisig");
+            teamMultisig = stdJson.readAddress(config_data, ".multisig_addresses.mainnet.teamMultisig");
+            // load mainnet token list
+            bytes memory strategyTokensRaw = stdJson.parseRaw(config_data, ".strategies.mainnet");
+            strategyTokens = abi.decode(strategyTokensRaw, (StrategyToken[]));
         // if not on mainnet, read from the "testnet" config
         } else {
-            communityMultisig = stdJson.readAddress(data, ".multisig_addresses.testnet.communityMultisig");
-            teamMultisig = stdJson.readAddress(data, ".multisig_addresses.testnet.teamMultisig");
+            communityMultisig = stdJson.readAddress(config_data, ".multisig_addresses.testnet.communityMultisig");
+            teamMultisig = stdJson.readAddress(config_data, ".multisig_addresses.testnet.teamMultisig");
+            // testnet token list is empty since the tokens haven't been deployed yet
+            bytes memory strategyTokensRaw = stdJson.parseRaw(config_data, ".strategies.testnet");
+            strategyTokens = abi.decode(strategyTokensRaw, (StrategyToken[]));
         }
+
 
         require(communityMultisig != address(0), "communityMultisig address not configured correctly!");
         require(teamMultisig != address(0), "teamMultisig address not configured correctly!");
@@ -229,15 +244,33 @@ contract Deployer_M1 is Script, Test {
             ESCROW_INIT_WITHDRAWAL_DELAY_BLOCKS)
         );
 
-        // deploy InvestmentStrategyBase contract implementation, then create upgradeable proxy that points to implementation and initialize it
+        // if not on mainnet, then deploy mock tokens to use in strategies
+        if (chainId != 1) {
+            // deploy simple ERC20 (**NOT** WETH-like!), used in a test investment strategy
+            for (uint256 i = 0; i < strategyTokens.length; ++i) {
+                strategyTokens[i].tokenAddress = address(
+                    new ERC20PresetFixedSupply(
+                    strategyTokens[i].tokenName,
+                    strategyTokens[i].tokenName,
+                    // initial supply
+                    10e50,
+                    // owner
+                    msg.sender
+                    )
+                );
+            }
+        }
+
+        // deploy InvestmentStrategyBase contract implementation
         baseStrategyImplementation = new InvestmentStrategyBase(investmentManager);
-        for (uint256 i = 0; i < tokensForStrategies.length; ++i) {
+        // create upgradeable proxies that each point to the implementation and initialize them
+        for (uint256 i = 0; i < strategyTokens.length; ++i) {
             strategyArray.push(
                 InvestmentStrategyBase(address(
                     new TransparentUpgradeableProxy(
                         address(baseStrategyImplementation),
                         address(eigenLayerProxyAdmin),
-                        abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, tokensForStrategies[i], eigenLayerPauserReg)
+                        abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, IERC20(strategyTokens[i].tokenAddress), eigenLayerPauserReg)
                     )
                 ))
             );
