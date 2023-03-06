@@ -8,11 +8,24 @@ The main functionalities are:
 - keeping track of the balances of all validators of EigenPods, and their stake in EigenLayer
 - withdrawing eth when withdrawals are initiated
 
+### beaconProxyBytecode
+
+```solidity
+bytes beaconProxyBytecode
+```
+
+Stored code of type(BeaconProxy).creationCode
+
+_Maintained as a constant to solve an edge case - changes to OpenZeppelin's BeaconProxy code should not cause
+addresses of EigenPods that are pre-computed with Create2 to change, even upon upgrading this contract, changing compiler version, etc._
+
 ### ethPOS
 
 ```solidity
 contract IETHPOSDeposit ethPOS
 ```
+
+The ETH2 Deposit Contract
 
 ### eigenPodBeacon
 
@@ -99,7 +112,7 @@ constructor(contract IETHPOSDeposit _ethPOS, contract IBeacon _eigenPodBeacon, c
 ### initialize
 
 ```solidity
-function initialize(contract IBeaconChainOracle _beaconChainOracle, address initialOwner, contract IPauserRegistry _pauserRegistry, uint256 _initPausedStatus) public
+function initialize(contract IBeaconChainOracle _beaconChainOracle, address initialOwner, contract IPauserRegistry _pauserRegistry, uint256 _initPausedStatus) external
 ```
 
 ### createPod
@@ -230,8 +243,18 @@ Returns 'true' if the `podOwner` has created an EigenPod, and 'false' otherwise.
 ### getBeaconChainStateRoot
 
 ```solidity
-function getBeaconChainStateRoot(uint64 slot) external view returns (bytes32)
+function getBeaconChainStateRoot(uint64 blockNumber) external view returns (bytes32)
 ```
 
-Returns the Beacon Chain state root at `slot`. Reverts if the Beacon Chain state root at `slot` has not yet been finalized.
+Returns the Beacon Chain state root at `blockNumber`. Reverts if the Beacon Chain state root at `blockNumber` has not yet been finalized.
+
+### __gap
+
+```solidity
+uint256[48] __gap
+```
+
+_This empty reserved space is put in place to allow future versions to add new
+variables without shifting down storage in the inheritance chain.
+See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps_
 

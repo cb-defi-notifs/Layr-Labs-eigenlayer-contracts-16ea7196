@@ -3,7 +3,7 @@
 ## BeaconChainOracle
 
 The owner of this contract can edit a set of 'oracle signers', as well as changing the threshold number of oracle signers that must vote for a
- particular state root at a specified slot before the state root is considered 'confirmed'.
+ particular state root at a specified blockNumber before the state root is considered 'confirmed'.
 
 ### MINIMUM_THRESHOLD
 
@@ -11,7 +11,7 @@ The owner of this contract can edit a set of 'oracle signers', as well as changi
 uint256 MINIMUM_THRESHOLD
 ```
 
-The minimum value which the `treshold` variable is allowed to take.
+The minimum value which the `threshold` variable is allowed to take.
 
 ### totalOracleSigners
 
@@ -33,23 +33,23 @@ Adjustable by this contract's owner through use of the `setThreshold` function.
 _We note that there is an edge case -- when the threshold is adjusted downward, if a state root already has enough votes to meet the *new* threshold,
 the state root must still receive one additional vote from an oracle signer to be confirmed. This behavior is intended, to minimize unexpected root confirmations._
 
-### latestConfirmedOracleSlot
+### latestConfirmedOracleBlockNumber
 
 ```solidity
-uint64 latestConfirmedOracleSlot
+uint64 latestConfirmedOracleBlockNumber
 ```
 
-Largest slot that has been confirmed by the oracle.
+Largest blockNumber that has been confirmed by the oracle.
 
-### beaconStateRoot
+### beaconStateRootAtBlockNumber
 
 ```solidity
-mapping(uint64 => bytes32) beaconStateRoot
+mapping(uint64 => bytes32) beaconStateRootAtBlockNumber
 ```
 
-Mapping: Beacon Chain slot => the Beacon Chain state root at the specified slot.
+Mapping: Beacon Chain blockNumber => the Beacon Chain state root at the specified blockNumber.
 
-_This will return `bytes32(0)` if the state root is not yet confirmed at the slot._
+_This will return `bytes32(0)` if the state root is not yet confirmed at the blockNumber._
 
 ### isOracleSigner
 
@@ -65,7 +65,7 @@ Mapping: address => whether or not the address is in the set of oracle signers.
 mapping(uint64 => mapping(address => bool)) hasVoted
 ```
 
-Mapping: Beacon Chain slot => oracle signer address => whether or not the oracle signer has voted on the state root at the slot.
+Mapping: Beacon Chain blockNumber => oracle signer address => whether or not the oracle signer has voted on the state root at the blockNumber.
 
 ### stateRootVotes
 
@@ -73,7 +73,7 @@ Mapping: Beacon Chain slot => oracle signer address => whether or not the oracle
 mapping(uint64 => mapping(bytes32 => uint256)) stateRootVotes
 ```
 
-Mapping: Beacon Chain slot => state root => total number of oracle signer votes for the state root at the slot.
+Mapping: Beacon Chain blockNumber => state root => total number of oracle signer votes for the state root at the blockNumber.
 
 ### ThresholdModified
 
@@ -86,10 +86,10 @@ Emitted when the value of the `threshold` variable is changed from `previousValu
 ### StateRootConfirmed
 
 ```solidity
-event StateRootConfirmed(uint64 slot, bytes32 stateRoot)
+event StateRootConfirmed(uint64 blockNumber, bytes32 stateRoot)
 ```
 
-Emitted when the beacon chain state root at `slot` is confirmed to be `stateRoot`.
+Emitted when the beacon chain state root at `blockNumber` is confirmed to be `stateRoot`.
 
 ### OracleSignerAdded
 
@@ -170,19 +170,19 @@ _Function will have no effect on the i-th input address if `_oracleSigners[i]`is
 ### voteForBeaconChainStateRoot
 
 ```solidity
-function voteForBeaconChainStateRoot(uint64 slot, bytes32 stateRoot) external
+function voteForBeaconChainStateRoot(uint64 blockNumber, bytes32 stateRoot) external
 ```
 
-Called by a member of the set of oracle signers to assert that the Beacon Chain state root is `stateRoot` at `slot`.
+Called by a member of the set of oracle signers to assert that the Beacon Chain state root is `stateRoot` at `blockNumber`.
 
-_The state root will be confirmed once the total number of votes *for this exact state root at this exact slot* meets the `threshold` value._
+_The state root will be confirmed once the total number of votes *for this exact state root at this exact blockNumber* meets the `threshold` value._
 
 #### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| slot | uint64 | The Beacon Chain slot of interest. |
-| stateRoot | bytes32 | The Beacon Chain state root that the caller asserts was the correct root, at the specified `slot`. |
+| blockNumber | uint64 | The Beacon Chain blockNumber of interest. |
+| stateRoot | bytes32 | The Beacon Chain state root that the caller asserts was the correct root, at the specified `blockNumber`. |
 
 ### _setThreshold
 

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity =0.8.12;
 
-import "../../contracts/interfaces/IBeaconChainOracle.sol";
+import "./IBeaconChainOracleMock.sol";
 
 
 
-contract BeaconChainOracleMock is IBeaconChainOracle {
+contract BeaconChainOracleMock is IBeaconChainOracleMock {
 
     bytes32 public mockBeaconChainStateRoot;
 
@@ -17,7 +17,7 @@ contract BeaconChainOracleMock is IBeaconChainOracle {
         mockBeaconChainStateRoot = beaconChainStateRoot;
     }
 
-    function beaconStateRoot(uint64 /*slot*/) external view returns(bytes32) {
+    function beaconStateRootAtBlockNumber(uint64 /*blockNumber*/) external view returns(bytes32) {
         return mockBeaconChainStateRoot;
     }
 
@@ -25,11 +25,11 @@ contract BeaconChainOracleMock is IBeaconChainOracle {
         return true;
     }
 
-    function hasVoted(uint64 /*slot*/, address /*oracleSigner*/) external pure returns(bool) {
+    function hasVoted(uint64 /*blockNumber*/, address /*oracleSigner*/) external pure returns(bool) {
         return true;
     }
 
-    function stateRootVotes(uint64 /*slot*/, bytes32 /*stateRoot*/) external pure returns(uint256) {
+    function stateRootVotes(uint64 /*blockNumber*/, bytes32 /*stateRoot*/) external pure returns(uint256) {
         return 0;
     }
 
@@ -47,7 +47,7 @@ contract BeaconChainOracleMock is IBeaconChainOracle {
 
     function removeOracleSigners(address[] memory /*_oracleSigners*/) external pure {}
 
-    function voteForBeaconChainStateRoot(uint64 /*slot*/, bytes32 /*stateRoot*/) external pure {}
+    function voteForBeaconChainStateRoot(uint64 /*blockNumber*/, bytes32 /*stateRoot*/) external pure {}
 
-    function latestConfirmedOracleSlot() external pure returns(uint64) {}
+    function latestConfirmedOracleBlockNumber() external pure returns(uint64) {}
 }

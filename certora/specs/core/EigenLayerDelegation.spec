@@ -2,11 +2,11 @@
 methods {
     //// External Calls
 	// external calls to EigenLayerDelegation 
-    undelegate(address) => DISPATCHER(true)
-    isDelegated(address) returns (bool) => DISPATCHER(true)
-    delegatedTo(address) returns (address) => DISPATCHER(true)
-    decreaseDelegatedShares(address,address[],uint256[]) => DISPATCHER(true)
-	increaseDelegatedShares(address,address,uint256) => DISPATCHER(true)
+    undelegate(address) 
+    isDelegated(address) returns (bool) 
+    delegatedTo(address) returns (address) 
+    decreaseDelegatedShares(address,address[],uint256[]) 
+	increaseDelegatedShares(address,address,uint256) 
 
 	// external calls to Slasher
     isFrozen(address) returns (bool) => DISPATCHER(true)
@@ -98,6 +98,7 @@ FORBIDDEN STATES:
 Combining the above, an address can be (classified as an operator) *iff* they are (delegated to themselves).
 The exception is the zero address, since by default an address is 'delegated to the zero address' when they are not delegated at all
 */
+//definition notDelegated -- defined as delegatedTo(staker) == address(0), likewise returned by isNotDelegated(staker)--
 
 // verify that anyone who is registered as an operator is also always delegated to themselves
 invariant operatorsAlwaysDelegatedToSelf(address operator)

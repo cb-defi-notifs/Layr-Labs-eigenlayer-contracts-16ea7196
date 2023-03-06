@@ -5,7 +5,7 @@ pragma solidity =0.8.12;
  * @title Interface for the BeaconStateOracle contract.
  * @author Layr Labs, Inc.
  */
-interface IBeaconChainOracle {
+interface IBeaconChainOracleMock {
     /// @notice Largest blockNumber that has been confirmed by the oracle.
     function latestConfirmedOracleBlockNumber() external view returns(uint64);
     /// @notice Mapping: Beacon Chain blockNumber => the Beacon Chain state root at the specified blockNumber.
@@ -23,6 +23,10 @@ interface IBeaconChainOracle {
 
     /// @notice Total number of members of the set of oracle signers.
     function totalOracleSigners() external view returns(uint256);
+
+
+    function setBeaconChainStateRoot(bytes32 beaconChainStateRoot) external;
+
 
     /**
      * @notice Number of oracle signers that must vote for a state root in order for the state root to be confirmed.
