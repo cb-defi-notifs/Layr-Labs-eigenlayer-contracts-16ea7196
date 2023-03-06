@@ -60,8 +60,8 @@ contract Deployer_M1 is Script, Test {
     EmptyContract public emptyContract;
 
     // TODO: set these addresses
-    address communityMultisig = address(2);
-    address teamMultisig = address(3);
+    address communityMultisig;
+    address teamMultisig;
 
     // the ETH2 deposit contract -- if not on mainnet, we deploy a mock as stand-in
     IETHPOSDeposit public ethPOSDeposit;
@@ -82,9 +82,11 @@ contract Deployer_M1 is Script, Test {
     uint256 EIGENPOD_PAYMENT_ESCROW_INIT_PAUSED_STATUS;
 
     // one week in blocks -- 50400
+    uint32 INVESTMENT_MANAGER_INIT_WITHDRAWAL_DELAY_BLOCKS;
+    uint32 ESCROW_INIT_WITHDRAWAL_DELAY_BLOCKS;
+
+    // TODO: delete this variable
     uint32 PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS = 7 days / 12 seconds;
-    uint32 INIT_WITHDRAWAL_DELAY_BLOCKS = 7 days / 12 seconds;
-    uint32 INIT_ESCROW_DELAY_BLOCKS = 7 days / 12 seconds;
 
     function run() external {
         // read the chainID
@@ -102,7 +104,8 @@ contract Deployer_M1 is Script, Test {
         EIGENPOD_PAYMENT_ESCROW_INIT_PAUSED_STATUS = stdJson.readUint(data, ".eigenPodPaymentEscrow.init_paused_status");
 
         // TODO: check these somewhere
-        INIT_WITHDRAWAL_DELAY_BLOCKS = uint32(stdJson.readUint(data, ".investmentManager.INIT_WITHDRAWAL_DELAY_BLOCKS"));
+        INVESTMENT_MANAGER_INIT_WITHDRAWAL_DELAY_BLOCKS = uint32(stdJson.readUint(data, ".investmentManager.init_withdrawal_delay_blocks"));
+        ESCROW_INIT_WITHDRAWAL_DELAY_BLOCKS = uint32(stdJson.readUint(data, ".investmentManager.init_withdrawal_delay_blocks"));
         // if on mainnet, use mainnet config
         if (chainId == 1) {
             communityMultisig = stdJson.readAddress(data, ".multisig_addresses.mainnet.communityMultisig");
@@ -112,6 +115,9 @@ contract Deployer_M1 is Script, Test {
             communityMultisig = stdJson.readAddress(data, ".multisig_addresses.testnet.communityMultisig");
             teamMultisig = stdJson.readAddress(data, ".multisig_addresses.testnet.teamMultisig");
         }
+
+        require(communityMultisig != address(0), "communityMultisig address not configured correctly!");
+        require(teamMultisig != address(0), "teamMultisig address not configured correctly!");
 
         // START RECORDING TRANSACTIONS FOR DEPLOYMENT
         vm.startBroadcast();
@@ -186,7 +192,7 @@ contract Deployer_M1 is Script, Test {
                 communityMultisig,
                 eigenLayerPauserReg,
                 INVESTMENT_MANAGER_INIT_PAUSED_STATUS,
-                INIT_WITHDRAWAL_DELAY_BLOCKS
+                INVESTMENT_MANAGER_INIT_WITHDRAWAL_DELAY_BLOCKS
             )
         );
         eigenLayerProxyAdmin.upgradeAndCall(
@@ -218,7 +224,7 @@ contract Deployer_M1 is Script, Test {
             communityMultisig,
             eigenLayerPauserReg,
             EIGENPOD_PAYMENT_ESCROW_INIT_PAUSED_STATUS,
-            INIT_ESCROW_DELAY_BLOCKS)
+            ESCROW_INIT_WITHDRAWAL_DELAY_BLOCKS)
         );
 
         // deploy InvestmentStrategyBase contract implementation, then create upgradeable proxy that points to implementation and initialize it
@@ -258,6 +264,7 @@ contract Deployer_M1 is Script, Test {
         );
         _verifyInitialOwners();
         _checkPauserInitializations();
+        _verifyInitializationParams();
 
 
         // WRITE JSON DATA
@@ -340,23 +347,29 @@ contract Deployer_M1 is Script, Test {
 
         // // pause *nothing*
         // uint256 INVESTMENT_MANAGER_INIT_PAUSED_STATUS = 0;
-
         // // pause *everything*
         // uint256 SLASHER_INIT_PAUSED_STATUS = type(uint256).max; 
-
         // // pause *everything*
         // uint256 DELEGATION_INIT_PAUSED_STATUS = type(uint256).max;  
-
         // // pause *all of the proof-related functionality* (everything that can be paused other than creation of EigenPods)
         // uint256 EIGENPOD_MANAGER_INIT_PAUSED_STATUS = (2**1) + (2**2) + (2**3) + (2**4); /* = 30 */ 
-
         // // pause *nothing*
         // uint256 EIGENPOD_PAYMENT_ESCROW_INIT_PAUSED_STATUS = 0;
-        require(investmentManager.paused() == 0, "investmentManager init paused status set incorrectly");
-        require(slasher.paused() == type(uint256).max, "slasher init paused status set incorrectly");
-        require(delegation.paused() == type(uint256).max, "delegation init paused status set incorrectly");
-        require(eigenPodManager.paused() == 30, "eigenPodManager init paused status set incorrectly");
-        require(eigenPodPaymentEscrow.paused() == 0, "eigenPodPaymentEscrow init paused status set incorrectly");
+        require(investmentManager.paused() == 0, "investmentManager: init paused status set incorrectly");
+        require(slasher.paused() == type(uint256).max, "slasher: init paused status set incorrectly");
+        require(delegation.paused() == type(uint256).max, "delegation: init paused status set incorrectly");
+        require(eigenPodManager.paused() == 30, "eigenPodManager: init paused status set incorrectly");
+        require(eigenPodPaymentEscrow.paused() == 0, "eigenPodPaymentEscrow: init paused status set incorrectly");
+    }
+
+    function _verifyInitializationParams() internal view {
+        // // one week in blocks -- 50400
+        // uint32 INVESTMENT_MANAGER_INIT_WITHDRAWAL_DELAY_BLOCKS = 7 days / 12 seconds;
+        // uint32 ESCROW_INIT_WITHDRAWAL_DELAY_BLOCKS = 7 days / 12 seconds;
+        require(investmentManager.withdrawalDelayBlocks() == 7 days / 12 seconds,
+            "investmentManager: withdrawalDelayBlocks initialized incorrectly");
+        require(eigenPodPaymentEscrow.withdrawalDelayBlocks() == 7 days / 12 seconds,
+            "eigenPodPaymentEscrow: withdrawalDelayBlocks initialized incorrectly");
     }
 }
 
