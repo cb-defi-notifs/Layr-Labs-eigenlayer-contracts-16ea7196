@@ -376,7 +376,7 @@ contract EigenPodTests is ProofParsing, EigenPodPausingConstants {
     // // Expected Behaviour: beaconChainETH shares should increment by REQUIRED_BALANCE_WEI
     // //                     validator status should be marked as ACTIVE
 
-    function testProveSingleWithdrawalCredential(IEigenPod pod) public {
+    function testProveSingleWithdrawalCredential() public {
         // get beaconChainETH shares
         uint256 beaconChainETHBefore = getBeaconChainETHShares(podOwner);
 
