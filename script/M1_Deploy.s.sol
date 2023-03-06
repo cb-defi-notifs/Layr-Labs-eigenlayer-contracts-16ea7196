@@ -89,10 +89,6 @@ contract Deployer_M1 is Script, Test {
     uint32 INVESTMENT_MANAGER_INIT_WITHDRAWAL_DELAY_BLOCKS;
     uint32 ESCROW_INIT_WITHDRAWAL_DELAY_BLOCKS;
 
-    // TODO: delete these variables
-    uint32 PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS = 7 days / 12 seconds;
-    uint64 MAX_PARTIAL_WTIHDRAWAL_AMOUNT_GWEI = 1 ether / 1e9;
-
     function run() external {
         // read and log the chainID
         uint256 chainId = block.chainid;
@@ -176,9 +172,8 @@ contract Deployer_M1 is Script, Test {
         eigenPodImplementation = new EigenPod(
             ethPOSDeposit,
             eigenPodPaymentEscrow,
-            PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS,
-            REQUIRED_BALANCE_WEI,
-            MAX_PARTIAL_WTIHDRAWAL_AMOUNT_GWEI
+            eigenPodManager,
+            REQUIRED_BALANCE_WEI
         );
 
         eigenPodBeacon = new UpgradeableBeacon(address(eigenPodImplementation));
