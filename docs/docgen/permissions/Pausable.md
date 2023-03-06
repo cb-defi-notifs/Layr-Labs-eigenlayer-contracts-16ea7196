@@ -140,3 +140,13 @@ function paused(uint8 index) public view virtual returns (bool)
 
 Returns 'true' if the `indexed`th bit of `_paused` is 1, and 'false' otherwise
 
+### __gap
+
+```solidity
+uint256[48] __gap
+```
+
+_This empty reserved space is put in place to allow future versions to add new
+variables without shifting down storage in the inheritance chain.
+See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps_
+

@@ -50,10 +50,18 @@ Mapping: user => struct storing all payment info. Marked as internal with an ext
 ### PaymentCreated
 
 ```solidity
-event PaymentCreated(address podOwner, address recipient, uint256 amount)
+event PaymentCreated(address podOwner, address recipient, uint256 amount, uint256 index)
 ```
 
 event for payment creation
+
+### PaymentsClaimed
+
+```solidity
+event PaymentsClaimed(address recipient, uint256 amountClaimed, uint256 paymentsCompleted)
+```
+
+event for the claiming of payments
 
 ### onlyEigenPod
 
@@ -130,6 +138,14 @@ function userPayments(address user) external view returns (struct IEigenPodPayme
 
 Getter function for the mapping `_userPayments`
 
+### claimableUserPayments
+
+```solidity
+function claimableUserPayments(address user) external view returns (struct IEigenPodPaymentEscrow.Payment[])
+```
+
+Getter function to get all payments that are currently claimable by the `user`
+
 ### userPaymentByIndex
 
 ```solidity
@@ -169,4 +185,14 @@ function _setWithdrawalDelayBlocks(uint256 newValue) internal
 ```
 
 internal function for changing the value of `withdrawalDelayBlocks`. Also performs sanity check and emits an event.
+
+### __gap
+
+```solidity
+uint256[48] __gap
+```
+
+_This empty reserved space is put in place to allow future versions to add new
+variables without shifting down storage in the inheritance chain.
+See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps_
 
