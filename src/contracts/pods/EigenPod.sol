@@ -257,6 +257,9 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         require(validatorCurrentBalanceGwei < REQUIRED_BALANCE_GWEI,
             "EigenPod.verifyOvercommittedStake: validator's balance must be less than the restaked balance per validator");
         
+        // verify ETH validator proof
+        bytes32 beaconStateRoot = eigenPodManager.getBeaconChainStateRoot(oracleBlockNumber);
+ 
         /**
          * If validator's balance is zero, then either they have fully withdrawn or they have been slashed down zero.
          * If the validator *has* been slashed, then this function can proceed. If they have *not* been slashed, then
@@ -265,19 +268,14 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         if (validatorCurrentBalanceGwei == 0) {
             uint64 slashedStatus = Endian.fromLittleEndianUint64(validatorFields[BeaconChainProofs.VALIDATOR_SLASHED_INDEX]);
             require(slashedStatus == 1, "EigenPod.verifyOvercommittedStake: Validator must be slashed to be overcommitted");
+            //Verify the validator fields, which contain the validator's slashed status
+            BeaconChainProofs.verifyValidatorFields(
+                validatorIndex,
+                beaconStateRoot,
+                proofs.validatorFieldsProof,
+                validatorFields
+            );
         }
-
-        // verify ETH validator proof
-        bytes32 beaconStateRoot = eigenPodManager.getBeaconChainStateRoot(oracleBlockNumber);
-
-        //Verify the validator fields, which contain the validator's slashed status
-        BeaconChainProofs.verifyValidatorFields(
-            validatorIndex,
-            beaconStateRoot,
-            proofs.validatorFieldsProof,
-            validatorFields
-        );
- 
         // verify ETH validator's current balance, which is stored in the `balances` container of the beacon state
        BeaconChainProofs.verifyValidatorBalance(
             validatorIndex,

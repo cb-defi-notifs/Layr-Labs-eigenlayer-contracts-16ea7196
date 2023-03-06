@@ -280,8 +280,7 @@ library BeaconChainProofs {
             "BeaconChainProofs.verifyBlockNumberAndWithdrawalFields: Invalid executionPayload merkle proof");
 
         // Next we verify the blockNumberRoot against the executionPayload root
-        uint256 blockNumberIndex = uint256(BLOCK_NUMBER_INDEX);
-        require(Merkle.verifyInclusionSha256(proofs.blockNumberProof, proofs.executionPayloadRoot, proofs.blockNumberRoot, blockNumberIndex),
+        require(Merkle.verifyInclusionSha256(proofs.blockNumberProof, proofs.executionPayloadRoot, proofs.blockNumberRoot, BLOCK_NUMBER_INDEX),
             "BeaconChainProofs.verifyBlockNumberAndWithdrawalFields: Invalid blockNumber merkle proof");
 
         /**
