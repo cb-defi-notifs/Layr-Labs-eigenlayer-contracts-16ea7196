@@ -71,8 +71,7 @@ contract Deployer_M1 is Script, Test {
     InvestmentStrategyBase[] public strategyArray;
 
     // IMMUTABLES TO SET
-    uint256 REQUIRED_BALANCE_WEI = 31 ether;
-    uint64 MAX_PARTIAL_WTIHDRAWAL_AMOUNT_GWEI = 1 ether / 1e9;
+    uint256 REQUIRED_BALANCE_WEI;
 
     // OTHER DEPLOYMENT PARAMETERS
     uint256 INVESTMENT_MANAGER_INIT_PAUSED_STATUS;
@@ -85,11 +84,12 @@ contract Deployer_M1 is Script, Test {
     uint32 INVESTMENT_MANAGER_INIT_WITHDRAWAL_DELAY_BLOCKS;
     uint32 ESCROW_INIT_WITHDRAWAL_DELAY_BLOCKS;
 
-    // TODO: delete this variable
+    // TODO: delete these variables
     uint32 PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS = 7 days / 12 seconds;
+    uint64 MAX_PARTIAL_WTIHDRAWAL_AMOUNT_GWEI = 1 ether / 1e9;
 
     function run() external {
-        // read the chainID
+        // read and log the chainID
         uint256 chainId = block.chainid;
         emit log_named_uint("You are deploying on ChainID", chainId);
 
@@ -103,9 +103,11 @@ contract Deployer_M1 is Script, Test {
         EIGENPOD_MANAGER_INIT_PAUSED_STATUS = stdJson.readUint(data, ".eigenPodManager.init_paused_status");
         EIGENPOD_PAYMENT_ESCROW_INIT_PAUSED_STATUS = stdJson.readUint(data, ".eigenPodPaymentEscrow.init_paused_status");
 
-        // TODO: check these somewhere
         INVESTMENT_MANAGER_INIT_WITHDRAWAL_DELAY_BLOCKS = uint32(stdJson.readUint(data, ".investmentManager.init_withdrawal_delay_blocks"));
         ESCROW_INIT_WITHDRAWAL_DELAY_BLOCKS = uint32(stdJson.readUint(data, ".investmentManager.init_withdrawal_delay_blocks"));
+
+        REQUIRED_BALANCE_WEI = stdJson.readUint(data, ".eigenPod.REQUIRED_BALANCE_WEI");
+
         // if on mainnet, use mainnet config
         if (chainId == 1) {
             communityMultisig = stdJson.readAddress(data, ".multisig_addresses.mainnet.communityMultisig");
@@ -247,7 +249,7 @@ contract Deployer_M1 is Script, Test {
         vm.stopBroadcast();
 
 
-        // CONFIRM DEPLOYMENT
+        // CHECK CORRECTNESS OF DEPLOYMENT
         _verifyContractsPointAtOneAnother(
             delegationImplementation,
             investmentManagerImplementation,
@@ -370,6 +372,9 @@ contract Deployer_M1 is Script, Test {
             "investmentManager: withdrawalDelayBlocks initialized incorrectly");
         require(eigenPodPaymentEscrow.withdrawalDelayBlocks() == 7 days / 12 seconds,
             "eigenPodPaymentEscrow: withdrawalDelayBlocks initialized incorrectly");
+        // uint256 REQUIRED_BALANCE_WEI = 31 ether;
+        require(eigenPodImplementation.REQUIRED_BALANCE_WEI() == 31 ether,
+            "eigenPod: REQUIRED_BALANCE_WEI initialized incorrectly");
     }
 }
 

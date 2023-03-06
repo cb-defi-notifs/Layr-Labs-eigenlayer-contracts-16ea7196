@@ -1,27 +1,27 @@
 {
+  "deployed addresses": {
+    "eigenLayerProxyAdmin": "0x90193C961A926261B756D1E5bb255e67ff9498A1",
+    "delegationImplementation": "0x4C52a6277b1B84121b3072C0c92b6Be0b7CC10F1",
+    "delegation": "0xDB8cFf278adCCF9E9b5da745B44E754fC4EE3C76",
+    "eigenPodBeacon": "0xd21060559c9beb54fC07aFd6151aDf6cFCDDCAeB",
+    "baseStrategyImplementation": "0x39Af23E00F1e662025aA01b0cEdA19542B78DF99",
+    "slasher": "0x62c20Aa1e0272312BC100b4e23B4DC1Ed96dD7D1",
+    "investmentManager": "0x50EEf481cae4250d252Ae577A09bF514f224C6C4",
+    "eigenPodPaymentEscrow": "0xD718d5A27a29FF1cD22403426084bA0d479869a0",
+    "eigenPodManagerImplementation": "0x1c23A6d89F95ef3148BCDA8E242cAb145bf9c0E4",
+    "emptyContract": "0xBb2180ebd78ce97360503434eD37fcf4a1Df61c3",
+    "eigenLayerPauserReg": "0xA8452Ec99ce0C64f20701dB7dD3abDb607c00496",
+    "investmentManagerImplementation": "0x978e3286EB805934215a88694d80b09aDed68D90",
+    "slasherImplementation": "0x8B71b41D4dBEb2b6821d44692d3fACAAf77480Bb",
+    "eigenPodManager": "0xDEb1E9a6Be7Baf84208BB6E10aC9F9bbE1D70809",
+    "eigenPodImplementation": "0x416C42991d05b31E9A6dC209e91AD22b79D87Ae6",
+    "eigenPodPaymentEscrowImplementation": "0x0c8b5822b6e02CDa722174F19A1439A7495a3fA6"
+  },
   "chain info": {
     "chainId": 31337
   },
   "parameters": {
     "teamMultisig": "0x0000000000000000000000000000000000000003",
     "communityMultisig": "0x0000000000000000000000000000000000000002"
-  },
-  "deployed addresses": {
-    "slasherImplementation": "0x8B71b41D4dBEb2b6821d44692d3fACAAf77480Bb",
-    "eigenLayerProxyAdmin": "0x90193C961A926261B756D1E5bb255e67ff9498A1",
-    "eigenPodBeacon": "0xd21060559c9beb54fC07aFd6151aDf6cFCDDCAeB",
-    "baseStrategyImplementation": "0x39Af23E00F1e662025aA01b0cEdA19542B78DF99",
-    "eigenPodManager": "0xDEb1E9a6Be7Baf84208BB6E10aC9F9bbE1D70809",
-    "investmentManagerImplementation": "0x978e3286EB805934215a88694d80b09aDed68D90",
-    "emptyContract": "0xBb2180ebd78ce97360503434eD37fcf4a1Df61c3",
-    "investmentManager": "0x50EEf481cae4250d252Ae577A09bF514f224C6C4",
-    "eigenPodPaymentEscrow": "0xD718d5A27a29FF1cD22403426084bA0d479869a0",
-    "eigenPodPaymentEscrowImplementation": "0x0c8b5822b6e02CDa722174F19A1439A7495a3fA6",
-    "delegationImplementation": "0x4C52a6277b1B84121b3072C0c92b6Be0b7CC10F1",
-    "delegation": "0xDB8cFf278adCCF9E9b5da745B44E754fC4EE3C76",
-    "eigenLayerPauserReg": "0xA8452Ec99ce0C64f20701dB7dD3abDb607c00496",
-    "eigenPodImplementation": "0x416C42991d05b31E9A6dC209e91AD22b79D87Ae6",
-    "eigenPodManagerImplementation": "0x1c23A6d89F95ef3148BCDA8E242cAb145bf9c0E4",
-    "slasher": "0x62c20Aa1e0272312BC100b4e23B4DC1Ed96dD7D1"
   }
 }
