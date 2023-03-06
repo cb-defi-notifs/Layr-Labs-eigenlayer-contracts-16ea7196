@@ -1,12 +1,43 @@
 {
-   "deployer_private_key": "0x",
-   "strats": [
-        {
-             "token": "0x",
-             "deploy": true
-        }
-    ],
-    "investmentManager": {
-        "withdrawalDelayBlocks": 10
-    }
+     "deployer_private_key": "0x",
+     "strategies": [
+          {
+               "token": "0x",
+               "deploy": true
+          }
+     ],
+     "investmentManager": [
+          {
+               "withdrawalDelayBlocks": 10,
+               "init_paused_status": 0,
+               "INIT_WITHDRAWAL_DELAY_BLOCKS": 50400
+          }
+     ],
+     "eigenPod": [
+          {
+               "PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS": 50400,
+               "REQUIRED_BALANCE_WEI": "31000000000000000000"
+          }
+     ],
+     "eigenPodManager": [
+          {
+               "init_paused_status": 30
+          }
+     ],
+     "eigenPodPaymentEscrow": [
+          {
+               "init_paused_status": 0,
+               "INIT_ESCROW_DELAY_BLOCKS": 50400
+          }
+     ],
+     "slasher": [
+          {
+               "init_paused_status": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+          }
+     ],
+     "delegation": [
+          {
+               "init_paused_status": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+          }
+     ]
 }

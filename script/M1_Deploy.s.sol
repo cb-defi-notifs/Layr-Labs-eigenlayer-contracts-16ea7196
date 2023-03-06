@@ -26,16 +26,16 @@ import "../src/contracts/libraries/BytesLib.sol";
 
 import "../src/test/mocks/EmptyContract.sol";
 import "../src/test/mocks/ETHDepositMock.sol";
-import "../src/test/utils/Owners.sol";
 
 import "forge-std/Script.sol";
+import "forge-std/Test.sol";
 
 // # To load the variables in the .env file
 // source .env
 
 // # To deploy and verify our contract
 // forge script script/M1_Deploy.s.sol:Deployer_M1 --rpc-url $RPC_URL  --private-key $PRIVATE_KEY --broadcast -vvvv
-contract Deployer_M1 is Script, Owners {
+contract Deployer_M1 is Script, Test {
     Vm cheats = Vm(HEVM_ADDRESS);
 
     string public deployConfigPath = string(bytes("script/M1_deploy.config.json"));
@@ -63,7 +63,7 @@ contract Deployer_M1 is Script, Owners {
     address communityMultisig = address(2);
     address teamMultisig = address(3);
 
-    // TODO: set this correctly instead of using a mock (possibly dependent upon network)
+    // the ETH2 deposit contract -- if not on mainnet, we deploy a mock as stand-in
     IETHPOSDeposit public ethPOSDeposit;
 
     // TODO: add to this token array appropriately -- could include deploying a mock token on testnets
@@ -71,47 +71,49 @@ contract Deployer_M1 is Script, Owners {
     InvestmentStrategyBase[] public strategyArray;
 
     // IMMUTABLES TO SET
-    // one week in blocks
-    uint32 PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS = 7 days / 12 seconds;
     uint256 REQUIRED_BALANCE_WEI = 31 ether;
     uint64 MAX_PARTIAL_WTIHDRAWAL_AMOUNT_GWEI = 1 ether / 1e9;
 
     // OTHER DEPLOYMENT PARAMETERS
-    // pause *nothing*
-    uint256 INVESTMENT_MANAGER_INIT_PAUSED_STATUS = 0;
-    // one week in blocks
-    uint32 WITHDRAWAL_DELAY_BLOCKS = 7 days / 12 seconds;
+    uint256 INVESTMENT_MANAGER_INIT_PAUSED_STATUS;
+    uint256 SLASHER_INIT_PAUSED_STATUS;
+    uint256 DELEGATION_INIT_PAUSED_STATUS;
+    uint256 EIGENPOD_MANAGER_INIT_PAUSED_STATUS;
+    uint256 EIGENPOD_PAYMENT_ESCROW_INIT_PAUSED_STATUS;
 
-    // pause *everything*
-    uint256 SLASHER_INIT_PAUSED_STATUS = type(uint256).max;
-
-    // pause *everything*
-    uint256 DELEGATION_INIT_PAUSED_STATUS = type(uint256).max;
-
-    // pause *all of the proof-related functionality* (everything that can be paused other than creation of EigenPods)
-    uint256 EIGENPOD_MANAGER_INIT_PAUSED_STATUS = (2**1) + (2**2) + (2**3) + (2**4);
-
-    // pause *nothing*
-    uint256 EIGENPOD_PAYMENT_ESCROW_INIT_PAUSED_STATUS = 0;
-
-    // one week in blocks
+    // one week in blocks -- 50400
+    uint32 PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS = 7 days / 12 seconds;
+    uint32 INIT_WITHDRAWAL_DELAY_BLOCKS = 7 days / 12 seconds;
     uint32 INIT_ESCROW_DELAY_BLOCKS = 7 days / 12 seconds;
 
     function run() external {
+        // read the chainID
+        uint256 chainId = block.chainid;
+        emit log_named_uint("You are deploying on ChainID", chainId);
+
+        // READ JSON CONFIG DATA
         string memory data = vm.readFile(deployConfigPath);
-        bytes memory parsedData = vm.parseJson(data);
-        // TODO: parse data -- see docs here https://book.getfoundry.sh/cheatcodes/parse-json#decoding-json-objects-into-solidity-structs
+        // bytes memory parsedData = vm.parseJson(data);
 
-        // RawEIP1559ScriptArtifact memory rawArtifact = abi.decode(parsedData, (RawEIP1559ScriptArtifact));
-        // EIP1559ScriptArtifact memory artifact;
-        // artifact.libraries = rawArtifact.libraries;
-        // artifact.path = rawArtifact.path;
-        // artifact.timestamp = rawArtifact.timestamp;
-        // artifact.pending = rawArtifact.pending;
-        // artifact.txReturns = rawArtifact.txReturns;
-        // artifact.receipts = rawToConvertedReceipts(rawArtifact.receipts);
-        // artifact.transactions = rawToConvertedEIPTx1559s(rawArtifact.transactions);
+        INVESTMENT_MANAGER_INIT_PAUSED_STATUS = stdJson.readUint(data, ".investmentManager.init_paused_status");
+        SLASHER_INIT_PAUSED_STATUS = stdJson.readUint(data, ".slasher.init_paused_status");
+        DELEGATION_INIT_PAUSED_STATUS = stdJson.readUint(data, ".delegation.init_paused_status");
+        EIGENPOD_MANAGER_INIT_PAUSED_STATUS = stdJson.readUint(data, ".eigenPodManager.init_paused_status");
+        EIGENPOD_PAYMENT_ESCROW_INIT_PAUSED_STATUS = stdJson.readUint(data, ".eigenPodPaymentEscrow.init_paused_status");
 
+        // TODO: check these somewhere
+        INIT_WITHDRAWAL_DELAY_BLOCKS = uint32(stdJson.readUint(data, ".investmentManager.INIT_WITHDRAWAL_DELAY_BLOCKS"));
+        // if on mainnet, use mainnet config
+        if (chainId == 1) {
+            communityMultisig = stdJson.readAddress(data, ".multisig_addresses.mainnet.communityMultisig");
+            teamMultisig = stdJson.readAddress(data, ".multisig_addresses.mainnet.teamMultisig");
+        // if not on mainnet, read from the "testnet" config
+        } else {
+            communityMultisig = stdJson.readAddress(data, ".multisig_addresses.testnet.communityMultisig");
+            teamMultisig = stdJson.readAddress(data, ".multisig_addresses.testnet.teamMultisig");
+        }
+
+        // START RECORDING TRANSACTIONS FOR DEPLOYMENT
         vm.startBroadcast();
 
         // deploy proxy admin for ability to upgrade proxy contracts
@@ -141,7 +143,13 @@ contract Deployer_M1 is Script, Owners {
             address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayerProxyAdmin), ""))
         );
 
-        ethPOSDeposit = new ETHPOSDepositMock();
+        // if on mainnet, use the ETH2 deposit contract address
+        if (chainId == 1) {
+            ethPOSDeposit = IETHPOSDeposit(0x00000000219ab540356cBB839Cbe05303d7705Fa);
+        // if not on mainnet, deploy a mock
+        } else {
+            ethPOSDeposit = new ETHPOSDepositMock();
+        }
         eigenPodImplementation = new EigenPod(
             ethPOSDeposit,
             eigenPodPaymentEscrow,
@@ -178,7 +186,7 @@ contract Deployer_M1 is Script, Owners {
                 communityMultisig,
                 eigenLayerPauserReg,
                 INVESTMENT_MANAGER_INIT_PAUSED_STATUS,
-                WITHDRAWAL_DELAY_BLOCKS
+                INIT_WITHDRAWAL_DELAY_BLOCKS
             )
         );
         eigenLayerProxyAdmin.upgradeAndCall(
@@ -229,6 +237,11 @@ contract Deployer_M1 is Script, Owners {
 
         eigenLayerProxyAdmin.transferOwnership(communityMultisig);
 
+        // STOP RECORDING TRANSACTIONS FOR DEPLOYMENT
+        vm.stopBroadcast();
+
+
+        // CONFIRM DEPLOYMENT
         _verifyContractsPointAtOneAnother(
             delegationImplementation,
             investmentManagerImplementation,
@@ -245,8 +258,9 @@ contract Deployer_M1 is Script, Owners {
         );
         _verifyInitialOwners();
         _checkPauserInitializations();
-        vm.stopBroadcast();
 
+
+        // WRITE JSON DATA
         string memory parent_object = "parent object";
 
         string memory deployed_addresses = "deployed addresses";
@@ -272,7 +286,11 @@ contract Deployer_M1 is Script, Owners {
         vm.serializeAddress(parameters, "communityMultisig", communityMultisig);
         string memory parameters_output = vm.serializeAddress(parameters, "teamMultisig", teamMultisig);
 
+        string memory chain_info = "chain info";
+        string memory chain_info_output = vm.serializeUint(chain_info, "chainId", chainId);
+
         vm.serializeString(parent_object, deployed_addresses, deployed_addresses_output);
+        vm.serializeString(parent_object, chain_info, chain_info_output);
         string memory finalJson = vm.serializeString(parent_object, parameters, parameters_output);
         vm.writeJson(finalJson, "script/output/M1_deployment_data.json");
     }
@@ -320,11 +338,25 @@ contract Deployer_M1 is Script, Owners {
         require(eigenLayerPauserReg.pauser() == teamMultisig, "pauserRegistry: pauser not set correctly");
         require(eigenLayerPauserReg.unpauser() == communityMultisig, "pauserRegistry: unpauser not set correctly");
 
-        require(investmentManager.paused() == INVESTMENT_MANAGER_INIT_PAUSED_STATUS, "investmentManager init paused status set incorrectly");
-        require(slasher.paused() == SLASHER_INIT_PAUSED_STATUS, "slasher init paused status set incorrectly");
-        require(delegation.paused() == DELEGATION_INIT_PAUSED_STATUS, "delegation init paused status set incorrectly");
-        require(eigenPodManager.paused() == EIGENPOD_MANAGER_INIT_PAUSED_STATUS, "eigenPodManager init paused status set incorrectly");
-        require(eigenPodPaymentEscrow.paused() == EIGENPOD_PAYMENT_ESCROW_INIT_PAUSED_STATUS, "eigenPodPaymentEscrow init paused status set incorrectly");
+        // // pause *nothing*
+        // uint256 INVESTMENT_MANAGER_INIT_PAUSED_STATUS = 0;
+
+        // // pause *everything*
+        // uint256 SLASHER_INIT_PAUSED_STATUS = type(uint256).max; 
+
+        // // pause *everything*
+        // uint256 DELEGATION_INIT_PAUSED_STATUS = type(uint256).max;  
+
+        // // pause *all of the proof-related functionality* (everything that can be paused other than creation of EigenPods)
+        // uint256 EIGENPOD_MANAGER_INIT_PAUSED_STATUS = (2**1) + (2**2) + (2**3) + (2**4); /* = 30 */ 
+
+        // // pause *nothing*
+        // uint256 EIGENPOD_PAYMENT_ESCROW_INIT_PAUSED_STATUS = 0;
+        require(investmentManager.paused() == 0, "investmentManager init paused status set incorrectly");
+        require(slasher.paused() == type(uint256).max, "slasher init paused status set incorrectly");
+        require(delegation.paused() == type(uint256).max, "delegation init paused status set incorrectly");
+        require(eigenPodManager.paused() == 30, "eigenPodManager init paused status set incorrectly");
+        require(eigenPodPaymentEscrow.paused() == 0, "eigenPodPaymentEscrow init paused status set incorrectly");
     }
 }
 
