@@ -30,7 +30,10 @@ contract EigenPodPaymentEscrow is Initializable, OwnableUpgradeable, ReentrancyG
     mapping(address => UserPayments) internal _userPayments;
 
     /// @notice event for payment creation
-    event PaymentCreated(address podOwner, address recipient, uint256 amount);
+    event PaymentCreated(address podOwner, address recipient, uint256 amount, uint256 index);
+
+    /// @notice event for the claiming of payments
+    event PaymentsClaimed(address recipient, uint256 amountClaimed, uint256 paymentsCompleted);
 
     /// @notice Modifier used to permission a function to only be called by the EigenPod of the specified `podOwner`
     modifier onlyEigenPod(address podOwner) {
@@ -61,7 +64,7 @@ contract EigenPodPaymentEscrow is Initializable, OwnableUpgradeable, ReentrancyG
                 blockCreated: uint32(block.number)
             });
             _userPayments[recipient].payments.push(payment);
-            emit PaymentCreated(podOwner, recipient, paymentAmount);
+            emit PaymentCreated(podOwner, recipient, paymentAmount, _userPayments[recipient].payments.length - 1);
         }
     }
 
@@ -90,6 +93,18 @@ contract EigenPodPaymentEscrow is Initializable, OwnableUpgradeable, ReentrancyG
     /// @notice Getter function for the mapping `_userPayments`
     function userPayments(address user) external view returns (UserPayments memory) {
         return _userPayments[user];
+    }
+
+    /// @notice Getter function to get all payments that are currently claimable by the `user`
+    function claimableUserPayments(address user) external view returns (Payment[] memory) {
+        uint256 paymentsCompleted = _userPayments[user].paymentsCompleted;
+        uint256 paymentsLength = _userPayments[user].payments.length;
+        uint256 claimablePaymentsLength = paymentsLength - paymentsCompleted;
+        Payment[] memory claimablePayments = new Payment[](claimablePaymentsLength);
+        for (uint256 i = 0; i < claimablePaymentsLength; i++) {
+            claimablePayments[i] = _userPayments[user].payments[paymentsCompleted + i];
+        }
+        return claimablePayments;
     }
 
     /// @notice Getter function for fetching the payment at the `index`th entry from the `_userPayments[user].payments` array
@@ -133,6 +148,7 @@ contract EigenPodPaymentEscrow is Initializable, OwnableUpgradeable, ReentrancyG
         if (amountToSend != 0) {
             AddressUpgradeable.sendValue(payable(recipient), amountToSend);
         }
+        emit PaymentsClaimed(recipient, amountToSend, paymentsCompletedBefore + i);
     }
 
     /// @notice internal function for changing the value of `withdrawalDelayBlocks`. Also performs sanity check and emits an event.

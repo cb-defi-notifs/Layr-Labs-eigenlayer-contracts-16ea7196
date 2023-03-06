@@ -118,10 +118,10 @@ Oracle contract that provides updates to the beacon chain's state
 ### getBeaconChainStateRoot
 
 ```solidity
-function getBeaconChainStateRoot(uint64 slot) external view returns (bytes32)
+function getBeaconChainStateRoot(uint64 blockNumber) external view returns (bytes32)
 ```
 
-Returns the Beacon Chain state root at `slot`. Reverts if the Beacon Chain state root at `slot` has not yet been finalized.
+Returns the Beacon Chain state root at `blockNumber`. Reverts if the Beacon Chain state root at `blockNumber` has not yet been finalized.
 
 ### investmentManager
 
