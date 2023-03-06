@@ -355,7 +355,7 @@ contract DelegationTests is EigenLayerTestHelper {
     }
 
     /// @notice This function tests to ensure that an address can only call registerAsOperator() once
-    function testCannotRegisterAsOperatorTwice(address _operator, address _dt) public {
+    function testCannotRegisterAsOperatorTwice(address _operator, address _dt) public fuzzedAddress(_operator) fuzzedAddress(_dt) {
         vm.assume(_dt != address(0));
         vm.startPrank(_operator);
         delegation.registerAsOperator(IDelegationTerms(_dt));
