@@ -254,10 +254,10 @@ Modifies the `paymentChallengeAmount` amount.
 | ---- | ---- | ----------- |
 | _paymentChallengeAmount | uint256 | The new value for `paymentChallengeAmount` to take. |
 
-### payFee
+### takeFee
 
 ```solidity
-function payFee(address initiator, address payer, uint256 feeAmount) external virtual
+function takeFee(address initiator, address payer, uint256 feeAmount) external virtual
 ```
 
 Used for deducting the fees from the payer to the middleware

@@ -157,7 +157,7 @@ abstract contract PaymentManager is Initializable, IPaymentManager, Pausable {
     }
 
     /// @notice Used for deducting the fees from the payer to the middleware
-    function payFee(address initiator, address payer, uint256 feeAmount) external virtual onlyServiceManager {
+    function takeFee(address initiator, address payer, uint256 feeAmount) external virtual onlyServiceManager {
         if (initiator != payer) {
             if (allowances[payer][initiator] != type(uint256).max) {
                 allowances[payer][initiator] -= feeAmount;

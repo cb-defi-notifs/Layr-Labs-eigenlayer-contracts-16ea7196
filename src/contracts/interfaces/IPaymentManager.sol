@@ -97,7 +97,7 @@ interface IPaymentManager {
     function setAllowance(address allowed, uint256 amount) external;
 
     /// @notice Used for deducting the fees from the payer to the middleware
-    function payFee(address initiator, address payer, uint256 feeAmount) external;
+    function takeFee(address initiator, address payer, uint256 feeAmount) external;
 
     /**
      * @notice Modifies the `paymentChallengeAmount` amount.

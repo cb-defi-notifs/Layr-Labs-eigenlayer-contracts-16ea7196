@@ -95,10 +95,10 @@ function setAllowance(address allowed, uint256 amount) external
 
 Allows the `allowed` address to spend up to `amount` of the `msg.sender`'s funds that have been deposited in this contract
 
-### payFee
+### takeFee
 
 ```solidity
-function payFee(address initiator, address payer, uint256 feeAmount) external
+function takeFee(address initiator, address payer, uint256 feeAmount) external
 ```
 
 Used for deducting the fees from the payer to the middleware
