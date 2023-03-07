@@ -88,10 +88,10 @@ interface IPaymentManager {
 
     /**
      * @notice deposit one-time fees by the `msg.sender` with this contract to pay for future tasks of this middleware
-     * @param onBehalfOf could be the `msg.sender` themselves, or a different address for whom `msg.sender` is depositing these future fees
+     * @param depositFor could be the `msg.sender` themselves, or a different address for whom `msg.sender` is depositing these future fees
      * @param amount is amount of futures fees being deposited
      */
-    function depositFutureFees(address onBehalfOf, uint256 amount) external;
+    function depositFutureFees(address depositFor, uint256 amount) external;
 
     /// @notice Allows the `allowed` address to spend up to `amount` of the `msg.sender`'s funds that have been deposited in this contract
     function setAllowance(address allowed, uint256 amount) external;

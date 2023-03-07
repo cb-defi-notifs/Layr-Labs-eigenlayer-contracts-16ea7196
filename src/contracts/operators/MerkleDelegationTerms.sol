@@ -136,7 +136,7 @@ contract MerkleDelegationTerms is Ownable, IDelegationTerms {
     /// @notice Hook for receiving new delegation   
     function onDelegationReceived(
         address,
-        IInvestmentStrategy[] memory,
+        IStrategy[] memory,
         uint256[] memory
     ) external pure returns(bytes memory)
     // solhint-disable-next-line no-empty-blocks
@@ -145,7 +145,7 @@ contract MerkleDelegationTerms is Ownable, IDelegationTerms {
     /// @notice Hook for withdrawing delegation   
     function onDelegationWithdrawn(
         address,
-        IInvestmentStrategy[] memory,
+        IStrategy[] memory,
         uint256[] memory
     ) external pure returns(bytes memory)
     // solhint-disable-next-line no-empty-blocks

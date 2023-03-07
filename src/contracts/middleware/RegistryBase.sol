@@ -63,13 +63,13 @@ abstract contract RegistryBase is VoteWeigherBase, IQuorumRegistry {
     event Deregistration(address operator, address swapped);
 
     /**
-     * @notice Irrevocably sets the (immutable) `delegation` & `investmentManager` addresses, and `NUMBER_OF_QUORUMS` variable.
+     * @notice Irrevocably sets the (immutable) `delegation` & `strategyManager` addresses, and `NUMBER_OF_QUORUMS` variable.
      */
     constructor(
-        IInvestmentManager _investmentManager,
+        IStrategyManager _strategyManager,
         IServiceManager _serviceManager,
         uint8 _NUMBER_OF_QUORUMS
-    ) VoteWeigherBase(_investmentManager, _serviceManager, _NUMBER_OF_QUORUMS)
+    ) VoteWeigherBase(_strategyManager, _serviceManager, _NUMBER_OF_QUORUMS)
     // solhint-disable-next-line no-empty-blocks
     {}
 

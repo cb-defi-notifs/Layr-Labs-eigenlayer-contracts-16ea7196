@@ -2,8 +2,8 @@
 pragma solidity =0.8.12;
 
 import "../interfaces/ISlasher.sol";
-import "../interfaces/IEigenLayerDelegation.sol";
-import "../interfaces/IInvestmentManager.sol";
+import "../interfaces/IDelegationManager.sol";
+import "../interfaces/IStrategyManager.sol";
 import "../libraries/StructuredLinkedList.sol";
 import "../permissions/Pausable.sol";
 import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
@@ -27,10 +27,10 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
     uint8 internal constant PAUSED_FIRST_STAKE_UPDATE = 1;
     uint8 internal constant PAUSED_NEW_FREEZING = 2;
 
-    /// @notice The central InvestmentManager contract of EigenLayer
-    IInvestmentManager public immutable investmentManager;
-    /// @notice The EigenLayerDelegation contract of EigenLayer
-    IEigenLayerDelegation public immutable delegation;
+    /// @notice The central StrategyManager contract of EigenLayer
+    IStrategyManager public immutable strategyManager;
+    /// @notice The DelegationManager contract of EigenLayer
+    IDelegationManager public immutable delegation;
     // operator => whitelisted contract with slashing permissions => (the time before which the contract is allowed to slash the user, block it was last updated)
     mapping(address => mapping(address => MiddlewareDetails)) internal _whitelistedContractDetails;
     // staker => if their funds are 'frozen' and potentially subject to slashing or not
@@ -74,8 +74,8 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
     /// @notice Emitted when `previouslySlashedAddress` is 'unfrozen', allowing them to again move deposited funds within EigenLayer.
     event FrozenStatusReset(address indexed previouslySlashedAddress);
 
-    constructor(IInvestmentManager _investmentManager, IEigenLayerDelegation _delegation) {
-        investmentManager = _investmentManager;
+    constructor(IStrategyManager _strategyManager, IDelegationManager _delegation) {
+        strategyManager = _strategyManager;
         delegation = _delegation;
         _disableInitializers();
     }
@@ -230,7 +230,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
 
     /**
      * @notice Used to determine whether `staker` is actively 'frozen'. If a staker is frozen, then they are potentially subject to
-     * slashing of their funds, and cannot cannot deposit or withdraw from the investmentManager until the slashing process is completed
+     * slashing of their funds, and cannot cannot deposit or withdraw from the strategyManager until the slashing process is completed
      * and the staker's status is reset (to 'unfrozen').
      * @return Returns 'true' if `staker` themselves has their status set to frozen, OR if the staker is delegated
      * to an operator who has their status set to frozen. Otherwise returns 'false'.

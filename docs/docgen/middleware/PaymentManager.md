@@ -42,16 +42,16 @@ uint256 LOW_LEVEL_GAS_BUDGET
 
 Gas budget provided in calls to DelegationTerms contracts
 
-### eigenLayerDelegation
+### delegationManager
 
 ```solidity
-contract IEigenLayerDelegation eigenLayerDelegation
+contract IDelegationManager delegationManager
 ```
 
 The global EigenLayer Delegation contract, which is primarily used by
 stakers to delegate their stake to operators who serve as middleware nodes.
 
-_For more details, see EigenLayerDelegation.sol._
+_For more details, see DelegationManager.sol._
 
 ### serviceManager
 
@@ -208,7 +208,7 @@ when applied to a function, ensures that the function is only callable by the ow
 ### constructor
 
 ```solidity
-constructor(contract IEigenLayerDelegation _eigenLayerDelegation, contract IServiceManager _serviceManager, contract IQuorumRegistry _registry, contract IERC20 _paymentToken, contract IERC20 _collateralToken) internal
+constructor(contract IDelegationManager _delegationManager, contract IServiceManager _serviceManager, contract IQuorumRegistry _registry, contract IERC20 _paymentToken, contract IERC20 _collateralToken) internal
 ```
 
 ### initialize
@@ -220,7 +220,7 @@ function initialize(contract IPauserRegistry _pauserReg, uint256 _paymentFraudpr
 ### depositFutureFees
 
 ```solidity
-function depositFutureFees(address onBehalfOf, uint256 amount) external
+function depositFutureFees(address depositFor, uint256 amount) external
 ```
 
 deposit one-time fees by the `msg.sender` with this contract to pay for future tasks of this middleware
@@ -229,7 +229,7 @@ deposit one-time fees by the `msg.sender` with this contract to pay for future t
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| onBehalfOf | address | could be the `msg.sender` themselves, or a different address for whom `msg.sender` is depositing these future fees |
+| depositFor | address | could be the `msg.sender` themselves, or a different address for whom `msg.sender` is depositing these future fees |
 | amount | uint256 | is amount of futures fees being deposited |
 
 ### setAllowance

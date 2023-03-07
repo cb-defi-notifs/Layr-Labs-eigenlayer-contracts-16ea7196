@@ -124,7 +124,7 @@ function isFrozen(address staker) external view returns (bool)
 ```
 
 Used to determine whether `staker` is actively 'frozen'. If a staker is frozen, then they are potentially subject to
-slashing of their funds, and cannot cannot deposit or withdraw from the investmentManager until the slashing process is completed
+slashing of their funds, and cannot cannot deposit or withdraw from the strategyManager until the slashing process is completed
 and the staker's status is reset (to 'unfrozen').
 
 #### Return Values

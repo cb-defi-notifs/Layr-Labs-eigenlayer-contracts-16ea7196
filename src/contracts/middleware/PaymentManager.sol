@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "../interfaces/IServiceManager.sol";
 import "../interfaces/IQuorumRegistry.sol";
-import "../interfaces/IEigenLayerDelegation.sol";
+import "../interfaces/IDelegationManager.sol";
 import "../interfaces/IPaymentManager.sol";
 import "../permissions/Pausable.sol";
 
@@ -38,9 +38,9 @@ abstract contract PaymentManager is Initializable, IPaymentManager, Pausable {
     /**
      * @notice The global EigenLayer Delegation contract, which is primarily used by
      * stakers to delegate their stake to operators who serve as middleware nodes.
-     * @dev For more details, see EigenLayerDelegation.sol.
+     * @dev For more details, see DelegationManager.sol.
      */
-    IEigenLayerDelegation public immutable eigenLayerDelegation;
+    IDelegationManager public immutable delegationManager;
 
     /// @notice The ServiceManager contract for this middleware, where tasks are created / initiated.
     IServiceManager public immutable serviceManager;
@@ -114,13 +114,13 @@ abstract contract PaymentManager is Initializable, IPaymentManager, Pausable {
     }
 
     constructor(
-        IEigenLayerDelegation _eigenLayerDelegation,
+        IDelegationManager _delegationManager,
         IServiceManager _serviceManager,
         IQuorumRegistry _registry,
         IERC20 _paymentToken,
         IERC20 _collateralToken
     ) {
-        eigenLayerDelegation = _eigenLayerDelegation;
+        delegationManager = _delegationManager;
         serviceManager = _serviceManager;
         registry = _registry;
         paymentToken = _paymentToken;
@@ -135,12 +135,12 @@ abstract contract PaymentManager is Initializable, IPaymentManager, Pausable {
 
     /**
      * @notice deposit one-time fees by the `msg.sender` with this contract to pay for future tasks of this middleware
-     * @param onBehalfOf could be the `msg.sender` themselves, or a different address for whom `msg.sender` is depositing these future fees
+     * @param depositFor could be the `msg.sender` themselves, or a different address for whom `msg.sender` is depositing these future fees
      * @param amount is amount of futures fees being deposited
      */
-    function depositFutureFees(address onBehalfOf, uint256 amount) external {
+    function depositFutureFees(address depositFor, uint256 amount) external {
         paymentToken.safeTransferFrom(msg.sender, address(this), amount);
-        depositsOf[onBehalfOf] += amount;
+        depositsOf[depositFor] += amount;
     }
 
     /// @notice Allows the `allowed` address to spend up to `amount` of the `msg.sender`'s funds that have been deposited in this contract
@@ -250,7 +250,7 @@ abstract contract PaymentManager is Initializable, IPaymentManager, Pausable {
 
         // look up payment amount and delegation terms address for the `msg.sender`
         uint256 amount = operatorToPayment[msg.sender].amount;
-        IDelegationTerms dt = eigenLayerDelegation.delegationTerms(msg.sender);
+        IDelegationTerms dt = delegationManager.delegationTerms(msg.sender);
 
         // transfer the amount due in the payment claim of the operator to its delegation terms contract, where the delegators can withdraw their rewards.
         paymentToken.safeTransfer(address(dt), amount);

@@ -1,7 +1,7 @@
 
 methods {
 	//// External Calls
-	// external calls to EigenLayerDelegation 
+	// external calls to DelegationManager 
     undelegate(address) => DISPATCHER(true)
     isDelegated(address) returns (bool) => DISPATCHER(true)
     delegatedTo(address) returns (address) => DISPATCHER(true)
@@ -14,7 +14,7 @@ methods {
     isFrozen(address) returns (bool) envfree 
 	canWithdraw(address,uint32,uint256) returns (bool) 
 
-	// external calls to InvestmentManager
+	// external calls to StrategyManager
     getDeposits(address) returns (address[],uint256[]) => DISPATCHER(true)
     slasher() returns (address) => DISPATCHER(true)
 	deposit(address,uint256) returns (uint256) => DISPATCHER(true)
@@ -187,6 +187,6 @@ rule cannotAddSameContractTwice(address operator, address contractAddress) {
 - recordLastStakeUpdateAndRevokeSlashingAbility() should only be callable when bondedUntil[operator][contractAddress] == MAX_BONDED_UNTIL, and only by the contractAddress
 - Any contractAddress for which bondedUntil[operator][contractAddress] > current time can call freezeOperator(operator).
 - frozen operator cannot make deposits/withdrawals, cannot complete queued withdrawals
-- slashing and unfreezing is performed by the InvestmentManager contract owner (is it permanent or configurable?)
+- slashing and unfreezing is performed by the StrategyManager contract owner (is it permanent or configurable?)
 - frozenStatus[operator] changed => freezeOperator() or resetFrozenStatus() were called
 */

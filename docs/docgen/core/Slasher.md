@@ -32,21 +32,21 @@ uint8 PAUSED_FIRST_STAKE_UPDATE
 uint8 PAUSED_NEW_FREEZING
 ```
 
-### investmentManager
+### strategyManager
 
 ```solidity
-contract IInvestmentManager investmentManager
+contract IStrategyManager strategyManager
 ```
 
-The central InvestmentManager contract of EigenLayer
+The central StrategyManager contract of EigenLayer
 
 ### delegation
 
 ```solidity
-contract IEigenLayerDelegation delegation
+contract IDelegationManager delegation
 ```
 
-The EigenLayerDelegation contract of EigenLayer
+The DelegationManager contract of EigenLayer
 
 ### _whitelistedContractDetails
 
@@ -135,7 +135,7 @@ Emitted when `previouslySlashedAddress` is 'unfrozen', allowing them to again mo
 ### constructor
 
 ```solidity
-constructor(contract IInvestmentManager _investmentManager, contract IEigenLayerDelegation _delegation) public
+constructor(contract IStrategyManager _strategyManager, contract IDelegationManager _delegation) public
 ```
 
 ### onlyRegisteredForService
@@ -149,7 +149,7 @@ Ensures that the operator has opted into slashing by the caller, and that the ca
 ### initialize
 
 ```solidity
-function initialize(contract IPauserRegistry _pauserRegistry, address initialOwner) external
+function initialize(address initialOwner, contract IPauserRegistry _pauserRegistry, uint256 initialPausedStatus) external
 ```
 
 ### optIntoSlashing
@@ -276,7 +276,7 @@ function isFrozen(address staker) external view returns (bool)
 ```
 
 Used to determine whether `staker` is actively 'frozen'. If a staker is frozen, then they are potentially subject to
-slashing of their funds, and cannot cannot deposit or withdraw from the investmentManager until the slashing process is completed
+slashing of their funds, and cannot cannot deposit or withdraw from the strategyManager until the slashing process is completed
 and the staker's status is reset (to 'unfrozen').
 
 #### Return Values

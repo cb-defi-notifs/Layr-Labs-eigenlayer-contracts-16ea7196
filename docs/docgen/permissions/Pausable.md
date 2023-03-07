@@ -107,6 +107,14 @@ _This function can only pause functionality, and thus cannot 'unflip' any bit in
 | ---- | ---- | ----------- |
 | newPausedStatus | uint256 | represents the new value for `_paused` to take, which means it may flip several bits at once. |
 
+### pauseAll
+
+```solidity
+function pauseAll() external
+```
+
+Alias for `pause(type(uint256).max)`.
+
 ### unpause
 
 ```solidity

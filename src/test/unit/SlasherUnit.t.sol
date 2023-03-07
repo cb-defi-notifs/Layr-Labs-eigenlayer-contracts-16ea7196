@@ -8,11 +8,11 @@ import "forge-std/Test.sol";
 
 import "../../contracts/core/Slasher.sol";
 import "../../contracts/permissions/PauserRegistry.sol";
-import "../../contracts/strategies/InvestmentStrategyWrapper.sol";
+import "../../contracts/strategies/StrategyWrapper.sol";
 
 import "../mocks/DelegationMock.sol";
 import "../mocks/EigenPodManagerMock.sol";
-import "../mocks/InvestmentManagerMock.sol";
+import "../mocks/StrategyManagerMock.sol";
 import "../mocks/Reenterer.sol";
 import "../mocks/Reverter.sol";
 
@@ -41,7 +41,7 @@ contract SlasherUnitTests is Test {
 
     Slasher public slasherImplementation;
     Slasher public slasher;
-    InvestmentManagerMock public investmentManagerMock;
+    StrategyManagerMock public strategyManagerMock;
     DelegationMock public delegationMock;
     EigenPodManagerMock public eigenPodManagerMock;
 
@@ -57,7 +57,7 @@ contract SlasherUnitTests is Test {
 
 
     IERC20 public dummyToken;
-    InvestmentStrategyWrapper public dummyStrat;
+    StrategyWrapper public dummyStrat;
 
 
 
@@ -91,8 +91,8 @@ contract SlasherUnitTests is Test {
 
         delegationMock = new DelegationMock();
         eigenPodManagerMock = new EigenPodManagerMock();
-        investmentManagerMock = new InvestmentManagerMock();
-        slasherImplementation = new Slasher(investmentManagerMock, delegationMock);
+        strategyManagerMock = new StrategyManagerMock();
+        slasherImplementation = new Slasher(strategyManagerMock, delegationMock);
         slasher = Slasher(
             address(
                 new TransparentUpgradeableProxy(
@@ -103,7 +103,7 @@ contract SlasherUnitTests is Test {
             )
         );
         dummyToken = new ERC20Mock();
-        dummyStrat = new InvestmentStrategyWrapper(investmentManagerMock, dummyToken);
+        dummyStrat = new StrategyWrapper(strategyManagerMock, dummyToken);
 
         // excude the zero address and the proxyAdmin from fuzzed inputs
         addressIsExcludedFromFuzzedInputs[address(0)] = true;

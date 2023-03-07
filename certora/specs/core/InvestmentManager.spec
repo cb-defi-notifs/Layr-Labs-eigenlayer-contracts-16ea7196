@@ -1,7 +1,7 @@
 
 methods {
     //// External Calls
-	// external calls to EigenLayerDelegation 
+	// external calls to DelegationManager 
     undelegate(address) => DISPATCHER(true)
     isDelegated(address) returns (bool) => DISPATCHER(true)
     delegatedTo(address) returns (address) => DISPATCHER(true)
@@ -14,13 +14,13 @@ methods {
     isFrozen(address) returns (bool) => DISPATCHER(true)
 	canWithdraw(address,uint32,uint256) returns (bool) => DISPATCHER(true)
 
-	// external calls to InvestmentManager
+	// external calls to StrategyManager
     getDeposits(address) returns (address[],uint256[]) 
     slasher() returns (address) 
 	deposit(address,uint256) returns (uint256) 
 	withdraw(address,address,uint256) 
 
-	// external calls to InvestmentStrategy
+	// external calls to Strategy
     deposit(address, uint256) returns (uint256) => DISPATCHER(true)
     withdraw(address, address, uint256) => DISPATCHER(true)
     totalShares() => DISPATCHER(true)  
@@ -31,7 +31,7 @@ methods {
     // external calls to EigenPod (from EigenPodManager)
     withdrawRestakedBeaconChainETH(address, uint256) => DISPATCHER(true)
 	    
-    // external calls to EigenPodPaymentEscrow (from EigenPod)
+    // external calls to DelayedWithdrawalRouter (from EigenPod)
     createPayment(address, address) => DISPATCHER(true)
 
     // external calls to IDelegationTerms
@@ -55,14 +55,14 @@ methods {
     totalShares(address) returns (uint256) envfree
 
 	//// Normal Functions
-	investorStratsLength(address) returns (uint256) envfree
-    investorStrats(address, uint256) returns (address) envfree
-    investorStratShares(address, address) returns (uint256) envfree
+	stakerStrategyListLength(address) returns (uint256) envfree
+    stakerStrategyList(address, uint256) returns (address) envfree
+    stakerStrategyShares(address, address) returns (uint256) envfree
     array_exhibits_properties(address) returns (bool) envfree
 }
 
-invariant investorStratsLengthLessThanOrEqualToMax(address staker)
-	investorStratsLength(staker) <= 32
+invariant stakerStrategyListLengthLessThanOrEqualToMax(address staker)
+	stakerStrategyListLength(staker) <= 32
 
 // verifies that strategies in the staker's array of strategies are not duplicated, and that the staker has nonzero shares in each one
 invariant arrayExhibitsProperties(address staker)
@@ -70,29 +70,29 @@ invariant arrayExhibitsProperties(address staker)
         {
             preserved
             {
-                requireInvariant investorStratsLengthLessThanOrEqualToMax(staker);
+                requireInvariant stakerStrategyListLengthLessThanOrEqualToMax(staker);
             }
         }
 
 // if a strategy is *not* in staker's array of strategies, then the staker should have precisely zero shares in that strategy
 invariant strategiesNotInArrayHaveZeroShares(address staker, uint256 index)
-    (index >= investorStratsLength(staker)) => (investorStratShares(staker, investorStrats(staker, index)) == 0)
+    (index >= stakerStrategyListLength(staker)) => (stakerStrategyShares(staker, stakerStrategyList(staker, index)) == 0)
 
 /**
-* a staker's amount of shares in a strategy (i.e. `investorStratShares[staker][strategy]`) should only increase when
-* `depositIntoStrategy`, `depositIntoStrategyOnBehalfOf`, or `depositBeaconChainETH` has been called
+* a staker's amount of shares in a strategy (i.e. `stakerStrategyShares[staker][strategy]`) should only increase when
+* `depositIntoStrategy`, `depositIntoStrategyWithSignature`, or `depositBeaconChainETH` has been called
 * *OR* when completing a withdrawal
 */
 definition methodCanIncreaseShares(method f) returns bool =
     f.selector == depositIntoStrategy(address,address,uint256).selector
-    || f.selector == depositIntoStrategyOnBehalfOf(address,address,uint256,address,uint256,bytes).selector
+    || f.selector == depositIntoStrategyWithSignature(address,address,uint256,address,uint256,bytes).selector
     || f.selector == depositBeaconChainETH(address,uint256).selector
     || f.selector == completeQueuedWithdrawal((address[],uint256[],address,(address,uint96),uint32,address),address[],uint256,bool).selector;
     // || f.selector == slashQueuedWithdrawal(address,bytes,address[],uint256[]).selector
     // || f.selector == slashShares(address,address,address[],address[],uint256[],uint256[]).selector;
 
 /**
-* a staker's amount of shares in a strategy (i.e. `investorStratShares[staker][strategy]`) should only decrease when
+* a staker's amount of shares in a strategy (i.e. `stakerStrategyShares[staker][strategy]`) should only decrease when
 * `queueWithdrawal`, `slashShares`, or `recordOvercommittedBeaconChainETH` has been called
 */
 definition methodCanDecreaseShares(method f) returns bool =
@@ -101,12 +101,12 @@ definition methodCanDecreaseShares(method f) returns bool =
     || f.selector == recordOvercommittedBeaconChainETH(address,uint256,uint256).selector;
 
 rule sharesAmountsChangeOnlyWhenAppropriateFunctionsCalled(address staker, address strategy) {
-    uint256 sharesBefore = investorStratShares(staker, strategy);
+    uint256 sharesBefore = stakerStrategyShares(staker, strategy);
     method f;
     env e;
     calldataarg args;
     f(e,args);
-    uint256 sharesAfter = investorStratShares(staker, strategy);
+    uint256 sharesAfter = stakerStrategyShares(staker, strategy);
     assert(sharesAfter > sharesBefore => methodCanIncreaseShares(f));
     assert(sharesAfter < sharesBefore => methodCanDecreaseShares(f));
 }
@@ -116,13 +116,13 @@ ghost mapping(address => mathint) sumOfSharesInStrategy {
   init_state axiom forall address strategy. sumOfSharesInStrategy[strategy] == 0;
 }
 
-hook Sstore investorStratShares[KEY address staker][KEY address strategy] uint256 newValue (uint256 oldValue) STORAGE {
+hook Sstore stakerStrategyShares[KEY address staker][KEY address strategy] uint256 newValue (uint256 oldValue) STORAGE {
     sumOfSharesInStrategy[strategy] = sumOfSharesInStrategy[strategy] + newValue - oldValue;
 }
 
 /**
-* Verifies that the `totalShares` returned by an InvestmentStrategy is always greater than or equal to the sum of shares in the `investorStratShares`
-* mapping -- specifically, that `strategy.totalShares() >= sum_over_all_stakers(investorStratShares[staker][strategy])`
+* Verifies that the `totalShares` returned by an Strategy is always greater than or equal to the sum of shares in the `stakerStrategyShares`
+* mapping -- specifically, that `strategy.totalShares() >= sum_over_all_stakers(stakerStrategyShares[staker][strategy])`
 * We cannot show strict equality here, since the withdrawal process first decreases a staker's shares (when `queueWithdrawal` is called) and
 * only later is `totalShares` decremented (when `completeQueuedWithdrawal` is called).
 */

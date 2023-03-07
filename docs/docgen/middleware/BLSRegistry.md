@@ -102,7 +102,7 @@ Modifier that restricts a function to only be callable by the `whitelister` role
 ### constructor
 
 ```solidity
-constructor(contract IInvestmentManager _investmentManager, contract IServiceManager _serviceManager, uint8 _NUMBER_OF_QUORUMS, contract IBLSPublicKeyCompendium _pubkeyCompendium) public
+constructor(contract IStrategyManager _strategyManager, contract IServiceManager _serviceManager, uint8 _NUMBER_OF_QUORUMS, contract IBLSPublicKeyCompendium _pubkeyCompendium) public
 ```
 
 ### initialize

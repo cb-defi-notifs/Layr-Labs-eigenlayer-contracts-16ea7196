@@ -70,13 +70,13 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
     }
 
     constructor(
-        IInvestmentManager _investmentManager,
+        IStrategyManager _strategyManager,
         IServiceManager _serviceManager,
         uint8 _NUMBER_OF_QUORUMS,
         IBLSPublicKeyCompendium _pubkeyCompendium
     )
         RegistryBase(
-            _investmentManager,
+            _strategyManager,
             _serviceManager,
             _NUMBER_OF_QUORUMS
         )

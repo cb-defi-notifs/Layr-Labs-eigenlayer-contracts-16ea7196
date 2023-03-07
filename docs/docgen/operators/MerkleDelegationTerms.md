@@ -114,7 +114,7 @@ function payForService(contract IERC20, uint256) external payable
 ### onDelegationReceived
 
 ```solidity
-function onDelegationReceived(address, contract IInvestmentStrategy[], uint256[]) external pure returns (bytes)
+function onDelegationReceived(address, contract IStrategy[], uint256[]) external pure returns (bytes)
 ```
 
 Hook for receiving new delegation
@@ -122,7 +122,7 @@ Hook for receiving new delegation
 ### onDelegationWithdrawn
 
 ```solidity
-function onDelegationWithdrawn(address, contract IInvestmentStrategy[], uint256[]) external pure returns (bytes)
+function onDelegationWithdrawn(address, contract IStrategy[], uint256[]) external pure returns (bytes)
 ```
 
 Hook for withdrawing delegation

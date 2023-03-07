@@ -4,7 +4,7 @@ pragma solidity =0.8.12;
 import "../contracts/interfaces/IEigenPod.sol";
 import "../contracts/interfaces/IBLSPublicKeyCompendium.sol";
 import "../contracts/middleware/BLSPublicKeyCompendium.sol";
-import "../contracts/pods/EigenPodPaymentEscrow.sol";
+import "../contracts/pods/DelayedWithdrawalRouter.sol";
 import "./utils/ProofParsing.sol";
 import "./EigenLayerDeployer.t.sol";
 import "./mocks/MiddlewareRegistryMock.sol";
@@ -30,8 +30,8 @@ contract EigenPodTests is ProofParsing, EigenPodPausingConstants {
     address podOwner = address(42000094993494);
 
     Vm cheats = Vm(HEVM_ADDRESS);
-    EigenLayerDelegation public delegation;
-    IInvestmentManager public investmentManager;
+    DelegationManager public delegation;
+    IStrategyManager public strategyManager;
     Slasher public slasher;
     PauserRegistry public pauserReg;
 
@@ -39,7 +39,7 @@ contract EigenPodTests is ProofParsing, EigenPodPausingConstants {
     IBLSPublicKeyCompendium public blsPkCompendium;
     IEigenPodManager public eigenPodManager;
     IEigenPod public podImplementation;
-    IEigenPodPaymentEscrow public eigenPodPaymentEscrow;
+    IDelayedWithdrawalRouter public delayedWithdrawalRouter;
     IETHPOSDeposit public ethPOSDeposit;
     IBeacon public eigenPodBeacon;
     IBeaconChainOracleMock public beaconChainOracle;
@@ -88,23 +88,23 @@ contract EigenPodTests is ProofParsing, EigenPodPausingConstants {
          * not yet deployed, we give these proxies an empty contract as the initial implementation, to act as if they have no code.
          */
         EmptyContract emptyContract = new EmptyContract();
-        delegation = EigenLayerDelegation(
+        delegation = DelegationManager(
             address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayerProxyAdmin), ""))
         );
-        investmentManager = InvestmentManager(
+        strategyManager = StrategyManager(
             address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayerProxyAdmin), ""))
         );
         slasher = Slasher(
             address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayerProxyAdmin), ""))
         );
-        eigenPodPaymentEscrow = EigenPodPaymentEscrow(
+        delayedWithdrawalRouter = DelayedWithdrawalRouter(
             address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayerProxyAdmin), ""))
         );
 
         ethPOSDeposit = new ETHPOSDepositMock();
         podImplementation = new EigenPod(
                 ethPOSDeposit, 
-                eigenPodPaymentEscrow,
+                delayedWithdrawalRouter,
                 IEigenPodManager(podManagerAddress),
                 REQUIRED_BALANCE_WEI
         );
@@ -116,10 +116,10 @@ contract EigenPodTests is ProofParsing, EigenPodPausingConstants {
         );
 
         // Second, deploy the *implementation* contracts, using the *proxy contracts* as inputs
-        EigenLayerDelegation delegationImplementation = new EigenLayerDelegation(investmentManager, slasher);
-        InvestmentManager investmentManagerImplementation = new InvestmentManager(delegation, IEigenPodManager(podManagerAddress), slasher);
-        Slasher slasherImplementation = new Slasher(investmentManager, delegation);
-        EigenPodManager eigenPodManagerImplementation = new EigenPodManager(ethPOSDeposit, eigenPodBeacon, investmentManager, slasher);
+        DelegationManager delegationImplementation = new DelegationManager(strategyManager, slasher);
+        StrategyManager strategyManagerImplementation = new StrategyManager(delegation, IEigenPodManager(podManagerAddress), slasher);
+        Slasher slasherImplementation = new Slasher(strategyManager, delegation);
+        EigenPodManager eigenPodManagerImplementation = new EigenPodManager(ethPOSDeposit, eigenPodBeacon, strategyManager, slasher);
 
         //ensuring that the address of eigenpodmanager doesn't change
         bytes memory code = address(eigenPodManager).code;
@@ -127,7 +127,7 @@ contract EigenPodTests is ProofParsing, EigenPodPausingConstants {
         eigenPodManager = IEigenPodManager(podManagerAddress);
 
         beaconChainOracle = new BeaconChainOracleMock();
-        EigenPodPaymentEscrow eigenPodPaymentEscrowImplementation = new EigenPodPaymentEscrow(IEigenPodManager(podManagerAddress));
+        DelayedWithdrawalRouter delayedWithdrawalRouterImplementation = new DelayedWithdrawalRouter(IEigenPodManager(podManagerAddress));
 
         address initialOwner = address(this);
         // Third, upgrade the proxy contracts to use the correct implementation contracts and initialize them.
@@ -135,17 +135,17 @@ contract EigenPodTests is ProofParsing, EigenPodPausingConstants {
             TransparentUpgradeableProxy(payable(address(delegation))),
             address(delegationImplementation),
             abi.encodeWithSelector(
-                EigenLayerDelegation.initialize.selector,
+                DelegationManager.initialize.selector,
                 initialOwner,
                 pauserReg,
                 0/*initialPausedStatus*/
             )
         );
         eigenLayerProxyAdmin.upgradeAndCall(
-            TransparentUpgradeableProxy(payable(address(investmentManager))),
-            address(investmentManagerImplementation),
+            TransparentUpgradeableProxy(payable(address(strategyManager))),
+            address(strategyManagerImplementation),
             abi.encodeWithSelector(
-                InvestmentManager.initialize.selector,
+                StrategyManager.initialize.selector,
                 initialOwner,
                 pauserReg,
                 0/*initialPausedStatus*/,
@@ -176,22 +176,22 @@ contract EigenPodTests is ProofParsing, EigenPodPausingConstants {
         uint256 initPausedStatus = 0;
         uint256 withdrawalDelayBlocks = PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS;
         eigenLayerProxyAdmin.upgradeAndCall(
-            TransparentUpgradeableProxy(payable(address(eigenPodPaymentEscrow))),
-            address(eigenPodPaymentEscrowImplementation),
-            abi.encodeWithSelector(EigenPodPaymentEscrow.initialize.selector, initialOwner, pauserReg, initPausedStatus, withdrawalDelayBlocks)
+            TransparentUpgradeableProxy(payable(address(delayedWithdrawalRouter))),
+            address(delayedWithdrawalRouterImplementation),
+            abi.encodeWithSelector(DelayedWithdrawalRouter.initialize.selector, initialOwner, pauserReg, initPausedStatus, withdrawalDelayBlocks)
         );
         generalServiceManager1 = new ServiceManagerMock(slasher);
 
         generalReg1 = new MiddlewareRegistryMock(
              generalServiceManager1,
-             investmentManager
+             strategyManager
         );
 
         cheats.deal(address(podOwner), 5*stakeAmount);     
 
         fuzzedAddressMapping[address(0)] = true;
         fuzzedAddressMapping[address(eigenLayerProxyAdmin)] = true;
-        fuzzedAddressMapping[address(investmentManager)] = true;
+        fuzzedAddressMapping[address(strategyManager)] = true;
         fuzzedAddressMapping[address(eigenPodManager)] = true;
         fuzzedAddressMapping[address(delegation)] = true;
         fuzzedAddressMapping[address(slasher)] = true;
@@ -218,7 +218,7 @@ contract EigenPodTests is ProofParsing, EigenPodPausingConstants {
 
         cheats.startPrank(podOwner);
         cheats.expectEmit(true, false, false, false);
-        emit PaymentCreated(podOwner, podOwner, balance, eigenPodPaymentEscrow.userPaymentsLength(podOwner));
+        emit PaymentCreated(podOwner, podOwner, balance, delayedWithdrawalRouter.userWithdrawalsLength(podOwner));
         pod.withdrawBeforeRestaking();
         cheats.stopPrank();
         require(address(pod).balance == 0, "Pod balance should be 0");
@@ -266,14 +266,14 @@ contract EigenPodTests is ProofParsing, EigenPodPausingConstants {
         uint64 leftOverBalanceWEI = uint64(withdrawalAmountGwei - newPod.REQUIRED_BALANCE_GWEI()) * uint64(GWEI_TO_WEI);
         cheats.deal(address(newPod), leftOverBalanceWEI);
         
-        uint256 escrowContractBalanceBefore = address(eigenPodPaymentEscrow).balance;
+        uint256 delayedWithdrawalRouterContractBalanceBefore = address(delayedWithdrawalRouter).balance;
         newPod.verifyAndProcessWithdrawal(withdrawalProofs, validatorFieldsProof, validatorFields, withdrawalFields, 0, 0);
         require(newPod.restakedExecutionLayerGwei() -  restakedExecutionLayerGweiBefore == newPod.REQUIRED_BALANCE_GWEI(), "restakedExecutionLayerGwei has not been incremented correctly");
-        require(address(eigenPodPaymentEscrow).balance - escrowContractBalanceBefore == leftOverBalanceWEI, "Escrow pod payment balance hasn't ben updated correctly");
+        require(address(delayedWithdrawalRouter).balance - delayedWithdrawalRouterContractBalanceBefore == leftOverBalanceWEI, "pod payment balance hasn't ben updated correctly");
 
         cheats.roll(block.number + PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS + 1);
         uint podOwnerBalanceBefore = address(podOwner).balance;
-        eigenPodPaymentEscrow.claimPayments(podOwner, 1);
+        delayedWithdrawalRouter.claimPayments(podOwner, 1);
         require(address(podOwner).balance - podOwnerBalanceBefore == leftOverBalanceWEI, "Pod owner balance hasn't been updated correctly");
     }
 
@@ -297,16 +297,16 @@ contract EigenPodTests is ProofParsing, EigenPodPausingConstants {
         uint64 slot = Endian.fromLittleEndianUint64(withdrawalProofs.slotRoot);
         cheats.deal(address(newPod), stakeAmount);    
 
-        uint256 escrowContractBalanceBefore = address(eigenPodPaymentEscrow).balance;
+        uint256 delayedWithdrawalRouterContractBalanceBefore = address(delayedWithdrawalRouter).balance;
         newPod.verifyAndProcessWithdrawal(withdrawalProofs, validatorFieldsProof, validatorFields, withdrawalFields, 0, 0);
         uint40 validatorIndex = uint40(getValidatorIndex());
         require(newPod.provenPartialWithdrawal(validatorIndex, slot), "provenPartialWithdrawal should be true");
         withdrawalAmountGwei = uint64(withdrawalAmountGwei*GWEI_TO_WEI);
-        require(address(eigenPodPaymentEscrow).balance - escrowContractBalanceBefore == withdrawalAmountGwei, "Escrow pod payment balance hasn't been updated correctly");
+        require(address(delayedWithdrawalRouter).balance - delayedWithdrawalRouterContractBalanceBefore == withdrawalAmountGwei, "pod payment balance hasn't been updated correctly");
 
         cheats.roll(block.number + PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS + 1);
         uint podOwnerBalanceBefore = address(podOwner).balance;
-        eigenPodPaymentEscrow.claimPayments(podOwner, 1);
+        delayedWithdrawalRouter.claimPayments(podOwner, 1);
         require(address(podOwner).balance - podOwnerBalanceBefore == withdrawalAmountGwei, "Pod owner balance hasn't been updated correctly");
     }
 
@@ -328,9 +328,9 @@ contract EigenPodTests is ProofParsing, EigenPodPausingConstants {
         setJSON("./src/test/test-data/slashedProofs/overcommittedBalanceProof_61511.json");
         _proveOverCommittedStake(newPod);
         
-        uint256 beaconChainETHShares = investmentManager.investorStratShares(podOwner, investmentManager.beaconChainETHStrategy());
+        uint256 beaconChainETHShares = strategyManager.stakerStrategyShares(podOwner, strategyManager.beaconChainETHStrategy());
 
-        require(beaconChainETHShares == 0, "investmentManager shares not updated correctly");
+        require(beaconChainETHShares == 0, "strategyManager shares not updated correctly");
     }
 
     //test deploying an eigen pod with mismatched withdrawal credentials between the proof and the actual pod's address
@@ -370,7 +370,7 @@ contract EigenPodTests is ProofParsing, EigenPodPausingConstants {
     }
 
     function getBeaconChainETHShares(address staker) internal view returns(uint256) {
-        return investmentManager.investorStratShares(staker, investmentManager.beaconChainETHStrategy());
+        return strategyManager.stakerStrategyShares(staker, strategyManager.beaconChainETHStrategy());
     }
 
     // // 3. Single withdrawal credential
@@ -433,7 +433,7 @@ contract EigenPodTests is ProofParsing, EigenPodPausingConstants {
 
         address recipient = address(this);
         uint256 amount = 1e18;
-        cheats.startPrank(address(eigenPodManager.investmentManager()));
+        cheats.startPrank(address(eigenPodManager.strategyManager()));
         cheats.expectRevert(bytes("Pausable: index is paused"));
         eigenPodManager.withdrawRestakedBeaconChainETH(podOwner, recipient, amount);
         cheats.stopPrank();
@@ -497,8 +497,8 @@ contract EigenPodTests is ProofParsing, EigenPodPausingConstants {
 
 
 
-    // simply tries to register 'sender' as a delegate, setting their 'DelegationTerms' contract in EigenLayerDelegation to 'dt'
-    // verifies that the storage of EigenLayerDelegation contract is updated appropriately
+    // simply tries to register 'sender' as a delegate, setting their 'DelegationTerms' contract in DelegationManager to 'dt'
+    // verifies that the storage of DelegationManager contract is updated appropriately
     function _testRegisterAsOperator(address sender, IDelegationTerms dt) internal {
         cheats.startPrank(sender);
 
@@ -515,11 +515,11 @@ contract EigenPodTests is ProofParsing, EigenPodPausingConstants {
 
     function _testDelegateToOperator(address sender, address operator) internal {
         //delegator-specific information
-        (IInvestmentStrategy[] memory delegateStrategies, uint256[] memory delegateShares) =
-            investmentManager.getDeposits(sender);
+        (IStrategy[] memory delegateStrategies, uint256[] memory delegateShares) =
+            strategyManager.getDeposits(sender);
 
         uint256 numStrats = delegateShares.length;
-        assertTrue(numStrats > 0, "_testDelegateToOperator: delegating from address with no investments");
+        assertTrue(numStrats > 0, "_testDelegateToOperator: delegating from address with no deposits");
         uint256[] memory inititalSharesInStrats = new uint256[](numStrats);
         for (uint256 i = 0; i < numStrats; ++i) {
             inititalSharesInStrats[i] = delegation.operatorShares(operator, delegateStrategies[i]);
@@ -554,15 +554,15 @@ contract EigenPodTests is ProofParsing, EigenPodPausingConstants {
             _testRegisterAsOperator(operator, IDelegationTerms(operator));
         }
 
-        //making additional deposits to the investment strategies
+        //making additional deposits to the strategies
         assertTrue(delegation.isNotDelegated(staker) == true, "testDelegation: staker is not delegate");
         _testDelegateToOperator(staker, operator);
         assertTrue(delegation.isDelegated(staker) == true, "testDelegation: staker is not delegate");
 
-        IInvestmentStrategy[] memory updatedStrategies;
+        IStrategy[] memory updatedStrategies;
         uint256[] memory updatedShares;
         (updatedStrategies, updatedShares) =
-            investmentManager.getDeposits(staker);
+            strategyManager.getDeposits(staker);
     }
 
     function _testDeployAndVerifyNewEigenPod(address _podOwner, bytes memory _signature, bytes32 _depositDataRoot)
@@ -589,17 +589,17 @@ contract EigenPodTests is ProofParsing, EigenPodPausingConstants {
         newPod.verifyWithdrawalCredentialsAndBalance(blockNumber, validatorIndex, proofs, validatorFields);
 
 
-        IInvestmentStrategy beaconChainETHStrategy = investmentManager.beaconChainETHStrategy();
+        IStrategy beaconChainETHStrategy = strategyManager.beaconChainETHStrategy();
 
-        uint256 beaconChainETHShares = investmentManager.investorStratShares(_podOwner, beaconChainETHStrategy);
-        require(beaconChainETHShares == REQUIRED_BALANCE_WEI, "investmentManager shares not updated correctly");
+        uint256 beaconChainETHShares = strategyManager.stakerStrategyShares(_podOwner, beaconChainETHStrategy);
+        require(beaconChainETHShares == REQUIRED_BALANCE_WEI, "strategyManager shares not updated correctly");
         return newPod;
     }
 
     function _testQueueWithdrawal(
         address depositor,
         uint256[] memory strategyIndexes,
-        IInvestmentStrategy[] memory strategyArray,
+        IStrategy[] memory strategyArray,
         uint256[] memory shareAmounts,
         bool undelegateIfPossible
     )
@@ -609,7 +609,7 @@ contract EigenPodTests is ProofParsing, EigenPodPausingConstants {
         cheats.startPrank(depositor);
 
         //make a call with depositor aka podOwner also as withdrawer.
-        bytes32 withdrawalRoot = investmentManager.queueWithdrawal(
+        bytes32 withdrawalRoot = strategyManager.queueWithdrawal(
             strategyIndexes,
             strategyArray,
             shareAmounts,
@@ -623,7 +623,7 @@ contract EigenPodTests is ProofParsing, EigenPodPausingConstants {
     }
 
     function _getLatestPaymentAmount(address recipient) internal view returns (uint256) {
-        return eigenPodPaymentEscrow.userPaymentByIndex(recipient, eigenPodPaymentEscrow.userPaymentsLength(recipient) - 1).amount;
+        return delayedWithdrawalRouter.userPaymentByIndex(recipient, delayedWithdrawalRouter.userWithdrawalsLength(recipient) - 1).amount;
     }
 
     function _getValidatorFieldsAndBalanceProof() internal returns (BeaconChainProofs.ValidatorFieldsAndBalanceProofs memory){

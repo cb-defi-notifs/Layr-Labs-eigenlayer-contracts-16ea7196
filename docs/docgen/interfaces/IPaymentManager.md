@@ -75,7 +75,7 @@ struct TotalStakes {
 ### depositFutureFees
 
 ```solidity
-function depositFutureFees(address onBehalfOf, uint256 amount) external
+function depositFutureFees(address depositFor, uint256 amount) external
 ```
 
 deposit one-time fees by the `msg.sender` with this contract to pay for future tasks of this middleware
@@ -84,7 +84,7 @@ deposit one-time fees by the `msg.sender` with this contract to pay for future t
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| onBehalfOf | address | could be the `msg.sender` themselves, or a different address for whom `msg.sender` is depositing these future fees |
+| depositFor | address | could be the `msg.sender` themselves, or a different address for whom `msg.sender` is depositing these future fees |
 | amount | uint256 | is amount of futures fees being deposited |
 
 ### setAllowance

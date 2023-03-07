@@ -1,7 +1,7 @@
 
 methods {
     //// External Calls
-	// external calls to EigenLayerDelegation 
+	// external calls to DelegationManager 
     undelegate(address) 
     isDelegated(address) returns (bool) 
     delegatedTo(address) returns (address) 
@@ -12,7 +12,7 @@ methods {
     isFrozen(address) returns (bool) => DISPATCHER(true)
 	canWithdraw(address,uint32,uint256) returns (bool) => DISPATCHER(true)
 
-	// external calls to InvestmentManager
+	// external calls to StrategyManager
     getDeposits(address) returns (address[],uint256[]) => DISPATCHER(true)
     slasher() returns (address) => DISPATCHER(true)
 	deposit(address,uint256) returns (uint256) => DISPATCHER(true)
@@ -46,7 +46,7 @@ methods {
     delegationTerms(address operator) returns (address) envfree
     operatorShares(address operator, address strategy) returns (uint256) envfree
     owner() returns (address) envfree
-    investmentManager() returns (address) envfree
+    strategyManager() returns (address) envfree
 }
 
 /*
@@ -134,8 +134,8 @@ rule cannotChangeDelegationWithoutUndelegating(address staker) {
     if (f.selector == undelegate(address).selector) {
         address toUndelegate;
         undelegate(e, toUndelegate);
-        // either the `investmentManager` called `undelegate` with the argument `staker` (in which can the staker is now undelegated)
-        if (e.msg.sender == investmentManager() && toUndelegate == staker) {
+        // either the `strategyManager` called `undelegate` with the argument `staker` (in which can the staker is now undelegated)
+        if (e.msg.sender == strategyManager() && toUndelegate == staker) {
             assert (delegatedTo(staker) == 0, "undelegation did not result in delegation to zero address");
         // or the staker's delegation should have remained the same
         } else {

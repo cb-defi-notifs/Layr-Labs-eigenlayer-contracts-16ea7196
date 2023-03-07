@@ -13,7 +13,7 @@ import "../libraries/Endian.sol";
 import "../interfaces/IETHPOSDeposit.sol";
 import "../interfaces/IEigenPodManager.sol";
 import "../interfaces/IEigenPod.sol";
-import "../interfaces/IEigenPodPaymentEscrow.sol";
+import "../interfaces/IDelayedWithdrawalRouter.sol";
 import "../interfaces/IPausable.sol";
 
 import "./EigenPodPausingConstants.sol";
@@ -43,8 +43,8 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
     /// @notice This is the beacon chain deposit contract
     IETHPOSDeposit internal immutable ethPOS;
 
-    /// @notice Escrow contract used for payment routing, to provide an extra "safety net"
-    IEigenPodPaymentEscrow public immutable eigenPodPaymentEscrow;
+    /// @notice Contract used for withdrawal routing, to provide an extra "safety net" mechanism
+    IDelayedWithdrawalRouter public immutable delayedWithdrawalRouter;
 
     /// @notice The single EigenPodManager for EigenLayer
     IEigenPodManager public immutable eigenPodManager;
@@ -135,12 +135,12 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
 
     constructor(
         IETHPOSDeposit _ethPOS,
-        IEigenPodPaymentEscrow _eigenPodPaymentEscrow,
+        IDelayedWithdrawalRouter _delayedWithdrawalRouter,
         IEigenPodManager _eigenPodManager,
         uint256 _REQUIRED_BALANCE_WEI
     ) {
         ethPOS = _ethPOS;
-        eigenPodPaymentEscrow = _eigenPodPaymentEscrow;
+        delayedWithdrawalRouter = _delayedWithdrawalRouter;
         eigenPodManager = _eigenPodManager;
         REQUIRED_BALANCE_WEI = _REQUIRED_BALANCE_WEI;
         REQUIRED_BALANCE_GWEI = uint64(_REQUIRED_BALANCE_WEI / GWEI_TO_WEI);
@@ -228,13 +228,13 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
     /**
      * @notice This function records an overcommitment of stake to EigenLayer on behalf of a certain ETH validator.
      *         If successful, the overcommitted balance is penalized (available for withdrawal whenever the pod's balance allows).
-     *         The ETH validator's shares in the enshrined beaconChainETH strategy are also removed from the InvestmentManager and undelegated.
+     *         The ETH validator's shares in the enshrined beaconChainETH strategy are also removed from the StrategyManager and undelegated.
      * @param oracleBlockNumber The oracleBlockNumber whose state root the `proof` will be proven against.
      *        Must be within `VERIFY_OVERCOMMITTED_WINDOW_BLOCKS` of the current block.
      * @param validatorIndex is the index of the validator being proven, refer to consensus specs 
      * @param proofs is the proof of the validator's balance and validatorFields in the balance tree and the balanceRoot to prove for
      * @param beaconChainETHStrategyIndex is the index of the beaconChainETHStrategy for the pod owner for the callback to 
-     *                                    the InvestmentManger in case it must be removed from the list of the podOwners strategies
+     *                                    the StrategyManager in case it must be removed from the list of the podOwners strategies
      * @param validatorFields are the fields of the "Validator Container", refer to consensus specs
      * @dev For more details on the Beacon Chain spec, see: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
      */
@@ -300,7 +300,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
      * @param withdrawalFields are the fields of the withdrawal being proven
      * @param validatorFields are the fields of the validator being proven
      * @param beaconChainETHStrategyIndex is the index of the beaconChainETHStrategy for the pod owner for the callback to 
-     *        the EigenPodManager to the InvestmentManager in case it must be removed from the podOwner's list of strategies
+     *        the EigenPodManager to the StrategyManager in case it must be removed from the podOwner's list of strategies
      */
     function verifyAndProcessWithdrawal(
         BeaconChainProofs.WithdrawalProofs calldata withdrawalProofs, 
@@ -463,7 +463,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
     }
 
     function _sendETH(address recipient, uint256 amountWei) internal {
-        eigenPodPaymentEscrow.createPayment{value: amountWei}(podOwner, recipient);
+        delayedWithdrawalRouter.createPayment{value: amountWei}(podOwner, recipient);
     }
 
     /**

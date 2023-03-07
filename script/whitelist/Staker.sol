@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity =0.8.12;
 
-import "../../src/contracts/interfaces/IInvestmentManager.sol";
-import "../../src/contracts/interfaces/IInvestmentStrategy.sol";
-import "../../src/contracts/interfaces/IEigenLayerDelegation.sol";
+import "../../src/contracts/interfaces/IStrategyManager.sol";
+import "../../src/contracts/interfaces/IStrategy.sol";
+import "../../src/contracts/interfaces/IDelegationManager.sol";
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -12,15 +12,15 @@ import "forge-std/Test.sol";
 contract Staker is Ownable {
     
     constructor(
-        IInvestmentStrategy strategy, 
-        IInvestmentManager investmentManager,
-        IEigenLayerDelegation delegation,
+        IStrategy strategy, 
+        IStrategyManager strategyManager,
+        IDelegationManager delegation,
         IERC20 token, 
         uint256 amount, 
         address operator
     ) Ownable() {
-        token.approve(address(investmentManager), type(uint256).max);
-        investmentManager.depositIntoStrategy(strategy, token, amount);
+        token.approve(address(strategyManager), type(uint256).max);
+        strategyManager.depositIntoStrategy(strategy, token, amount);
         delegation.delegateTo(operator);
     }
     

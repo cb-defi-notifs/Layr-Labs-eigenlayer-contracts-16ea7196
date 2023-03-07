@@ -2,10 +2,10 @@
 pragma solidity =0.8.12;
 
 import "forge-std/Test.sol";
-import "../../contracts/interfaces/IEigenLayerDelegation.sol";
+import "../../contracts/interfaces/IDelegationManager.sol";
 
 
-contract DelegationMock is IEigenLayerDelegation, Test {
+contract DelegationMock is IDelegationManager, Test {
     mapping(address => bool) public isOperator;
 
     function setIsOperator(address operator, bool _isOperatorReturnValue) external {
@@ -32,14 +32,14 @@ contract DelegationMock is IEigenLayerDelegation, Test {
     function delegationTerms(address /*operator*/) external view returns (IDelegationTerms) {}
 
     /// @notice returns the total number of shares in `strategy` that are delegated to `operator`.
-    function operatorShares(address /*operator*/, IInvestmentStrategy /*strategy*/) external view returns (uint256) {}
+    function operatorShares(address /*operator*/, IStrategy /*strategy*/) external view returns (uint256) {}
 
 
-    function increaseDelegatedShares(address /*staker*/, IInvestmentStrategy /*strategy*/, uint256 /*shares*/) external {}
+    function increaseDelegatedShares(address /*staker*/, IStrategy /*strategy*/, uint256 /*shares*/) external {}
 
     function decreaseDelegatedShares(
         address /*staker*/,
-        IInvestmentStrategy[] calldata /*strategies*/,
+        IStrategy[] calldata /*strategies*/,
         uint256[] calldata /*shares*/
     ) external {}
 

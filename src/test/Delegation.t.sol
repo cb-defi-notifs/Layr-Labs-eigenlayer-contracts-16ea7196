@@ -43,7 +43,7 @@ contract DelegationTests is EigenLayerTestHelper {
             address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayerProxyAdmin), ""))
         );
 
-        voteWeigherImplementation = new MiddlewareVoteWeigherMock(delegation, investmentManager, serviceManager);
+        voteWeigherImplementation = new MiddlewareVoteWeigherMock(delegation, strategyManager, serviceManager);
 
         {
             uint96 multiplier = 1e18;
@@ -117,7 +117,7 @@ contract DelegationTests is EigenLayerTestHelper {
         cheats.assume(eigenAmount >= 1e9);
 
         _testDelegation(operator, staker, ethAmount, eigenAmount, voteWeigher);
-        cheats.startPrank(address(investmentManager));
+        cheats.startPrank(address(strategyManager));
         delegation.undelegate(staker);
         cheats.stopPrank();
 
@@ -139,7 +139,7 @@ contract DelegationTests is EigenLayerTestHelper {
         address staker = cheats.addr(PRIVATE_KEY);
         cheats.assume(staker != operator);
 
-        //making additional deposits to the investment strategies
+        //making additional deposits to the strategies
         assertTrue(delegation.isNotDelegated(staker) == true, "testDelegation: staker is not delegate");
         _testDepositWeth(staker, ethAmount);
         _testDepositEigen(staker, eigenAmount);
@@ -183,7 +183,7 @@ contract DelegationTests is EigenLayerTestHelper {
         address staker = cheats.addr(PRIVATE_KEY);
         cheats.assume(staker != operator);
 
-        //making additional deposits to the investment strategies
+        //making additional deposits to the strategies
         assertTrue(delegation.isNotDelegated(staker) == true, "testDelegation: staker is not delegate");
         _testDepositWeth(staker, ethAmount);
         _testDepositEigen(staker, eigenAmount);
@@ -248,7 +248,7 @@ contract DelegationTests is EigenLayerTestHelper {
     /// @param operator is the operator being delegated to.
     function testRegisterAsOperatorMultipleTimes(address operator) public fuzzedAddress(operator) {
         _testRegisterAsOperator(operator, IDelegationTerms(operator));
-        cheats.expectRevert(bytes("EigenLayerDelegation.registerAsOperator: operator has already registered"));
+        cheats.expectRevert(bytes("DelegationManager.registerAsOperator: operator has already registered"));
         _testRegisterAsOperator(operator, IDelegationTerms(operator));
     }
 
@@ -259,7 +259,7 @@ contract DelegationTests is EigenLayerTestHelper {
         _testDepositStrategies(getOperatorAddress(1), 1e18, 1);
         _testDepositEigen(getOperatorAddress(1), 1e18);
 
-        cheats.expectRevert(bytes("EigenLayerDelegation._delegate: operator has not yet registered as a delegate"));
+        cheats.expectRevert(bytes("DelegationManager._delegate: operator has not yet registered as a delegate"));
         cheats.startPrank(getOperatorAddress(1));
         delegation.delegateTo(delegate);
         cheats.stopPrank();

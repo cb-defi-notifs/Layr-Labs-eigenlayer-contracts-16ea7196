@@ -1,7 +1,7 @@
-using InvestmentManager as investmentManager
+using StrategyManager as strategyManager
 methods {
-    // external calls to InvestmentManager
-    investorStratShares(address, address) returns (uint256) => DISPATCHER(true)
+    // external calls to StrategyManager
+    stakerStrategyShares(address, address) returns (uint256) => DISPATCHER(true)
     
     // external calls to PauserRegistry
     pauser() returns (address) => DISPATCHER(true)
@@ -12,7 +12,7 @@ methods {
     transfer(address, uint256) returns (bool) => DISPATCHER(true)
     transferFrom(address, address, uint256) returns (bool) => DISPATCHER(true)
 
-	// external calls from InvestmentManager to Slasher
+	// external calls from StrategyManager to Slasher
     isFrozen(address) returns (bool) => DISPATCHER(true)
 	canWithdraw(address,uint32,uint256) returns (bool) => DISPATCHER(true)
 
@@ -40,7 +40,7 @@ invariant totalSharesNeverTooSmall()
 //   init_state axiom sumOfShares() == 0;
 // }
 
-// hook Sstore currentContract.investmentManager.investorStratShares[KEY address staker][KEY address strategy] uint256 newValue (uint256 oldValue) STORAGE {
+// hook Sstore currentContract.strategyManager.stakerStrategyShares[KEY address staker][KEY address strategy] uint256 newValue (uint256 oldValue) STORAGE {
 //     havoc sumOfShares assuming sumOfShares@new() == sumOfShares@old() + newValue - oldValue;
 // }
 
