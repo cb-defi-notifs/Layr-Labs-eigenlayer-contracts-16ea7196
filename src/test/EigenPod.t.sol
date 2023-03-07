@@ -207,6 +207,20 @@ contract EigenPodTests is ProofParsing, EigenPodPausingConstants {
         cheats.stopPrank();
     }
 
+    function testWithdrawBeforeRestaking() public {
+        testStaking();
+        IEigenPod pod = eigenPodManager.getPod(podOwner);
+        require(pod.hasRestaked() == false, "Pod should not be restaked");
+
+        //simulate a withdrawal
+        cheats.deal(address(pod), stakeAmount);
+        cheats.startPrank(podOwner);
+        pod.withdrawBeforeRestaking();
+        require(_getLatestPaymentAmount(podOwner) == stakeAmount, "Payment amount should be stake amount");
+        require(pod.mostRecentWithdrawalBlockNumber() == uint64(block.number), "Most recent withdrawal block number not updated");
+
+    }
+
     function testWithdrawFromPod() public {
         cheats.startPrank(podOwner);
         eigenPodManager.stake{value: stakeAmount}(pubkey, signature, depositDataRoot);
