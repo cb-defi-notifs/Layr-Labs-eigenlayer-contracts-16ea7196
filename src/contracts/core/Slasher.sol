@@ -36,7 +36,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
     // staker => if their funds are 'frozen' and potentially subject to slashing or not
     mapping(address => bool) internal frozenStatus;
 
-    uint32 internal constant MAX_BONDED_UNTIL = type(uint32).max;
+    uint32 internal constant MAX_CAN_SLASH_UNTIL = type(uint32).max;
 
     /**
      * operator => a linked list of the addresses of the whitelisted middleware with permission to slash the operator, i.e. which  
@@ -82,7 +82,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
 
     /// @notice Ensures that the operator has opted into slashing by the caller, and that the caller has never revoked its slashing ability.
     modifier onlyRegisteredForService(address operator) {
-        require(_whitelistedContractDetails[operator][msg.sender].contractCanSlashOperatorUntil == MAX_BONDED_UNTIL,
+        require(_whitelistedContractDetails[operator][msg.sender].contractCanSlashOperatorUntil == MAX_CAN_SLASH_UNTIL,
             "Slasher.onlyRegisteredForService: Operator has not opted into slashing by caller");
         _;
     }
@@ -362,12 +362,12 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
 
     function _optIntoSlashing(address operator, address contractAddress) internal {
         //allow the contract to slash anytime before a time VERY far in the future
-        _whitelistedContractDetails[operator][contractAddress].contractCanSlashOperatorUntil = MAX_BONDED_UNTIL;
+        _whitelistedContractDetails[operator][contractAddress].contractCanSlashOperatorUntil = MAX_CAN_SLASH_UNTIL;
         emit OptedIntoSlashing(operator, contractAddress);
     }
 
     function _revokeSlashingAbility(address operator, address contractAddress, uint32 serveUntil) internal {
-        require(serveUntil != MAX_BONDED_UNTIL, "Slasher._revokeSlashingAbility: serveUntil time must be limited");
+        require(serveUntil != MAX_CAN_SLASH_UNTIL, "Slasher._revokeSlashingAbility: serveUntil time must be limited");
         // contractAddress can now only slash operator before `serveUntil`
         _whitelistedContractDetails[operator][contractAddress].contractCanSlashOperatorUntil = serveUntil;
         emit SlashingAbilityRevoked(operator, contractAddress, serveUntil);

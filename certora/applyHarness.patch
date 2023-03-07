@@ -437,7 +437,7 @@ diff -druN ../score/Slasher.sol.orig core/Slasher.sol.orig
 +    // staker => if their funds are 'frozen' and potentially subject to slashing or not
 +    mapping(address => bool) internal frozenStatus;
 +
-+    uint32 internal constant MAX_BONDED_UNTIL = type(uint32).max;
++    uint32 internal constant MAX_CAN_SLASH_UNTIL = type(uint32).max;
 +
 +    /**
 +     * operator => a linked list of the addresses of the whitelisted middleware with permission to slash the operator, i.e. which  
@@ -737,12 +737,12 @@ diff -druN ../score/Slasher.sol.orig core/Slasher.sol.orig
 +
 +    function _optIntoSlashing(address operator, address contractAddress) internal {
 +        //allow the contract to slash anytime before a time VERY far in the future
-+        _whitelistedContractDetails[operator][contractAddress].contractCanSlashOperatorUntil = MAX_BONDED_UNTIL;
++        _whitelistedContractDetails[operator][contractAddress].contractCanSlashOperatorUntil = MAX_CAN_SLASH_UNTIL;
 +        emit OptedIntoSlashing(operator, contractAddress);
 +    }
 +
 +    function _revokeSlashingAbility(address operator, address contractAddress, uint32 serveUntil) internal {
-+        if (_whitelistedContractDetails[operator][contractAddress].contractCanSlashOperatorUntil == MAX_BONDED_UNTIL) {
++        if (_whitelistedContractDetails[operator][contractAddress].contractCanSlashOperatorUntil == MAX_CAN_SLASH_UNTIL) {
 +            // contractAddress can now only slash operator before `serveUntil`
 +            _whitelistedContractDetails[operator][contractAddress].contractCanSlashOperatorUntil = serveUntil;
 +            emit SlashingAbilityRevoked(operator, contractAddress, serveUntil);

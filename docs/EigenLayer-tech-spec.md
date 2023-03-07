@@ -114,11 +114,11 @@ Similar to withdrawals, **undelegation** in EigenLayer necessitates a delay or c
 
 ### Slasher
 The `Slasher` contract is the central point for slashing in EigenLayer.
-Operators can opt-in to slashing by arbitrary contracts by calling the function `allowToSlash`. A contract with slashing permission can itself revoke its slashing ability *after a specified time* -- named `unbondedAfter` in the function input -- by calling `recordLastStakeUpdateAndRevokeSlashingAbility`. The time until which `contractAddress` can slash `operator` is stored in `contractCanSlashOperatorUntil[operator][contractAddress]` as a uint32-encoded UTC timestamp, and is set to the `MAX_BONDED_UNTIL` (i.e. max value of a uint32) when `allowToSlash` is initially called.
+Operators can opt-in to slashing by arbitrary contracts by calling the function `allowToSlash`. A contract with slashing permission can itself revoke its slashing ability *after a specified time* -- named `unbondedAfter` in the function input -- by calling `recordLastStakeUpdateAndRevokeSlashingAbility`. The time until which `contractAddress` can slash `operator` is stored in `contractCanSlashOperatorUntil[operator][contractAddress]` as a uint32-encoded UTC timestamp, and is set to the `MAX_CAN_SLASH_UNTIL` (i.e. max value of a uint32) when `allowToSlash` is initially called.
 
 #### Storage in Slasher
 * `contractCanSlashOperatorUntil[operator][contractAddress]` should only change when either `allowToSlash` or `recordLastStakeUpdateAndRevokeSlashingAbility` is called
-* `recordLastStakeUpdateAndRevokeSlashingAbility` should only be callable when `contractCanSlashOperatorUntil[operator][contractAddress] = MAX_BONDED_UNTIL`, and only *by the `contractAddress` itself*
+* `recordLastStakeUpdateAndRevokeSlashingAbility` should only be callable when `contractCanSlashOperatorUntil[operator][contractAddress] = MAX_CAN_SLASH_UNTIL`, and only *by the `contractAddress` itself*
 Any `contractAddress` for which `contractCanSlashOperatorUntil[operator][contractAddress]` is *strictly greater than the current time* can call `freezeOperator(operator)` and trigger **freezing** of the operator. An operator who is frozen -- *and any staker delegated to them* cannot make new deposits or withdrawals, and cannot complete queued withdrawals, as being frozen signals detection of malicious action and they may be subject to slashing. At present, slashing itself is performed by the owner of the `StrategyManager` contract, who can also 'unfreeze' accounts.
 * `frozenStatus[operator]` should change *only* when either `freezeOperator` (changing it from 'false' to 'true') or resetFrozenStatus (changing it from 'true' to 'false') is invoked
 

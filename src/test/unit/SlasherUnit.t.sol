@@ -34,7 +34,7 @@ contract SlasherUnitTests is Test {
     uint8 internal constant PAUSED_FIRST_STAKE_UPDATE = 1;
     uint8 internal constant PAUSED_NEW_FREEZING = 2;
 
-    uint32 internal constant MAX_BONDED_UNTIL = type(uint32).max;
+    uint32 internal constant MAX_CAN_SLASH_UNTIL = type(uint32).max;
 
     ProxyAdmin public proxyAdmin;
     PauserRegistry public pauserRegistry;
@@ -126,7 +126,7 @@ contract SlasherUnitTests is Test {
         slasher.optIntoSlashing(contractAddress);
         cheats.stopPrank();
 
-        assertEq(slasher.contractCanSlashOperatorUntil(operator, contractAddress), MAX_BONDED_UNTIL);
+        assertEq(slasher.contractCanSlashOperatorUntil(operator, contractAddress), MAX_CAN_SLASH_UNTIL);
         require(slasher.canSlash(operator, contractAddress), "contract was not properly granted slashing permission");
     }
 
@@ -569,7 +569,7 @@ contract SlasherUnitTests is Test {
         filterFuzzedAddressInputs(contractAddress)
     {
         // filter out setting the `serveUntil` time to the MAX, since the contract will revert in this instance.
-        cheats.assume(serveUntil != MAX_BONDED_UNTIL);
+        cheats.assume(serveUntil != MAX_CAN_SLASH_UNTIL);
 
         testRecordStakeUpdate_MultipleLinkedListEntries(operator, contractAddress, prevServeUntil, updateBlock, serveUntil, insertAfter);
 
@@ -645,7 +645,7 @@ contract SlasherUnitTests is Test {
         filterFuzzedAddressInputs(contractAddress)
     {
         // filter out setting the `serveUntil` time to the MAX, since the contract will revert in this instance.
-        cheats.assume(serveUntil != MAX_BONDED_UNTIL);
+        cheats.assume(serveUntil != MAX_CAN_SLASH_UNTIL);
 
         cheats.expectRevert(bytes("Slasher.onlyRegisteredForService: Operator has not opted into slashing by caller"));
         cheats.startPrank(contractAddress);
@@ -663,7 +663,7 @@ contract SlasherUnitTests is Test {
         filterFuzzedAddressInputs(contractAddress)
     {
         // filter out setting the `serveUntil` time to the MAX, since the contract will revert in this instance.
-        cheats.assume(serveUntil != MAX_BONDED_UNTIL);
+        cheats.assume(serveUntil != MAX_CAN_SLASH_UNTIL);
 
         testOptIntoSlashing(operator, contractAddress);
 
@@ -684,7 +684,7 @@ contract SlasherUnitTests is Test {
         filterFuzzedAddressInputs(operator)
         filterFuzzedAddressInputs(contractAddress)
     {
-        uint32 serveUntil = MAX_BONDED_UNTIL;
+        uint32 serveUntil = MAX_CAN_SLASH_UNTIL;
 
         testOptIntoSlashing(operator, contractAddress);
 

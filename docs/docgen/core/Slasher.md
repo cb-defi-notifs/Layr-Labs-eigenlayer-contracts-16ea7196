@@ -60,10 +60,10 @@ mapping(address => mapping(address => struct ISlasher.MiddlewareDetails)) _white
 mapping(address => bool) frozenStatus
 ```
 
-### MAX_BONDED_UNTIL
+### MAX_CAN_SLASH_UNTIL
 
 ```solidity
-uint32 MAX_BONDED_UNTIL
+uint32 MAX_CAN_SLASH_UNTIL
 ```
 
 ### _operatorToWhitelistedContractsByUpdate

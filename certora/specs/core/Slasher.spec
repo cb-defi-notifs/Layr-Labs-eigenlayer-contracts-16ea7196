@@ -117,8 +117,8 @@ rule canOnlyChangecontractCanSlashOperatorUntilWithSpecificFunctions(address ope
 		uint256 valueAfter = contractCanSlashOperatorUntil(operator, contractAddress);
 		// uses that the `PAUSED_OPT_INTO_SLASHING` index is 0, as an input to the `paused` function
 		if (e.msg.sender == operator && arbitraryContract == contractAddress && get_is_operator(operator) && !paused(0)) {
-			// uses that `MAX_BONDED_UNTIL` is equal to max_uint32
-			assert(valueAfter == max_uint32, "MAX_BONDED_UNTIL different than max_uint32?");
+			// uses that `MAX_CAN_SLASH_UNTIL` is equal to max_uint32
+			assert(valueAfter == max_uint32, "MAX_CAN_SLASH_UNTIL different than max_uint32?");
 		} else {
             assert(valueBefore == valueAfter, "bad permissions on optIntoSlashing?");
 		}
@@ -184,7 +184,7 @@ rule cannotAddSameContractTwice(address operator, address contractAddress) {
 - operator may be slashed only if allowToSlash() for that particular contract was called
 - slashing cannot happen after contractCanSlashOperatorUntil[operator][contractAddress] timestamp
 - contractCanSlashOperatorUntil[operator][contractAddress] changed  => allowToSlash() or recordLastStakeUpdateAndRevokeSlashingAbility() was called
-- recordLastStakeUpdateAndRevokeSlashingAbility() should only be callable when contractCanSlashOperatorUntil[operator][contractAddress] == MAX_BONDED_UNTIL, and only by the contractAddress
+- recordLastStakeUpdateAndRevokeSlashingAbility() should only be callable when contractCanSlashOperatorUntil[operator][contractAddress] == MAX_CAN_SLASH_UNTIL, and only by the contractAddress
 - Any contractAddress for which contractCanSlashOperatorUntil[operator][contractAddress] > current time can call freezeOperator(operator).
 - frozen operator cannot make deposits/withdrawals, cannot complete queued withdrawals
 - slashing and unfreezing is performed by the StrategyManager contract owner (is it permanent or configurable?)
