@@ -345,7 +345,7 @@ contract DelegationTests is EigenLayerTestHelper {
     function testCannotInitMultipleTimesDelegation(address _attacker) public cannotReinit {
         //delegation has already been initialized in the Deployer test contract
         vm.prank(_attacker);
-        delegation.initialize(eigenLayerPauserReg, _attacker);
+        delegation.initialize(_attacker, eigenLayerPauserReg, 0);
     }
 
     /// @notice This function tests that the delegationTerms cannot be set to address(0)
