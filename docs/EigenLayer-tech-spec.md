@@ -24,7 +24,7 @@ A **staker** is any party who has assets deposited into EigenLayer. In general, 
 ### Watchers
 Some operations in EigenLayer are "**optimisitically rolled up**". This is a design pattern used where it is either impossible or infeasible to prove that some claim is true, but *easy to check a counterexample that proves the claim is false*. The general pattern is:
 1. A "rolled-up" claim is made, asserting that some condition is true.
-2. There is a "fraudproof period", during which anyone can *disprove* the claim with a single counterexample. If a claim is disproven, then the original claimant is punished in some way (e.g. by forfeiting some collateral or being slashed).
+2. There is a "fraudproof period", during which anyone can *disprove* the claim with a single counterexample. If a claim is disproven, then the original claimant is punished in some way (e.g. by forfeiting some amount or being slashed).
 3. If the claim is *not* disproved during the fraudproof period, then it is assumed to be true, and the system proceeds from this assumption.
 
 **Watchers** are parties who passively observe these "rolled up" claims, and step in only in the case of an invalid or false claim. In such a case, an honest watcher will perform the fraudproof, disproving the claim.
@@ -114,12 +114,12 @@ Similar to withdrawals, **undelegation** in EigenLayer necessitates a delay or c
 
 ### Slasher
 The `Slasher` contract is the central point for slashing in EigenLayer.
-Operators can opt-in to slashing by arbitrary contracts by calling the function `allowToSlash`. A contract with slashing permission can itself revoke its slashing ability *after a specified time* -- named `unbondedAfter` in the function input -- by calling `recordLastStakeUpdateAndRevokeSlashingAbility`. The time until which `contractAddress` can slash `operator` is stored in `bondedUntil[operator][contractAddress]` as a uint32-encoded UTC timestamp, and is set to the `MAX_BONDED_UNTIL` (i.e. max value of a uint32) when `allowToSlash` is initially called.
+Operators can opt-in to slashing by arbitrary contracts by calling the function `allowToSlash`. A contract with slashing permission can itself revoke its slashing ability *after a specified time* -- named `unbondedAfter` in the function input -- by calling `recordLastStakeUpdateAndRevokeSlashingAbility`. The time until which `contractAddress` can slash `operator` is stored in `contractCanSlashOperatorUntil[operator][contractAddress]` as a uint32-encoded UTC timestamp, and is set to the `MAX_BONDED_UNTIL` (i.e. max value of a uint32) when `allowToSlash` is initially called.
 
 #### Storage in Slasher
-* `bondedUntil[operator][contractAddress]` should only change when either `allowToSlash` or `recordLastStakeUpdateAndRevokeSlashingAbility` is called
-* `recordLastStakeUpdateAndRevokeSlashingAbility` should only be callable when `bondedUntil[operator][contractAddress] = MAX_BONDED_UNTIL`, and only *by the `contractAddress` itself*
-Any `contractAddress` for which `bondedUntil[operator][contractAddress]` is *strictly greater than the current time* can call `freezeOperator(operator)` and trigger **freezing** of the operator. An operator who is frozen -- *and any staker delegated to them* cannot make new deposits or withdrawals, and cannot complete queued withdrawals, as being frozen signals detection of malicious action and they may be subject to slashing. At present, slashing itself is performed by the owner of the `StrategyManager` contract, who can also 'unfreeze' accounts.
+* `contractCanSlashOperatorUntil[operator][contractAddress]` should only change when either `allowToSlash` or `recordLastStakeUpdateAndRevokeSlashingAbility` is called
+* `recordLastStakeUpdateAndRevokeSlashingAbility` should only be callable when `contractCanSlashOperatorUntil[operator][contractAddress] = MAX_BONDED_UNTIL`, and only *by the `contractAddress` itself*
+Any `contractAddress` for which `contractCanSlashOperatorUntil[operator][contractAddress]` is *strictly greater than the current time* can call `freezeOperator(operator)` and trigger **freezing** of the operator. An operator who is frozen -- *and any staker delegated to them* cannot make new deposits or withdrawals, and cannot complete queued withdrawals, as being frozen signals detection of malicious action and they may be subject to slashing. At present, slashing itself is performed by the owner of the `StrategyManager` contract, who can also 'unfreeze' accounts.
 * `frozenStatus[operator]` should change *only* when either `freezeOperator` (changing it from 'false' to 'true') or resetFrozenStatus (changing it from 'true' to 'false') is invoked
 
 ### EigenPodManager

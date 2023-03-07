@@ -46,7 +46,7 @@ interface IPaymentManager {
          * - 2: CHALLENGED
          */
         PaymentStatus status;
-        uint256 collateral; //account for if collateral changed
+        uint256 challengeAmount; //account for if challengeAmount changed
     }
 
     /**
@@ -100,10 +100,10 @@ interface IPaymentManager {
     function payFee(address initiator, address payer, uint256 feeAmount) external;
 
     /**
-     * @notice Modifies the `paymentFraudproofCollateral` amount.
-     * @param _paymentFraudproofCollateral The new value for `paymentFraudproofCollateral` to take.
+     * @notice Modifies the `paymentChallengeAmount` amount.
+     * @param _paymentChallengeAmount The new value for `paymentChallengeAmount` to take.
      */
-    function setPaymentFraudproofCollateral(uint256 _paymentFraudproofCollateral) external;
+    function setPaymentChallengeAmount(uint256 _paymentChallengeAmount) external;
 
     /**
      * @notice This is used by an operator to make a claim on the amount that they deserve for their service from their last payment until `toTaskNumber`
@@ -146,15 +146,15 @@ interface IPaymentManager {
     function paymentFraudproofInterval() external view returns (uint256);
 
     /**
-     * @notice Specifies the payment that has to be made as a collateral for fraudproof during payment challenges.
+     * @notice Specifies the payment that has to be made as a guarantee for fraudproof during payment challenges.
      */
-    function paymentFraudproofCollateral() external view returns (uint256);
+    function paymentChallengeAmount() external view returns (uint256);
 
     /// @notice the ERC20 token that will be used by the disperser to pay the service fees to middleware nodes.
     function paymentToken() external view returns (IERC20);
 
-    /// @notice Collateral token used for placing collateral on challenges & payment commits
-    function collateralToken() external view returns (IERC20);
+    /// @notice Token used for placing a guarantee on challenges & payment commits
+    function paymentChallengeToken() external view returns (IERC20);
 
     /// @notice Returns the ChallengeStatus for the `operator`'s payment claim.
     function getChallengeStatus(address operator) external view returns (ChallengeStatus);
@@ -174,6 +174,6 @@ interface IPaymentManager {
     /// @notice Returns the task number difference for the `operator`'s payment claim.
     function getDiff(address operator) external view returns (uint48);
 
-    /// @notice Returns the active collateral of the `operator` placed on their payment claim.
-    function getPaymentCollateral(address) external view returns (uint256);
+    /// @notice Returns the active guarantee amount of the `operator` placed on their payment claim.
+    function getPaymentChallengeAmount(address) external view returns (uint256);
 }

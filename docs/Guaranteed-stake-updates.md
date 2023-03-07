@@ -12,7 +12,7 @@ For each operator, we need to store:
 ```solidity
     struct MiddlewareDetails {
         // the UTC timestamp before which the contract is allowed to slash the user
-        uint32 bondedUntil;
+        uint32 contractCanSlashOperatorUntil;
         // the block at which the middleware's view of the operator's stake was most recently updated
         uint32 latestUpdateBlock;
     }

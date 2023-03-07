@@ -36,7 +36,7 @@ contract SlasherMock is ISlasher, Test {
     function canSlash(address toBeSlashed, address slashingContract) external view returns (bool){}
 
     /// @notice Returns the UTC timestamp until which `serviceContract` is allowed to slash the `operator`.
-    function bondedUntil(address operator, address serviceContract) external view returns (uint32){}
+    function contractCanSlashOperatorUntil(address operator, address serviceContract) external view returns (uint32){}
 
     /// @notice Returns the block at which the `serviceContract` last updated its view of the `operator`'s stake
     function latestUpdateBlock(address operator, address serviceContract) external view returns (uint32){}

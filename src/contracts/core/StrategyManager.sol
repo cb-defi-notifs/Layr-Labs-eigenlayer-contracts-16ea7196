@@ -188,10 +188,10 @@ contract StrategyManager is
     {
         // get `overcommittedPodOwner`'s shares in the enshrined beacon chain ETH strategy
         uint256 userShares = stakerStrategyShares[overcommittedPodOwner][beaconChainETHStrategy];
-        // if the amount exceeds the user's shares, then record it as "debt", to be "paid off" when the user completes a withdrawal
+        // if the amount exceeds the user's shares, then record it as an amount to be "paid off" when the user completes a withdrawal
         if (amount > userShares) {
             uint256 debt = amount - userShares;
-            beaconChainETHWithdrawalDebt[overcommittedPodOwner] += debt;
+            beaconChainETHSharesToDecrementOnWithdrawal[overcommittedPodOwner] += debt;
             amount -= debt;
         }
         // removes shares for the enshrined beacon chain ETH strategy
@@ -776,18 +776,19 @@ contract StrategyManager is
 
     /*
      * @notice Withdraws `amount` of virtual 'beaconChainETH' shares from `staker`, with any succesfully withdrawn funds going to `recipient`.
-     * @dev First, the amount is drawn-down by any applicable 'beaconChainETHWithdrawalDebt' that the staker has, before passing any remaining
-     * amount (if applicable) onto a call to the `eigenPodManager.withdrawRestakedBeaconChainETH` function.
+     * @dev First, the amount is drawn-down by any applicable 'beaconChainETHSharesToDecrementOnWithdrawal' that the staker has, 
+     * before passing any remaining amount (if applicable) onto a call to the `eigenPodManager.withdrawRestakedBeaconChainETH` function.
     */
     function _withdrawBeaconChainETH(address staker, address recipient, uint256 amount) internal {
-        uint256 debt = beaconChainETHWithdrawalDebt[staker];
-        if (debt != 0) {
-            if (amount > debt) {
-                beaconChainETHWithdrawalDebt[staker] = 0;
-                amount -= debt;
+        uint256 amountToDecrement = beaconChainETHSharesToDecrementOnWithdrawal[staker];
+        if (amountToDecrement != 0) {
+            if (amount > amountToDecrement) {
+                beaconChainETHSharesToDecrementOnWithdrawal[staker] = 0;
+                // decrease `amount` appropriately, so less is sent at the end
+                amount -= amountToDecrement;
             } else {
-                beaconChainETHWithdrawalDebt[staker] = (debt - amount);
-                // rather than setting amount to 0, just return early
+                beaconChainETHSharesToDecrementOnWithdrawal[staker] = (amountToDecrement - amount);
+                // rather than setting `amount` to 0, just return early
                 return;
             }
         }

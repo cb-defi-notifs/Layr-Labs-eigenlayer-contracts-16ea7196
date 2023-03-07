@@ -60,13 +60,13 @@ abstract contract StrategyManagerStorage is IStrategyManager {
      * @notice Mapping: staker => virtual 'beaconChainETH' shares that the staker 'owes' due to overcommitments of beacon chain ETH.
      * When overcommitment is proven, `StrategyManager.recordOvercommittedBeaconChainETH` is called. However, it is possible that the
      * staker already queued a withdrawal for more beaconChainETH shares than the `amount` input to this function. In this edge case,
-     * the amount that cannot be decremented is added to the staker's `beaconChainETHWithdrawalDebt` -- then when the staker completes a
-     * withdrawal of beaconChainETH, the amount they are withdrawing is first decreased by their `beaconChainETHWithdrawalDebt` amount.
-     * In other words, a staker's `beaconChainETHWithdrawalDebt` must be 'paid down' before they can "actually withdraw" beaconChainETH.
+     * the amount that cannot be decremented is added to the staker's `beaconChainETHSharesToDecrementOnWithdrawal` -- then when the staker completes a
+     * withdrawal of beaconChainETH, the amount they are withdrawing is first decreased by their `beaconChainETHSharesToDecrementOnWithdrawal` amount.
+     * In other words, a staker's `beaconChainETHSharesToDecrementOnWithdrawal` must be 'paid down' before they can "actually withdraw" beaconChainETH.
      * @dev In practice, this means not passing a call to `eigenPodManager.withdrawRestakedBeaconChainETH` until the staker's 
-     * `beaconChainETHWithdrawalDebt` has first been 'paid off'.
+     * `beaconChainETHSharesToDecrementOnWithdrawal` has first been reduced to zero.
     */
-    mapping(address => uint256) public beaconChainETHWithdrawalDebt;
+    mapping(address => uint256) public beaconChainETHSharesToDecrementOnWithdrawal;
 
     IStrategy public constant beaconChainETHStrategy = IStrategy(0xbeaC0eeEeeeeEEeEeEEEEeeEEeEeeeEeeEEBEaC0);
 

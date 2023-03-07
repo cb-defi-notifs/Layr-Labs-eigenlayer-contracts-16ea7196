@@ -62,8 +62,8 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
     /// @notice Emitted when `operator` begins to allow `contractAddress` to slash them.
     event OptedIntoSlashing(address indexed operator, address indexed contractAddress);
 
-    /// @notice Emitted when `contractAddress` signals that it will no longer be able to slash `operator` after the UTC timestamp `bondedUntil.
-    event SlashingAbilityRevoked(address indexed operator, address indexed contractAddress, uint32 bondedUntil);
+    /// @notice Emitted when `contractAddress` signals that it will no longer be able to slash `operator` after the UTC timestamp `contractCanSlashOperatorUntil.
+    event SlashingAbilityRevoked(address indexed operator, address indexed contractAddress, uint32 contractCanSlashOperatorUntil);
 
     /**
      * @notice Emitted when `slashingContract` 'freezes' the `slashedOperator`.
@@ -82,7 +82,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
 
     /// @notice Ensures that the operator has opted into slashing by the caller, and that the caller has never revoked its slashing ability.
     modifier onlyRegisteredForService(address operator) {
-        require(_whitelistedContractDetails[operator][msg.sender].bondedUntil == MAX_BONDED_UNTIL,
+        require(_whitelistedContractDetails[operator][msg.sender].contractCanSlashOperatorUntil == MAX_BONDED_UNTIL,
             "Slasher.onlyRegisteredForService: Operator has not opted into slashing by caller");
         _;
     }
@@ -210,8 +210,8 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
     // VIEW FUNCTIONS
 
     /// @notice Returns the UTC timestamp until which `serviceContract` is allowed to slash the `operator`.
-    function bondedUntil(address operator, address serviceContract) external view returns (uint32) {
-        return _whitelistedContractDetails[operator][serviceContract].bondedUntil;
+    function contractCanSlashOperatorUntil(address operator, address serviceContract) external view returns (uint32) {
+        return _whitelistedContractDetails[operator][serviceContract].contractCanSlashOperatorUntil;
     }
 
     /// @notice Returns the block at which the `serviceContract` last updated its view of the `operator`'s stake
@@ -248,7 +248,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
 
     /// @notice Returns true if `slashingContract` is currently allowed to slash `toBeSlashed`.
     function canSlash(address toBeSlashed, address slashingContract) public view returns (bool) {
-        if (block.timestamp < _whitelistedContractDetails[toBeSlashed][slashingContract].bondedUntil) {
+        if (block.timestamp < _whitelistedContractDetails[toBeSlashed][slashingContract].contractCanSlashOperatorUntil) {
             return true;
         } else {
             return false;
@@ -362,14 +362,14 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
 
     function _optIntoSlashing(address operator, address contractAddress) internal {
         //allow the contract to slash anytime before a time VERY far in the future
-        _whitelistedContractDetails[operator][contractAddress].bondedUntil = MAX_BONDED_UNTIL;
+        _whitelistedContractDetails[operator][contractAddress].contractCanSlashOperatorUntil = MAX_BONDED_UNTIL;
         emit OptedIntoSlashing(operator, contractAddress);
     }
 
     function _revokeSlashingAbility(address operator, address contractAddress, uint32 serveUntil) internal {
         require(serveUntil != MAX_BONDED_UNTIL, "Slasher._revokeSlashingAbility: serveUntil time must be limited");
         // contractAddress can now only slash operator before `serveUntil`
-        _whitelistedContractDetails[operator][contractAddress].bondedUntil = serveUntil;
+        _whitelistedContractDetails[operator][contractAddress].contractCanSlashOperatorUntil = serveUntil;
         emit SlashingAbilityRevoked(operator, contractAddress, serveUntil);
     }
 

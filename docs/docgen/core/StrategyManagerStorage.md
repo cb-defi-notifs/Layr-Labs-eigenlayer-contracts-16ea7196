@@ -128,10 +128,10 @@ mapping(contract IStrategy => bool) strategyIsWhitelistedForDeposit
 
 Mapping: strategy => whether or not stakers are allowed to deposit into it
 
-### beaconChainETHWithdrawalDebt
+### beaconChainETHSharesToDecrementOnWithdrawal
 
 ```solidity
-mapping(address => uint256) beaconChainETHWithdrawalDebt
+mapping(address => uint256) beaconChainETHSharesToDecrementOnWithdrawal
 ```
 
 ### beaconChainETHStrategy

@@ -2,21 +2,21 @@
 
 ## IDelayedWithdrawalRouter
 
-### Payment
+### DelayedWithdrawal
 
 ```solidity
-struct Payment {
+struct DelayedWithdrawal {
   uint224 amount;
   uint32 blockCreated;
 }
 ```
 
-### UserPayments
+### UserDelayedWithdrawals
 
 ```solidity
-struct UserPayments {
-  uint256 paymentsCompleted;
-  struct IDelayedWithdrawalRouter.DelayedWithdrawal[] payments;
+struct UserDelayedWithdrawals {
+  uint256 delayedWithdrawalsCompleted;
+  struct IDelayedWithdrawalRouter.DelayedWithdrawal[] delayedWithdrawals;
 }
 ```
 
@@ -30,10 +30,10 @@ Creates an delayed withdrawal for `msg.value` to the `recipient`.
 
 _Only callable by the `podOwner`'s EigenPod contract._
 
-### claimPayments
+### claimDelayedWithdrawals
 
 ```solidity
-function claimPayments(address recipient, uint256 maxNumberOfWithdrawalsToClaim) external
+function claimDelayedWithdrawals(address recipient, uint256 maxNumberOfWithdrawalsToClaim) external
 ```
 
 Called in order to withdraw delayed withdrawals made to the `recipient` that have passed the `withdrawalDelayBlocks` period.
@@ -42,13 +42,13 @@ Called in order to withdraw delayed withdrawals made to the `recipient` that hav
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| recipient | address | The address to claim payments for. |
+| recipient | address | The address to claim delayedWithdrawals for. |
 | maxNumberOfWithdrawalsToClaim | uint256 | Used to limit the maximum number of withdrawals to loop through claiming. |
 
-### claimPayments
+### claimDelayedWithdrawals
 
 ```solidity
-function claimPayments(uint256 maxNumberOfWithdrawalsToClaim) external
+function claimDelayedWithdrawals(uint256 maxNumberOfWithdrawalsToClaim) external
 ```
 
 Called in order to withdraw delayed withdrawals made to the caller that have passed the `withdrawalDelayBlocks` period.
@@ -70,18 +70,18 @@ Owner-only function for modifying the value of the `withdrawalDelayBlocks` varia
 ### userWithdrawals
 
 ```solidity
-function userWithdrawals(address user) external view returns (struct IDelayedWithdrawalRouter.UserPayments)
+function userWithdrawals(address user) external view returns (struct IDelayedWithdrawalRouter.UserDelayedWithdrawals)
 ```
 
 Getter function for the mapping `_userWithdrawals`
 
-### userPaymentByIndex
+### userDelayedWithdrawalByIndex
 
 ```solidity
-function userPaymentByIndex(address user, uint256 index) external view returns (struct IDelayedWithdrawalRouter.DelayedWithdrawal)
+function userDelayedWithdrawalByIndex(address user, uint256 index) external view returns (struct IDelayedWithdrawalRouter.DelayedWithdrawal)
 ```
 
-Getter function for fetching the payment at the `index`th entry from the `_userWithdrawals[user].payments` array
+Getter function for fetching the delayedWithdrawal at the `index`th entry from the `_userWithdrawals[user].delayedWithdrawals` array
 
 ### userWithdrawalsLength
 
@@ -89,15 +89,15 @@ Getter function for fetching the payment at the `index`th entry from the `_userW
 function userWithdrawalsLength(address user) external view returns (uint256)
 ```
 
-Getter function for fetching the length of the payments array of a specific user
+Getter function for fetching the length of the delayedWithdrawals array of a specific user
 
-### canClaimPayment
+### canClaimDelayedWithdrawal
 
 ```solidity
-function canClaimPayment(address user, uint256 index) external view returns (bool)
+function canClaimDelayedWithdrawal(address user, uint256 index) external view returns (bool)
 ```
 
-Convenience function for checking whethere or not the payment at the `index`th entry from the `_userWithdrawals[user].payments` array is currently claimable
+Convenience function for checking whethere or not the delayedWithdrawal at the `index`th entry from the `_userWithdrawals[user].delayedWithdrawals` array is currently claimable
 
 ### withdrawalDelayBlocks
 
@@ -105,6 +105,6 @@ Convenience function for checking whethere or not the payment at the `index`th e
 function withdrawalDelayBlocks() external view returns (uint256)
 ```
 
-Delay enforced by this contract for completing any payment. Measured in blocks, and adjustable by this contract's owner,
+Delay enforced by this contract for completing any delayedWithdrawal. Measured in blocks, and adjustable by this contract's owner,
 up to a maximum of `MAX_WITHDRAWAL_DELAY_BLOCKS`. Minimum value is 0 (i.e. no delay enforced).
 

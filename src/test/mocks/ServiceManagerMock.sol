@@ -33,8 +33,8 @@ contract ServiceManagerMock is IServiceManager, DSTest {
     /// @notice Permissioned function to have the ServiceManager forward a call to the slasher, recording a final stake update (on operator deregistration)
     function recordLastStakeUpdateAndRevokeSlashingAbility(address operator, uint32 serveUntil) external pure {}
 
-    /// @notice Collateral token used for placing collateral on challenges & payment commits
-    function collateralToken() external pure returns (IERC20) {
+    /// @notice Token used for placing guarantee on challenges & payment commits
+    function paymentChallengeToken() external pure returns (IERC20) {
         return IERC20(address(0));
     }
 

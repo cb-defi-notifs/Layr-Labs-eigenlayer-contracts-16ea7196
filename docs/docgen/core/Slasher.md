@@ -109,10 +109,10 @@ Emitted when `operator` begins to allow `contractAddress` to slash them.
 ### SlashingAbilityRevoked
 
 ```solidity
-event SlashingAbilityRevoked(address operator, address contractAddress, uint32 bondedUntil)
+event SlashingAbilityRevoked(address operator, address contractAddress, uint32 contractCanSlashOperatorUntil)
 ```
 
-Emitted when `contractAddress` signals that it will no longer be able to slash `operator` after the UTC timestamp `bondedUntil.
+Emitted when `contractAddress` signals that it will no longer be able to slash `operator` after the UTC timestamp `contractCanSlashOperatorUntil.
 
 ### OperatorFrozen
 
@@ -247,10 +247,10 @@ slash `operator` once `serveUntil` is reached_
 | operator | address | the operator whose stake update is being recorded |
 | serveUntil | uint32 | the timestamp until which the operator's stake at the current block is slashable |
 
-### bondedUntil
+### contractCanSlashOperatorUntil
 
 ```solidity
-function bondedUntil(address operator, address serviceContract) external view returns (uint32)
+function contractCanSlashOperatorUntil(address operator, address serviceContract) external view returns (uint32)
 ```
 
 Returns the UTC timestamp until which `serviceContract` is allowed to slash the `operator`.

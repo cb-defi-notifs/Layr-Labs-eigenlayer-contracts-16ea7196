@@ -17,7 +17,7 @@ struct MiddlewareTimes {
 
 ```solidity
 struct MiddlewareDetails {
-  uint32 bondedUntil;
+  uint32 contractCanSlashOperatorUntil;
   uint32 latestUpdateBlock;
 }
 ```
@@ -141,10 +141,10 @@ function canSlash(address toBeSlashed, address slashingContract) external view r
 
 Returns true if `slashingContract` is currently allowed to slash `toBeSlashed`.
 
-### bondedUntil
+### contractCanSlashOperatorUntil
 
 ```solidity
-function bondedUntil(address operator, address serviceContract) external view returns (uint32)
+function contractCanSlashOperatorUntil(address operator, address serviceContract) external view returns (uint32)
 ```
 
 Returns the UTC timestamp until which `serviceContract` is allowed to slash the `operator`.

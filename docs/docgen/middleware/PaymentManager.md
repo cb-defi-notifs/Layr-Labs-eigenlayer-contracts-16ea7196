@@ -77,21 +77,21 @@ contract IERC20 paymentToken
 
 the ERC20 token that will be used by the disperser to pay the service fees to middleware nodes.
 
-### collateralToken
+### paymentChallengeToken
 
 ```solidity
-contract IERC20 collateralToken
+contract IERC20 paymentChallengeToken
 ```
 
-Collateral token used for placing collateral on challenges & payment commits
+Token used for placing a guarantee on challenges & payment commits
 
-### paymentFraudproofCollateral
+### paymentChallengeAmount
 
 ```solidity
-uint256 paymentFraudproofCollateral
+uint256 paymentChallengeAmount
 ```
 
-Specifies the payment that has to be made as a collateral for fraudproof during payment challenges.
+Specifies the payment that has to be made as a guarantee for fraudproof during payment challenges.
 
 ### operatorToPayment
 
@@ -125,13 +125,13 @@ mapping(address => mapping(address => uint256)) allowances
 
 depositors => addresses approved to spend deposits => allowance
 
-### PaymentFraudproofCollateralSet
+### PaymentChallengeAmountSet
 
 ```solidity
-event PaymentFraudproofCollateralSet(uint256 previousValue, uint256 newValue)
+event PaymentChallengeAmountSet(uint256 previousValue, uint256 newValue)
 ```
 
-Emitted when the `paymentFraudproofCollateral` variable is modified
+Emitted when the `paymentChallengeAmount` variable is modified
 
 ### PaymentCommit
 
@@ -208,13 +208,13 @@ when applied to a function, ensures that the function is only callable by the ow
 ### constructor
 
 ```solidity
-constructor(contract IDelegationManager _delegationManager, contract IServiceManager _serviceManager, contract IQuorumRegistry _registry, contract IERC20 _paymentToken, contract IERC20 _collateralToken) internal
+constructor(contract IDelegationManager _delegationManager, contract IServiceManager _serviceManager, contract IQuorumRegistry _registry, contract IERC20 _paymentToken, contract IERC20 _paymentChallengeToken) internal
 ```
 
 ### initialize
 
 ```solidity
-function initialize(contract IPauserRegistry _pauserReg, uint256 _paymentFraudproofCollateral) public
+function initialize(contract IPauserRegistry _pauserReg, uint256 _paymentChallengeAmount) public
 ```
 
 ### depositFutureFees
@@ -240,19 +240,19 @@ function setAllowance(address allowed, uint256 amount) external
 
 Allows the `allowed` address to spend up to `amount` of the `msg.sender`'s funds that have been deposited in this contract
 
-### setPaymentFraudproofCollateral
+### setPaymentChallengeAmount
 
 ```solidity
-function setPaymentFraudproofCollateral(uint256 _paymentFraudproofCollateral) external virtual
+function setPaymentChallengeAmount(uint256 _paymentChallengeAmount) external virtual
 ```
 
-Modifies the `paymentFraudproofCollateral` amount.
+Modifies the `paymentChallengeAmount` amount.
 
 #### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| _paymentFraudproofCollateral | uint256 | The new value for `paymentFraudproofCollateral` to take. |
+| _paymentChallengeAmount | uint256 | The new value for `paymentChallengeAmount` to take. |
 
 ### payFee
 
@@ -365,9 +365,9 @@ function _resolve(struct IPaymentManager.PaymentChallenge challenge, address win
 
 Resolves a single payment challenge, paying the winner.
 
-_If challenger is proven correct, then they are refunded their own collateral plus the collateral put up by the operator.
-If operator is proven correct, then the challenger's collateral is transferred to them, since the operator still hasn't been
-proven right, and thus their collateral is still required in case they are challenged again._
+_If challenger is proven correct, then they are refunded their own challengeAmount plus the challengeAmount put up by the operator.
+If operator is proven correct, then the challenger's challengeAmount is transferred to them, since the operator still hasn't been
+proven right, and thus their challengeAmount is still required in case they are challenged again._
 
 #### Parameters
 
@@ -424,13 +424,13 @@ function getDiff(address operator) external view returns (uint48)
 
 Returns the task number difference for the `operator`'s payment claim.
 
-### getPaymentCollateral
+### getPaymentChallengeAmount
 
 ```solidity
-function getPaymentCollateral(address operator) external view returns (uint256)
+function getPaymentChallengeAmount(address operator) external view returns (uint256)
 ```
 
-Returns the active collateral of the `operator` placed on their payment claim.
+Returns the active challengeAmount of the `operator` placed on their payment claim.
 
 ### _taskNumber
 
@@ -440,17 +440,17 @@ function _taskNumber() internal view returns (uint32)
 
 Convenience function for fetching the current taskNumber from the `serviceManager`
 
-### _setPaymentFraudproofCollateral
+### _setPaymentChallengeAmount
 
 ```solidity
-function _setPaymentFraudproofCollateral(uint256 _paymentFraudproofCollateral) internal
+function _setPaymentChallengeAmount(uint256 _paymentChallengeAmount) internal
 ```
 
-Modifies the `paymentFraudproofCollateral` amount.
+Modifies the `paymentChallengeAmount` amount.
 
 #### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| _paymentFraudproofCollateral | uint256 | The new value for `paymentFraudproofCollateral` to take. |
+| _paymentChallengeAmount | uint256 | The new value for `paymentChallengeAmount` to take. |
 

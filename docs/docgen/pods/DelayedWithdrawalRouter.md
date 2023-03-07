@@ -10,10 +10,10 @@ event WithdrawalDelayBlocksSet(uint256 previousValue, uint256 newValue)
 
 Emitted when the `withdrawalDelayBlocks` variable is modified from `previousValue` to `newValue`.
 
-### PAUSED_PAYMENT_CLAIMS
+### PAUSED_DELAYED_WITHDRAWAL_CLAIMS
 
 ```solidity
-uint8 PAUSED_PAYMENT_CLAIMS
+uint8 PAUSED_DELAYED_WITHDRAWAL_CLAIMS
 ```
 
 ### withdrawalDelayBlocks
@@ -22,7 +22,7 @@ uint8 PAUSED_PAYMENT_CLAIMS
 uint256 withdrawalDelayBlocks
 ```
 
-Delay enforced by this contract for completing any payment. Measured in blocks, and adjustable by this contract's owner,
+Delay enforced by this contract for completing any delayedWithdrawal. Measured in blocks, and adjustable by this contract's owner,
 up to a maximum of `MAX_WITHDRAWAL_DELAY_BLOCKS`. Minimum value is 0 (i.e. no delay enforced).
 
 ### MAX_WITHDRAWAL_DELAY_BLOCKS
@@ -42,26 +42,26 @@ The EigenPodManager contract of EigenLayer.
 ### _userWithdrawals
 
 ```solidity
-mapping(address => struct IDelayedWithdrawalRouter.UserPayments) _userWithdrawals
+mapping(address => struct IDelayedWithdrawalRouter.UserDelayedWithdrawals) _userWithdrawals
 ```
 
-Mapping: user => struct storing all payment info. Marked as internal with an external getter function named `userWithdrawals`
+Mapping: user => struct storing all delayedWithdrawal info. Marked as internal with an external getter function named `userWithdrawals`
 
-### PaymentCreated
+### DelayedWithdrawalCreated
 
 ```solidity
-event PaymentCreated(address podOwner, address recipient, uint256 amount, uint256 index)
+event DelayedWithdrawalCreated(address podOwner, address recipient, uint256 amount, uint256 index)
 ```
 
-event for payment creation
+event for delayedWithdrawal creation
 
-### PaymentsClaimed
+### DelayedWithdrawalsClaimed
 
 ```solidity
-event PaymentsClaimed(address recipient, uint256 amountClaimed, uint256 paymentsCompleted)
+event DelayedWithdrawalsClaimed(address recipient, uint256 amountClaimed, uint256 delayedWithdrawalsCompleted)
 ```
 
-event for the claiming of payments
+event for the claiming of delayedWithdrawals
 
 ### onlyEigenPod
 
@@ -93,10 +93,10 @@ Creates a delayed withdrawal for `msg.value` to the `recipient`.
 
 _Only callable by the `podOwner`'s EigenPod contract._
 
-### claimPayments
+### claimDelayedWithdrawals
 
 ```solidity
-function claimPayments(address recipient, uint256 maxNumberOfPaymentsToClaim) external
+function claimDelayedWithdrawals(address recipient, uint256 maxNumberOfDelayedWithdrawalsToClaim) external
 ```
 
 Called in order to withdraw delayed withdrawals made to the `recipient` that have passed the `withdrawalDelayBlocks` period.
@@ -105,13 +105,13 @@ Called in order to withdraw delayed withdrawals made to the `recipient` that hav
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| recipient | address | The address to claim payments for. |
-| maxNumberOfPaymentsToClaim | uint256 | Used to limit the maximum number of payments to loop through claiming. |
+| recipient | address | The address to claim delayedWithdrawals for. |
+| maxNumberOfDelayedWithdrawalsToClaim | uint256 | Used to limit the maximum number of delayedWithdrawals to loop through claiming. |
 
-### claimPayments
+### claimDelayedWithdrawals
 
 ```solidity
-function claimPayments(uint256 maxNumberOfPaymentsToClaim) external
+function claimDelayedWithdrawals(uint256 maxNumberOfDelayedWithdrawalsToClaim) external
 ```
 
 Called in order to withdraw delayed withdrawals made to the caller that have passed the `withdrawalDelayBlocks` period.
@@ -120,7 +120,7 @@ Called in order to withdraw delayed withdrawals made to the caller that have pas
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| maxNumberOfPaymentsToClaim | uint256 | Used to limit the maximum number of payments to loop through claiming. |
+| maxNumberOfDelayedWithdrawalsToClaim | uint256 | Used to limit the maximum number of delayedWithdrawals to loop through claiming. |
 
 ### setWithdrawalDelayBlocks
 
@@ -133,26 +133,26 @@ Owner-only function for modifying the value of the `withdrawalDelayBlocks` varia
 ### userWithdrawals
 
 ```solidity
-function userWithdrawals(address user) external view returns (struct IDelayedWithdrawalRouter.UserPayments)
+function userWithdrawals(address user) external view returns (struct IDelayedWithdrawalRouter.UserDelayedWithdrawals)
 ```
 
 Getter function for the mapping `_userWithdrawals`
 
-### claimableUserPayments
+### claimableUserDelayedWithdrawals
 
 ```solidity
-function claimableUserPayments(address user) external view returns (struct IDelayedWithdrawalRouter.DelayedWithdrawal[])
+function claimableUserDelayedWithdrawals(address user) external view returns (struct IDelayedWithdrawalRouter.DelayedWithdrawal[])
 ```
 
-Getter function to get all payments that are currently claimable by the `user`
+Getter function to get all delayedWithdrawals that are currently claimable by the `user`
 
-### userPaymentByIndex
+### userDelayedWithdrawalByIndex
 
 ```solidity
-function userPaymentByIndex(address user, uint256 index) external view returns (struct IDelayedWithdrawalRouter.DelayedWithdrawal)
+function userDelayedWithdrawalByIndex(address user, uint256 index) external view returns (struct IDelayedWithdrawalRouter.DelayedWithdrawal)
 ```
 
-Getter function for fetching the payment at the `index`th entry from the `_userWithdrawals[user].payments` array
+Getter function for fetching the delayedWithdrawal at the `index`th entry from the `_userWithdrawals[user].delayedWithdrawals` array
 
 ### userWithdrawalsLength
 
@@ -160,23 +160,23 @@ Getter function for fetching the payment at the `index`th entry from the `_userW
 function userWithdrawalsLength(address user) external view returns (uint256)
 ```
 
-Getter function for fetching the length of the payments array of a specific user
+Getter function for fetching the length of the delayedWithdrawals array of a specific user
 
-### canClaimPayment
-
-```solidity
-function canClaimPayment(address user, uint256 index) external view returns (bool)
-```
-
-Convenience function for checking whethere or not the payment at the `index`th entry from the `_userWithdrawals[user].payments` array is currently claimable
-
-### _claimPayments
+### canClaimDelayedWithdrawal
 
 ```solidity
-function _claimPayments(address recipient, uint256 maxNumberOfPaymentsToClaim) internal
+function canClaimDelayedWithdrawal(address user, uint256 index) external view returns (bool)
 ```
 
-internal function used in both of the overloaded `claimPayments` functions
+Convenience function for checking whethere or not the delayedWithdrawal at the `index`th entry from the `_userWithdrawals[user].delayedWithdrawals` array is currently claimable
+
+### _claimDelayedWithdrawals
+
+```solidity
+function _claimDelayedWithdrawals(address recipient, uint256 maxNumberOfDelayedWithdrawalsToClaim) internal
+```
+
+internal function used in both of the overloaded `claimDelayedWithdrawals` functions
 
 ### _setWithdrawalDelayBlocks
 
