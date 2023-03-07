@@ -233,7 +233,8 @@ contract EigenPodTests is ProofParsing, EigenPodPausingConstants {
         cheats.stopPrank();
     }
 
-    function testProof() public {
+    function testFullWithdrawalProof() public {
+        setJSON("./src/test/test-data/fullWithdrawalProof.json");
         BeaconChainProofs.WithdrawalProofs memory proofs = _getWithdrawalProof();
         withdrawalFields = getWithdrawalFields();   
         validatorFields = getValidatorFields();
@@ -334,6 +335,7 @@ contract EigenPodTests is ProofParsing, EigenPodPausingConstants {
 
     //test deploying an eigen pod with mismatched withdrawal credentials between the proof and the actual pod's address
     function testDeployNewEigenPodWithWrongWithdrawalCreds(address wrongWithdrawalAddress) public {
+        setJSON("./src/test/test-data/withdrawalCredentialAndBalanceProof_61068.json");
         cheats.startPrank(podOwner);
         eigenPodManager.stake{value: stakeAmount}(pubkey, signature, depositDataRoot);
         cheats.stopPrank();
@@ -438,7 +440,7 @@ contract EigenPodTests is ProofParsing, EigenPodPausingConstants {
     }
 
     function testVerifyCorrectWithdrawalCredentialsRevertsWhenPaused() external {
-
+        setJSON("./src/test/test-data/withdrawalCredentialAndBalanceProof_61068.json");
         BeaconChainProofs.ValidatorFieldsAndBalanceProofs memory proofs = _getValidatorFieldsAndBalanceProof();
         validatorFields = getValidatorFields();
         bytes32 newBeaconStateRoot = getBeaconStateRoot();
