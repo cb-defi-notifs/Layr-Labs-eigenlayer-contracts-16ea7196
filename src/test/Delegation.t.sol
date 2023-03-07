@@ -241,7 +241,7 @@ contract DelegationTests is EigenLayerTestHelper {
     ///         cannot be intitialized multiple times
     function testCannotInitMultipleTimesDelegation() public cannotReinit {
         //delegation has already been initialized in the Deployer test contract
-        delegation.initialize(eigenLayerPauserReg, address(this));
+        delegation.initialize(address(this), eigenLayerPauserReg, 0);
     }
 
     /// @notice This function tests to ensure that a you can't register as a delegate multiple times

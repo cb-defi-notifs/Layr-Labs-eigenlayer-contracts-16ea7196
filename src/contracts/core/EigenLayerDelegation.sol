@@ -46,11 +46,11 @@ contract EigenLayerDelegation is Initializable, OwnableUpgradeable, Pausable, Ei
     /// @dev Emitted when a low-level call to `delegationTerms.onDelegationWithdrawn` fails, returning `returnData`
     event OnDelegationWithdrawnCallFailure(IDelegationTerms indexed delegationTerms, bytes32 returnData);
 
-    function initialize(IPauserRegistry _pauserRegistry, address initialOwner)
+    function initialize(address initialOwner, IPauserRegistry _pauserRegistry, uint256 initialPausedStatus)
         external
         initializer
     {
-        _initializePauser(_pauserRegistry, UNPAUSE_ALL);
+        _initializePauser(_pauserRegistry, initialPausedStatus);
         DOMAIN_SEPARATOR = keccak256(abi.encode(DOMAIN_TYPEHASH, bytes("EigenLayer"), block.chainid, address(this)));
         _transferOwnership(initialOwner);
     }

@@ -89,10 +89,11 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
 
     // EXTERNAL FUNCTIONS
     function initialize(
+        address initialOwner,
         IPauserRegistry _pauserRegistry,
-        address initialOwner
+        uint256 initialPausedStatus
     ) external initializer {
-        _initializePauser(_pauserRegistry, UNPAUSE_ALL);
+        _initializePauser(_pauserRegistry, initialPausedStatus);
         _transferOwnership(initialOwner);
     }
 

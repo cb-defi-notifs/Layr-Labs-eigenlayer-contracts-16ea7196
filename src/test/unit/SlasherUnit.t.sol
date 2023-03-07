@@ -98,7 +98,7 @@ contract SlasherUnitTests is Test {
                 new TransparentUpgradeableProxy(
                     address(slasherImplementation),
                     address(proxyAdmin),
-                    abi.encodeWithSelector(Slasher.initialize.selector, pauserRegistry, initialOwner)
+                    abi.encodeWithSelector(Slasher.initialize.selector, initialOwner, pauserRegistry, 0/*initialPausedStatus*/)
                 )
             )
         );
@@ -112,7 +112,7 @@ contract SlasherUnitTests is Test {
 
     function testCannotReinitialize() public {
         cheats.expectRevert(bytes("Initializable: contract is already initialized"));
-        slasher.initialize(pauserRegistry, initialOwner);
+        slasher.initialize(initialOwner, pauserRegistry, 0);
     }
 
     function testOptIntoSlashing(address operator, address contractAddress)
