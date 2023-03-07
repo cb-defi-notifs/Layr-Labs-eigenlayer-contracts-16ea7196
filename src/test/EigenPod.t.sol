@@ -224,12 +224,13 @@ contract EigenPodTests is ProofParsing, EigenPodPausingConstants {
     }
 
     function testFullWithdrawalFlow() public {
-        //this call is to ensure that validatorContainerFields and validatorMerkleProof in BeaconChainUtils get set
+        //this call is to ensure that validator 61336 has proven their withdrawalcreds
+        // ./solidityProofGen "ValidatorFieldsProof" 61336 true "data/slot_58000/oracle_capella_beacon_state_58100.ssz" "withdrawalCredentialAndBalanceProof_61336.json"
         setJSON("./src/test/test-data/withdrawalCredentialAndBalanceProof_61336.json");
         _testDeployAndVerifyNewEigenPod(podOwner, signature, depositDataRoot);
         IEigenPod newPod = eigenPodManager.getPod(podOwner);
 
-
+        // ./solidityProofGen "WithdrawalFieldsProof" 61336 2262 "data/slot_43222/oracle_capella_beacon_state_43300.ssz" "data/slot_43222/capella_block_header_43222.json" "data/slot_43222/capella_block_43222.json" fullWithdrawalProof.json
         setJSON("./src/test/test-data/fullWithdrawalProof.json");
         BeaconChainProofs.WithdrawalProofs memory withdrawalProofs = _getWithdrawalProof();
         bytes memory validatorFieldsProof = abi.encodePacked(getValidatorProof());
@@ -255,12 +256,13 @@ contract EigenPodTests is ProofParsing, EigenPodPausingConstants {
     }
 
     function testPartialWithdrawalFlow() public {
-        //this call is to ensure that validatorContainerFields and validatorMerkleProof in BeaconChainUtils get set
+        //this call is to ensure that validator 61068 has proven their withdrawalcreds
         setJSON("./src/test/test-data/withdrawalCredentialAndBalanceProof_61068.json");
         _testDeployAndVerifyNewEigenPod(podOwner, signature, depositDataRoot);
         IEigenPod newPod = eigenPodManager.getPod(podOwner);
 
-
+        //generate partialWithdrawalProofs.json with: 
+        // ./solidityProofGen "WithdrawalFieldsProof" 61068 656 "data/slot_58000/oracle_capella_beacon_state_58100.ssz" "data/slot_58000/capella_block_header_58000.json" "data/slot_58000/capella_block_58000.json" "partialWithdrawalProof.json"
         setJSON("./src/test/test-data/partialWithdrawalProof.json");
         BeaconChainProofs.WithdrawalProofs memory withdrawalProofs = _getWithdrawalProof();
         bytes memory validatorFieldsProof = abi.encodePacked(getValidatorProof());
@@ -290,6 +292,7 @@ contract EigenPodTests is ProofParsing, EigenPodPausingConstants {
 
 
     function testDeployAndVerifyNewEigenPod() public returns(IEigenPod){
+        // ./solidityProofGen "ValidatorFieldsProof" 61068 false "data/slot_58000/oracle_capella_beacon_state_58100.ssz" "withdrawalCredentialAndBalanceProof_61068.json"
         setJSON("./src/test/test-data/withdrawalCredentialAndBalanceProof_61068.json");
         return _testDeployAndVerifyNewEigenPod(podOwner, signature, depositDataRoot);
     }
@@ -297,11 +300,12 @@ contract EigenPodTests is ProofParsing, EigenPodPausingConstants {
     // //test freezing operator after a beacon chain slashing event
     function testUpdateSlashedBeaconBalance() public {
         //make initial deposit
+        // ./solidityProofGen "ValidatorFieldsProof" 61511 true "data/slot_209635/oracle_capella_beacon_state_209635.ssz" "withdrawalCredentialAndBalanceProof_61511.json"
         setJSON("./src/test/test-data/slashedProofs/notOvercommittedBalanceProof_61511.json");
         _testDeployAndVerifyNewEigenPod(podOwner, signature, depositDataRoot);
         IEigenPod newPod = eigenPodManager.getPod(podOwner);
 
-
+        // ./solidityProofGen "ValidatorFieldsProof" 61511 false  "data/slot_209635/oracle_capella_beacon_state_209635.ssz" "withdrawalCredentialAndBalanceProof_61511.json"
         setJSON("./src/test/test-data/slashedProofs/overcommittedBalanceProof_61511.json");
         _proveOverCommittedStake(newPod);
         
@@ -332,11 +336,10 @@ contract EigenPodTests is ProofParsing, EigenPodPausingConstants {
 
     //test that when withdrawal credentials are verified more than once, it reverts
     function testDeployNewEigenPodWithActiveValidator() public {
-
+        // ./solidityProofGen "ValidatorFieldsProof" 61068 false "data/slot_58000/oracle_capella_beacon_state_58100.ssz" "withdrawalCredentialAndBalanceProof_61068.json"
         setJSON("./src/test/test-data/withdrawalCredentialAndBalanceProof_61068.json");
         IEigenPod pod = _testDeployAndVerifyNewEigenPod(podOwner, signature, depositDataRoot);
 
-        // bytes32 validatorIndexBytes = bytes32(uint256(validatorIndex0));
         uint64 blockNumber = 1;
         uint40 validatorIndex = uint40(getValidatorIndex());
         BeaconChainProofs.ValidatorFieldsAndBalanceProofs memory proofs = _getValidatorFieldsAndBalanceProof();
@@ -358,6 +361,7 @@ contract EigenPodTests is ProofParsing, EigenPodPausingConstants {
         // get beaconChainETH shares
         uint256 beaconChainETHBefore = getBeaconChainETHShares(podOwner);
 
+        // ./solidityProofGen "ValidatorFieldsProof" 61068 false "data/slot_58000/oracle_capella_beacon_state_58100.ssz" "withdrawalCredentialAndBalanceProof_61068.json"
         setJSON("./src/test/test-data/withdrawalCredentialAndBalanceProof_61068.json");
         IEigenPod pod = _testDeployAndVerifyNewEigenPod(podOwner, signature, depositDataRoot);
         uint40 validatorIndex = uint40(getValidatorIndex());
@@ -374,11 +378,13 @@ contract EigenPodTests is ProofParsing, EigenPodPausingConstants {
     // //                     validator status should be marked as OVERCOMMITTED
 
     function testProveOverCommittedBalance() public {
+        // ./solidityProofGen "ValidatorFieldsProof" 61511 true "data/slot_209635/oracle_capella_beacon_state_209635.ssz" "withdrawalCredentialAndBalanceProof_61511.json"
         setJSON("./src/test/test-data/slashedProofs/notOvercommittedBalanceProof_61511.json");
         IEigenPod newPod = _testDeployAndVerifyNewEigenPod(podOwner, signature, depositDataRoot);
         // get beaconChainETH shares
         uint256 beaconChainETHBefore = getBeaconChainETHShares(podOwner);
 
+        // ./solidityProofGen "ValidatorFieldsProof" 61511 false  "data/slot_209635/oracle_capella_beacon_state_209635.ssz" "withdrawalCredentialAndBalanceProof_61511.json"
         setJSON("./src/test/test-data/slashedProofs/overcommittedBalanceProof_61511.json");
         // prove overcommitted balance
         _proveOverCommittedStake(newPod);
@@ -441,9 +447,11 @@ contract EigenPodTests is ProofParsing, EigenPodPausingConstants {
     }
 
     function testVerifyOvercommittedStakeRevertsWhenPaused() external {
+        // ./solidityProofGen "ValidatorFieldsProof" 61511 true "data/slot_209635/oracle_capella_beacon_state_209635.ssz" "withdrawalCredentialAndBalanceProof_61511.json"
          setJSON("./src/test/test-data/slashedProofs/notOvercommittedBalanceProof_61511.json");
         IEigenPod newPod = _testDeployAndVerifyNewEigenPod(podOwner, signature, depositDataRoot);
 
+        // ./solidityProofGen "ValidatorFieldsProof" 61511 false  "data/slot_209635/oracle_capella_beacon_state_209635.ssz" "withdrawalCredentialAndBalanceProof_61511.json"
         setJSON("./src/test/test-data/slashedProofs/overcommittedBalanceProof_61511.json");
         validatorFields = getValidatorFields();
         uint40 validatorIndex = uint40(getValidatorIndex());
