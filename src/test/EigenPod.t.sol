@@ -218,8 +218,20 @@ contract EigenPodTests is ProofParsing, EigenPodPausingConstants {
         pod.withdrawBeforeRestaking();
         require(_getLatestPaymentAmount(podOwner) == stakeAmount, "Payment amount should be stake amount");
         require(pod.mostRecentWithdrawalBlockNumber() == uint64(block.number), "Most recent withdrawal block number not updated");
-
     }
+
+    function testWithdrawBeforeRestakingAfterRestaking() public {
+        // ./solidityProofGen "ValidatorFieldsProof" 61336 true "data/slot_58000/oracle_capella_beacon_state_58100.ssz" "withdrawalCredentialAndBalanceProof_61336.json"
+        setJSON("./src/test/test-data/withdrawalCredentialAndBalanceProof_61336.json");
+        IEigenPod pod = _testDeployAndVerifyNewEigenPod(podOwner, signature, depositDataRoot);
+
+        cheats.expectRevert(bytes("EigenPod.hasNeverRestaked: restaking is enabled"));
+        cheats.startPrank(podOwner);
+        pod.withdrawBeforeRestaking();
+        cheats.stopPrank();
+    }
+
+
 
     function testWithdrawFromPod() public {
         cheats.startPrank(podOwner);
