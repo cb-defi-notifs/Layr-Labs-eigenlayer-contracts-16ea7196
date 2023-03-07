@@ -74,7 +74,13 @@ contract InvestmentManagerUnitTests is Test {
                 new TransparentUpgradeableProxy(
                     address(investmentManagerImplementation),
                     address(proxyAdmin),
-                    abi.encodeWithSelector(InvestmentManager.initialize.selector, pauserRegistry, initialOwner, 0)
+                    abi.encodeWithSelector(
+                        InvestmentManager.initialize.selector,
+                        initialOwner,
+                        pauserRegistry,
+                        0/*initialPausedStatus*/,
+                        0/*withdrawalDelayBlocks*/
+                    )
                 )
             )
         );
@@ -98,7 +104,7 @@ contract InvestmentManagerUnitTests is Test {
 
     function testCannotReinitialize() public {
         cheats.expectRevert(bytes("Initializable: contract is already initialized"));
-        investmentManager.initialize(pauserRegistry, initialOwner, 0);
+        investmentManager.initialize(initialOwner, pauserRegistry, 0, 0);
     }
 
     function testDepositBeaconChainETHSuccessfully(address staker, uint256 amount) public filterFuzzedAddressInputs(staker) {
@@ -2104,7 +2110,7 @@ contract InvestmentManagerUnitTests is Test {
                 new TransparentUpgradeableProxy(
                     address(investmentManagerImplementation),
                     address(proxyAdmin),
-                    abi.encodeWithSelector(InvestmentManager.initialize.selector, pauserRegistry, initialOwner, 0)
+                    abi.encodeWithSelector(InvestmentManager.initialize.selector, initialOwner, pauserRegistry, 0, 0)
                 )
             )
         );

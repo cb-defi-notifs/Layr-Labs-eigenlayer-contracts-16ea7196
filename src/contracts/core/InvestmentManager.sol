@@ -146,12 +146,12 @@ contract InvestmentManager is
      * @param initialOwner Ownership of this contract is transferred to this address.
      * @param _withdrawalDelayBlocks The initial value of `withdrawalDelayBlocks` to set.
      */
-    function initialize(IPauserRegistry _pauserRegistry, address initialOwner, uint256 _withdrawalDelayBlocks)
+    function initialize(address initialOwner, IPauserRegistry _pauserRegistry, uint256 initialPausedStatus, uint256 _withdrawalDelayBlocks)
         external
         initializer
     {
         DOMAIN_SEPARATOR = keccak256(abi.encode(DOMAIN_TYPEHASH, bytes("EigenLayer"), block.chainid, address(this)));
-        _initializePauser(_pauserRegistry, UNPAUSE_ALL);
+        _initializePauser(_pauserRegistry, initialPausedStatus);
         _transferOwnership(initialOwner);
         _setStrategyWhitelister(initialOwner);
         _setWithdrawalDelayBlocks(_withdrawalDelayBlocks);

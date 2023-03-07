@@ -134,22 +134,44 @@ contract EigenPodTests is ProofParsing, EigenPodPausingConstants {
         eigenLayerProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(delegation))),
             address(delegationImplementation),
-            abi.encodeWithSelector(EigenLayerDelegation.initialize.selector, pauserReg, initialOwner)
+            abi.encodeWithSelector(
+                EigenLayerDelegation.initialize.selector,
+                initialOwner,
+                pauserReg,
+                0/*initialPausedStatus*/
+            )
         );
         eigenLayerProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(investmentManager))),
             address(investmentManagerImplementation),
-            abi.encodeWithSelector(InvestmentManager.initialize.selector, pauserReg, initialOwner, 0)
+            abi.encodeWithSelector(
+                InvestmentManager.initialize.selector,
+                initialOwner,
+                pauserReg,
+                0/*initialPausedStatus*/,
+                0/*withdrawalDelayBlocks*/
+            )
         );
         eigenLayerProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(slasher))),
             address(slasherImplementation),
-            abi.encodeWithSelector(Slasher.initialize.selector, pauserReg, initialOwner)
+            abi.encodeWithSelector(
+                Slasher.initialize.selector,
+                initialOwner,
+                pauserReg,
+                0/*initialPausedStatus*/
+            )
         );
         eigenLayerProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(eigenPodManager))),
             address(eigenPodManagerImplementation),
-            abi.encodeWithSelector(EigenPodManager.initialize.selector, beaconChainOracle, initialOwner, pauserReg, 0)
+            abi.encodeWithSelector(
+                EigenPodManager.initialize.selector,
+                beaconChainOracle,
+                initialOwner,
+                pauserReg,
+                0/*initialPausedStatus*/
+            )
         );
         uint256 initPausedStatus = 0;
         uint256 withdrawalDelayBlocks = PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS;
@@ -211,7 +233,8 @@ contract EigenPodTests is ProofParsing, EigenPodPausingConstants {
         cheats.stopPrank();
     }
 
-    function testProof() public {
+    function testFullWithdrawalProof() public {
+        setJSON("./src/test/test-data/fullWithdrawalProof.json");
         BeaconChainProofs.WithdrawalProofs memory proofs = _getWithdrawalProof();
         withdrawalFields = getWithdrawalFields();   
         validatorFields = getValidatorFields();
@@ -312,6 +335,7 @@ contract EigenPodTests is ProofParsing, EigenPodPausingConstants {
 
     //test deploying an eigen pod with mismatched withdrawal credentials between the proof and the actual pod's address
     function testDeployNewEigenPodWithWrongWithdrawalCreds(address wrongWithdrawalAddress) public {
+        setJSON("./src/test/test-data/withdrawalCredentialAndBalanceProof_61068.json");
         cheats.startPrank(podOwner);
         eigenPodManager.stake{value: stakeAmount}(pubkey, signature, depositDataRoot);
         cheats.stopPrank();
@@ -354,7 +378,7 @@ contract EigenPodTests is ProofParsing, EigenPodPausingConstants {
     // // Expected Behaviour: beaconChainETH shares should increment by REQUIRED_BALANCE_WEI
     // //                     validator status should be marked as ACTIVE
 
-    function testProveSingleWithdrawalCredential(IEigenPod pod) public {
+    function testProveSingleWithdrawalCredential() public {
         // get beaconChainETH shares
         uint256 beaconChainETHBefore = getBeaconChainETHShares(podOwner);
 
@@ -416,7 +440,7 @@ contract EigenPodTests is ProofParsing, EigenPodPausingConstants {
     }
 
     function testVerifyCorrectWithdrawalCredentialsRevertsWhenPaused() external {
-
+        setJSON("./src/test/test-data/withdrawalCredentialAndBalanceProof_61068.json");
         BeaconChainProofs.ValidatorFieldsAndBalanceProofs memory proofs = _getValidatorFieldsAndBalanceProof();
         validatorFields = getValidatorFields();
         bytes32 newBeaconStateRoot = getBeaconStateRoot();

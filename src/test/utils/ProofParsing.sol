@@ -26,10 +26,6 @@ contract ProofParsing is Test{
     bytes32 executionPayloadRoot;
     bytes32 blockNumberRoots;
 
-    constructor() {
-        proofConfigJson = vm.readFile("./src/test/test-data/partialWithdrawalProof.json");
-    }
-
     function setJSON(string memory path) public {
         proofConfigJson = vm.readFile(path);
     }
