@@ -32,16 +32,16 @@ abstract contract DelegationManagerStorage is IDelegationManager {
     /// @notice The Slasher contract for EigenLayer
     ISlasher public immutable slasher;
 
-    // operator => strategy => total number of shares delegated to them
+    /// @notice Mapping: operator => strategy => total number of shares in the strategy delegated to the operator
     mapping(address => mapping(IStrategy => uint256)) public operatorShares;
 
-    // operator => delegation terms contract
+    /// @notice Mapping: operator => delegation terms contract
     mapping(address => IDelegationTerms) public delegationTerms;
 
-    // staker => operator
+    /// @notice Mapping: staker => operator whom the staker has delegated to
     mapping(address => address) public delegatedTo;
 
-    // delegator => number of signed delegation nonce (used in delegateToBySignature)
+    /// @notice Mapping: delegator => number of signed delegation nonce (used in delegateToBySignature)
     mapping(address => uint256) public nonces;
 
     constructor(IStrategyManager _strategyManager, ISlasher _slasher) {

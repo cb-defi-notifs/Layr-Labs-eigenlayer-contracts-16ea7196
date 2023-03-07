@@ -112,7 +112,7 @@ Emitted when `operator` begins to allow `contractAddress` to slash them.
 event SlashingAbilityRevoked(address operator, address contractAddress, uint32 contractCanSlashOperatorUntil)
 ```
 
-Emitted when `contractAddress` signals that it will no longer be able to slash `operator` after the UTC timestamp `contractCanSlashOperatorUntil.
+Emitted when `contractAddress` signals that it will no longer be able to slash `operator` after the UTC timestamp `contractCanSlashOperatorUntil`.
 
 ### OperatorFrozen
 
