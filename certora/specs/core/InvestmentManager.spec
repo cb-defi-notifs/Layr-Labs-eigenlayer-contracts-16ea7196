@@ -32,7 +32,7 @@ methods {
     withdrawRestakedBeaconChainETH(address, uint256) => DISPATCHER(true)
 	    
     // external calls to DelayedWithdrawalRouter (from EigenPod)
-    createPayment(address, address) => DISPATCHER(true)
+    createDelayedWithdrawal(address, address) => DISPATCHER(true)
 
     // external calls to IDelegationTerms
     onDelegationWithdrawn(address,address[],uint256[]) => CONSTANT

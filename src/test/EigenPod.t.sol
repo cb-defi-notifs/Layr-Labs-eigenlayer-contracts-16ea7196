@@ -59,7 +59,7 @@ contract EigenPodTests is ProofParsing, EigenPodPausingConstants {
     bytes32[] validatorFields;
 
     event EigenPodStaked(bytes pubkey);
-    event PaymentCreated(address podOwner, address recipient, uint256 amount, uint256 index);
+    event DelayedWithdrawalCreated(address podOwner, address recipient, uint256 amount, uint256 index);
 
 
 
@@ -218,7 +218,7 @@ contract EigenPodTests is ProofParsing, EigenPodPausingConstants {
 
         cheats.startPrank(podOwner);
         cheats.expectEmit(true, false, false, false);
-        emit PaymentCreated(podOwner, podOwner, balance, delayedWithdrawalRouter.userWithdrawalsLength(podOwner));
+        emit DelayedWithdrawalCreated(podOwner, podOwner, balance, delayedWithdrawalRouter.userWithdrawalsLength(podOwner));
         pod.withdrawBeforeRestaking();
         cheats.stopPrank();
         require(address(pod).balance == 0, "Pod balance should be 0");
@@ -268,12 +268,14 @@ contract EigenPodTests is ProofParsing, EigenPodPausingConstants {
         
         uint256 delayedWithdrawalRouterContractBalanceBefore = address(delayedWithdrawalRouter).balance;
         newPod.verifyAndProcessWithdrawal(withdrawalProofs, validatorFieldsProof, validatorFields, withdrawalFields, 0, 0);
-        require(newPod.restakedExecutionLayerGwei() -  restakedExecutionLayerGweiBefore == newPod.REQUIRED_BALANCE_GWEI(), "restakedExecutionLayerGwei has not been incremented correctly");
-        require(address(delayedWithdrawalRouter).balance - delayedWithdrawalRouterContractBalanceBefore == leftOverBalanceWEI, "pod payment balance hasn't ben updated correctly");
+        require(newPod.restakedExecutionLayerGwei() -  restakedExecutionLayerGweiBefore == newPod.REQUIRED_BALANCE_GWEI(),
+            "restakedExecutionLayerGwei has not been incremented correctly");
+        require(address(delayedWithdrawalRouter).balance - delayedWithdrawalRouterContractBalanceBefore == leftOverBalanceWEI,
+            "pod delayed withdrawal balance hasn't been updated correctly");
 
         cheats.roll(block.number + PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS + 1);
         uint podOwnerBalanceBefore = address(podOwner).balance;
-        delayedWithdrawalRouter.claimPayments(podOwner, 1);
+        delayedWithdrawalRouter.claimDelayedWithdrawals(podOwner, 1);
         require(address(podOwner).balance - podOwnerBalanceBefore == leftOverBalanceWEI, "Pod owner balance hasn't been updated correctly");
     }
 
@@ -302,11 +304,12 @@ contract EigenPodTests is ProofParsing, EigenPodPausingConstants {
         uint40 validatorIndex = uint40(getValidatorIndex());
         require(newPod.provenPartialWithdrawal(validatorIndex, slot), "provenPartialWithdrawal should be true");
         withdrawalAmountGwei = uint64(withdrawalAmountGwei*GWEI_TO_WEI);
-        require(address(delayedWithdrawalRouter).balance - delayedWithdrawalRouterContractBalanceBefore == withdrawalAmountGwei, "pod payment balance hasn't been updated correctly");
+        require(address(delayedWithdrawalRouter).balance - delayedWithdrawalRouterContractBalanceBefore == withdrawalAmountGwei,
+            "pod delayed withdrawal balance hasn't been updated correctly");
 
         cheats.roll(block.number + PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS + 1);
         uint podOwnerBalanceBefore = address(podOwner).balance;
-        delayedWithdrawalRouter.claimPayments(podOwner, 1);
+        delayedWithdrawalRouter.claimDelayedWithdrawals(podOwner, 1);
         require(address(podOwner).balance - podOwnerBalanceBefore == withdrawalAmountGwei, "Pod owner balance hasn't been updated correctly");
     }
 
@@ -622,8 +625,8 @@ contract EigenPodTests is ProofParsing, EigenPodPausingConstants {
         return withdrawalRoot;
     }
 
-    function _getLatestPaymentAmount(address recipient) internal view returns (uint256) {
-        return delayedWithdrawalRouter.userPaymentByIndex(recipient, delayedWithdrawalRouter.userWithdrawalsLength(recipient) - 1).amount;
+    function _getLatestDelayedWithdrawalAmount(address recipient) internal view returns (uint256) {
+        return delayedWithdrawalRouter.userDelayedWithdrawalByIndex(recipient, delayedWithdrawalRouter.userWithdrawalsLength(recipient) - 1).amount;
     }
 
     function _getValidatorFieldsAndBalanceProof() internal returns (BeaconChainProofs.ValidatorFieldsAndBalanceProofs memory){

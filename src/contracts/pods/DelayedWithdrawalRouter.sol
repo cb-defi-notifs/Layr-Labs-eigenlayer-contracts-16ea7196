@@ -12,11 +12,11 @@ contract DelayedWithdrawalRouter is Initializable, OwnableUpgradeable, Reentranc
     /// @notice Emitted when the `withdrawalDelayBlocks` variable is modified from `previousValue` to `newValue`.
     event WithdrawalDelayBlocksSet(uint256 previousValue, uint256 newValue);
 
-    // index for flag that pauses withdrawals (i.e. 'payment claims') when set
-    uint8 internal constant PAUSED_PAYMENT_CLAIMS = 0;
+    // index for flag that pauses withdrawals (i.e. 'delayedWithdrawal claims') when set
+    uint8 internal constant PAUSED_DELAYED_WITHDRAWAL_CLAIMS = 0;
 
     /**
-     * @notice Delay enforced by this contract for completing any payment. Measured in blocks, and adjustable by this contract's owner,
+     * @notice Delay enforced by this contract for completing any delayedWithdrawal. Measured in blocks, and adjustable by this contract's owner,
      * up to a maximum of `MAX_WITHDRAWAL_DELAY_BLOCKS`. Minimum value is 0 (i.e. no delay enforced).
      */
     uint256 public withdrawalDelayBlocks;
@@ -26,14 +26,14 @@ contract DelayedWithdrawalRouter is Initializable, OwnableUpgradeable, Reentranc
     /// @notice The EigenPodManager contract of EigenLayer.
     IEigenPodManager public immutable eigenPodManager;
 
-    /// @notice Mapping: user => struct storing all payment info. Marked as internal with an external getter function named `userWithdrawals`
-    mapping(address => UserPayments) internal _userWithdrawals;
+    /// @notice Mapping: user => struct storing all delayedWithdrawal info. Marked as internal with an external getter function named `userWithdrawals`
+    mapping(address => UserDelayedWithdrawals) internal _userWithdrawals;
 
-    /// @notice event for payment creation
-    event PaymentCreated(address podOwner, address recipient, uint256 amount, uint256 index);
+    /// @notice event for delayedWithdrawal creation
+    event DelayedWithdrawalCreated(address podOwner, address recipient, uint256 amount, uint256 index);
 
-    /// @notice event for the claiming of payments
-    event PaymentsClaimed(address recipient, uint256 amountClaimed, uint256 paymentsCompleted);
+    /// @notice event for the claiming of delayedWithdrawals
+    event DelayedWithdrawalsClaimed(address recipient, uint256 amountClaimed, uint256 delayedWithdrawalsCompleted);
 
     /// @notice Modifier used to permission a function to only be called by the EigenPod of the specified `podOwner`
     modifier onlyEigenPod(address podOwner) {
@@ -56,33 +56,41 @@ contract DelayedWithdrawalRouter is Initializable, OwnableUpgradeable, Reentranc
      * @notice Creates a delayed withdrawal for `msg.value` to the `recipient`.
      * @dev Only callable by the `podOwner`'s EigenPod contract.
      */
-    function createPayment(address podOwner, address recipient) external payable onlyEigenPod(podOwner) {
-        uint224 paymentAmount = uint224(msg.value);
-        if (paymentAmount != 0) {
-            Payment memory payment = Payment({
-                amount: paymentAmount,
+    function createDelayedWithdrawal(address podOwner, address recipient) external payable onlyEigenPod(podOwner) {
+        uint224 withdrawalAmount = uint224(msg.value);
+        if (withdrawalAmount != 0) {
+            DelayedWithdrawal memory delayedWithdrawal = DelayedWithdrawal({
+                amount: withdrawalAmount,
                 blockCreated: uint32(block.number)
             });
-            _userWithdrawals[recipient].payments.push(payment);
-            emit PaymentCreated(podOwner, recipient, paymentAmount, _userWithdrawals[recipient].payments.length - 1);
+            _userWithdrawals[recipient].delayedWithdrawals.push(delayedWithdrawal);
+            emit DelayedWithdrawalCreated(podOwner, recipient, withdrawalAmount, _userWithdrawals[recipient].delayedWithdrawals.length - 1);
         }
     }
 
     /**
      * @notice Called in order to withdraw delayed withdrawals made to the `recipient` that have passed the `withdrawalDelayBlocks` period.
-     * @param recipient The address to claim payments for.
-     * @param maxNumberOfPaymentsToClaim Used to limit the maximum number of payments to loop through claiming.
+     * @param recipient The address to claim delayedWithdrawals for.
+     * @param maxNumberOfDelayedWithdrawalsToClaim Used to limit the maximum number of delayedWithdrawals to loop through claiming.
      */
-    function claimPayments(address recipient, uint256 maxNumberOfPaymentsToClaim) external nonReentrant onlyWhenNotPaused(PAUSED_PAYMENT_CLAIMS) {
-        _claimPayments(recipient, maxNumberOfPaymentsToClaim);
+    function claimDelayedWithdrawals(address recipient, uint256 maxNumberOfDelayedWithdrawalsToClaim)
+        external
+        nonReentrant
+        onlyWhenNotPaused(PAUSED_DELAYED_WITHDRAWAL_CLAIMS)
+    {
+        _claimDelayedWithdrawals(recipient, maxNumberOfDelayedWithdrawalsToClaim);
     }
 
     /**
      * @notice Called in order to withdraw delayed withdrawals made to the caller that have passed the `withdrawalDelayBlocks` period.
-     * @param maxNumberOfPaymentsToClaim Used to limit the maximum number of payments to loop through claiming.
+     * @param maxNumberOfDelayedWithdrawalsToClaim Used to limit the maximum number of delayedWithdrawals to loop through claiming.
      */
-    function claimPayments(uint256 maxNumberOfPaymentsToClaim) external nonReentrant onlyWhenNotPaused(PAUSED_PAYMENT_CLAIMS) {
-        _claimPayments(msg.sender, maxNumberOfPaymentsToClaim);
+    function claimDelayedWithdrawals(uint256 maxNumberOfDelayedWithdrawalsToClaim)
+        external
+        nonReentrant
+        onlyWhenNotPaused(PAUSED_DELAYED_WITHDRAWAL_CLAIMS)
+    {
+        _claimDelayedWithdrawals(msg.sender, maxNumberOfDelayedWithdrawalsToClaim);
     }
 
     /// @notice Owner-only function for modifying the value of the `withdrawalDelayBlocks` variable.
@@ -91,64 +99,64 @@ contract DelayedWithdrawalRouter is Initializable, OwnableUpgradeable, Reentranc
     }
 
     /// @notice Getter function for the mapping `_userWithdrawals`
-    function userWithdrawals(address user) external view returns (UserPayments memory) {
+    function userWithdrawals(address user) external view returns (UserDelayedWithdrawals memory) {
         return _userWithdrawals[user];
     }
 
-    /// @notice Getter function to get all payments that are currently claimable by the `user`
-    function claimableUserPayments(address user) external view returns (Payment[] memory) {
-        uint256 paymentsCompleted = _userWithdrawals[user].paymentsCompleted;
-        uint256 paymentsLength = _userWithdrawals[user].payments.length;
-        uint256 claimablePaymentsLength = paymentsLength - paymentsCompleted;
-        Payment[] memory claimablePayments = new Payment[](claimablePaymentsLength);
-        for (uint256 i = 0; i < claimablePaymentsLength; i++) {
-            claimablePayments[i] = _userWithdrawals[user].payments[paymentsCompleted + i];
+    /// @notice Getter function to get all delayedWithdrawals that are currently claimable by the `user`
+    function claimableUserDelayedWithdrawals(address user) external view returns (DelayedWithdrawal[] memory) {
+        uint256 delayedWithdrawalsCompleted = _userWithdrawals[user].delayedWithdrawalsCompleted;
+        uint256 delayedWithdrawalsLength = _userWithdrawals[user].delayedWithdrawals.length;
+        uint256 claimableDelayedWithdrawalsLength = delayedWithdrawalsLength - delayedWithdrawalsCompleted;
+        DelayedWithdrawal[] memory claimableDelayedWithdrawals = new DelayedWithdrawal[](claimableDelayedWithdrawalsLength);
+        for (uint256 i = 0; i < claimableDelayedWithdrawalsLength; i++) {
+            claimableDelayedWithdrawals[i] = _userWithdrawals[user].delayedWithdrawals[delayedWithdrawalsCompleted + i];
         }
-        return claimablePayments;
+        return claimableDelayedWithdrawals;
     }
 
-    /// @notice Getter function for fetching the payment at the `index`th entry from the `_userWithdrawals[user].payments` array
-    function userPaymentByIndex(address user, uint256 index) external view returns (Payment memory) {
-        return _userWithdrawals[user].payments[index];
+    /// @notice Getter function for fetching the delayedWithdrawal at the `index`th entry from the `_userWithdrawals[user].delayedWithdrawals` array
+    function userDelayedWithdrawalByIndex(address user, uint256 index) external view returns (DelayedWithdrawal memory) {
+        return _userWithdrawals[user].delayedWithdrawals[index];
     }
 
-    /// @notice Getter function for fetching the length of the payments array of a specific user
+    /// @notice Getter function for fetching the length of the delayedWithdrawals array of a specific user
     function userWithdrawalsLength(address user) external view returns (uint256) {
-        return _userWithdrawals[user].payments.length;
+        return _userWithdrawals[user].delayedWithdrawals.length;
     }
 
-    /// @notice Convenience function for checking whethere or not the payment at the `index`th entry from the `_userWithdrawals[user].payments` array is currently claimable
-    function canClaimPayment(address user, uint256 index) external view returns (bool) {
-        return ((index >= _userWithdrawals[user].paymentsCompleted) && (block.number >= _userWithdrawals[user].payments[index].blockCreated + withdrawalDelayBlocks));
+    /// @notice Convenience function for checking whethere or not the delayedWithdrawal at the `index`th entry from the `_userWithdrawals[user].delayedWithdrawals` array is currently claimable
+    function canClaimDelayedWithdrawal(address user, uint256 index) external view returns (bool) {
+        return ((index >= _userWithdrawals[user].delayedWithdrawalsCompleted) && (block.number >= _userWithdrawals[user].delayedWithdrawals[index].blockCreated + withdrawalDelayBlocks));
     }
 
-    /// @notice internal function used in both of the overloaded `claimPayments` functions
-    function _claimPayments(address recipient, uint256 maxNumberOfPaymentsToClaim) internal {
+    /// @notice internal function used in both of the overloaded `claimDelayedWithdrawals` functions
+    function _claimDelayedWithdrawals(address recipient, uint256 maxNumberOfDelayedWithdrawalsToClaim) internal {
         uint256 amountToSend = 0;
-        uint256 paymentsCompletedBefore = _userWithdrawals[recipient].paymentsCompleted;
-        uint256 _userWithdrawalsLength = _userWithdrawals[recipient].payments.length;
+        uint256 delayedWithdrawalsCompletedBefore = _userWithdrawals[recipient].delayedWithdrawalsCompleted;
+        uint256 _userWithdrawalsLength = _userWithdrawals[recipient].delayedWithdrawals.length;
         uint256 i = 0;
-        while (i < maxNumberOfPaymentsToClaim && (paymentsCompletedBefore + i) < _userWithdrawalsLength) {
-            // copy payment from storage to memory
-            Payment memory payment = _userWithdrawals[recipient].payments[paymentsCompletedBefore + i];
-            // check if payment can be claimed. break the loop as soon as a payment cannot be claimed
-            if (block.number < payment.blockCreated + withdrawalDelayBlocks) {
+        while (i < maxNumberOfDelayedWithdrawalsToClaim && (delayedWithdrawalsCompletedBefore + i) < _userWithdrawalsLength) {
+            // copy delayedWithdrawal from storage to memory
+            DelayedWithdrawal memory delayedWithdrawal = _userWithdrawals[recipient].delayedWithdrawals[delayedWithdrawalsCompletedBefore + i];
+            // check if delayedWithdrawal can be claimed. break the loop as soon as a delayedWithdrawal cannot be claimed
+            if (block.number < delayedWithdrawal.blockCreated + withdrawalDelayBlocks) {
                 break;
             }
-            // otherwise, the payment can be claimed, in which case we increase the amountToSend and increment i
-            amountToSend += payment.amount;
-            // increment i to account for the payment being claimed
+            // otherwise, the delayedWithdrawal can be claimed, in which case we increase the amountToSend and increment i
+            amountToSend += delayedWithdrawal.amount;
+            // increment i to account for the delayedWithdrawal being claimed
             unchecked {
                 ++i;
             }
         }
-        // mark the i payments as claimed
-        _userWithdrawals[recipient].paymentsCompleted = paymentsCompletedBefore + i;
+        // mark the i delayedWithdrawals as claimed
+        _userWithdrawals[recipient].delayedWithdrawalsCompleted = delayedWithdrawalsCompletedBefore + i;
         // actually send the ETH
         if (amountToSend != 0) {
             AddressUpgradeable.sendValue(payable(recipient), amountToSend);
         }
-        emit PaymentsClaimed(recipient, amountToSend, paymentsCompletedBefore + i);
+        emit DelayedWithdrawalsClaimed(recipient, amountToSend, delayedWithdrawalsCompletedBefore + i);
     }
 
     /// @notice internal function for changing the value of `withdrawalDelayBlocks`. Also performs sanity check and emits an event.

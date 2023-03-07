@@ -83,10 +83,10 @@ constructor(contract IEigenPodManager _eigenPodManager) public
 function initialize(address initOwner, contract IPauserRegistry _pauserRegistry, uint256 initPausedStatus, uint256 _withdrawalDelayBlocks) external
 ```
 
-### createPayment
+### createDelayedWithdrawal
 
 ```solidity
-function createPayment(address podOwner, address recipient) external payable
+function createDelayedWithdrawal(address podOwner, address recipient) external payable
 ```
 
 Creates a delayed withdrawal for `msg.value` to the `recipient`.
@@ -141,7 +141,7 @@ Getter function for the mapping `_userWithdrawals`
 ### claimableUserPayments
 
 ```solidity
-function claimableUserPayments(address user) external view returns (struct IDelayedWithdrawalRouter.Payment[])
+function claimableUserPayments(address user) external view returns (struct IDelayedWithdrawalRouter.DelayedWithdrawal[])
 ```
 
 Getter function to get all payments that are currently claimable by the `user`
@@ -149,7 +149,7 @@ Getter function to get all payments that are currently claimable by the `user`
 ### userPaymentByIndex
 
 ```solidity
-function userPaymentByIndex(address user, uint256 index) external view returns (struct IDelayedWithdrawalRouter.Payment)
+function userPaymentByIndex(address user, uint256 index) external view returns (struct IDelayedWithdrawalRouter.DelayedWithdrawal)
 ```
 
 Getter function for fetching the payment at the `index`th entry from the `_userWithdrawals[user].payments` array

@@ -463,7 +463,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
     }
 
     function _sendETH(address recipient, uint256 amountWei) internal {
-        delayedWithdrawalRouter.createPayment{value: amountWei}(podOwner, recipient);
+        delayedWithdrawalRouter.createDelayedWithdrawal{value: amountWei}(podOwner, recipient);
     }
 
     /**
