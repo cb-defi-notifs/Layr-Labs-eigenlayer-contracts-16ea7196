@@ -498,7 +498,19 @@ contract EigenPodTests is ProofParsing, EigenPodPausingConstants {
         newPod.verifyOvercommittedStake(validatorIndex, proofs, validatorFields, 0, 0);
     }
 
+    function testStake(bytes calldata _pubkey, bytes calldata _signature, bytes32 _depositDataRoot) public {
+        //should fail if no/wrong value is provided
+        cheats.startPrank(podOwner);
+        cheats.expectRevert("EigenPod.stake: must initially stake for any validator with 32 ether");
+        eigenPodManager.stake(_pubkey, _signature, _depositDataRoot);
+        cheats.expectRevert("EigenPod.stake: must initially stake for any validator with 32 ether");
+        eigenPodManager.stake{value: 12 ether}(_pubkey, _signature, _depositDataRoot);
+        
 
+        //successful call
+        eigenPodManager.stake{value: 32 ether}(_pubkey, _signature, _depositDataRoot);
+        cheats.stopPrank();
+    }
 
     // simply tries to register 'sender' as a delegate, setting their 'DelegationTerms' contract in DelegationManager to 'dt'
     // verifies that the storage of DelegationManager contract is updated appropriately
