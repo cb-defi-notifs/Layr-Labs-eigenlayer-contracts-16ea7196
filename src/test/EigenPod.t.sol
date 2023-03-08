@@ -231,8 +231,6 @@ contract EigenPodTests is ProofParsing, EigenPodPausingConstants {
         cheats.stopPrank();
     }
 
-
-
     function testWithdrawFromPod() public {
         cheats.startPrank(podOwner);
         eigenPodManager.stake{value: stakeAmount}(pubkey, signature, depositDataRoot);
@@ -272,6 +270,7 @@ contract EigenPodTests is ProofParsing, EigenPodPausingConstants {
 
     }
 
+    /// @notice This test is to ensure the full withdrawal flow works
     function testFullWithdrawalFlow() public {
         //this call is to ensure that validator 61336 has proven their withdrawalcreds
         // ./solidityProofGen "ValidatorFieldsProof" 61336 true "data/slot_58000/oracle_capella_beacon_state_58100.ssz" "withdrawalCredentialAndBalanceProof_61336.json"
@@ -304,6 +303,7 @@ contract EigenPodTests is ProofParsing, EigenPodPausingConstants {
         require(address(podOwner).balance - podOwnerBalanceBefore == leftOverBalanceWEI, "Pod owner balance hasn't been updated correctly");
     }
 
+    /// @notice This test is to ensure that the partial withdrawal flow works correctly
     function testPartialWithdrawalFlow() public {
         //this call is to ensure that validator 61068 has proven their withdrawalcreds
         setJSON("./src/test/test-data/withdrawalCredentialAndBalanceProof_61068.json");
@@ -336,6 +336,27 @@ contract EigenPodTests is ProofParsing, EigenPodPausingConstants {
         uint podOwnerBalanceBefore = address(podOwner).balance;
         eigenPodPaymentEscrow.claimPayments(podOwner, 1);
         require(address(podOwner).balance - podOwnerBalanceBefore == withdrawalAmountGwei, "Pod owner balance hasn't been updated correctly");
+    }
+
+    /// @notice verifies that multiple partial withdrawals can be made before a full withdrawal
+    function testProvingMultipleWithdrawalsForSameSlot(uint numPartialWithdrawals) public {
+        IEigenPod newPod = testDeployAndVerifyNewEigenPod();
+        uint numPartialWithdrawals = 2;
+        setJSON("./src/test/test-data/partialWithdrawalProof.json");
+        bytes32 newBeaconStateRoot = getBeaconStateRoot();
+        BeaconChainOracleMock(address(beaconChainOracle)).setBeaconChainStateRoot(newBeaconStateRoot);
+
+        cheats.deal(address(newPod), stakeAmount);
+
+        BeaconChainProofs.WithdrawalProofs memory withdrawalProofs = _getWithdrawalProof();
+        bytes memory validatorFieldsProof = abi.encodePacked(getValidatorProof());
+        withdrawalFields = getWithdrawalFields();   
+        validatorFields = getValidatorFields();
+        uint64 slot = Endian.fromLittleEndianUint64(withdrawalProofs.slotRoot);
+
+        newPod.verifyAndProcessWithdrawal(withdrawalProofs, validatorFieldsProof, validatorFields, withdrawalFields, 0, 0);
+        cheats.expectRevert(bytes("EigenPod._processPartialWithdrawal: partial withdrawal has already been proven for this slot"));
+        newPod.verifyAndProcessWithdrawal(withdrawalProofs, validatorFieldsProof, validatorFields, withdrawalFields, 0, 0);
     }
 
 

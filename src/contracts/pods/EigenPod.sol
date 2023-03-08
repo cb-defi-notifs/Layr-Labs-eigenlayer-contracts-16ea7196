@@ -419,7 +419,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
     }
 
     function _processPartialWithdrawal(uint64 withdrawalHappenedSlot, uint64 partialWithdrawalAmountGwei, uint40 validatorIndex, address recipient) internal {
-        require(!provenPartialWithdrawal[validatorIndex][withdrawalHappenedSlot], "partial withdrawal has already been proven for this slot");
+        require(!provenPartialWithdrawal[validatorIndex][withdrawalHappenedSlot], "EigenPod._processPartialWithdrawal: partial withdrawal has already been proven for this slot");
 
         provenPartialWithdrawal[validatorIndex][withdrawalHappenedSlot] = true;
         emit PartialWithdrawalRedeemed(validatorIndex, recipient, partialWithdrawalAmountGwei);
