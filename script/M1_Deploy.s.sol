@@ -363,9 +363,9 @@ contract Deployer_M1 is Script, Test {
         require(eigenPodManagerContract.eigenPodBeacon() == eigenPodBeacon, "eigenPodManager: eigenPodBeacon contract address not set correctly");
         require(eigenPodManagerContract.strategyManager() == strategyManager, "eigenPodManager: strategyManager contract address not set correctly");
         require(eigenPodManagerContract.slasher() == slasher, "eigenPodManager: slasher contract address not set correctly");
-        require(eigenPodManagerContract.beaconChainOracle() == IBeaconChainOracle(address(0)), "eigenPodManager: eigenPodBeacon contract address not set correctly");
 
-        require(delayedWithdrawalRouterContract.eigenPodManager() == eigenPodManager, "delayedWithdrawalRouterContract: eigenPodManager address not set correctly");
+        require(delayedWithdrawalRouterContract.eigenPodManager() == eigenPodManager,
+            "delayedWithdrawalRouterContract: eigenPodManager address not set correctly");
     }
 
     function _verifyInitialOwners()internal view {
@@ -383,6 +383,8 @@ contract Deployer_M1 is Script, Test {
         require(delegation.pauserRegistry() == eigenLayerPauserReg, "delegation: pauser registry not set correctly");
         require(strategyManager.pauserRegistry() == eigenLayerPauserReg, "strategyManager: pauser registry not set correctly");
         require(slasher.pauserRegistry() == eigenLayerPauserReg, "slasher: pauser registry not set correctly");
+        require(eigenPodManager.pauserRegistry() == eigenLayerPauserReg, "eigenPodManager: pauser registry not set correctly");        
+        require(delayedWithdrawalRouter.pauserRegistry() == eigenLayerPauserReg, "delayedWithdrawalRouter: pauser registry not set correctly");        
 
         require(eigenLayerPauserReg.pauser() == teamMultisig, "pauserRegistry: pauser not set correctly");
         require(eigenLayerPauserReg.unpauser() == communityMultisig, "pauserRegistry: unpauser not set correctly");
@@ -420,6 +422,18 @@ contract Deployer_M1 is Script, Test {
         // uint256 REQUIRED_BALANCE_WEI = 31 ether;
         require(eigenPodImplementation.REQUIRED_BALANCE_WEI() == 31 ether,
             "eigenPod: REQUIRED_BALANCE_WEI initialized incorrectly");
+
+        require(strategyManager.strategyWhitelister() == communityMultisig,
+            "strategyManager: strategyWhitelister address not set correctly");
+
+        require(eigenPodManager.beaconChainOracle() == IBeaconChainOracle(address(0)),
+            "eigenPodManager: eigenPodBeacon contract address not set correctly");
+
+        require(delayedWithdrawalRouter.eigenPodManager() == eigenPodManager,
+            "delayedWithdrawalRouter: eigenPodManager set incorrectly");
+
+        require(baseStrategyImplementation.strategyManager() == strategyManager,
+            "baseStrategyImplementation: strategyManager set incorrectly");
     }
 }
 
