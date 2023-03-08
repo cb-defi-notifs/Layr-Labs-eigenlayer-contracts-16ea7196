@@ -73,7 +73,7 @@ contract Deployer_M1 is Script, Test {
     IETHPOSDeposit public ethPOSDeposit;
 
     // strategies deployed
-    StrategyBase[] public strategyArray;
+    StrategyBase[] public deployedStrategyArray;
 
     // IMMUTABLES TO SET
     uint256 REQUIRED_BALANCE_WEI;
@@ -260,7 +260,7 @@ contract Deployer_M1 is Script, Test {
         baseStrategyImplementation = new StrategyBase(strategyManager);
         // create upgradeable proxies that each point to the implementation and initialize them
         for (uint256 i = 0; i < strategyTokensAndNames.length; ++i) {
-            strategyArray.push(
+            deployedStrategyArray.push(
                 StrategyBase(address(
                     new TransparentUpgradeableProxy(
                         address(baseStrategyImplementation),
@@ -272,6 +272,7 @@ contract Deployer_M1 is Script, Test {
         }
 
         eigenLayerProxyAdmin.transferOwnership(communityMultisig);
+        eigenPodBeacon.transferOwnership(communityMultisig);
 
         // STOP RECORDING TRANSACTIONS FOR DEPLOYMENT
         vm.stopBroadcast();
@@ -302,11 +303,11 @@ contract Deployer_M1 is Script, Test {
 
         string memory deployed_strategies = "deployed strategies";
         for (uint256 i = 0; i < strategyTokensAndNames.length; ++i) {
-            vm.serializeAddress(deployed_strategies, strategyTokensAndNames[i].tokenName, strategyTokensAndNames[i].tokenAddress);
+            vm.serializeAddress(deployed_strategies, strategyTokensAndNames[i].tokenName, address(deployedStrategyArray[i]));
         }
         string memory deployed_strategies_output = vm.serializeAddress(
             deployed_strategies, strategyTokensAndNames[strategyTokensAndNames.length - 1].tokenName,
-            strategyTokensAndNames[strategyTokensAndNames.length - 1].tokenAddress
+            address(deployedStrategyArray[strategyTokensAndNames.length - 1])
         );
 
         string memory deployed_addresses = "deployed addresses";
@@ -373,7 +374,9 @@ contract Deployer_M1 is Script, Test {
         require(slasher.owner() == communityMultisig, "slasher: owner not set correctly");
         require(eigenPodManager.owner() == communityMultisig, "delegation: owner not set correctly");
 
-        require(eigenLayerProxyAdmin.owner() == communityMultisig, "strategyManager: owner not set correctly");
+        require(eigenLayerProxyAdmin.owner() == communityMultisig, "eigenLayerProxyAdmin: owner not set correctly");
+
+        require(eigenPodBeacon.owner() == communityMultisig, "eigenPodBeacon: owner not set correctly");
     }
 
     function _checkPauserInitializations() internal view {
@@ -383,6 +386,11 @@ contract Deployer_M1 is Script, Test {
 
         require(eigenLayerPauserReg.pauser() == teamMultisig, "pauserRegistry: pauser not set correctly");
         require(eigenLayerPauserReg.unpauser() == communityMultisig, "pauserRegistry: unpauser not set correctly");
+
+        for (uint256 i = 0; i < deployedStrategyArray.length; ++i) {
+            require(deployedStrategyArray[i].pauserRegistry() == eigenLayerPauserReg, "StrategyBase: pauser registry not set correctly");
+            require(deployedStrategyArray[i].paused() == 0, "StrategyBase: init paused status set incorrectly");
+        }
 
         // // pause *nothing*
         // uint256 STRATEGY_MANAGER_INIT_PAUSED_STATUS = 0;
