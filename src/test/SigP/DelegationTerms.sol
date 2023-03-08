@@ -1,7 +1,7 @@
 pragma solidity ^0.8.9;
 
-import "../../contracts/strategies/InvestmentStrategyBase.sol";
-import "../../contracts/interfaces/IEigenLayerDelegation.sol";
+import "../../contracts/strategies/StrategyBase.sol";
+import "../../contracts/interfaces/IDelegationManager.sol";
 
 
 contract SigPDelegationTerms is IDelegationTerms {
@@ -16,8 +16,8 @@ contract SigPDelegationTerms is IDelegationTerms {
 
     function onDelegationWithdrawn(
         address /*delegator*/,
-        IInvestmentStrategy[] memory /*investorStrats*/,
-        uint256[] memory /*investorShares*/
+        IStrategy[] memory /*stakerStrats*/,
+        uint256[] memory /*stakerShares*/
     ) external returns(bytes memory) {
         isDelegationWithdrawn = bytes("withdrawn");
         bytes memory _isDelegationWithdrawn = isDelegationWithdrawn;
@@ -26,13 +26,13 @@ contract SigPDelegationTerms is IDelegationTerms {
 
     // function onDelegationReceived(
     //     address delegator,
-    //     uint256[] memory investorShares
+    //     uint256[] memory stakerShares
     // ) external;
 
     function onDelegationReceived(
         address /*delegator*/,
-        IInvestmentStrategy[] memory /*investorStrats*/,
-        uint256[] memory /*investorShares*/
+        IStrategy[] memory /*stakerStrats*/,
+        uint256[] memory /*stakerShares*/
     ) external returns(bytes memory) {
         // revert("test");
         isDelegationReceived = bytes("received");

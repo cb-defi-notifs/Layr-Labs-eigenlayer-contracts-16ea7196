@@ -132,19 +132,19 @@ contract DelegationTests is EigenLayerTestHelper {
         amountsBefore[1] = voteWeigher.weightOfOperator(operator, 1);
         amountsBefore[2] = delegation.operatorShares(operator, wethStrat);
 
-        //making additional deposits to the investment strategies
+        //making additional deposits to the  strategies
         assertTrue(delegation.isNotDelegated(staker) == true, "testDelegation: staker is not delegate");
         _testDepositWeth(staker, ethAmount);
         _testDepositEigen(staker, eigenAmount);
         _testDelegateToOperator(staker, operator);
         assertTrue(delegation.isDelegated(staker) == true, "testDelegation: staker is not delegate");
 
-        (IInvestmentStrategy[] memory updatedStrategies, uint256[] memory updatedShares) =
-            investmentManager.getDeposits(staker);
+        (IStrategy[] memory updatedStrategies, uint256[] memory updatedShares) =
+            strategyManager.getDeposits(staker);
 
         {
-            uint256 stakerEthWeight = investmentManager.investorStratShares(staker, updatedStrategies[0]);
-            uint256 stakerEigenWeight = investmentManager.investorStratShares(staker, updatedStrategies[1]);
+            uint256 stakerEthWeight = strategyManager.stakerStrategyShares(staker, updatedStrategies[0]);
+            uint256 stakerEigenWeight = strategyManager.stakerStrategyShares(staker, updatedStrategies[1]);
 
             uint256 operatorEthWeightAfter = voteWeigher.weightOfOperator(operator, 0);
             uint256 operatorEigenWeightAfter = voteWeigher.weightOfOperator(operator, 1);
@@ -159,16 +159,16 @@ contract DelegationTests is EigenLayerTestHelper {
             );
         }
         {
-            IInvestmentStrategy _strat = wethStrat;
-            // IInvestmentStrategy _strat = investmentManager.investorStrats(staker, 0);
-            assertTrue(address(_strat) != address(0), "investorStrats not updated correctly");
+            IStrategy _strat = wethStrat;
+            // IStrategy _strat = strategyManager.stakerStrats(staker, 0);
+            assertTrue(address(_strat) != address(0), "stakerStrats not updated correctly");
 
             assertTrue(
                 delegation.operatorShares(operator, _strat) - updatedShares[0] == amountsBefore[2],
                 "ETH operatorShares not updated correctly"
             );
 
-            cheats.startPrank(address(investmentManager));
+            cheats.startPrank(address(strategyManager));
 
             IDelegationTerms expectedDt = delegation.delegationTerms(operator);
             assertTrue(address(expectedDt) == address(dt), "failed to set dt");
@@ -350,7 +350,7 @@ contract DelegationTests is EigenLayerTestHelper {
 
     /// @notice This function tests that the delegationTerms cannot be set to address(0)
     function testCannotSetDelegationTermsZeroAddress() public{
-        cheats.expectRevert(bytes("EigenLayerDelegation._delegate: operator has not yet registered as a delegate"));
+        cheats.expectRevert(bytes("DelegationManager._delegate: operator has not yet registered as a delegate"));
         delegation.registerAsOperator(IDelegationTerms(address(0)));
     }
 
@@ -359,7 +359,7 @@ contract DelegationTests is EigenLayerTestHelper {
         vm.assume(_dt != address(0));
         vm.startPrank(_operator);
         delegation.registerAsOperator(IDelegationTerms(_dt));
-        vm.expectRevert("EigenLayerDelegation.registerAsOperator: operator has already registered");
+        vm.expectRevert("DelegationManager.registerAsOperator: operator has already registered");
         delegation.registerAsOperator(IDelegationTerms(_dt));
         cheats.stopPrank();
     }
@@ -368,9 +368,9 @@ contract DelegationTests is EigenLayerTestHelper {
     function testDelegateToInvalidOperator(address _staker, address _unregisteredOperator) public{
 
         vm.startPrank(_staker);
-        cheats.expectRevert(bytes("EigenLayerDelegation._delegate: operator has not yet registered as a delegate"));
+        cheats.expectRevert(bytes("DelegationManager._delegate: operator has not yet registered as a delegate"));
         delegation.delegateTo(_unregisteredOperator);
-        cheats.expectRevert(bytes("EigenLayerDelegation._delegate: operator has not yet registered as a delegate"));
+        cheats.expectRevert(bytes("DelegationManager._delegate: operator has not yet registered as a delegate"));
         delegation.delegateTo(_staker);
         cheats.stopPrank();
         
@@ -392,8 +392,8 @@ contract DelegationTests is EigenLayerTestHelper {
         delegation.delegateTo(_operator);
 
         //operators cannot undelegate from themselves
-        vm.prank(address(investmentManager));
-        cheats.expectRevert(bytes("EigenLayerDelegation.undelegate: operators cannot undelegate from themselves"));
+        vm.prank(address(strategyManager));
+        cheats.expectRevert(bytes("DelegationManager.undelegate: operators cannot undelegate from themselves"));
         delegation.undelegate(_operator);
 
         //_staker cannot undelegate themselves
@@ -411,8 +411,8 @@ contract DelegationTests is EigenLayerTestHelper {
         assertFalse(delegation.isNotDelegated(_staker));
         assertTrue(delegation.isOperator(_operator));
 
-        //investmentManager can undelegate _staker
-        vm.prank(address(investmentManager));
+        //strategyManager can undelegate _staker
+        vm.prank(address(strategyManager));
         delegation.undelegate(_staker);
         assertFalse(delegation.isDelegated(_staker));
         assertTrue(delegation.isNotDelegated(_staker));

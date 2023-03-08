@@ -322,7 +322,7 @@ contract SlasherTests is EigenLayerTestHelper {
         slasher.recordFirstStakeUpdate(operator,serveUntil);
 
         console.log("serveUntil",slasher.getMiddlewareTimesIndexServeUntil(operator,0));
-        console.log("bondedUntil",slasher.bondedUntil(operator,middleware));
+        console.log("contractCanSlashOperatorUntil",slasher.contractCanSlashOperatorUntil(operator,middleware));
 
         //middle can slash
         require(slasher.canSlash(operator,middleware),"middlewre should be able to slash");
