@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity =0.8.12;
 
-import "./IInvestmentStrategy.sol";
+import "./IStrategy.sol";
 
 /**
  * @title Abstract interface for a contract that helps structure the delegation relationship.
@@ -13,13 +13,13 @@ interface IDelegationTerms {
 
     function onDelegationWithdrawn(
         address delegator,
-        IInvestmentStrategy[] memory investorStrats,
-        uint256[] memory investorShares
+        IStrategy[] memory stakerStrategyList,
+        uint256[] memory stakerShares
     ) external returns(bytes memory);
 
     function onDelegationReceived(
         address delegator,
-        IInvestmentStrategy[] memory investorStrats,
-        uint256[] memory investorShares
+        IStrategy[] memory stakerStrategyList,
+        uint256[] memory stakerShares
     ) external returns(bytes memory);
 }

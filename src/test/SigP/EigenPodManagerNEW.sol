@@ -9,8 +9,8 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
 
-import "../../contracts/interfaces/IInvestmentManager.sol";
-import "../../contracts/interfaces/IEigenLayerDelegation.sol";
+import "../../contracts/interfaces/IStrategyManager.sol";
+import "../../contracts/interfaces/IDelegationManager.sol";
 import "../../contracts/interfaces/IEigenPodManager.sol";
 import "../../contracts/interfaces/IETHPOSDeposit.sol";
 import "../../contracts/interfaces/IEigenPod.sol";
@@ -48,8 +48,8 @@ contract EigenPodManagerNEW is Initializable, OwnableUpgradeable, IEigenPodManag
     /// @notice Beacon proxy to which the EigenPods point
     IBeacon public immutable eigenPodBeacon;
 
-    /// @notice EigenLayer's InvestmentManager contract
-    IInvestmentManager public immutable investmentManager;
+    /// @notice EigenLayer's StrategyManager contract
+    IStrategyManager public immutable strategyManager;
 
     /// @notice EigenLayer's Slasher contract
     ISlasher public immutable slasher;
@@ -66,7 +66,7 @@ contract EigenPodManagerNEW is Initializable, OwnableUpgradeable, IEigenPodManag
     /// @notice Emitted to notify the deployment of an EigenPod
     event PodDeployed(address indexed eigenPod, address indexed podOwner);
 
-    /// @notice Emitted to notify a deposit of beacon chain ETH recorded in the investment manager
+    /// @notice Emitted to notify a deposit of beacon chain ETH recorded in the  manager
     event BeaconChainETHDeposited(address indexed podOwner, uint256 amount);
 
     /// @notice Emitted when an EigenPod pays penalties, on behalf of its owner
@@ -77,15 +77,15 @@ contract EigenPodManagerNEW is Initializable, OwnableUpgradeable, IEigenPodManag
         _;
     }
 
-    modifier onlyInvestmentManager {
-        require(msg.sender == address(investmentManager), "EigenPodManager.onlyInvestmentManager: not investmentManager");
+    modifier onlyStrategyManager {
+        require(msg.sender == address(strategyManager), "EigenPodManager.onlyStrategyManager: not strategyManager");
         _;
     }
 
-    constructor(IETHPOSDeposit _ethPOS, IBeacon _eigenPodBeacon, IInvestmentManager _investmentManager, ISlasher _slasher) {
+    constructor(IETHPOSDeposit _ethPOS, IBeacon _eigenPodBeacon, IStrategyManager _strategyManager, ISlasher _slasher) {
         ethPOS = _ethPOS;
         eigenPodBeacon = _eigenPodBeacon;
-        investmentManager = _investmentManager;
+        strategyManager = _strategyManager;
         slasher = _slasher;
         _disableInitializers();
         
@@ -131,7 +131,7 @@ contract EigenPodManagerNEW is Initializable, OwnableUpgradeable, IEigenPodManag
      * @dev Callable only by the podOwner's EigenPod contract.
      */
     function restakeBeaconChainETH(address podOwner, uint256 amount) external onlyEigenPod(podOwner) {
-        investmentManager.depositBeaconChainETH(podOwner, amount);
+        strategyManager.depositBeaconChainETH(podOwner, amount);
         emit BeaconChainETHDeposited(podOwner, amount);
     }
 
@@ -139,11 +139,11 @@ contract EigenPodManagerNEW is Initializable, OwnableUpgradeable, IEigenPodManag
      * @notice Removes beacon chain ETH from EigenLayer on behalf of the owner of an EigenPod, when the
      *         balance of a validator is lower than how much stake they have committed to EigenLayer
      * @param podOwner The owner of the pod whose balance must be removed.
-     * @param amount The amount of beacon chain ETH to decrement from the podOwner's shares in the investmentManager.
+     * @param amount The amount of beacon chain ETH to decrement from the podOwner's shares in the strategyManager.
      * @dev Callable only by the podOwner's EigenPod contract.
      */
     function recordOvercommittedBeaconChainETH(address podOwner, uint256 beaconChainETHStrategyIndex, uint256 amount) external onlyEigenPod(podOwner) {
-        investmentManager.recordOvercommittedBeaconChainETH(podOwner, beaconChainETHStrategyIndex, amount);
+        strategyManager.recordOvercommittedBeaconChainETH(podOwner, beaconChainETHStrategyIndex, amount);
     }
 
     /**
@@ -151,9 +151,9 @@ contract EigenPodManagerNEW is Initializable, OwnableUpgradeable, IEigenPodManag
      * @param podOwner The owner of the pod whose balance must be withdrawn.
      * @param recipient The recipient of the withdrawn ETH.
      * @param amount The amount of ETH to withdraw.
-     * @dev Callable only by the InvestmentManager contract.
+     * @dev Callable only by the StrategyManager contract.
      */
-    function withdrawRestakedBeaconChainETH(address podOwner, address recipient, uint256 amount) external onlyInvestmentManager {
+    function withdrawRestakedBeaconChainETH(address podOwner, address recipient, uint256 amount) external onlyStrategyManager {
         getPod(podOwner).withdrawRestakedBeaconChainETH(recipient, amount);
     }
 
@@ -171,10 +171,10 @@ contract EigenPodManagerNEW is Initializable, OwnableUpgradeable, IEigenPodManag
      * @notice Withdraws paid penalties of the `podOwner`'s EigenPod, to the `recipient` address
      * @param recipient The recipient of withdrawn ETH.
      * @param amount The amount of ETH to withdraw.
-     * @dev Callable only by the investmentManager.owner().
+     * @dev Callable only by the strategyManager.owner().
      */
     function withdrawPenalties(address podOwner, address recipient, uint256 amount) external {
-        require(msg.sender == Ownable(address(investmentManager)).owner(), "EigenPods.withdrawPenalties: only investmentManager owner");
+        require(msg.sender == Ownable(address(strategyManager)).owner(), "EigenPods.withdrawPenalties: only strategyManager owner");
         podOwnerToUnwithdrawnPaidPenalties[podOwner] -= amount;
         // transfer penalties from pod to `recipient`
         Address.sendValue(payable(recipient), amount);

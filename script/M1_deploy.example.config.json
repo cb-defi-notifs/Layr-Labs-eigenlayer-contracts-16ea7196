@@ -60,7 +60,7 @@
                     }
                ]     
           },
-     "investmentManager":
+     "strategyManager":
           {
                "withdrawalDelayBlocks": 10,
                "init_paused_status": 0,
@@ -75,7 +75,7 @@
           {
                "init_paused_status": 30
           },
-     "eigenPodPaymentEscrow":
+     "delayedWithdrawalRouter":
           {
                "init_paused_status": 0,
                "init_withdrawal_delay_blocks": 50400

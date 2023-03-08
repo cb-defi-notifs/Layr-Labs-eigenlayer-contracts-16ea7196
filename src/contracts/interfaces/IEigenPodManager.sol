@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity =0.8.12;
 
-import "./IInvestmentManager.sol";
+import "./IStrategyManager.sol";
 import "./IEigenPod.sol";
 import "./IBeaconChainOracle.sol";
 import "./IPausable.sol";
@@ -49,7 +49,7 @@ interface IEigenPodManager is IPausable {
      * @param podOwner The owner of the pod whose balance must be withdrawn.
      * @param recipient The recipient of the withdrawn ETH.
      * @param amount The amount of ETH to withdraw.
-     * @dev Callable only by the InvestmentManager contract.
+     * @dev Callable only by the StrategyManager contract.
      */
     function withdrawRestakedBeaconChainETH(address podOwner, address recipient, uint256 amount) external;
 
@@ -69,8 +69,8 @@ interface IEigenPodManager is IPausable {
     /// @notice Returns the Beacon Chain state root at `blockNumber`. Reverts if the Beacon Chain state root at `blockNumber` has not yet been finalized.
     function getBeaconChainStateRoot(uint64 blockNumber) external view returns(bytes32);
 
-    /// @notice EigenLayer's InvestmentManager contract
-    function investmentManager() external view returns(IInvestmentManager);
+    /// @notice EigenLayer's StrategyManager contract
+    function strategyManager() external view returns(IStrategyManager);
 
     /// @notice EigenLayer's Slasher contract
     function slasher() external view returns(ISlasher);

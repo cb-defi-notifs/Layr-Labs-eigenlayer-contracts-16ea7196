@@ -7,20 +7,20 @@ import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.so
 import "@openzeppelin/contracts/proxy/beacon/IBeacon.sol";
 import "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 
-import "../contracts/interfaces/IEigenLayerDelegation.sol";
-import "../contracts/core/EigenLayerDelegation.sol";
+import "../contracts/interfaces/IDelegationManager.sol";
+import "../contracts/core/DelegationManager.sol";
 
 import "../contracts/interfaces/IETHPOSDeposit.sol";
 import "../contracts/interfaces/IBeaconChainOracle.sol";
 import "../contracts/interfaces/IVoteWeigher.sol";
 
-import "../contracts/core/InvestmentManager.sol";
-import "../contracts/strategies/InvestmentStrategyBase.sol";
+import "../contracts/core/StrategyManager.sol";
+import "../contracts/strategies/StrategyBase.sol";
 import "../contracts/core/Slasher.sol";
 
 import "../contracts/pods/EigenPod.sol";
 import "../contracts/pods/EigenPodManager.sol";
-import "../contracts/pods/EigenPodPaymentEscrow.sol";
+import "../contracts/pods/DelayedWithdrawalRouter.sol";
 import "../contracts/pods/BeaconChainOracle.sol";
 
 import "../contracts/permissions/PauserRegistry.sol";
@@ -45,11 +45,11 @@ contract EigenLayerDeployer is Operators {
     PauserRegistry public eigenLayerPauserReg;
 
     Slasher public slasher;
-    EigenLayerDelegation public delegation;
-    InvestmentManager public investmentManager;
+    DelegationManager public delegation;
+    StrategyManager public strategyManager;
     EigenPodManager public eigenPodManager;
     IEigenPod public pod;
-    IEigenPodPaymentEscrow public eigenPodPaymentEscrow;
+    IDelayedWithdrawalRouter public delayedWithdrawalRouter;
     IETHPOSDeposit public ethPOSDeposit;
     IBeacon public eigenPodBeacon;
     IBeaconChainOracle public beaconChainOracle;
@@ -57,12 +57,12 @@ contract EigenLayerDeployer is Operators {
     // testing/mock contracts
     IERC20 public eigenToken;
     IERC20 public weth;
-    InvestmentStrategyBase public wethStrat;
-    InvestmentStrategyBase public eigenStrat;
-    InvestmentStrategyBase public baseStrategyImplementation;
+    StrategyBase public wethStrat;
+    StrategyBase public eigenStrat;
+    StrategyBase public baseStrategyImplementation;
     EmptyContract public emptyContract;
 
-    mapping(uint256 => IInvestmentStrategy) public strategies;
+    mapping(uint256 => IStrategy) public strategies;
 
     //from testing seed phrase
     bytes32 priv_key_0 = 0x1234567812345678123456781234567812345678123456781234567812345678;
@@ -114,7 +114,7 @@ contract EigenLayerDeployer is Operators {
 
         fuzzedAddressMapping[address(0)] = true;
         fuzzedAddressMapping[address(eigenLayerProxyAdmin)] = true;
-        fuzzedAddressMapping[address(investmentManager)] = true;
+        fuzzedAddressMapping[address(strategyManager)] = true;
         fuzzedAddressMapping[address(eigenPodManager)] = true;
         fuzzedAddressMapping[address(delegation)] = true;
         fuzzedAddressMapping[address(slasher)] = true;
@@ -132,10 +132,10 @@ contract EigenLayerDeployer is Operators {
          * not yet deployed, we give these proxies an empty contract as the initial implementation, to act as if they have no code.
          */
         emptyContract = new EmptyContract();
-        delegation = EigenLayerDelegation(
+        delegation = DelegationManager(
             address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayerProxyAdmin), ""))
         );
-        investmentManager = InvestmentManager(
+        strategyManager = StrategyManager(
             address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayerProxyAdmin), ""))
         );
         slasher = Slasher(
@@ -144,7 +144,7 @@ contract EigenLayerDeployer is Operators {
         eigenPodManager = EigenPodManager(
             address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayerProxyAdmin), ""))
         );
-        eigenPodPaymentEscrow = EigenPodPaymentEscrow(
+        delayedWithdrawalRouter = DelayedWithdrawalRouter(
             address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayerProxyAdmin), ""))
         );
 
@@ -152,33 +152,33 @@ contract EigenLayerDeployer is Operators {
         beaconChainOracle = new BeaconChainOracle(eigenLayerReputedMultisig, initialBeaconChainOracleThreshold, initialOracleSignersArray);
 
         ethPOSDeposit = new ETHPOSDepositMock();
-        pod = new EigenPod(ethPOSDeposit, eigenPodPaymentEscrow, eigenPodManager, REQUIRED_BALANCE_WEI);
+        pod = new EigenPod(ethPOSDeposit, delayedWithdrawalRouter, eigenPodManager, REQUIRED_BALANCE_WEI);
 
         eigenPodBeacon = new UpgradeableBeacon(address(pod));
 
         // Second, deploy the *implementation* contracts, using the *proxy contracts* as inputs
-        EigenLayerDelegation delegationImplementation = new EigenLayerDelegation(investmentManager, slasher);
-        InvestmentManager investmentManagerImplementation = new InvestmentManager(delegation, eigenPodManager, slasher);
-        Slasher slasherImplementation = new Slasher(investmentManager, delegation);
-        EigenPodManager eigenPodManagerImplementation = new EigenPodManager(ethPOSDeposit, eigenPodBeacon, investmentManager, slasher);
-        EigenPodPaymentEscrow eigenPodPaymentEscrowImplementation = new EigenPodPaymentEscrow(eigenPodManager);
+        DelegationManager delegationImplementation = new DelegationManager(strategyManager, slasher);
+        StrategyManager strategyManagerImplementation = new StrategyManager(delegation, eigenPodManager, slasher);
+        Slasher slasherImplementation = new Slasher(strategyManager, delegation);
+        EigenPodManager eigenPodManagerImplementation = new EigenPodManager(ethPOSDeposit, eigenPodBeacon, strategyManager, slasher);
+        DelayedWithdrawalRouter delayedWithdrawalRouterImplementation = new DelayedWithdrawalRouter(eigenPodManager);
 
         // Third, upgrade the proxy contracts to use the correct implementation contracts and initialize them.
         eigenLayerProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(delegation))),
             address(delegationImplementation),
             abi.encodeWithSelector(
-                EigenLayerDelegation.initialize.selector,
+                DelegationManager.initialize.selector,
                 eigenLayerReputedMultisig,
                 eigenLayerPauserReg,
                 0/*initialPausedStatus*/
             )
         );
         eigenLayerProxyAdmin.upgradeAndCall(
-            TransparentUpgradeableProxy(payable(address(investmentManager))),
-            address(investmentManagerImplementation),
+            TransparentUpgradeableProxy(payable(address(strategyManager))),
+            address(strategyManagerImplementation),
             abi.encodeWithSelector(
-                InvestmentManager.initialize.selector,
+                StrategyManager.initialize.selector,
                 eigenLayerReputedMultisig,
                 eigenLayerPauserReg,
                 0/*initialPausedStatus*/,
@@ -209,16 +209,16 @@ contract EigenLayerDeployer is Operators {
         uint256 initPausedStatus = 0;
         uint256 withdrawalDelayBlocks = PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS;
         eigenLayerProxyAdmin.upgradeAndCall(
-            TransparentUpgradeableProxy(payable(address(eigenPodPaymentEscrow))),
-            address(eigenPodPaymentEscrowImplementation),
-            abi.encodeWithSelector(EigenPodPaymentEscrow.initialize.selector,
+            TransparentUpgradeableProxy(payable(address(delayedWithdrawalRouter))),
+            address(delayedWithdrawalRouterImplementation),
+            abi.encodeWithSelector(DelayedWithdrawalRouter.initialize.selector,
             eigenLayerReputedMultisig,
             eigenLayerPauserReg,
             initPausedStatus,
             withdrawalDelayBlocks)
         );
 
-        //simple ERC20 (**NOT** WETH-like!), used in a test investment strategy
+        //simple ERC20 (**NOT** WETH-like!), used in a test strategy
         weth = new ERC20PresetFixedSupply(
             "weth",
             "WETH",
@@ -226,14 +226,14 @@ contract EigenLayerDeployer is Operators {
             address(this)
         );
 
-        // deploy InvestmentStrategyBase contract implementation, then create upgradeable proxy that points to implementation and initialize it
-        baseStrategyImplementation = new InvestmentStrategyBase(investmentManager);
-        wethStrat = InvestmentStrategyBase(
+        // deploy StrategyBase contract implementation, then create upgradeable proxy that points to implementation and initialize it
+        baseStrategyImplementation = new StrategyBase(strategyManager);
+        wethStrat = StrategyBase(
             address(
                 new TransparentUpgradeableProxy(
                     address(baseStrategyImplementation),
                     address(eigenLayerProxyAdmin),
-                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, weth, eigenLayerPauserReg)
+                    abi.encodeWithSelector(StrategyBase.initialize.selector, weth, eigenLayerPauserReg)
                 )
             )
         );
@@ -245,13 +245,13 @@ contract EigenLayerDeployer is Operators {
             address(this)
         );
 
-        // deploy upgradeable proxy that points to InvestmentStrategyBase implementation and initialize it
-        eigenStrat = InvestmentStrategyBase(
+        // deploy upgradeable proxy that points to StrategyBase implementation and initialize it
+        eigenStrat = StrategyBase(
             address(
                 new TransparentUpgradeableProxy(
                     address(baseStrategyImplementation),
                     address(eigenLayerProxyAdmin),
-                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, eigenToken, eigenLayerPauserReg)
+                    abi.encodeWithSelector(StrategyBase.initialize.selector, eigenToken, eigenLayerPauserReg)
                 )
             )
         );

@@ -22,11 +22,11 @@ contract SlasherTests is EigenLayerTestHelper {
 
     /**
      * @notice this function tests the slashing process by first freezing
-     * the operator and then calling the investmentManager.slashShares()
+     * the operator and then calling the strategyManager.slashShares()
      * to actually enforce the slashing conditions.
      */
     function testSlashing() public {
-        IInvestmentStrategy[] memory strategyArray = new IInvestmentStrategy[](1);
+        IStrategy[] memory strategyArray = new IStrategy[](1);
         IERC20[] memory tokensArray = new IERC20[](1);
 
         // hardcoded inputs
@@ -62,7 +62,7 @@ contract SlasherTests is EigenLayerTestHelper {
 
         uint256 prev_shares = delegation.operatorShares(_operator, strategyArray[0]);
 
-        investmentManager.slashShares(_operator, acct_0, strategyArray, tokensArray, strategyIndexes, shareAmounts);
+        strategyManager.slashShares(_operator, acct_0, strategyArray, tokensArray, strategyIndexes, shareAmounts);
 
         require(
             delegation.operatorShares(_operator, strategyArray[0]) + shareAmounts[0] == prev_shares,
@@ -322,7 +322,7 @@ contract SlasherTests is EigenLayerTestHelper {
         slasher.recordFirstStakeUpdate(operator,serveUntil);
 
         console.log("serveUntil",slasher.getMiddlewareTimesIndexServeUntil(operator,0));
-        console.log("bondedUntil",slasher.bondedUntil(operator,middleware));
+        console.log("contractCanSlashOperatorUntil",slasher.contractCanSlashOperatorUntil(operator,middleware));
 
         //middle can slash
         require(slasher.canSlash(operator,middleware),"middlewre should be able to slash");

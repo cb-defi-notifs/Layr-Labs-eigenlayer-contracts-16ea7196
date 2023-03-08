@@ -8,11 +8,11 @@ import "forge-std/Test.sol";
 
 import "../../contracts/core/Slasher.sol";
 import "../../contracts/permissions/PauserRegistry.sol";
-import "../../contracts/strategies/InvestmentStrategyWrapper.sol";
+import "../../contracts/strategies/StrategyWrapper.sol";
 
 import "../mocks/DelegationMock.sol";
 import "../mocks/EigenPodManagerMock.sol";
-import "../mocks/InvestmentManagerMock.sol";
+import "../mocks/StrategyManagerMock.sol";
 import "../mocks/Reenterer.sol";
 import "../mocks/Reverter.sol";
 
@@ -34,14 +34,14 @@ contract SlasherUnitTests is Test {
     uint8 internal constant PAUSED_FIRST_STAKE_UPDATE = 1;
     uint8 internal constant PAUSED_NEW_FREEZING = 2;
 
-    uint32 internal constant MAX_BONDED_UNTIL = type(uint32).max;
+    uint32 internal constant MAX_CAN_SLASH_UNTIL = type(uint32).max;
 
     ProxyAdmin public proxyAdmin;
     PauserRegistry public pauserRegistry;
 
     Slasher public slasherImplementation;
     Slasher public slasher;
-    InvestmentManagerMock public investmentManagerMock;
+    StrategyManagerMock public strategyManagerMock;
     DelegationMock public delegationMock;
     EigenPodManagerMock public eigenPodManagerMock;
 
@@ -57,7 +57,7 @@ contract SlasherUnitTests is Test {
 
 
     IERC20 public dummyToken;
-    InvestmentStrategyWrapper public dummyStrat;
+    StrategyWrapper public dummyStrat;
 
 
 
@@ -68,7 +68,7 @@ contract SlasherUnitTests is Test {
     uint256[] public emptyUintArray;
 
     // used as transient storage to fix stack-too-deep errors
-    uint32 bondedUntilBefore;
+    uint32 contractCanSlashOperatorUntilBefore;
     uint256 linkedListLengthBefore;
     uint256 middlewareTimesLengthBefore;
     bool nodeExists;
@@ -91,8 +91,8 @@ contract SlasherUnitTests is Test {
 
         delegationMock = new DelegationMock();
         eigenPodManagerMock = new EigenPodManagerMock();
-        investmentManagerMock = new InvestmentManagerMock();
-        slasherImplementation = new Slasher(investmentManagerMock, delegationMock);
+        strategyManagerMock = new StrategyManagerMock();
+        slasherImplementation = new Slasher(strategyManagerMock, delegationMock);
         slasher = Slasher(
             address(
                 new TransparentUpgradeableProxy(
@@ -103,7 +103,7 @@ contract SlasherUnitTests is Test {
             )
         );
         dummyToken = new ERC20Mock();
-        dummyStrat = new InvestmentStrategyWrapper(investmentManagerMock, dummyToken);
+        dummyStrat = new StrategyWrapper(strategyManagerMock, dummyToken);
 
         // excude the zero address and the proxyAdmin from fuzzed inputs
         addressIsExcludedFromFuzzedInputs[address(0)] = true;
@@ -126,7 +126,7 @@ contract SlasherUnitTests is Test {
         slasher.optIntoSlashing(contractAddress);
         cheats.stopPrank();
 
-        assertEq(slasher.bondedUntil(operator, contractAddress), MAX_BONDED_UNTIL);
+        assertEq(slasher.contractCanSlashOperatorUntil(operator, contractAddress), MAX_CAN_SLASH_UNTIL);
         require(slasher.canSlash(operator, contractAddress), "contract was not properly granted slashing permission");
     }
 
@@ -258,7 +258,7 @@ contract SlasherUnitTests is Test {
 
         linkedListLengthBefore = slasher.operatorWhitelistedContractsLinkedListSize(operator);
         middlewareDetailsBefore = slasher.whitelistedContractDetails(operator, contractAddress);
-        bondedUntilBefore = slasher.bondedUntil(operator, contractAddress);
+        contractCanSlashOperatorUntilBefore = slasher.contractCanSlashOperatorUntil(operator, contractAddress);
 
         ISlasher.MiddlewareTimes memory mostRecentMiddlewareTimesStructBefore;
         // fetch the most recent struct, if at least one exists (otherwise leave the struct uninitialized)
@@ -311,10 +311,10 @@ contract SlasherUnitTests is Test {
         middlewareDetailsAfter = slasher.whitelistedContractDetails(operator, contractAddress);
         require(middlewareDetailsAfter.latestUpdateBlock == block.number,
             "latestUpdateBlock not updated correctly");
-        require(middlewareDetailsAfter.bondedUntil == middlewareDetailsBefore.bondedUntil,
-            "bondedUntil changed unexpectedly");
-        // check that `bondedUntil` did not change
-        require(slasher.bondedUntil(operator, contractAddress) == bondedUntilBefore, "bondedUntil changed unexpectedly");
+        require(middlewareDetailsAfter.contractCanSlashOperatorUntil == middlewareDetailsBefore.contractCanSlashOperatorUntil,
+            "contractCanSlashOperatorUntil changed unexpectedly");
+        // check that `contractCanSlashOperatorUntil` did not change
+        require(slasher.contractCanSlashOperatorUntil(operator, contractAddress) == contractCanSlashOperatorUntilBefore, "contractCanSlashOperatorUntil changed unexpectedly");
     }
 
     function testRecordFirstStakeUpdate_RevertsWhenPaused() external {
@@ -393,7 +393,7 @@ contract SlasherUnitTests is Test {
 
         linkedListLengthBefore = slasher.operatorWhitelistedContractsLinkedListSize(operator);
         middlewareDetailsBefore = slasher.whitelistedContractDetails(operator, contractAddress);
-        bondedUntilBefore = slasher.bondedUntil(operator, contractAddress);
+        contractCanSlashOperatorUntilBefore = slasher.contractCanSlashOperatorUntil(operator, contractAddress);
 
         // filter out invalid fuzzed inputs. "can't push a previous update"
         cheats.assume(updateBlock >= middlewareDetailsBefore.latestUpdateBlock);
@@ -446,10 +446,10 @@ contract SlasherUnitTests is Test {
         middlewareDetailsAfter = slasher.whitelistedContractDetails(operator, contractAddress);
         require(middlewareDetailsAfter.latestUpdateBlock == updateBlock,
             "latestUpdateBlock not updated correctly");
-        require(middlewareDetailsAfter.bondedUntil == middlewareDetailsBefore.bondedUntil,
-            "bondedUntil changed unexpectedly");
-        // check that `bondedUntil` did not change
-        require(slasher.bondedUntil(operator, contractAddress) == bondedUntilBefore, "bondedUntil changed unexpectedly");
+        require(middlewareDetailsAfter.contractCanSlashOperatorUntil == middlewareDetailsBefore.contractCanSlashOperatorUntil,
+            "contractCanSlashOperatorUntil changed unexpectedly");
+        // check that `contractCanSlashOperatorUntil` did not change
+        require(slasher.contractCanSlashOperatorUntil(operator, contractAddress) == contractCanSlashOperatorUntilBefore, "contractCanSlashOperatorUntil changed unexpectedly");
     }
 
     function testRecordStakeUpdate_MultipleLinkedListEntries(
@@ -569,7 +569,7 @@ contract SlasherUnitTests is Test {
         filterFuzzedAddressInputs(contractAddress)
     {
         // filter out setting the `serveUntil` time to the MAX, since the contract will revert in this instance.
-        cheats.assume(serveUntil != MAX_BONDED_UNTIL);
+        cheats.assume(serveUntil != MAX_CAN_SLASH_UNTIL);
 
         testRecordStakeUpdate_MultipleLinkedListEntries(operator, contractAddress, prevServeUntil, updateBlock, serveUntil, insertAfter);
 
@@ -632,7 +632,7 @@ contract SlasherUnitTests is Test {
         require(middlewareDetailsAfter.latestUpdateBlock == block.number,
             "latestUpdateBlock not updated correctly");
         // check that slashing ability was revoked after `serveUntil`
-        require(slasher.bondedUntil(operator, contractAddress) == serveUntil, "bondedUntil not set correctly");
+        require(slasher.contractCanSlashOperatorUntil(operator, contractAddress) == serveUntil, "contractCanSlashOperatorUntil not set correctly");
     }
 
     function testRecordLastStakeUpdateAndRevokeSlashingAbility_RevertsWhenCallerCannotSlash(
@@ -645,7 +645,7 @@ contract SlasherUnitTests is Test {
         filterFuzzedAddressInputs(contractAddress)
     {
         // filter out setting the `serveUntil` time to the MAX, since the contract will revert in this instance.
-        cheats.assume(serveUntil != MAX_BONDED_UNTIL);
+        cheats.assume(serveUntil != MAX_CAN_SLASH_UNTIL);
 
         cheats.expectRevert(bytes("Slasher.onlyRegisteredForService: Operator has not opted into slashing by caller"));
         cheats.startPrank(contractAddress);
@@ -663,7 +663,7 @@ contract SlasherUnitTests is Test {
         filterFuzzedAddressInputs(contractAddress)
     {
         // filter out setting the `serveUntil` time to the MAX, since the contract will revert in this instance.
-        cheats.assume(serveUntil != MAX_BONDED_UNTIL);
+        cheats.assume(serveUntil != MAX_CAN_SLASH_UNTIL);
 
         testOptIntoSlashing(operator, contractAddress);
 
@@ -684,7 +684,7 @@ contract SlasherUnitTests is Test {
         filterFuzzedAddressInputs(operator)
         filterFuzzedAddressInputs(contractAddress)
     {
-        uint32 serveUntil = MAX_BONDED_UNTIL;
+        uint32 serveUntil = MAX_CAN_SLASH_UNTIL;
 
         testOptIntoSlashing(operator, contractAddress);
 

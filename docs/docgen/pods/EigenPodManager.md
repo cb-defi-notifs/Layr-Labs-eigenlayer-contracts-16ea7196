@@ -35,13 +35,13 @@ contract IBeacon eigenPodBeacon
 
 Beacon proxy to which the EigenPods point
 
-### investmentManager
+### strategyManager
 
 ```solidity
-contract IInvestmentManager investmentManager
+contract IStrategyManager strategyManager
 ```
 
-EigenLayer's InvestmentManager contract
+EigenLayer's StrategyManager contract
 
 ### slasher
 
@@ -89,7 +89,7 @@ Emitted to notify the deployment of an EigenPod
 event BeaconChainETHDeposited(address podOwner, uint256 amount)
 ```
 
-Emitted to notify a deposit of beacon chain ETH recorded in the investment manager
+Emitted to notify a deposit of beacon chain ETH recorded in the strategy manager
 
 ### onlyEigenPod
 
@@ -97,16 +97,16 @@ Emitted to notify a deposit of beacon chain ETH recorded in the investment manag
 modifier onlyEigenPod(address podOwner)
 ```
 
-### onlyInvestmentManager
+### onlyStrategyManager
 
 ```solidity
-modifier onlyInvestmentManager()
+modifier onlyStrategyManager()
 ```
 
 ### constructor
 
 ```solidity
-constructor(contract IETHPOSDeposit _ethPOS, contract IBeacon _eigenPodBeacon, contract IInvestmentManager _investmentManager, contract ISlasher _slasher) public
+constructor(contract IETHPOSDeposit _ethPOS, contract IBeacon _eigenPodBeacon, contract IStrategyManager _strategyManager, contract ISlasher _slasher) public
 ```
 
 ### initialize
@@ -176,7 +176,7 @@ _Callable only by the podOwner's EigenPod contract._
 | ---- | ---- | ----------- |
 | podOwner | address | The owner of the pod whose balance must be removed. |
 | beaconChainETHStrategyIndex | uint256 |  |
-| amount | uint256 | The amount of beacon chain ETH to decrement from the podOwner's shares in the investmentManager. |
+| amount | uint256 | The amount of beacon chain ETH to decrement from the podOwner's shares in the strategyManager. |
 
 ### withdrawRestakedBeaconChainETH
 
@@ -186,7 +186,7 @@ function withdrawRestakedBeaconChainETH(address podOwner, address recipient, uin
 
 Withdraws ETH from an EigenPod. The ETH must have first been withdrawn from the beacon chain.
 
-_Callable only by the InvestmentManager contract._
+_Callable only by the StrategyManager contract._
 
 #### Parameters
 

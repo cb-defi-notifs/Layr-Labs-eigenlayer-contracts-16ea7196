@@ -100,10 +100,10 @@ The `swapped` address is the address returned by an internal call to the `_popRe
 ### constructor
 
 ```solidity
-constructor(contract IInvestmentManager _investmentManager, contract IServiceManager _serviceManager, uint8 _NUMBER_OF_QUORUMS) internal
+constructor(contract IStrategyManager _strategyManager, contract IServiceManager _serviceManager, uint8 _NUMBER_OF_QUORUMS) internal
 ```
 
-Irrevocably sets the (immutable) `delegation` & `investmentManager` addresses, and `NUMBER_OF_QUORUMS` variable.
+Irrevocably sets the (immutable) `delegation` & `strategyManager` addresses, and `NUMBER_OF_QUORUMS` variable.
 
 ### _initialize
 

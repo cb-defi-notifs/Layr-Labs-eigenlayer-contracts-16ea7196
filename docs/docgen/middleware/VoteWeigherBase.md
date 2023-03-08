@@ -12,7 +12,7 @@ by the middleware for each of the quorum(s)
 ### StrategyAddedToQuorum
 
 ```solidity
-event StrategyAddedToQuorum(uint256 quorumNumber, contract IInvestmentStrategy strategy)
+event StrategyAddedToQuorum(uint256 quorumNumber, contract IStrategy strategy)
 ```
 
 emitted when `strategy` has been added to the array at `strategiesConsideredAndMultipliers[quorumNumber]`
@@ -20,7 +20,7 @@ emitted when `strategy` has been added to the array at `strategiesConsideredAndM
 ### StrategyRemovedFromQuorum
 
 ```solidity
-event StrategyRemovedFromQuorum(uint256 quorumNumber, contract IInvestmentStrategy strategy)
+event StrategyRemovedFromQuorum(uint256 quorumNumber, contract IStrategy strategy)
 ```
 
 emitted when `strategy` has removed from the array at `strategiesConsideredAndMultipliers[quorumNumber]`
@@ -36,10 +36,10 @@ when applied to a function, ensures that the function is only callable by the cu
 ### constructor
 
 ```solidity
-constructor(contract IInvestmentManager _investmentManager, contract IServiceManager _serviceManager, uint8 _NUMBER_OF_QUORUMS) internal
+constructor(contract IStrategyManager _strategyManager, contract IServiceManager _serviceManager, uint8 _NUMBER_OF_QUORUMS) internal
 ```
 
-Sets the (immutable) `investmentManager` and `serviceManager` addresses, as well as the (immutable) `NUMBER_OF_QUORUMS` variable
+Sets the (immutable) `strategyManager` and `serviceManager` addresses, as well as the (immutable) `NUMBER_OF_QUORUMS` variable
 
 ### _initialize
 
@@ -70,7 +70,7 @@ Adds new strategies and the associated multipliers to the @param quorumNumber.
 ### removeStrategiesConsideredAndMultipliers
 
 ```solidity
-function removeStrategiesConsideredAndMultipliers(uint256 quorumNumber, contract IInvestmentStrategy[] _strategiesToRemove, uint256[] indicesToRemove) external virtual
+function removeStrategiesConsideredAndMultipliers(uint256 quorumNumber, contract IStrategy[] _strategiesToRemove, uint256[] indicesToRemove) external virtual
 ```
 
 This function is used for removing strategies and their associated weights from the

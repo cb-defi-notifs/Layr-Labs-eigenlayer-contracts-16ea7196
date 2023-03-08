@@ -5,7 +5,7 @@ import "../munged/core/Slasher.sol";
 
 contract SlasherHarness is Slasher {
 
-    constructor(IInvestmentManager _investmentManager, IEigenLayerDelegation _delegation) Slasher(_investmentManager, _delegation) {}
+    constructor(IStrategyManager _strategyManager, IDelegationManager _delegation) Slasher(_strategyManager, _delegation) {}
     
     /// Harnessed functions
     function get_is_operator(address staker) public returns (bool) {

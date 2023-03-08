@@ -35,13 +35,13 @@ contract IETHPOSDeposit ethPOS
 
 This is the beacon chain deposit contract
 
-### eigenPodPaymentEscrow
+### delayedWithdrawalRouter
 
 ```solidity
-contract IEigenPodPaymentEscrow eigenPodPaymentEscrow
+contract IDelayedWithdrawalRouter delayedWithdrawalRouter
 ```
 
-Escrow contract used for payment routing, to provide an extra "safety net"
+Contract used for withdrawal routing, to provide an extra "safety net" mechanism
 
 ### eigenPodManager
 
@@ -211,7 +211,7 @@ Modifier throws if the `indexed`th bit of `_paused` in the EigenPodManager is 1,
 ### constructor
 
 ```solidity
-constructor(contract IETHPOSDeposit _ethPOS, contract IEigenPodPaymentEscrow _eigenPodPaymentEscrow, contract IEigenPodManager _eigenPodManager, uint256 _REQUIRED_BALANCE_WEI) public
+constructor(contract IETHPOSDeposit _ethPOS, contract IDelayedWithdrawalRouter _delayedWithdrawalRouter, contract IEigenPodManager _eigenPodManager, uint256 _REQUIRED_BALANCE_WEI) public
 ```
 
 ### initialize
@@ -257,7 +257,7 @@ function verifyOvercommittedStake(uint40 validatorIndex, struct BeaconChainProof
 
 This function records an overcommitment of stake to EigenLayer on behalf of a certain ETH validator.
         If successful, the overcommitted balance is penalized (available for withdrawal whenever the pod's balance allows).
-        The ETH validator's shares in the enshrined beaconChainETH strategy are also removed from the InvestmentManager and undelegated.
+        The ETH validator's shares in the enshrined beaconChainETH strategy are also removed from the StrategyManager and undelegated.
 
 _For more details on the Beacon Chain spec, see: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator_
 
@@ -268,7 +268,7 @@ _For more details on the Beacon Chain spec, see: https://github.com/ethereum/con
 | validatorIndex | uint40 | is the index of the validator being proven, refer to consensus specs |
 | proofs | struct BeaconChainProofs.ValidatorFieldsAndBalanceProofs | is the proof of the validator's balance and validatorFields in the balance tree and the balanceRoot to prove for |
 | validatorFields | bytes32[] | are the fields of the "Validator Container", refer to consensus specs |
-| beaconChainETHStrategyIndex | uint256 | is the index of the beaconChainETHStrategy for the pod owner for the callback to                                     the InvestmentManger in case it must be removed from the list of the podOwners strategies |
+| beaconChainETHStrategyIndex | uint256 | is the index of the beaconChainETHStrategy for the pod owner for the callback to                                     the StrategyManager in case it must be removed from the list of the podOwners strategies |
 | oracleBlockNumber | uint64 | The oracleBlockNumber whose state root the `proof` will be proven against.        Must be within `VERIFY_OVERCOMMITTED_WINDOW_BLOCKS` of the current block. |
 
 ### verifyAndProcessWithdrawal
@@ -287,7 +287,7 @@ This function records a full withdrawal on behalf of one of the Ethereum validat
 | validatorFieldsProof | bytes | is the information needed to check the veracity of the validator fields being proven |
 | validatorFields | bytes32[] | are the fields of the validator being proven |
 | withdrawalFields | bytes32[] | are the fields of the withdrawal being proven |
-| beaconChainETHStrategyIndex | uint256 | is the index of the beaconChainETHStrategy for the pod owner for the callback to         the EigenPodManager to the InvestmentManager in case it must be removed from the podOwner's list of strategies |
+| beaconChainETHStrategyIndex | uint256 | is the index of the beaconChainETHStrategy for the pod owner for the callback to         the EigenPodManager to the StrategyManager in case it must be removed from the podOwner's list of strategies |
 | oracleBlockNumber | uint64 |  |
 
 ### _processFullWithdrawal
@@ -337,7 +337,7 @@ function _sendETH(address recipient, uint256 amountWei) internal
 ### __gap
 
 ```solidity
-uint256[44] __gap
+uint256[46] __gap
 ```
 
 _This empty reserved space is put in place to allow future versions to add new

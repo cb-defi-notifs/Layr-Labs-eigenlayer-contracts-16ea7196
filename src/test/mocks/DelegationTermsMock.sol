@@ -23,8 +23,8 @@ contract DelegationTermsMock is IDelegationTerms, Test {
 
     function onDelegationWithdrawn(
         address /*delegator*/,
-        IInvestmentStrategy[] memory /*investorStrats*/,
-        uint256[] memory /*investorShares*/
+        IStrategy[] memory /*stakerStrategyList*/,
+        uint256[] memory /*stakerShares*/
     ) external view returns (bytes memory) {
         if (shouldRevert) {
             revert("reverting as intended");
@@ -41,8 +41,8 @@ contract DelegationTermsMock is IDelegationTerms, Test {
 
     function onDelegationReceived(
         address /*delegator*/,
-        IInvestmentStrategy[] memory /*investorStrats*/,
-        uint256[] memory /*investorShares*/
+        IStrategy[] memory /*stakerStrategyList*/,
+        uint256[] memory /*stakerShares*/
     ) external view returns (bytes memory) {
         if (shouldRevert) {
             revert("reverting as intended");
