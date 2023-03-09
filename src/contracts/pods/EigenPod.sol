@@ -41,7 +41,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
     uint256 internal constant VERIFY_OVERCOMMITTED_WINDOW_BLOCKS = 50400;
 
     /// @notice This is the beacon chain deposit contract
-    IETHPOSDeposit internal immutable ethPOS;
+    IETHPOSDeposit public immutable ethPOS;
 
     /// @notice Contract used for withdrawal routing, to provide an extra "safety net" mechanism
     IDelayedWithdrawalRouter public immutable delayedWithdrawalRouter;

@@ -375,8 +375,8 @@ contract Deployer_M1 is Script, Test {
         require(eigenPodManager.owner() == communityMultisig, "delegation: owner not set correctly");
 
         require(eigenLayerProxyAdmin.owner() == communityMultisig, "eigenLayerProxyAdmin: owner not set correctly");
-
         require(eigenPodBeacon.owner() == communityMultisig, "eigenPodBeacon: owner not set correctly");
+        require(delayedWithdrawalRouter.owner() == communityMultisig, "delayedWithdrawalRouter: owner not set correctly");        
     }
 
     function _checkPauserInitializations() internal view {
@@ -434,6 +434,13 @@ contract Deployer_M1 is Script, Test {
 
         require(baseStrategyImplementation.strategyManager() == strategyManager,
             "baseStrategyImplementation: strategyManager set incorrectly");
+
+        require(eigenPodImplementation.ethPOS() == ethPOSDeposit,
+            "eigenPodImplementation: ethPOSDeposit contract address not set correctly");
+        require(eigenPodImplementation.eigenPodManager() == eigenPodManager,
+            " eigenPodImplementation: eigenPodManager contract address not set correctly");
+        require(eigenPodImplementation.delayedWithdrawalRouter() == delayedWithdrawalRouter,
+            " eigenPodImplementation: delayedWithdrawalRouter contract address not set correctly");
     }
 }
 
