@@ -3,7 +3,7 @@ pragma solidity =0.8.12;
 
 import "../../contracts/interfaces/IServiceManager.sol";
 import "../../contracts/interfaces/IRegistry.sol";
-import "../../contracts/interfaces/IInvestmentManager.sol";
+import "../../contracts/interfaces/IStrategyManager.sol";
 import "../../contracts/interfaces/ISlasher.sol";
 
 import "forge-std/Test.sol";
@@ -13,17 +13,17 @@ import "forge-std/Test.sol";
 
 contract MiddlewareRegistryMock is IRegistry, DSTest{
     IServiceManager public serviceManager;
-    IInvestmentManager public investmentManager;
+    IStrategyManager public strategyManager;
     ISlasher public slasher;
 
 
     constructor(
         IServiceManager _serviceManager,
-        IInvestmentManager _investmentManager
+        IStrategyManager _strategyManager
     ){
         serviceManager = _serviceManager;
-        investmentManager = _investmentManager;
-        slasher = _investmentManager.slasher();
+        strategyManager = _strategyManager;
+        slasher = _strategyManager.slasher();
     }
 
     function registerOperator(address operator, uint32 serveUntil) public {        

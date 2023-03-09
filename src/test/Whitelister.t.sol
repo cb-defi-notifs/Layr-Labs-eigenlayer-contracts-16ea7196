@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity =0.8.12;
 
-import "../../src/contracts/interfaces/IInvestmentManager.sol";
-import "../../src/contracts/interfaces/IInvestmentStrategy.sol";
-import "../../src/contracts/interfaces/IEigenLayerDelegation.sol";
-import "../../src/contracts/strategies/InvestmentStrategyBase.sol";
+import "../../src/contracts/interfaces/IStrategyManager.sol";
+import "../../src/contracts/interfaces/IStrategy.sol";
+import "../../src/contracts/interfaces/IDelegationManager.sol";
+import "../../src/contracts/strategies/StrategyBase.sol";
 import "../../src/contracts/middleware/BLSRegistry.sol";
 
 import "../../src/test/mocks/ServiceManagerMock.sol";
@@ -30,8 +30,8 @@ import "forge-std/Test.sol";
 contract WhitelisterTests is EigenLayerTestHelper {
 
     ERC20PresetMinterPauser dummyToken;
-    IInvestmentStrategy dummyStrat;
-    IInvestmentStrategy dummyStratImplementation;
+    IStrategy dummyStrat;
+    IStrategy dummyStratImplementation;
     Whitelister whiteLister;
 
     BLSRegistry blsRegistry;
@@ -54,9 +54,9 @@ contract WhitelisterTests is EigenLayerTestHelper {
 
     // packed info used to help handle stack-too-deep errors
     struct DataForTestWithdrawal {
-        IInvestmentStrategy[] delegatorStrategies;
+        IStrategy[] delegatorStrategies;
         uint256[] delegatorShares;
-        IInvestmentManager.WithdrawerAndNonce withdrawerAndNonce;
+        IStrategyManager.WithdrawerAndNonce withdrawerAndNonce;
     }
 
     function setUp() public virtual override{
@@ -70,18 +70,18 @@ contract WhitelisterTests is EigenLayerTestHelper {
         );
 
         dummyToken = new ERC20PresetMinterPauser("dummy staked ETH", "dsETH");
-        dummyStratImplementation = new InvestmentStrategyBase(investmentManager);
-        dummyStrat = InvestmentStrategyBase(
+        dummyStratImplementation = new StrategyBase(strategyManager);
+        dummyStrat = StrategyBase(
             address(
                 new TransparentUpgradeableProxy(
                         address(dummyStratImplementation),
                         address(eigenLayerProxyAdmin),
-                        abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, dummyToken, eigenLayerPauserReg)
+                        abi.encodeWithSelector(StrategyBase.initialize.selector, dummyToken, eigenLayerPauserReg)
                     )
                 )
         );
 
-        whiteLister = new Whitelister(investmentManager, delegation, dummyToken, dummyStrat, blsRegistry);
+        whiteLister = new Whitelister(strategyManager, delegation, dummyToken, dummyStrat, blsRegistry);
         whiteLister.transferOwnership(theMultiSig);
         AMOUNT = whiteLister.DEFAULT_AMOUNT();
 
@@ -96,7 +96,7 @@ contract WhitelisterTests is EigenLayerTestHelper {
 
 
         dummyServiceManager  = new ServiceManagerMock(slasher);
-        blsRegistryImplementation = new BLSRegistry(investmentManager, dummyServiceManager, 2, dummyCompendium);
+        blsRegistryImplementation = new BLSRegistry(strategyManager, dummyServiceManager, 2, dummyCompendium);
 
         uint256[] memory _quorumBips = new uint256[](2);
         // split 60% ETH quorum, 40% EIGEN quorum
@@ -120,16 +120,16 @@ contract WhitelisterTests is EigenLayerTestHelper {
         
         dummyReg = new MiddlewareRegistryMock(
              dummyServiceManager,
-             investmentManager
+             strategyManager
         );
 
         fuzzedAddressMapping[address(whiteLister)] = true;
 
         // whitelist the strategy for deposit
-        cheats.startPrank(investmentManager.owner());
-        IInvestmentStrategy[] memory _strategy = new IInvestmentStrategy[](1);
+        cheats.startPrank(strategyManager.owner());
+        IStrategy[] memory _strategy = new IStrategy[](1);
         _strategy[0] = dummyStrat;
-        investmentManager.addStrategiesToDepositWhitelist(_strategy);
+        strategyManager.addStrategiesToDepositWhitelist(_strategy);
         cheats.stopPrank();
     }
 
@@ -164,7 +164,7 @@ contract WhitelisterTests is EigenLayerTestHelper {
 
         cheats.startPrank(nonWhitelister);
         cheats.expectRevert(bytes("Ownable: caller is not the owner"));
-        Staker(staker).callAddress(address(investmentManager), data);
+        Staker(staker).callAddress(address(strategyManager), data);
     }
 
     function testNonWhitelistedOperatorRegistration(BN254.G1Point memory pk, string memory socket ) external {
@@ -206,13 +206,13 @@ contract WhitelisterTests is EigenLayerTestHelper {
         // scoped block to deal with stack-too-deep issues
         {
             //delegator-specific information
-            (IInvestmentStrategy[] memory delegatorStrategies, uint256[] memory delegatorShares) =
-                investmentManager.getDeposits(staker);
+            (IStrategy[] memory delegatorStrategies, uint256[] memory delegatorShares) =
+                strategyManager.getDeposits(staker);
             dataForTestWithdrawal.delegatorStrategies = delegatorStrategies;
             dataForTestWithdrawal.delegatorShares = delegatorShares;
 
-            IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce = 
-                IInvestmentManager.WithdrawerAndNonce({
+            IStrategyManager.WithdrawerAndNonce memory withdrawerAndNonce = 
+                IStrategyManager.WithdrawerAndNonce({
                     withdrawer: staker,
                     // harcoded nonce value
                     nonce: 0
@@ -259,7 +259,7 @@ contract WhitelisterTests is EigenLayerTestHelper {
 
     function _testQueueWithdrawal(
         address staker,
-        IInvestmentStrategy[] memory strategyArray,
+        IStrategy[] memory strategyArray,
         uint256[] memory shareAmounts,
         uint256[] memory strategyIndexes
     )
@@ -279,17 +279,17 @@ contract WhitelisterTests is EigenLayerTestHelper {
 
      function _testCompleteQueuedWithdrawal(
         address staker,
-        IInvestmentStrategy[] memory strategyArray,
+        IStrategy[] memory strategyArray,
         IERC20[] memory tokensArray,
         uint256[] memory shareAmounts,
         address delegatedTo,
-        IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce,
+        IStrategyManager.WithdrawerAndNonce memory withdrawerAndNonce,
         uint32 withdrawalStartBlock,
         uint256 middlewareTimesIndex
     )
         internal
     {
-        IInvestmentManager.QueuedWithdrawal memory queuedWithdrawal = IInvestmentManager.QueuedWithdrawal({
+        IStrategyManager.QueuedWithdrawal memory queuedWithdrawal = IStrategyManager.QueuedWithdrawal({
             strategies: strategyArray,
             shares: shareAmounts,
             depositor: staker,

@@ -2,8 +2,8 @@
 pragma solidity =0.8.12;
 
 import "../interfaces/ISlasher.sol";
-import "../interfaces/IEigenLayerDelegation.sol";
-import "../interfaces/IInvestmentManager.sol";
+import "../interfaces/IDelegationManager.sol";
+import "../interfaces/IStrategyManager.sol";
 import "../libraries/StructuredLinkedList.sol";
 import "../permissions/Pausable.sol";
 import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
@@ -27,16 +27,16 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
     uint8 internal constant PAUSED_FIRST_STAKE_UPDATE = 1;
     uint8 internal constant PAUSED_NEW_FREEZING = 2;
 
-    /// @notice The central InvestmentManager contract of EigenLayer
-    IInvestmentManager public immutable investmentManager;
-    /// @notice The EigenLayerDelegation contract of EigenLayer
-    IEigenLayerDelegation public immutable delegation;
+    /// @notice The central StrategyManager contract of EigenLayer
+    IStrategyManager public immutable strategyManager;
+    /// @notice The DelegationManager contract of EigenLayer
+    IDelegationManager public immutable delegation;
     // operator => whitelisted contract with slashing permissions => (the time before which the contract is allowed to slash the user, block it was last updated)
     mapping(address => mapping(address => MiddlewareDetails)) internal _whitelistedContractDetails;
     // staker => if their funds are 'frozen' and potentially subject to slashing or not
     mapping(address => bool) internal frozenStatus;
 
-    uint32 internal constant MAX_BONDED_UNTIL = type(uint32).max;
+    uint32 internal constant MAX_CAN_SLASH_UNTIL = type(uint32).max;
 
     /**
      * operator => a linked list of the addresses of the whitelisted middleware with permission to slash the operator, i.e. which  
@@ -62,8 +62,8 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
     /// @notice Emitted when `operator` begins to allow `contractAddress` to slash them.
     event OptedIntoSlashing(address indexed operator, address indexed contractAddress);
 
-    /// @notice Emitted when `contractAddress` signals that it will no longer be able to slash `operator` after the UTC timestamp `bondedUntil.
-    event SlashingAbilityRevoked(address indexed operator, address indexed contractAddress, uint32 bondedUntil);
+    /// @notice Emitted when `contractAddress` signals that it will no longer be able to slash `operator` after the UTC timestamp `contractCanSlashOperatorUntil`.
+    event SlashingAbilityRevoked(address indexed operator, address indexed contractAddress, uint32 contractCanSlashOperatorUntil);
 
     /**
      * @notice Emitted when `slashingContract` 'freezes' the `slashedOperator`.
@@ -74,25 +74,26 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
     /// @notice Emitted when `previouslySlashedAddress` is 'unfrozen', allowing them to again move deposited funds within EigenLayer.
     event FrozenStatusReset(address indexed previouslySlashedAddress);
 
-    constructor(IInvestmentManager _investmentManager, IEigenLayerDelegation _delegation) {
-        investmentManager = _investmentManager;
+    constructor(IStrategyManager _strategyManager, IDelegationManager _delegation) {
+        strategyManager = _strategyManager;
         delegation = _delegation;
         _disableInitializers();
     }
 
     /// @notice Ensures that the operator has opted into slashing by the caller, and that the caller has never revoked its slashing ability.
     modifier onlyRegisteredForService(address operator) {
-        require(_whitelistedContractDetails[operator][msg.sender].bondedUntil == MAX_BONDED_UNTIL,
+        require(_whitelistedContractDetails[operator][msg.sender].contractCanSlashOperatorUntil == MAX_CAN_SLASH_UNTIL,
             "Slasher.onlyRegisteredForService: Operator has not opted into slashing by caller");
         _;
     }
 
     // EXTERNAL FUNCTIONS
     function initialize(
+        address initialOwner,
         IPauserRegistry _pauserRegistry,
-        address initialOwner
+        uint256 initialPausedStatus
     ) external initializer {
-        _initializePauser(_pauserRegistry, UNPAUSE_ALL);
+        _initializePauser(_pauserRegistry, initialPausedStatus);
         _transferOwnership(initialOwner);
     }
 
@@ -209,8 +210,8 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
     // VIEW FUNCTIONS
 
     /// @notice Returns the UTC timestamp until which `serviceContract` is allowed to slash the `operator`.
-    function bondedUntil(address operator, address serviceContract) external view returns (uint32) {
-        return _whitelistedContractDetails[operator][serviceContract].bondedUntil;
+    function contractCanSlashOperatorUntil(address operator, address serviceContract) external view returns (uint32) {
+        return _whitelistedContractDetails[operator][serviceContract].contractCanSlashOperatorUntil;
     }
 
     /// @notice Returns the block at which the `serviceContract` last updated its view of the `operator`'s stake
@@ -229,7 +230,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
 
     /**
      * @notice Used to determine whether `staker` is actively 'frozen'. If a staker is frozen, then they are potentially subject to
-     * slashing of their funds, and cannot cannot deposit or withdraw from the investmentManager until the slashing process is completed
+     * slashing of their funds, and cannot cannot deposit or withdraw from the strategyManager until the slashing process is completed
      * and the staker's status is reset (to 'unfrozen').
      * @return Returns 'true' if `staker` themselves has their status set to frozen, OR if the staker is delegated
      * to an operator who has their status set to frozen. Otherwise returns 'false'.
@@ -247,7 +248,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
 
     /// @notice Returns true if `slashingContract` is currently allowed to slash `toBeSlashed`.
     function canSlash(address toBeSlashed, address slashingContract) public view returns (bool) {
-        if (block.timestamp < _whitelistedContractDetails[toBeSlashed][slashingContract].bondedUntil) {
+        if (block.timestamp < _whitelistedContractDetails[toBeSlashed][slashingContract].contractCanSlashOperatorUntil) {
             return true;
         } else {
             return false;
@@ -361,14 +362,14 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
 
     function _optIntoSlashing(address operator, address contractAddress) internal {
         //allow the contract to slash anytime before a time VERY far in the future
-        _whitelistedContractDetails[operator][contractAddress].bondedUntil = MAX_BONDED_UNTIL;
+        _whitelistedContractDetails[operator][contractAddress].contractCanSlashOperatorUntil = MAX_CAN_SLASH_UNTIL;
         emit OptedIntoSlashing(operator, contractAddress);
     }
 
     function _revokeSlashingAbility(address operator, address contractAddress, uint32 serveUntil) internal {
-        require(serveUntil != MAX_BONDED_UNTIL, "Slasher._revokeSlashingAbility: serveUntil time must be limited");
+        require(serveUntil != MAX_CAN_SLASH_UNTIL, "Slasher._revokeSlashingAbility: serveUntil time must be limited");
         // contractAddress can now only slash operator before `serveUntil`
-        _whitelistedContractDetails[operator][contractAddress].bondedUntil = serveUntil;
+        _whitelistedContractDetails[operator][contractAddress].contractCanSlashOperatorUntil = serveUntil;
         emit SlashingAbilityRevoked(operator, contractAddress, serveUntil);
     }
 

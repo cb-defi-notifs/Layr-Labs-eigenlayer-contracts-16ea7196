@@ -18,7 +18,7 @@ interface ISlasher {
     // struct used to store details relevant to a single middleware that an operator has opted-in to serving
     struct MiddlewareDetails {
         // the UTC timestamp before which the contract is allowed to slash the user
-        uint32 bondedUntil;
+        uint32 contractCanSlashOperatorUntil;
         // the block at which the middleware's view of the operator's stake was most recently updated
         uint32 latestUpdateBlock;
     }
@@ -76,7 +76,7 @@ interface ISlasher {
 
     /**
      * @notice Used to determine whether `staker` is actively 'frozen'. If a staker is frozen, then they are potentially subject to
-     * slashing of their funds, and cannot cannot deposit or withdraw from the investmentManager until the slashing process is completed
+     * slashing of their funds, and cannot cannot deposit or withdraw from the strategyManager until the slashing process is completed
      * and the staker's status is reset (to 'unfrozen').
      * @return Returns 'true' if `staker` themselves has their status set to frozen, OR if the staker is delegated
      * to an operator who has their status set to frozen. Otherwise returns 'false'.
@@ -87,7 +87,7 @@ interface ISlasher {
     function canSlash(address toBeSlashed, address slashingContract) external view returns (bool);
 
     /// @notice Returns the UTC timestamp until which `serviceContract` is allowed to slash the `operator`.
-    function bondedUntil(address operator, address serviceContract) external view returns (uint32);
+    function contractCanSlashOperatorUntil(address operator, address serviceContract) external view returns (uint32);
 
     /// @notice Returns the block at which the `serviceContract` last updated its view of the `operator`'s stake
     function latestUpdateBlock(address operator, address serviceContract) external view returns (uint32);

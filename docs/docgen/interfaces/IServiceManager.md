@@ -42,13 +42,13 @@ function recordLastStakeUpdateAndRevokeSlashingAbility(address operator, uint32 
 
 Permissioned function to have the ServiceManager forward a call to the slasher, recording a final stake update (on operator deregistration)
 
-### collateralToken
+### paymentChallengeToken
 
 ```solidity
-function collateralToken() external view returns (contract IERC20)
+function paymentChallengeToken() external view returns (contract IERC20)
 ```
 
-Collateral token used for placing collateral on challenges & payment commits
+Token used for placing a gurantee on challenges & payment commits
 
 ### latestTime
 

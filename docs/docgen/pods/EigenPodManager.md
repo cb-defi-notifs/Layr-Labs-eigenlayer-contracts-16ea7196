@@ -8,11 +8,24 @@ The main functionalities are:
 - keeping track of the balances of all validators of EigenPods, and their stake in EigenLayer
 - withdrawing eth when withdrawals are initiated
 
+### beaconProxyBytecode
+
+```solidity
+bytes beaconProxyBytecode
+```
+
+Stored code of type(BeaconProxy).creationCode
+
+_Maintained as a constant to solve an edge case - changes to OpenZeppelin's BeaconProxy code should not cause
+addresses of EigenPods that are pre-computed with Create2 to change, even upon upgrading this contract, changing compiler version, etc._
+
 ### ethPOS
 
 ```solidity
 contract IETHPOSDeposit ethPOS
 ```
+
+The ETH2 Deposit Contract
 
 ### eigenPodBeacon
 
@@ -22,13 +35,13 @@ contract IBeacon eigenPodBeacon
 
 Beacon proxy to which the EigenPods point
 
-### investmentManager
+### strategyManager
 
 ```solidity
-contract IInvestmentManager investmentManager
+contract IStrategyManager strategyManager
 ```
 
-EigenLayer's InvestmentManager contract
+EigenLayer's StrategyManager contract
 
 ### slasher
 
@@ -76,7 +89,7 @@ Emitted to notify the deployment of an EigenPod
 event BeaconChainETHDeposited(address podOwner, uint256 amount)
 ```
 
-Emitted to notify a deposit of beacon chain ETH recorded in the investment manager
+Emitted to notify a deposit of beacon chain ETH recorded in the strategy manager
 
 ### onlyEigenPod
 
@@ -84,22 +97,22 @@ Emitted to notify a deposit of beacon chain ETH recorded in the investment manag
 modifier onlyEigenPod(address podOwner)
 ```
 
-### onlyInvestmentManager
+### onlyStrategyManager
 
 ```solidity
-modifier onlyInvestmentManager()
+modifier onlyStrategyManager()
 ```
 
 ### constructor
 
 ```solidity
-constructor(contract IETHPOSDeposit _ethPOS, contract IBeacon _eigenPodBeacon, contract IInvestmentManager _investmentManager, contract ISlasher _slasher) public
+constructor(contract IETHPOSDeposit _ethPOS, contract IBeacon _eigenPodBeacon, contract IStrategyManager _strategyManager, contract ISlasher _slasher) public
 ```
 
 ### initialize
 
 ```solidity
-function initialize(contract IBeaconChainOracle _beaconChainOracle, address initialOwner, contract IPauserRegistry _pauserRegistry, uint256 _initPausedStatus) public
+function initialize(contract IBeaconChainOracle _beaconChainOracle, address initialOwner, contract IPauserRegistry _pauserRegistry, uint256 _initPausedStatus) external
 ```
 
 ### createPod
@@ -163,7 +176,7 @@ _Callable only by the podOwner's EigenPod contract._
 | ---- | ---- | ----------- |
 | podOwner | address | The owner of the pod whose balance must be removed. |
 | beaconChainETHStrategyIndex | uint256 |  |
-| amount | uint256 | The amount of beacon chain ETH to decrement from the podOwner's shares in the investmentManager. |
+| amount | uint256 | The amount of beacon chain ETH to decrement from the podOwner's shares in the strategyManager. |
 
 ### withdrawRestakedBeaconChainETH
 
@@ -173,7 +186,7 @@ function withdrawRestakedBeaconChainETH(address podOwner, address recipient, uin
 
 Withdraws ETH from an EigenPod. The ETH must have first been withdrawn from the beacon chain.
 
-_Callable only by the InvestmentManager contract._
+_Callable only by the StrategyManager contract._
 
 #### Parameters
 
@@ -230,8 +243,18 @@ Returns 'true' if the `podOwner` has created an EigenPod, and 'false' otherwise.
 ### getBeaconChainStateRoot
 
 ```solidity
-function getBeaconChainStateRoot(uint64 slot) external view returns (bytes32)
+function getBeaconChainStateRoot(uint64 blockNumber) external view returns (bytes32)
 ```
 
-Returns the Beacon Chain state root at `slot`. Reverts if the Beacon Chain state root at `slot` has not yet been finalized.
+Returns the Beacon Chain state root at `blockNumber`. Reverts if the Beacon Chain state root at `blockNumber` has not yet been finalized.
+
+### __gap
+
+```solidity
+uint256[48] __gap
+```
+
+_This empty reserved space is put in place to allow future versions to add new
+variables without shifting down storage in the inheritance chain.
+See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps_
 

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity =0.8.12;
 
-import "../interfaces/IEigenLayerDelegation.sol";
-import "../interfaces/IInvestmentStrategy.sol";
-import "../interfaces/IInvestmentManager.sol";
+import "../interfaces/IDelegationManager.sol";
+import "../interfaces/IStrategy.sol";
+import "../interfaces/IStrategyManager.sol";
 import "../interfaces/IVoteWeigher.sol";
 
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
@@ -15,11 +15,11 @@ import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
  */
 abstract contract VoteWeigherBaseStorage is Initializable, IVoteWeigher {
     /**
-     * @notice In weighing a particular investment strategy, the amount of underlying asset for that strategy is
+     * @notice In weighing a particular strategy, the amount of underlying asset for that strategy is
      * multiplied by its multiplier, then divided by WEIGHTING_DIVISOR
      */
     struct StrategyAndWeightingMultiplier {
-        IInvestmentStrategy strategy;
+        IStrategy strategy;
         uint96 multiplier;
     }
 
@@ -31,10 +31,10 @@ abstract contract VoteWeigherBaseStorage is Initializable, IVoteWeigher {
     uint256 internal constant MAX_BIPS = 10000;
 
     /// @notice The address of the Delegation contract for EigenLayer.
-    IEigenLayerDelegation public immutable delegation;
+    IDelegationManager public immutable delegation;
     
-    /// @notice The address of the InvestmentManager contract for EigenLayer.
-    IInvestmentManager public immutable investmentManager;
+    /// @notice The address of the StrategyManager contract for EigenLayer.
+    IStrategyManager public immutable strategyManager;
 
     /// @notice The address of the Slasher contract for EigenLayer.
     ISlasher public immutable slasher;
@@ -58,15 +58,15 @@ abstract contract VoteWeigherBaseStorage is Initializable, IVoteWeigher {
     mapping(uint256 => uint256) public quorumBips;
 
     constructor(
-        IInvestmentManager _investmentManager,
+        IStrategyManager _strategyManager,
         IServiceManager _serviceManager,
         uint8 _NUMBER_OF_QUORUMS
     ) {
         // sanity check that the VoteWeigher is being initialized with at least 1 quorum
         require(_NUMBER_OF_QUORUMS != 0, "VoteWeigherBaseStorage.constructor: _NUMBER_OF_QUORUMS == 0");
-        investmentManager = _investmentManager;
-        delegation = _investmentManager.delegation();
-        slasher = _investmentManager.slasher();
+        strategyManager = _strategyManager;
+        delegation = _strategyManager.delegation();
+        slasher = _strategyManager.slasher();
         serviceManager = _serviceManager;
         NUMBER_OF_QUORUMS = _NUMBER_OF_QUORUMS;
         // disable initializers so that the implementation contract cannot be initialized

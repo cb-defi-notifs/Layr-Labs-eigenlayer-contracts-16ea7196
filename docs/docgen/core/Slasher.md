@@ -32,21 +32,21 @@ uint8 PAUSED_FIRST_STAKE_UPDATE
 uint8 PAUSED_NEW_FREEZING
 ```
 
-### investmentManager
+### strategyManager
 
 ```solidity
-contract IInvestmentManager investmentManager
+contract IStrategyManager strategyManager
 ```
 
-The central InvestmentManager contract of EigenLayer
+The central StrategyManager contract of EigenLayer
 
 ### delegation
 
 ```solidity
-contract IEigenLayerDelegation delegation
+contract IDelegationManager delegation
 ```
 
-The EigenLayerDelegation contract of EigenLayer
+The DelegationManager contract of EigenLayer
 
 ### _whitelistedContractDetails
 
@@ -60,33 +60,33 @@ mapping(address => mapping(address => struct ISlasher.MiddlewareDetails)) _white
 mapping(address => bool) frozenStatus
 ```
 
-### MAX_BONDED_UNTIL
+### MAX_CAN_SLASH_UNTIL
 
 ```solidity
-uint32 MAX_BONDED_UNTIL
+uint32 MAX_CAN_SLASH_UNTIL
 ```
 
-### operatorToWhitelistedContractsByUpdate
+### _operatorToWhitelistedContractsByUpdate
 
 ```solidity
-mapping(address => struct StructuredLinkedList.List) operatorToWhitelistedContractsByUpdate
+mapping(address => struct StructuredLinkedList.List) _operatorToWhitelistedContractsByUpdate
 ```
 
 operator => a linked list of the addresses of the whitelisted middleware with permission to slash the operator, i.e. which  
 the operator is serving. Sorted by the block at which they were last updated (content of updates below) in ascending order.
 This means the 'HEAD' (i.e. start) of the linked list will have the stalest 'updateBlock' value.
 
-### operatorToMiddlewareTimes
+### _operatorToMiddlewareTimes
 
 ```solidity
-mapping(address => struct ISlasher.MiddlewareTimes[]) operatorToMiddlewareTimes
+mapping(address => struct ISlasher.MiddlewareTimes[]) _operatorToMiddlewareTimes
 ```
 
 operator => 
  [
      (
          the least recent update block of all of the middlewares it's serving/served, 
-         latest time the the stake bonded at that update needed to serve until
+         latest time that the stake bonded at that update needed to serve until
      )
  ]
 
@@ -109,10 +109,10 @@ Emitted when `operator` begins to allow `contractAddress` to slash them.
 ### SlashingAbilityRevoked
 
 ```solidity
-event SlashingAbilityRevoked(address operator, address contractAddress, uint32 bondedUntil)
+event SlashingAbilityRevoked(address operator, address contractAddress, uint32 contractCanSlashOperatorUntil)
 ```
 
-Emitted when `contractAddress` signals that it will no longer be able to slash `operator` after the UTC timestamp `bondedUntil.
+Emitted when `contractAddress` signals that it will no longer be able to slash `operator` after the UTC timestamp `contractCanSlashOperatorUntil`.
 
 ### OperatorFrozen
 
@@ -135,21 +135,21 @@ Emitted when `previouslySlashedAddress` is 'unfrozen', allowing them to again mo
 ### constructor
 
 ```solidity
-constructor(contract IInvestmentManager _investmentManager, contract IEigenLayerDelegation _delegation) public
+constructor(contract IStrategyManager _strategyManager, contract IDelegationManager _delegation) public
 ```
 
-### onlyCanSlash
+### onlyRegisteredForService
 
 ```solidity
-modifier onlyCanSlash(address operator)
+modifier onlyRegisteredForService(address operator)
 ```
 
-Ensures that the caller is allowed to slash the operator.
+Ensures that the operator has opted into slashing by the caller, and that the caller has never revoked its slashing ability.
 
 ### initialize
 
 ```solidity
-function initialize(contract IPauserRegistry _pauserRegistry, address initialOwner) external
+function initialize(address initialOwner, contract IPauserRegistry _pauserRegistry, uint256 initialPausedStatus) external
 ```
 
 ### optIntoSlashing
@@ -247,10 +247,10 @@ slash `operator` once `serveUntil` is reached_
 | operator | address | the operator whose stake update is being recorded |
 | serveUntil | uint32 | the timestamp until which the operator's stake at the current block is slashable |
 
-### bondedUntil
+### contractCanSlashOperatorUntil
 
 ```solidity
-function bondedUntil(address operator, address serviceContract) external view returns (uint32)
+function contractCanSlashOperatorUntil(address operator, address serviceContract) external view returns (uint32)
 ```
 
 Returns the UTC timestamp until which `serviceContract` is allowed to slash the `operator`.
@@ -276,7 +276,7 @@ function isFrozen(address staker) external view returns (bool)
 ```
 
 Used to determine whether `staker` is actively 'frozen'. If a staker is frozen, then they are potentially subject to
-slashing of their funds, and cannot cannot deposit or withdraw from the investmentManager until the slashing process is completed
+slashing of their funds, and cannot cannot deposit or withdraw from the strategyManager until the slashing process is completed
 and the staker's status is reset (to 'unfrozen').
 
 #### Return Values
@@ -300,7 +300,7 @@ function canWithdraw(address operator, uint32 withdrawalStartBlock, uint256 midd
 ```
 
 Returns 'true' if `operator` can currently complete a withdrawal started at the `withdrawalStartBlock`, with `middlewareTimesIndex` used
-to specify the index of a `MiddlewareTimes` struct in the operator's list (i.e. an index in `operatorToMiddlewareTimes[operator]`). The specified
+to specify the index of a `MiddlewareTimes` struct in the operator's list (i.e. an index in `_operatorToMiddlewareTimes[operator]`). The specified
 struct is consulted as proof of the `operator`'s ability (or lack thereof) to complete the withdrawal.
 This function will return 'false' if the operator cannot currently complete a withdrawal started at the `withdrawalStartBlock`, *or* in the event
 that an incorrect `middlewareTimesIndex` is supplied, even if one or more correct inputs exist.
@@ -313,7 +313,23 @@ _The correct `middlewareTimesIndex` input should be computable off-chain._
 | ---- | ---- | ----------- |
 | operator | address | Either the operator who queued the withdrawal themselves, or if the withdrawing party is a staker who delegated to an operator, this address is the operator *who the staker was delegated to* at the time of the `withdrawalStartBlock`. |
 | withdrawalStartBlock | uint32 | The block number at which the withdrawal was initiated. |
-| middlewareTimesIndex | uint256 | Indicates an index in `operatorToMiddlewareTimes[operator]` to consult as proof of the `operator`'s ability to withdraw |
+| middlewareTimesIndex | uint256 | Indicates an index in `_operatorToMiddlewareTimes[operator]` to consult as proof of the `operator`'s ability to withdraw |
+
+### operatorToMiddlewareTimes
+
+```solidity
+function operatorToMiddlewareTimes(address operator, uint256 arrayIndex) external view returns (struct ISlasher.MiddlewareTimes)
+```
+
+Getter function for fetching `_operatorToMiddlewareTimes[operator][arrayIndex]`.
+
+### middlewareTimesLength
+
+```solidity
+function middlewareTimesLength(address operator) external view returns (uint256)
+```
+
+Getter function for fetching `_operatorToMiddlewareTimes[operator].length`.
 
 ### getMiddlewareTimesIndexBlock
 
@@ -321,7 +337,7 @@ _The correct `middlewareTimesIndex` input should be computable off-chain._
 function getMiddlewareTimesIndexBlock(address operator, uint32 index) external view returns (uint32)
 ```
 
-Getter function for fetching `operatorToMiddlewareTimes[operator][index].stalestUpdateBlock`.
+Getter function for fetching `_operatorToMiddlewareTimes[operator][index].stalestUpdateBlock`.
 
 ### getMiddlewareTimesIndexServeUntil
 
@@ -329,7 +345,23 @@ Getter function for fetching `operatorToMiddlewareTimes[operator][index].stalest
 function getMiddlewareTimesIndexServeUntil(address operator, uint32 index) external view returns (uint32)
 ```
 
-Getter function for fetching `operatorToMiddlewareTimes[operator][index].latestServeUntil`.
+Getter function for fetching `_operatorToMiddlewareTimes[operator][index].latestServeUntil`.
+
+### operatorWhitelistedContractsLinkedListSize
+
+```solidity
+function operatorWhitelistedContractsLinkedListSize(address operator) external view returns (uint256)
+```
+
+Getter function for fetching `_operatorToWhitelistedContractsByUpdate[operator].size`.
+
+### operatorWhitelistedContractsLinkedListEntry
+
+```solidity
+function operatorWhitelistedContractsLinkedListEntry(address operator, address node) external view returns (bool, uint256, uint256)
+```
+
+Getter function for fetching a single node in the operator's linked list (`_operatorToWhitelistedContractsByUpdate[operator]`).
 
 ### getCorrectValueForInsertAfter
 
@@ -350,7 +382,7 @@ OR
 ### getPreviousWhitelistedContractByUpdate
 
 ```solidity
-function getPreviousWhitelistedContractByUpdate(address operator, uint256 node) public view returns (bool, uint256)
+function getPreviousWhitelistedContractByUpdate(address operator, uint256 node) external view returns (bool, uint256)
 ```
 
 gets the node previous to the given node in the operators middleware update linked list
@@ -419,4 +451,14 @@ function _addressToUint(address addr) internal pure returns (uint256)
 ```solidity
 function _uintToAddress(uint256 x) internal pure returns (address)
 ```
+
+### __gap
+
+```solidity
+uint256[46] __gap
+```
+
+_This empty reserved space is put in place to allow future versions to add new
+variables without shifting down storage in the inheritance chain.
+See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps_
 

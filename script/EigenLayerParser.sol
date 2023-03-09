@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity =0.8.12;
 
-import "../src/contracts/interfaces/IEigenLayerDelegation.sol";
-import "../src/contracts/core/EigenLayerDelegation.sol";
+import "../src/contracts/interfaces/IDelegationManager.sol";
+import "../src/contracts/core/DelegationManager.sol";
 
-import "../src/contracts/core/InvestmentManager.sol";
-import "../src/contracts/strategies/InvestmentStrategyBase.sol";
+import "../src/contracts/core/StrategyManager.sol";
+import "../src/contracts/strategies/StrategyBase.sol";
 import "../src/contracts/core/Slasher.sol";
 
 import "forge-std/Test.sol";
@@ -21,12 +21,12 @@ contract EigenLayerParser is Script, DSTest {
     uint256 numCha;
 
     uint256 public constant eigenTotalSupply = 1000e18;
-    EigenLayerDelegation public delegation;
-    InvestmentManager public investmentManager;
+    DelegationManager public delegation;
+    StrategyManager public strategyManager;
     IERC20 public weth;
-    InvestmentStrategyBase public wethStrat;
+    StrategyBase public wethStrat;
     IERC20 public eigen;
-    InvestmentStrategyBase public eigenStrat;
+    StrategyBase public eigenStrat;
 
     string internal configJson;
     string internal addressJson;
@@ -38,11 +38,11 @@ contract EigenLayerParser is Script, DSTest {
         numStaker = stdJson.readUint(configJson, ".numStaker");
 
         addressJson = vm.readFile("data/addresses.json");
-        delegation = EigenLayerDelegation(stdJson.readAddress(addressJson, ".delegation"));
-        investmentManager = InvestmentManager(stdJson.readAddress(addressJson, ".investmentManager"));
+        delegation = DelegationManager(stdJson.readAddress(addressJson, ".delegation"));
+        strategyManager = StrategyManager(stdJson.readAddress(addressJson, ".strategyManager"));
         weth = IERC20(stdJson.readAddress(addressJson, ".weth"));
-        wethStrat = InvestmentStrategyBase(stdJson.readAddress(addressJson, ".wethStrat"));
+        wethStrat = StrategyBase(stdJson.readAddress(addressJson, ".wethStrat"));
         eigen = IERC20(stdJson.readAddress(addressJson, ".eigen"));
-        eigenStrat = InvestmentStrategyBase(stdJson.readAddress(addressJson, ".eigenStrat"));
+        eigenStrat = StrategyBase(stdJson.readAddress(addressJson, ".eigenStrat"));
     }
 }

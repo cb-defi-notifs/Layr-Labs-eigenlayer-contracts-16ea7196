@@ -73,7 +73,7 @@ function withdrawRestakedBeaconChainETH(address podOwner, address recipient, uin
 
 Withdraws ETH from an EigenPod. The ETH must have first been withdrawn from the beacon chain.
 
-_Callable only by the InvestmentManager contract._
+_Callable only by the StrategyManager contract._
 
 #### Parameters
 
@@ -118,18 +118,18 @@ Oracle contract that provides updates to the beacon chain's state
 ### getBeaconChainStateRoot
 
 ```solidity
-function getBeaconChainStateRoot(uint64 slot) external view returns (bytes32)
+function getBeaconChainStateRoot(uint64 blockNumber) external view returns (bytes32)
 ```
 
-Returns the Beacon Chain state root at `slot`. Reverts if the Beacon Chain state root at `slot` has not yet been finalized.
+Returns the Beacon Chain state root at `blockNumber`. Reverts if the Beacon Chain state root at `blockNumber` has not yet been finalized.
 
-### investmentManager
+### strategyManager
 
 ```solidity
-function investmentManager() external view returns (contract IInvestmentManager)
+function strategyManager() external view returns (contract IStrategyManager)
 ```
 
-EigenLayer's InvestmentManager contract
+EigenLayer's StrategyManager contract
 
 ### slasher
 

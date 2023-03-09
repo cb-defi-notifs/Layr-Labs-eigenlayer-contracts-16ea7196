@@ -84,55 +84,60 @@ interface IEigenPod {
 
     /**
      * @notice This function verifies that the withdrawal credentials of the podOwner are pointed to
-     * this contract. It verifies the provided proof of the ETH validator against the beacon chain state
+     * this contract. It also verifies the current (not effective) balance  of the validator.  It verifies the provided proof of the ETH validator against the beacon chain state
      * root, marks the validator as 'active' in EigenLayer, and credits the restaked ETH in Eigenlayer.
-     * @param slot The Beacon Chain slot whose state root the `proof` will be proven against.
-     * @param proof is the bytes that prove the ETH validator's metadata against a beacon chain state root
+     * @param oracleBlockNumber is the Beacon Chain blockNumber whose state root the `proof` will be proven against.
+     * @param validatorIndex is the index of the validator being proven, refer to consensus specs 
+     * @param proofs is the bytes that prove the ETH validator's balance and withdrawal credentials against a beacon chain state root
      * @param validatorFields are the fields of the "Validator Container", refer to consensus specs 
      * for details: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
      */
-    function verifyCorrectWithdrawalCredentials(
-        uint64 slot,
+    function verifyWithdrawalCredentialsAndBalance(
+        uint64 oracleBlockNumber,
         uint40 validatorIndex,
-        bytes calldata proof, 
+        BeaconChainProofs.ValidatorFieldsAndBalanceProofs memory proofs,
         bytes32[] calldata validatorFields
     ) external;
     
     /**
      * @notice This function records an overcommitment of stake to EigenLayer on behalf of a certain ETH validator.
      *         If successful, the overcommitted balance is penalized (available for withdrawal whenever the pod's balance allows).
-     *         The ETH validator's shares in the enshrined beaconChainETH strategy are also removed from the InvestmentManager and undelegated.
-     * @param slot The Beacon Chain slot whose state root the `proof` will be proven against.
-     * @param proof is the bytes that prove the ETH validator's metadata against a beacon state root
-     * @param validatorFields are the fields of the "Validator Container", refer to consensus specs 
+     *         The ETH validator's shares in the enshrined beaconChainETH strategy are also removed from the StrategyManager and undelegated.
+     * @param oracleBlockNumber The oracleBlockNumber whose state root the `proof` will be proven against.
+     *        Must be within `VERIFY_OVERCOMMITTED_WINDOW_BLOCKS` of the current block.
+     * @param validatorIndex is the index of the validator being proven, refer to consensus specs 
+     * @param proofs is the proof of the validator's balance and validatorFields in the balance tree and the balanceRoot to prove for
      * @param beaconChainETHStrategyIndex is the index of the beaconChainETHStrategy for the pod owner for the callback to 
-     *                                    the InvestmentManger in case it must be removed from the list of the podOwners strategies
+     *                                    the StrategyManager in case it must be removed from the list of the podOwners strategies
+     * @param validatorFields are the fields of the "Validator Container", refer to consensus specs
      * @dev For more details on the Beacon Chain spec, see: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
      */
     function verifyOvercommittedStake(
-        uint64 slot,
         uint40 validatorIndex,
-        bytes calldata proof, 
+        BeaconChainProofs.ValidatorFieldsAndBalanceProofs calldata proofs,
         bytes32[] calldata validatorFields,
-        uint256 beaconChainETHStrategyIndex
+        uint256 beaconChainETHStrategyIndex,
+        uint64 oracleBlockNumber
     ) external;
 
     /**
      * @notice This function records a full withdrawal on behalf of one of the Ethereum validators for this EigenPod
-     * @param proofs is the information needed to check the veracity of the block number and withdrawal being proven
+     * @param withdrawalProofs is the information needed to check the veracity of the block number and withdrawal being proven
+     * @param validatorFieldsProof is the proof of the validator's fields in the validator tree
      * @param withdrawalFields are the fields of the withdrawal being proven
      * @param validatorFields are the fields of the validator being proven
      * @param beaconChainETHStrategyIndex is the index of the beaconChainETHStrategy for the pod owner for the callback to 
-     *        the EigenPodManager to the InvestmentManager in case it must be removed from the podOwner's list of strategies
+     *        the EigenPodManager to the StrategyManager in case it must be removed from the podOwner's list of strategies
      */
     function verifyAndProcessWithdrawal(
-        BeaconChainProofs.WithdrawalProofs calldata proofs, 
+        BeaconChainProofs.WithdrawalProofs calldata withdrawalProofs, 
+        bytes calldata validatorFieldsProof,
         bytes32[] calldata validatorFields,
         bytes32[] calldata withdrawalFields,
         uint256 beaconChainETHStrategyIndex,
         uint64 oracleBlockNumber
     ) external;
 
-     /// @notice Called by the pod owner to withdraw the balance of the pod
-    function withdraw() external;
+    /// @notice Called by the pod owner to withdraw the balance of the pod when `hasRestaked` is set to false
+    function withdrawBeforeRestaking() external;
 }

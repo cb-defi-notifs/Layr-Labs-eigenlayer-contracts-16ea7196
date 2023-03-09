@@ -43,7 +43,7 @@ struct Payment {
   uint32 confirmAt;
   uint96 amount;
   enum IPaymentManager.PaymentStatus status;
-  uint256 collateral;
+  uint256 challengeAmount;
 }
 ```
 
@@ -75,7 +75,7 @@ struct TotalStakes {
 ### depositFutureFees
 
 ```solidity
-function depositFutureFees(address onBehalfOf, uint256 amount) external
+function depositFutureFees(address depositFor, uint256 amount) external
 ```
 
 deposit one-time fees by the `msg.sender` with this contract to pay for future tasks of this middleware
@@ -84,7 +84,7 @@ deposit one-time fees by the `msg.sender` with this contract to pay for future t
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| onBehalfOf | address | could be the `msg.sender` themselves, or a different address for whom `msg.sender` is depositing these future fees |
+| depositFor | address | could be the `msg.sender` themselves, or a different address for whom `msg.sender` is depositing these future fees |
 | amount | uint256 | is amount of futures fees being deposited |
 
 ### setAllowance
@@ -95,27 +95,27 @@ function setAllowance(address allowed, uint256 amount) external
 
 Allows the `allowed` address to spend up to `amount` of the `msg.sender`'s funds that have been deposited in this contract
 
-### payFee
+### takeFee
 
 ```solidity
-function payFee(address initiator, address payer, uint256 feeAmount) external
+function takeFee(address initiator, address payer, uint256 feeAmount) external
 ```
 
 Used for deducting the fees from the payer to the middleware
 
-### setPaymentFraudproofCollateral
+### setPaymentChallengeAmount
 
 ```solidity
-function setPaymentFraudproofCollateral(uint256 _paymentFraudproofCollateral) external
+function setPaymentChallengeAmount(uint256 _paymentChallengeAmount) external
 ```
 
-Modifies the `paymentFraudproofCollateral` amount.
+Modifies the `paymentChallengeAmount` amount.
 
 #### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| _paymentFraudproofCollateral | uint256 | The new value for `paymentFraudproofCollateral` to take. |
+| _paymentChallengeAmount | uint256 | The new value for `paymentChallengeAmount` to take. |
 
 ### commitPayment
 
@@ -186,13 +186,13 @@ function paymentFraudproofInterval() external view returns (uint256)
 
 Challenge window for submitting fraudproof in the case of an incorrect payment claim by a registered operator.
 
-### paymentFraudproofCollateral
+### paymentChallengeAmount
 
 ```solidity
-function paymentFraudproofCollateral() external view returns (uint256)
+function paymentChallengeAmount() external view returns (uint256)
 ```
 
-Specifies the payment that has to be made as a collateral for fraudproof during payment challenges.
+Specifies the payment that has to be made as a guarantee for fraudproof during payment challenges.
 
 ### paymentToken
 
@@ -202,13 +202,13 @@ function paymentToken() external view returns (contract IERC20)
 
 the ERC20 token that will be used by the disperser to pay the service fees to middleware nodes.
 
-### collateralToken
+### paymentChallengeToken
 
 ```solidity
-function collateralToken() external view returns (contract IERC20)
+function paymentChallengeToken() external view returns (contract IERC20)
 ```
 
-Collateral token used for placing collateral on challenges & payment commits
+Token used for placing a guarantee on challenges & payment commits
 
 ### getChallengeStatus
 
@@ -258,11 +258,11 @@ function getDiff(address operator) external view returns (uint48)
 
 Returns the task number difference for the `operator`'s payment claim.
 
-### getPaymentCollateral
+### getPaymentChallengeAmount
 
 ```solidity
-function getPaymentCollateral(address) external view returns (uint256)
+function getPaymentChallengeAmount(address) external view returns (uint256)
 ```
 
-Returns the active collateral of the `operator` placed on their payment claim.
+Returns the active guarantee amount of the `operator` placed on their payment claim.
 

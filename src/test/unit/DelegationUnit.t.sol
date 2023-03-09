@@ -3,7 +3,7 @@ pragma solidity ^0.8.9;
 
 import "forge-std/Test.sol";
 
-import "../mocks/InvestmentManagerMock.sol";
+import "../mocks/StrategyManagerMock.sol";
 
 import "../mocks/SlasherMock.sol";
 import "../EigenLayerTestHelper.t.sol";
@@ -13,13 +13,13 @@ import "../Delegation.t.sol";
 
 contract DelegationUnitTests is EigenLayerTestHelper {
 
-    InvestmentManagerMock investmentManagerMock;
+    StrategyManagerMock strategyManagerMock;
     SlasherMock slasherMock;
-    EigenLayerDelegation delegationMock;
+    DelegationManager delegationContract;
     DelegationTermsMock delegationTermsMock;
-    EigenLayerDelegation delegationMockImplementation;
-    InvestmentStrategyBase investmentStrategyImplementation;
-    InvestmentStrategyBase investmentStrategyMock;
+    DelegationManager delegationContractImplementation;
+    StrategyBase strategyImplementation;
+    StrategyBase strategyMock;
 
 
     uint256 GWEI_TO_WEI = 1e9;
@@ -33,23 +33,23 @@ contract DelegationUnitTests is EigenLayerTestHelper {
 
         slasherMock = new SlasherMock();
         delegationTermsMock = new DelegationTermsMock();
-        delegationMock = EigenLayerDelegation(address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayerProxyAdmin), "")));
-        investmentManagerMock = new InvestmentManagerMock();
+        delegationContract = DelegationManager(address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayerProxyAdmin), "")));
+        strategyManagerMock = new StrategyManagerMock();
 
-        delegationMockImplementation = new EigenLayerDelegation(investmentManagerMock, slasherMock);
+        delegationContractImplementation = new DelegationManager(strategyManagerMock, slasherMock);
 
-        eigenLayerProxyAdmin.upgrade(TransparentUpgradeableProxy(payable(address(delegationMock))), address(delegationMockImplementation));
+        eigenLayerProxyAdmin.upgrade(TransparentUpgradeableProxy(payable(address(delegationContract))), address(delegationContractImplementation));
 
-        delegationMock.initialize(eigenLayerPauserReg, address(this));
+        delegationContract.initialize(address(this), eigenLayerPauserReg, 0);
 
-        investmentStrategyImplementation = new InvestmentStrategyBase(investmentManager);
+        strategyImplementation = new StrategyBase(strategyManager);
 
-        investmentStrategyMock = InvestmentStrategyBase(
+        strategyMock = StrategyBase(
             address(
                 new TransparentUpgradeableProxy(
-                    address(investmentStrategyImplementation),
+                    address(strategyImplementation),
                     address(eigenLayerProxyAdmin),
-                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, weth, eigenLayerPauserReg)
+                    abi.encodeWithSelector(StrategyBase.initialize.selector, weth, eigenLayerPauserReg)
                 )
             )
         );
@@ -58,62 +58,62 @@ contract DelegationUnitTests is EigenLayerTestHelper {
 
     function testReinitializeDelegation() public{
         cheats.expectRevert(bytes("Initializable: contract is already initialized"));
-        delegationMock.initialize(eigenLayerPauserReg, address(this));
+        delegationContract.initialize(address(this), eigenLayerPauserReg, 0);
     }
 
     function testBadECDSASignatureExpiry(address staker, address operator, uint256 expiry, bytes memory signature) public{
         cheats.assume(expiry < block.timestamp);
-        cheats.expectRevert(bytes("EigenLayerDelegation.delegateToBySignature: delegation signature expired"));
-        delegationMock.delegateToBySignature(staker, operator, expiry, signature);
+        cheats.expectRevert(bytes("DelegationManager.delegateToBySignature: delegation signature expired"));
+        delegationContract.delegateToBySignature(staker, operator, expiry, signature);
     }
 
-    function testUndelegateFromNonInvestmentManagerAddress(address undelegator) public fuzzedAddress(undelegator){
-        cheats.assume(undelegator != address(investmentManagerMock));
-        cheats.expectRevert(bytes("onlyInvestmentManager"));
+    function testUndelegateFromNonStrategyManagerAddress(address undelegator) public fuzzedAddress(undelegator){
+        cheats.assume(undelegator != address(strategyManagerMock));
+        cheats.expectRevert(bytes("onlyStrategyManager"));
         cheats.startPrank(undelegator);
-        delegationMock.undelegate(address(this));
+        delegationContract.undelegate(address(this));
     }
 
     function testUndelegateByOperatorFromThemselves(address operator) public fuzzedAddress(operator){
         cheats.startPrank(operator);
-        delegationMock.registerAsOperator(IDelegationTerms(address(this)));
+        delegationContract.registerAsOperator(IDelegationTerms(address(this)));
         cheats.stopPrank();
-        cheats.expectRevert(bytes("EigenLayerDelegation.undelegate: operators cannot undelegate from themselves"));
+        cheats.expectRevert(bytes("DelegationManager.undelegate: operators cannot undelegate from themselves"));
         
-        cheats.startPrank(address(investmentManagerMock));
-        delegationMock.undelegate(operator);
+        cheats.startPrank(address(strategyManagerMock));
+        delegationContract.undelegate(operator);
         cheats.stopPrank();
     }
 
-    function testIncreaseDelegatedSharesFromNonInvestmentManagerAddress(address operator, uint256 shares) public fuzzedAddress(operator){
-        cheats.assume(operator != address(investmentManagerMock));
-        cheats.expectRevert(bytes("onlyInvestmentManager"));
+    function testIncreaseDelegatedSharesFromNonStrategyManagerAddress(address operator, uint256 shares) public fuzzedAddress(operator){
+        cheats.assume(operator != address(strategyManagerMock));
+        cheats.expectRevert(bytes("onlyStrategyManager"));
         cheats.startPrank(operator);
-        delegationMock.increaseDelegatedShares(operator, investmentStrategyMock, shares);
+        delegationContract.increaseDelegatedShares(operator, strategyMock, shares);
     }
 
-    function testDecreaseDelegatedSharesFromNonInvestmentManagerAddress(
+    function testDecreaseDelegatedSharesFromNonStrategyManagerAddress(
         address operator,  
-        IInvestmentStrategy[] memory strategies,  
+        IStrategy[] memory strategies,  
         uint256[] memory shareAmounts
     ) public fuzzedAddress(operator){
-        cheats.assume(operator != address(investmentManagerMock));
-        cheats.expectRevert(bytes("onlyInvestmentManager"));
+        cheats.assume(operator != address(strategyManagerMock));
+        cheats.expectRevert(bytes("onlyStrategyManager"));
         cheats.startPrank(operator);
-        delegationMock.decreaseDelegatedShares(operator, strategies, shareAmounts);
+        delegationContract.decreaseDelegatedShares(operator, strategies, shareAmounts);
     }
 
     function testDelegateWhenOperatorIsFrozen(address operator, address staker) public fuzzedAddress(operator) fuzzedAddress(staker){
         cheats.assume(operator != staker);
         
         cheats.startPrank(operator);
-        delegationMock.registerAsOperator(IDelegationTerms(address(this)));
+        delegationContract.registerAsOperator(IDelegationTerms(address(this)));
         cheats.stopPrank();
 
         slasherMock.setOperatorFrozenStatus(operator, true);
-        cheats.expectRevert(bytes("EigenLayerDelegation._delegate: cannot delegate to a frozen operator"));
+        cheats.expectRevert(bytes("DelegationManager._delegate: cannot delegate to a frozen operator"));
         cheats.startPrank(staker);
-        delegationMock.delegateTo(operator);
+        delegationContract.delegateTo(operator);
         cheats.stopPrank();
     }
 
@@ -127,36 +127,36 @@ contract DelegationUnitTests is EigenLayerTestHelper {
         cheats.assume(staker != operator2);
 
         cheats.startPrank(operator);
-        delegationMock.registerAsOperator(IDelegationTerms(address(11)));
+        delegationContract.registerAsOperator(IDelegationTerms(address(11)));
         cheats.stopPrank();
 
         cheats.startPrank(operator2);
-        delegationMock.registerAsOperator(IDelegationTerms(address(10)));
+        delegationContract.registerAsOperator(IDelegationTerms(address(10)));
         cheats.stopPrank();
 
         cheats.startPrank(staker);
-        delegationMock.delegateTo(operator);
+        delegationContract.delegateTo(operator);
         cheats.stopPrank();
 
         cheats.startPrank(staker);
-        cheats.expectRevert(bytes("EigenLayerDelegation._delegate: staker has existing delegation"));
-        delegationMock.delegateTo(operator2);
+        cheats.expectRevert(bytes("DelegationManager._delegate: staker has existing delegation"));
+        delegationContract.delegateTo(operator2);
         cheats.stopPrank();
     }
 
     function testDelegationToUnregisteredOperator(address operator) public{
-        cheats.expectRevert(bytes("EigenLayerDelegation._delegate: operator has not yet registered as a delegate"));
-        delegationMock.delegateTo(operator);
+        cheats.expectRevert(bytes("DelegationManager._delegate: operator has not yet registered as a delegate"));
+        delegationContract.delegateTo(operator);
     }
 
     function testDelegationWhenPausedNewDelegationIsSet(address operator, address staker) public fuzzedAddress(operator) fuzzedAddress(staker){
         cheats.startPrank(pauser);
-        delegationMock.pause(1);
+        delegationContract.pause(1);
         cheats.stopPrank();
 
         cheats.startPrank(staker);
         cheats.expectRevert(bytes("Pausable: index is paused"));
-        delegationMock.delegateTo(operator);
+        delegationContract.delegateTo(operator);
         cheats.stopPrank();
     }
 
@@ -165,13 +165,13 @@ contract DelegationUnitTests is EigenLayerTestHelper {
 
         delegationTermsMock.setShouldRevert(true);
         cheats.startPrank(operator);
-        delegationMock.registerAsOperator(delegationTermsMock);
+        delegationContract.registerAsOperator(delegationTermsMock);
         cheats.stopPrank();
 
         cheats.startPrank(staker);
         cheats.expectEmit(true, false, false, false);
         emit OnDelegationReceivedCallFailure(delegationTermsMock, 0x0000000000000000000000000000000000000000000000000000000000000000);
-        delegationMock.delegateTo(operator);
+        delegationContract.delegateTo(operator);
         cheats.stopPrank();
     }
 
@@ -183,20 +183,20 @@ contract DelegationUnitTests is EigenLayerTestHelper {
         delegationTermsMock.setShouldRevert(true);
 
         cheats.startPrank(operator);
-        delegationMock.registerAsOperator(delegationTermsMock);
+        delegationContract.registerAsOperator(delegationTermsMock);
         cheats.stopPrank();
 
         cheats.startPrank(staker);
-        delegationMock.delegateTo(operator);
+        delegationContract.delegateTo(operator);
         cheats.stopPrank();
 
-        (IInvestmentStrategy[] memory updatedStrategies, uint256[] memory updatedShares) =
-            investmentManager.getDeposits(staker);
+        (IStrategy[] memory updatedStrategies, uint256[] memory updatedShares) =
+            strategyManager.getDeposits(staker);
 
-        cheats.startPrank(address(investmentManagerMock));
+        cheats.startPrank(address(strategyManagerMock));
         cheats.expectEmit(true, false, false, false);
         emit OnDelegationWithdrawnCallFailure(delegationTermsMock, 0x0000000000000000000000000000000000000000000000000000000000000000);
-        delegationMock.decreaseDelegatedShares(staker, updatedStrategies, updatedShares);
+        delegationContract.decreaseDelegatedShares(staker, updatedStrategies, updatedShares);
         cheats.stopPrank();
     }
 
@@ -205,11 +205,11 @@ contract DelegationUnitTests is EigenLayerTestHelper {
         delegationTermsMock.setShouldReturnData(true);
 
         cheats.startPrank(operator);
-        delegationMock.registerAsOperator(delegationTermsMock);
+        delegationContract.registerAsOperator(delegationTermsMock);
         cheats.stopPrank();
 
         cheats.startPrank(staker);
-        delegationMock.delegateTo(operator);
+        delegationContract.delegateTo(operator);
         cheats.stopPrank();
     }
 
@@ -223,18 +223,18 @@ contract DelegationUnitTests is EigenLayerTestHelper {
 
 
         cheats.startPrank(operator);
-        delegationMock.registerAsOperator(delegationTermsMock);
+        delegationContract.registerAsOperator(delegationTermsMock);
         cheats.stopPrank();
 
         cheats.startPrank(staker);
-        delegationMock.delegateTo(operator);
+        delegationContract.delegateTo(operator);
         cheats.stopPrank();
 
-        (IInvestmentStrategy[] memory updatedStrategies, uint256[] memory updatedShares) =
-            investmentManager.getDeposits(staker);
+        (IStrategy[] memory updatedStrategies, uint256[] memory updatedShares) =
+            strategyManager.getDeposits(staker);
 
-        cheats.startPrank(address(investmentManagerMock));
-        delegationMock.decreaseDelegatedShares(staker, updatedStrategies, updatedShares);
+        cheats.startPrank(address(strategyManagerMock));
+        delegationContract.decreaseDelegatedShares(staker, updatedStrategies, updatedShares);
         cheats.stopPrank();
     }
 
@@ -242,11 +242,11 @@ contract DelegationUnitTests is EigenLayerTestHelper {
         cheats.assume(operator != staker);
 
         cheats.startPrank(operator);
-        delegationMock.registerAsOperator(delegationTermsMock);
+        delegationContract.registerAsOperator(delegationTermsMock);
         cheats.stopPrank();
 
         cheats.startPrank(staker);
-        delegationMock.delegateTo(operator);
+        delegationContract.delegateTo(operator);
         cheats.stopPrank();
     }
 
@@ -257,18 +257,18 @@ contract DelegationUnitTests is EigenLayerTestHelper {
         cheats.assume(operator != staker);
 
         cheats.startPrank(operator);
-        delegationMock.registerAsOperator(delegationTermsMock);
+        delegationContract.registerAsOperator(delegationTermsMock);
         cheats.stopPrank();
 
         cheats.startPrank(staker);
-        delegationMock.delegateTo(operator);
+        delegationContract.delegateTo(operator);
         cheats.stopPrank();
 
-        (IInvestmentStrategy[] memory updatedStrategies, uint256[] memory updatedShares) =
-            investmentManager.getDeposits(staker);
+        (IStrategy[] memory updatedStrategies, uint256[] memory updatedShares) =
+            strategyManager.getDeposits(staker);
 
-        cheats.startPrank(address(investmentManagerMock));
-        delegationMock.decreaseDelegatedShares(staker, updatedStrategies, updatedShares);
+        cheats.startPrank(address(strategyManagerMock));
+        delegationContract.decreaseDelegatedShares(staker, updatedStrategies, updatedShares);
         cheats.stopPrank();
     }
 

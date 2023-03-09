@@ -17,19 +17,19 @@ function getStaker(address operator) external returns (address)
 ### depositIntoStrategy
 
 ```solidity
-function depositIntoStrategy(address staker, contract IInvestmentStrategy strategy, contract IERC20 token, uint256 amount) external returns (bytes)
+function depositIntoStrategy(address staker, contract IStrategy strategy, contract IERC20 token, uint256 amount) external returns (bytes)
 ```
 
 ### queueWithdrawal
 
 ```solidity
-function queueWithdrawal(address staker, uint256[] strategyIndexes, contract IInvestmentStrategy[] strategies, uint256[] shares, address withdrawer, bool undelegateIfPossible) external returns (bytes)
+function queueWithdrawal(address staker, uint256[] strategyIndexes, contract IStrategy[] strategies, uint256[] shares, address withdrawer, bool undelegateIfPossible) external returns (bytes)
 ```
 
 ### completeQueuedWithdrawal
 
 ```solidity
-function completeQueuedWithdrawal(address staker, struct IInvestmentManager.QueuedWithdrawal queuedWithdrawal, contract IERC20[] tokens, uint256 middlewareTimesIndex, bool receiveAsTokens) external returns (bytes)
+function completeQueuedWithdrawal(address staker, struct IStrategyManager.QueuedWithdrawal queuedWithdrawal, contract IERC20[] tokens, uint256 middlewareTimesIndex, bool receiveAsTokens) external returns (bytes)
 ```
 
 ### transfer
