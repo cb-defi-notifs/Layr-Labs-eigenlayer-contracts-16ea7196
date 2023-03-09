@@ -31,6 +31,16 @@ rule onlyPauserCanPauseAndOnlyUnpauserCanUnpause() {
         } else {
             assert(pausedStatusAfter == pausedStatusBefore, "pausedStatusAfter != pausedStatusBefore");
         }
+    } else if (f.selector == pauseAll().selector) {
+        pauseAll(e);
+        uint256 pausedStatusAfter = paused();
+       if (e.msg.sender == pauser) {
+            // assert(pausedStatusAfter == type(uint256).max, "pausedStatusAfter != newPausedStatus");
+            assert(pausedStatusAfter == 115792089237316195423570985008687907853269984665640564039457584007913129639935,
+                "pausedStatusAfter != newPausedStatus");
+        } else {
+            assert(pausedStatusAfter == pausedStatusBefore, "pausedStatusAfter != pausedStatusBefore");
+        }
     } else if (f.selector == unpause(uint256).selector) {
         uint256 newPausedStatus;
         unpause(e, newPausedStatus);

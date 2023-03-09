@@ -45,6 +45,8 @@ contract EigenPodManagerMock is IEigenPodManager, Test {
 
     function pause(uint256 /*newPausedStatus*/) external{}
 
+    function pauseAll() external{}
+
     function paused() external pure returns (uint256) {
         return 0;
     }
