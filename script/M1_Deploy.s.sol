@@ -293,6 +293,7 @@ contract Deployer_M1 is Script, Test {
             eigenPodManager,
             delayedWithdrawalRouter
         );
+        _verifyImplementationsSetCorrectly();
         _verifyInitialOwners();
         _checkPauserInitializations();
         _verifyInitializationParams();
@@ -368,7 +369,34 @@ contract Deployer_M1 is Script, Test {
             "delayedWithdrawalRouterContract: eigenPodManager address not set correctly");
     }
 
-    function _verifyInitialOwners()internal view {
+    function _verifyImplementationsSetCorrectly() internal view {
+        require(eigenLayerProxyAdmin.getProxyImplementation(
+            TransparentUpgradeableProxy(payable(address(delegation)))) == address(delegationImplementation),
+            "delegation: implementation set incorrectly");
+        require(eigenLayerProxyAdmin.getProxyImplementation(
+            TransparentUpgradeableProxy(payable(address(strategyManager)))) == address(strategyManagerImplementation),
+            "strategyManager: implementation set incorrectly");
+        require(eigenLayerProxyAdmin.getProxyImplementation(
+            TransparentUpgradeableProxy(payable(address(slasher)))) == address(slasherImplementation),
+            "slasher: implementation set incorrectly");
+        require(eigenLayerProxyAdmin.getProxyImplementation(
+            TransparentUpgradeableProxy(payable(address(eigenPodManager)))) == address(eigenPodManagerImplementation),
+            "eigenPodManager: implementation set incorrectly");
+        require(eigenLayerProxyAdmin.getProxyImplementation(
+            TransparentUpgradeableProxy(payable(address(delayedWithdrawalRouter)))) == address(delayedWithdrawalRouterImplementation),
+            "delayedWithdrawalRouter: implementation set incorrectly");
+
+        for (uint256 i = 0; i < deployedStrategyArray.length; ++i) {
+            require(eigenLayerProxyAdmin.getProxyImplementation(
+                TransparentUpgradeableProxy(payable(address(deployedStrategyArray[i])))) == address(baseStrategyImplementation),
+                "strategy: implementation set incorrectly");
+        }
+
+        require(eigenPodBeacon.implementation() == address(eigenPodImplementation),
+            "eigenPodBeacon: implementation set incorrectly");
+    }
+
+    function _verifyInitialOwners() internal view {
         require(strategyManager.owner() == communityMultisig, "strategyManager: owner not set correctly");
         require(delegation.owner() == communityMultisig, "delegation: owner not set correctly");
         require(slasher.owner() == communityMultisig, "slasher: owner not set correctly");
