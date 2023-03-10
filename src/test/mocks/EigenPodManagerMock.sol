@@ -19,6 +19,10 @@ contract EigenPodManagerMock is IEigenPodManager, Test {
 
     function updateBeaconChainOracle(IBeaconChainOracle /*newBeaconChainOracle*/) external pure {}
 
+    function ownerToPod(address /*podOwner*/) external pure returns(IEigenPod) {
+        return IEigenPod(address(0));
+    }
+
     function getPod(address podOwner) external pure returns(IEigenPod) {
         return IEigenPod(podOwner);
     }

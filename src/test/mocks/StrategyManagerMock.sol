@@ -65,6 +65,9 @@ contract StrategyManagerMock is
      */
     function getDeposits(address depositor) external view returns (IStrategy[] memory, uint256[] memory){}
 
+    /// @notice Returns the array of strategies in which `staker` has nonzero shares
+    function stakerStrats(address staker) external view returns (IStrategy[] memory){}
+
     /// @notice Simple getter function that returns `stakerStrategyList[staker].length`.
     function stakerStrategyListLength(address staker) external view returns (uint256){}
 
@@ -84,6 +87,14 @@ contract StrategyManagerMock is
         IERC20[] calldata tokens,
         uint256 middlewareTimesIndex,
         bool receiveAsTokens
+    )
+        external{}
+
+    function completeQueuedWithdrawals(
+        QueuedWithdrawal[] calldata queuedWithdrawals,
+        IERC20[][] calldata tokens,
+        uint256[] calldata middlewareTimesIndexes,
+        bool[] calldata receiveAsTokens
     )
         external{}
 
@@ -120,6 +131,8 @@ contract StrategyManagerMock is
 
     /// @notice returns the enshrined beaconChainETH Strategy
     function beaconChainETHStrategy() external view returns (IStrategy){}
+
+    function withdrawalDelayBlocks() external view returns (uint256){}
 
     function addStrategiesToDepositWhitelist(IStrategy[] calldata /*strategiesToWhitelist*/) external pure {}
 

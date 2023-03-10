@@ -151,6 +151,19 @@ interface IStrategyManager {
         bool receiveAsTokens
     )
         external;
+    
+    /**
+     * @notice Used to complete the specified `queuedWithdrawals`. The function caller must match `queuedWithdrawal.withdrawer`
+     * @dev Array-ified version of `completeQueuedWithdrawal`
+     * @dev middlewareTimesIndex should be calculated off chain before calling this function by finding the first index that satisfies `slasher.canWithdraw`
+     */
+    function completeQueuedWithdrawals(
+        QueuedWithdrawal[] calldata queuedWithdrawals,
+        IERC20[][] calldata tokens,
+        uint256[] calldata middlewareTimesIndexes,
+        bool[] calldata receiveAsTokens
+    )
+        external;
 
     /**
      * @notice Slashes the shares of a 'frozen' operator (or a staker delegated to one)
@@ -208,4 +221,7 @@ interface IStrategyManager {
 
     /// @notice returns the enshrined beaconChainETH Strategy
     function beaconChainETHStrategy() external view returns (IStrategy);
+
+    /// @notice Returns the number of blocks that must pass between the time a withdrawal is queued and the time it can be completed
+    function withdrawalDelayBlocks() external view returns (uint256);
 }

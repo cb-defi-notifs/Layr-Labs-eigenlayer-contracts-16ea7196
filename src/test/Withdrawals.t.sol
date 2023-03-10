@@ -298,6 +298,7 @@ contract WithdrawalTests is DelegationTests {
             }
         }
     }
+
     // @notice This function tests to ensure that a delegator can re-delegate to an operator after undelegating.
     // @param operator is the operator being delegated to.
     // @param staker is the staker delegating stake to the operator.

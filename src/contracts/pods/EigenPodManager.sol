@@ -53,7 +53,7 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, Pausable, IEigenP
     IBeaconChainOracle public beaconChainOracle;
     
     /// @notice Pod owner to deployed EigenPod address
-    mapping(address => IEigenPod) internal _podByOwner;
+    mapping(address => IEigenPod) public ownerToPod;
 
     /// @notice Emitted to notify the update of the beaconChainOracle address
     event BeaconOracleUpdated(address indexed newOracleAddress);
@@ -65,7 +65,7 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, Pausable, IEigenP
     event BeaconChainETHDeposited(address indexed podOwner, uint256 amount);
 
     modifier onlyEigenPod(address podOwner) {
-        require(address(_podByOwner[podOwner]) == msg.sender, "EigenPodManager.onlyEigenPod: not a pod");
+        require(address(ownerToPod[podOwner]) == msg.sender, "EigenPodManager.onlyEigenPod: not a pod");
         _;
     }
 
@@ -111,7 +111,7 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, Pausable, IEigenP
      * @param depositDataRoot The root/hash of the deposit data for the validator's deposit.
      */
     function stake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable {
-        IEigenPod pod = _podByOwner[msg.sender];
+        IEigenPod pod = ownerToPod[msg.sender];
         if(address(pod) == address(0)) {
             //deploy a pod if the sender doesn't have one already
             pod = _deployPod();
@@ -151,7 +151,7 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, Pausable, IEigenP
     function withdrawRestakedBeaconChainETH(address podOwner, address recipient, uint256 amount)
         external onlyStrategyManager onlyWhenNotPaused(PAUSED_WITHDRAW_RESTAKED_ETH)
     {
-        _podByOwner[podOwner].withdrawRestakedBeaconChainETH(recipient, amount);
+        ownerToPod[podOwner].withdrawRestakedBeaconChainETH(recipient, amount);
     }
 
     /**
@@ -179,7 +179,7 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, Pausable, IEigenP
             );
         pod.initialize(msg.sender);
         // store the pod in the mapping
-        _podByOwner[msg.sender] = pod;
+        ownerToPod[msg.sender] = pod;
         emit PodDeployed(address(pod), msg.sender);
         return pod;
     }
@@ -192,7 +192,7 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, Pausable, IEigenP
     // VIEW FUNCTIONS
     /// @notice Returns the address of the `podOwner`'s EigenPod (whether it is deployed yet or not).
     function getPod(address podOwner) public view returns (IEigenPod) {
-        IEigenPod pod = _podByOwner[podOwner];
+        IEigenPod pod = ownerToPod[podOwner];
         // if pod does not exist already, calculate what its address *will be* once it is deployed
         if (address(pod) == address(0)) {
             pod = IEigenPod(
@@ -209,7 +209,7 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, Pausable, IEigenP
 
     /// @notice Returns 'true' if the `podOwner` has created an EigenPod, and 'false' otherwise.
     function hasPod(address podOwner) public view returns (bool) {
-        return address(_podByOwner[podOwner]) != address(0);
+        return address(ownerToPod[podOwner]) != address(0);
     }
 
     /// @notice Returns the Beacon Chain state root at `blockNumber`. Reverts if the Beacon Chain state root at `blockNumber` has not yet been finalized.

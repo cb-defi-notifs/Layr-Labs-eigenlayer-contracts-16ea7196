@@ -42,6 +42,8 @@ contract EigenPodManagerNEW is Initializable, OwnableUpgradeable, IEigenPodManag
 
     function unpause(uint256 newPausedStatus) external {}
 
+    function ownerToPod(address podOwner) external view returns(IEigenPod) {}
+
 
     //TODO: change this to constant in prod
     IETHPOSDeposit internal immutable ethPOS;
