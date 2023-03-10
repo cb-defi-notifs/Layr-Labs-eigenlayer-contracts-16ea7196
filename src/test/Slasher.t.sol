@@ -228,7 +228,7 @@ contract SlasherTests is EigenLayerTestHelper {
         
     }
 
-    function testOnlyRegisteredForService(address _slasher, uint32 _serveUntil) public {
+    function testOnlyRegisteredForService(address _slasher, uint32 _serveUntil) public fuzzedAddress(_slasher){
         cheats.prank(operator);
         delegation.registerAsOperator(delegationTerms);
 
