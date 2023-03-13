@@ -27,8 +27,7 @@ The following sections are all related to managing Consensus Layer (CL) and Exec
 
 
 ## EigenPods before Restaking
-When EigenPod contracts are initially deployed, the "restaking" functionality is turned off - the withdrawal credential proof has not been initiated yet.
-
+When EigenPod contracts are initially deployed, the "restaking" functionality is turned off - the withdrawal credential proof has not been initiated yet.  In this "non-restaking" mode, the contract may be used by its owner freely to withdraw validator balances from the beacon chain via the `withdrawBeforeRestaking` function. This function routes the withdrawn balance directly to the `DelayedWithdrawalRouter` contract.  Once the EigenPod's owner verifies that their withdrawal credentials are pointed to the EigenPod via `verifyWithdrawalCredentialsAndBalance`, the `hasRestaked` flag will be set to true and an withdrawals must now be proven for via the `verifyAndProcessWithdrawal` function.  
 
 ### Merkle Proof of Correctly Pointed Withdrawal Credentials
 
