@@ -266,7 +266,7 @@ contract EigenPodTests is ProofParsing, EigenPodPausingConstants {
         Relayer relay = new Relayer();
 
         bytes32 beaconStateRoot = getBeaconStateRoot();
-        relay.verifyBlockNumberAndWithdrawalFields(beaconStateRoot, proofs, withdrawalFields);
+        relay.verifyWithdrawalProofs(beaconStateRoot, proofs, withdrawalFields);
 
     }
 
@@ -764,11 +764,11 @@ contract EigenPodTests is ProofParsing, EigenPodPausingConstants {
 
 
  contract Relayer is Test {
-    function verifyBlockNumberAndWithdrawalFields(
+    function verifyWithdrawalProofs(
         bytes32 beaconStateRoot,
         BeaconChainProofs.WithdrawalProofs calldata proofs,
         bytes32[] calldata withdrawalFields
     ) public view {
-        BeaconChainProofs.verifyBlockNumberAndWithdrawalFields(beaconStateRoot, proofs, withdrawalFields);
+        BeaconChainProofs.verifyWithdrawalProofs(beaconStateRoot, proofs, withdrawalFields);
     }
  }
