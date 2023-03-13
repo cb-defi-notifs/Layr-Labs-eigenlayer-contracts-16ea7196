@@ -60,7 +60,14 @@ In this second case, in order to withdraw their balance from the EigenPod, stake
 ## Merkle Proof Specifics
 
 ### verifyValidatorFields
-This function is used to verify any of the fields, such as withdrawal credentials or slashed status, in the `Validator` container of the Beacon Chain State.  The user provides the validatorFields and the index of the validator they're proving for, and the function verifies this against the Beacon State Root.  
+This function is used to verify any of the fields, such as withdrawal credentials or slashed status, in the `Validator` container of the Beacon State.  The user provides the validatorFields and the index of the validator they're proving for, and the function verifies this against the Beacon State Root.  
 
-### verifySlotAndWithdrawalFields
-This function verifies merkle proofs of the balance of a specific Beacon Chain withdrawal container against a beacon chain state root
+### verifyWithdrawalProofs
+This function verifies several proofs related to a withdrawal:
+1. It verifies the slot of the withdrawal
+2. It verifies the block number of the withdrawal
+3. It verifies that the withdrawal fields provided are correct.
+
+### verifyValidatorBalance
+The `Validator` container in the Beacon State only contains the effective balance of the validator. The effective balance is used to determine the size of a reward or penalty a validator receives (refer [here](https://kb.beaconcha.in/glossary#current-balance-and-effective-balance) for more information).  The actual balance of the validator is stored in a separate array of `Balance` containers.  Thus we require a separate proof to verify the validator's actual balance, which is verified in `verifyValidatorBalance`.
+
