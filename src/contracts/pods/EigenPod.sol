@@ -336,7 +336,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
         bytes32 beaconStateRoot = eigenPodManager.getBeaconChainStateRoot(oracleBlockNumber);
 
         // Verifying the withdrawal as well as the slot
-        BeaconChainProofs.verifySlotAndWithdrawalFields(beaconStateRoot, withdrawalProofs, withdrawalFields);
+        BeaconChainProofs.verifyWithdrawalProofs(beaconStateRoot, withdrawalProofs, withdrawalFields);
         // Verifying the validator fields, specifically the withdrawable epoch
         BeaconChainProofs.verifyValidatorFields(validatorIndex, beaconStateRoot, validatorFieldsProof, validatorFields);
 
