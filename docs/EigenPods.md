@@ -54,3 +54,13 @@ In this second case, in order to withdraw their balance from the EigenPod, stake
 3. If the amount withdrawn is less than `REQUIRED_BALANCE_GWEI` and the validator was *not* previously proven to be "overcommitted", then the full withdrawal amount is held for processing through EigenLayer's normal withdrawal path, and any excess 'beaconChainETH' shares in EigenLayer are immediately removed, somewhat similar to the process outlined in [fraud proofs for overcommitted balances]. 
 
 4. If the amount withdrawn is less than `REQUIRED_BALANCE_GWEI` and the validator *was* previously proven to be "overcommitted", then the full withdrawal amount is held for processing through EigenLayer's normal withdrawal path, and the podOwner is credited with enough beaconChainETH shares in EigenLayer to complete the normal withdrawal process; this last step is necessary since the validator's virtual beaconChainETH shares were previously removed from EigenLayer as part of the overcommittment fraudproof process.
+
+
+
+## Merkle Proof Specifics
+
+### verifyValidatorFields
+This function is used to verify any of the fields, such as withdrawal credentials or slashed status, in the `Validator` container of the Beacon Chain State.  The user provides the validatorFields and the index of the validator they're proving for, and the function verifies this against the Beacon State Root.  
+
+### verifySlotAndWithdrawalFields
+This function verifies merkle proofs of the balance of a specific Beacon Chain withdrawal container against a beacon chain state root
