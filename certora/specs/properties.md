@@ -26,7 +26,7 @@ Author: Yura Sherman
 
 ## StrategyManager
 
-- totalShares per strategy == Σ stakerStrategyShares[staker][strategy] for all stakers
+- totalShares per strategy == Σ stakerStrategyShares[staker][strategy] for all stakers *plus* any shares in pending (queued) withdrawals
 - stakerStrategyShares[staker][strategy] increase => depositIntoStrategy() or depositIntoStrategyWithSignature() have been invoked
 - stakerStrategyShares[staker][strategy] decrease => queueWithdrawal() or slashShares() have been invoked
 - stakerStrategyList[staker] should contain all strategies for which stakerStrategyShares[staker][strategy] is nonzero
