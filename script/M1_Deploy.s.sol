@@ -42,6 +42,7 @@ contract Deployer_M1 is Script, Test {
     struct StrategyTokenAndName {
         address tokenAddress;
         string tokenName;
+        string tokenSymbol;
     }
 
     string public deployConfigPath = string(bytes("script/M1_deploy.config.json"));
@@ -109,25 +110,14 @@ contract Deployer_M1 is Script, Test {
 
         REQUIRED_BALANCE_WEI = stdJson.readUint(config_data, ".eigenPod.REQUIRED_BALANCE_WEI");
 
-        // tokens to deploy strategies for -- if not on mainnet, we deploy mock tokens to use with the provided names
+        // tokens to deploy strategies for
         StrategyTokenAndName[] memory strategyTokensAndNames;
 
-        // if on mainnet, use mainnet config
-        if (chainId == 1) {
-            communityMultisig = stdJson.readAddress(config_data, ".multisig_addresses.mainnet.communityMultisig");
-            teamMultisig = stdJson.readAddress(config_data, ".multisig_addresses.mainnet.teamMultisig");
-            // load mainnet token list
-            bytes memory strategyTokensAndNamesRaw = stdJson.parseRaw(config_data, ".strategies.mainnet");
-            strategyTokensAndNames = abi.decode(strategyTokensAndNamesRaw, (StrategyTokenAndName[]));
-        // if not on mainnet, read from the "testnet" config
-        } else {
-            communityMultisig = stdJson.readAddress(config_data, ".multisig_addresses.testnet.communityMultisig");
-            teamMultisig = stdJson.readAddress(config_data, ".multisig_addresses.testnet.teamMultisig");
-            // testnet token list is empty since the tokens haven't been deployed yet
-            bytes memory strategyTokensAndNamesRaw = stdJson.parseRaw(config_data, ".strategies.testnet");
-            strategyTokensAndNames = abi.decode(strategyTokensAndNamesRaw, (StrategyTokenAndName[]));
-        }
-
+        communityMultisig = stdJson.readAddress(config_data, ".multisig_addresses.communityMultisig");
+        teamMultisig = stdJson.readAddress(config_data, ".multisig_addresses.teamMultisig");
+        // load token list
+        bytes memory strategyTokensAndNamesRaw = stdJson.parseRaw(config_data, ".strategies");
+        strategyTokensAndNames = abi.decode(strategyTokensAndNamesRaw, (StrategyTokenAndName[]));
 
         require(communityMultisig != address(0), "communityMultisig address not configured correctly!");
         require(teamMultisig != address(0), "teamMultisig address not configured correctly!");
@@ -202,6 +192,7 @@ contract Deployer_M1 is Script, Test {
             abi.encodeWithSelector(
                 StrategyManager.initialize.selector,
                 communityMultisig,
+                teamMultisig,
                 eigenLayerPauserReg,
                 STRATEGY_MANAGER_INIT_PAUSED_STATUS,
                 STRATEGY_MANAGER_INIT_WITHDRAWAL_DELAY_BLOCKS
@@ -246,7 +237,7 @@ contract Deployer_M1 is Script, Test {
                 strategyTokensAndNames[i].tokenAddress = address(
                     new ERC20PresetFixedSupply(
                     strategyTokensAndNames[i].tokenName,
-                    strategyTokensAndNames[i].tokenName,
+                    strategyTokensAndNames[i].tokenSymbol,
                     // initial supply
                     10e50,
                     // owner
@@ -304,14 +295,14 @@ contract Deployer_M1 is Script, Test {
 
         string memory deployed_strategies = "deployed strategies";
         for (uint256 i = 0; i < strategyTokensAndNames.length; ++i) {
-            vm.serializeAddress(deployed_strategies, strategyTokensAndNames[i].tokenName, address(deployedStrategyArray[i]));
+            vm.serializeAddress(deployed_strategies, strategyTokensAndNames[i].tokenSymbol, address(deployedStrategyArray[i]));
         }
         string memory deployed_strategies_output = vm.serializeAddress(
-            deployed_strategies, strategyTokensAndNames[strategyTokensAndNames.length - 1].tokenName,
+            deployed_strategies, strategyTokensAndNames[strategyTokensAndNames.length - 1].tokenSymbol,
             address(deployedStrategyArray[strategyTokensAndNames.length - 1])
         );
 
-        string memory deployed_addresses = "deployed addresses";
+        string memory deployed_addresses = "addresses";
         vm.serializeAddress(deployed_addresses, "eigenLayerProxyAdmin", address(eigenLayerProxyAdmin));
         vm.serializeAddress(deployed_addresses, "eigenLayerPauserReg", address(eigenLayerPauserReg));
         vm.serializeAddress(deployed_addresses, "slasher", address(slasher));
@@ -334,7 +325,7 @@ contract Deployer_M1 is Script, Test {
         vm.serializeAddress(parameters, "communityMultisig", communityMultisig);
         string memory parameters_output = vm.serializeAddress(parameters, "teamMultisig", teamMultisig);
 
-        string memory chain_info = "chain info";
+        string memory chain_info = "chainInfo";
         string memory chain_info_output = vm.serializeUint(chain_info, "chainId", chainId);
 
         vm.serializeString(parent_object, deployed_addresses, deployed_addresses_output);

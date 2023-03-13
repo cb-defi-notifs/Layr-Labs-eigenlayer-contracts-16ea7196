@@ -143,16 +143,17 @@ contract StrategyManager is
      * and transfers contract ownership to the specified `initialOwner`.
      * @param _pauserRegistry Used for access control of pausing.
      * @param initialOwner Ownership of this contract is transferred to this address.
+     * @param initialStrategyWhitelister The initial value of `strategyWhitelister` to set. 
      * @param _withdrawalDelayBlocks The initial value of `withdrawalDelayBlocks` to set.
      */
-    function initialize(address initialOwner, IPauserRegistry _pauserRegistry, uint256 initialPausedStatus, uint256 _withdrawalDelayBlocks)
+    function initialize(address initialOwner, address initialStrategyWhitelister, IPauserRegistry _pauserRegistry, uint256 initialPausedStatus, uint256 _withdrawalDelayBlocks)
         external
         initializer
     {
         DOMAIN_SEPARATOR = keccak256(abi.encode(DOMAIN_TYPEHASH, bytes("EigenLayer"), block.chainid, address(this)));
         _initializePauser(_pauserRegistry, initialPausedStatus);
         _transferOwnership(initialOwner);
-        _setStrategyWhitelister(initialOwner);
+        _setStrategyWhitelister(initialStrategyWhitelister);
         _setWithdrawalDelayBlocks(_withdrawalDelayBlocks);
     }
 

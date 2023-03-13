@@ -147,6 +147,7 @@ contract EigenPodTests is ProofParsing, EigenPodPausingConstants {
             abi.encodeWithSelector(
                 StrategyManager.initialize.selector,
                 initialOwner,
+                initialOwner,
                 pauserReg,
                 0/*initialPausedStatus*/,
                 0/*withdrawalDelayBlocks*/
