@@ -293,7 +293,7 @@ contract Deployer_M1 is Script, Test {
         // WRITE JSON DATA
         string memory parent_object = "parent object";
 
-        string memory deployed_strategies = "deployed strategies";
+        string memory deployed_strategies = "strategies";
         for (uint256 i = 0; i < strategyTokensAndNames.length; ++i) {
             vm.serializeAddress(deployed_strategies, strategyTokensAndNames[i].tokenSymbol, address(deployedStrategyArray[i]));
         }
