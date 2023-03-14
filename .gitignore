@@ -28,4 +28,4 @@ broadcast
 .certora_recent_jobs.json
 
 #script config file
-script/M1_deploy.config.json
+# script/M1_deploy.config.json

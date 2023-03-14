@@ -230,10 +230,9 @@ contract Deployer_M1 is Script, Test {
             DELAYED_WITHDRAWAL_ROUTER_INIT_WITHDRAWAL_DELAY_BLOCKS)
         );
 
-        // if not on mainnet, then deploy mock tokens to use in strategies
-        if (chainId != 1) {
-            // deploy simple ERC20 (**NOT** WETH-like!), used in a test strategy
-            for (uint256 i = 0; i < strategyTokensAndNames.length; ++i) {
+        // deploy simple ERC20 (**NOT** WETH-like!), used in a test strategy
+        for (uint256 i = 0; i < strategyTokensAndNames.length; ++i) {
+            if (strategyTokensAndNames[i].tokenAddress == address(0)) {
                 strategyTokensAndNames[i].tokenAddress = address(
                     new ERC20PresetFixedSupply(
                     strategyTokensAndNames[i].tokenName,
