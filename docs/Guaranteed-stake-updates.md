@@ -1,12 +1,12 @@
-# Design: Guaranteed Stake Updates on Withdrawal
-Withdrawals are one of the critical flows in the EigenLayer system.  Guaranteed stake updates ensure that all middlewares that an operator has opted into (i.e. allowed to slash them) are notified at the appropriate time regarding any withdrawals initiated by an operator.  To put it simply, an operator can "queue" a withdrawal at any point in time.  In order to complete the withdrawal, the operator must first serve all existing obligations related to keeping their stake slashable.  The contract `Slasher.sol` keeps track of a historic record of each operator's  `latestServeUntil` time at various blocks, which is the timestamp after which their stake will have served its obligations which were created at or before the block in question. To complete a withdrawal, an operator (or a staker delegated to them) can point to a relevant point in the record which proves that the funds they are withdrawing are no longer "at stake" on any middleware tasks.
+# Design: Withdrawals From EigenLayer -- Guaranteed Stake Updates on Withdrawal
+Withdrawals are one of the critical flows in the EigenLayer system.  Guaranteed stake updates ensure that all middlewares that an operator has opted-into (i.e. allowed to slash them) are notified at the appropriate time regarding any withdrawals initiated by an operator.  To put it simply, an operator can "queue" a withdrawal at any point in time.  In order to complete the withdrawal, the operator must first serve all existing obligations related to keeping their stake slashable.  The contract `Slasher.sol` keeps track of a historic record of each operator's  `latestServeUntil` time at various blocks, which is the timestamp after which their stake will have served its obligations which were created at or before the block in question. To complete a withdrawal, an operator (or a staker delegated to them) can point to a relevant point in the record which proves that the funds they are withdrawing are no longer "at stake" on any middleware tasks.
 EigenLayer uses a 'push' model for it's own core contracts -- when a staker queues a withdrawal from EigenLayer (or deposits new funds into EigenLayer), their withdrawn shares are immediately decremented, both in the StrategyManager itself and in the DelegationManager contract. Middlewares, however, must 'pull' this data. Their worldview is stale until a call is made that triggers a 'stake update', updating the middleware's view on how much the operator has staked. The middleware then informs EigenLayer (either immediately or eventually) that the stake update has occurred.
 
 ## Storage Model
 
-Below, a whitelisted contract refers to a contract that is a part of a middleware that is allowed to freeze the opted in operators.
+Below, a whitelisted contract refers to a contract that is a part of a middleware that is allowed to freeze the opted-in operators.
 
-For each operator, we need to store:
+For each operator, the Slasher contract stores:
 
 1. A `mapping(address => mapping(address => MiddlewareDetails))`, from operator address to contract whitelisted by the operator to slash them, to [details](https://github.com/Layr-Labs/eignlayr-contracts/blob/master/src/contracts/interfaces/ISlasher.sol) about that contract formatted as
 ```solidity
@@ -17,8 +17,8 @@ For each operator, we need to store:
         uint32 latestUpdateBlock;
     }
 ```
-2. A `mapping(address => LinkedList<address>) operatorToWhitelistedContractsByUpdate`, from operator address to a [linked list](../src/contracts/libraries/StructuredLinkedList.sol) of addresses of all whitelisted contracts, ordered by when their stakes were last updated by each middleware, from stalest (at the 'HEAD' of the list) to most recent (at the 'TAIL' of the list)
-3. A `mapping(address => MiddlewareTimes[]) middlewareTimes` from operators to a list of
+2. A `mapping(address => LinkedList<address>) operatorToWhitelistedContractsByUpdate`, from operator address to a [linked list](../src/contracts/libraries/StructuredLinkedList.sol) of addresses of all whitelisted contracts, ordered by when their stakes were last updated by each middleware, from 'stalest'/earliest (at the 'HEAD' of the list) to most recent (at the 'TAIL' of the list)
+3. A `mapping(address => MiddlewareTimes[]) middlewareTimes` from operators to a historic list of
 ```solidity
     struct MiddlewareTimes {
         // The update block for the middleware whose most recent update was earliest, i.e. the 'stalest' update out of all middlewares the operator is serving
@@ -28,18 +28,18 @@ For each operator, we need to store:
     }
 ```
 
-The reason we store an array of updates as opposed to one `MiddlewareTimes` struct with the most up-to-date values is that this would require pushing updates carefully to not disrupt existing withdrawals. This way, operators can select the `MiddlewareTimes` entry that is appropriate for their withdrawal.  Thus, the operator provides an entry from their `operatorMiddlewareTimes` based on which a withdrawal can be completed.   The withdrawability is checked by `slasher.canWithdraw()`, which checks that for the queued withdrawal in question, `withdrawalStartBlock` is less than the provided `operatorMiddlewareTimes` entry's 'stalestUpdateBlock', i.e. the specified stake update occurred *strictly after* the withdrawal was queued.  It also checks that the current block.timestamp is greater than the `operatorMiddlewareTimes` entry's 'latestServeUntil', i.e. that the current time is *strictly after* the end of all obligations that the operator had, at the time of the specified stake update.  If these criteria are met, the withdrawal can be completed.
+The reason we store an array of updates as opposed to one `MiddlewareTimes` struct with the most up-to-date values is that this would require pushing updates carefully to not disrupt existing withdrawals. This way, operators can select the `MiddlewareTimes` entry that is appropriate for their withdrawal.  Thus, the operator provides an entry from their `operatorMiddlewareTimes` based on which a withdrawal can be completed. The withdrawability is checked by `slasher.canWithdraw()`, which checks that for the queued withdrawal in question, `withdrawalStartBlock` is less than the provided `operatorMiddlewareTimes` entry's 'stalestUpdateBlock', i.e. the specified stake update occurred *strictly after* the withdrawal was queued.  It also checks that the current block.timestamp is greater than the `operatorMiddlewareTimes` entry's 'latestServeUntil' time, i.e. that the current time is *strictly after* the end of all obligations that the operator had, at the time of the specified stake update.  If these criteria are both met, then the withdrawal can be completed.
 
 Note:
 `remove`, `nodeExists`,`getHead`, `getNextNode`, and `pushBack` are all constant time operations on linked lists. This is gained at the sacrifice of getting any elements by specifying their *indices* in the list. Searching the linked list for the correct entry is linear-time with respect to the length of the list; this should only ever happen in a "worst-case" scenario, after the provided index input is determined to be incorrect.
 
 ## An Instructive Example
 
-Let us say an operator has opted into serving a middleware, `Middleware A`. As a result of the operator's actions, `Middleware A` calls `recordFirstStakeUpdate`, adding  `Middleware A` to their linked list of middlewares, recording the `block.number` as the `updateBlock` and the middleware's specified `serveUntil` time in `operatorMiddlewareTimes`.  At later times, the operator registers with a second and third middleware, `Middleware B` and `Middleware C`, respectively.  At this point, the timeline is as follows:
+Let us say an operator has opted into serving a middleware, `Middleware A`. As a result of the operator's actions, `Middleware A` calls `recordFirstStakeUpdate`, adding  `Middleware A` to their linked list of middlewares, recording the `block.number` as the `updateBlock` and the middleware's specified `serveUntil` time as the `latestServeUntil` in a `MiddlewareTimes` struct that gets pushed to `operatorMiddlewareTimes`.  At later times, the operator registers with a second and third middleware, `Middleware B` and `Middleware C`, respectively.  At this point, the current state is as follows:
 
 ![Three Middlewares Timeline](images/three_middlewares.png?raw=true "Three Middlewares Timeline")
 
-Based on this, the latest serveUntil time is `serveUntil_B`, and the 'stalest' stake update from a middleware occurred at `updateBlock_A`.  So the most recent entry in the `operatorMiddlewareTimes` array for the operator will have `serveUntil = serveUntil_B` and `stalestUpdateBlock = updateBlock_A`.
+Based on this, the *current* latest serveUntil time is `serveUntil_B`, and the 'stalest' stake update from a middleware occurred at `updateBlock_A`.  So the most recent entry in the `operatorMiddlewareTimes` array for the operator will have `serveUntil = serveUntil_B` and `stalestUpdateBlock = updateBlock_A`.
 
 In the meantime, let us say that the operator had also queued a withdrawal between opting-in to serve `Middleware A` and opting-in to serve `Middleware B`:
 
@@ -63,9 +63,11 @@ Now that a withdrawal has been queued, the operator must wait till their obligat
     }
 }
 ```
-  In order to complete a withdrawal in this example, the operator would have to record a stake update in `Middleware A`, signalling readiness for withdrawal.  Assuming this update was performed at roughly the time that the operator signed up to serve `Middleware B`, the timeline would now look like this:
+  In order to complete a withdrawal in this example, the operator would have to record a stake update in `Middleware A`, signalling readiness for withdrawal.  Assuming this update was performed at roughly the time that the operator signed up to serve `Middleware B`, the state would now look like this:
 
 ![Updated Three Middlewares Timeline With Queued Withdrawal](images/withdrawal.png?raw=true "Updated Three Middlewares Timeline With Queued Withdrawal")
+
+By recording a stake update in `Middleware A`, a new entry would be pushed to the operator's `operatorMiddlewareTimes` array, with `serveUntil = serveUntil_A` and `stalestUpdateBlock = updateBlock_B`. The queued withdrawal will then become completable after the current value of `serveUntil_A`, by referencing this entry in the array.
 
 ## Deep Dive, aka "The Function-by-Function Explanation"
 
