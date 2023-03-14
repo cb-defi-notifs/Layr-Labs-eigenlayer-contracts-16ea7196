@@ -12,7 +12,7 @@ When an operator registers in EigenLayer, the following flow of calls between co
 ![Registering as an Operator in EigenLayer](images/EL_operator_registration.png?raw=true "Registering as an Operator in EigenLayer")
 
 1. The would-be operator calls `DelegationManager.registerAsOperator`, providing either a `DelegationTerms`-type contract or an EOA as input. The DelegationManager contract stores the `DelegationTerms`-type contract provided by the operator, which may act as an intermediary to help facilitate the relationship between the operator and any stakers who delegate to them.
-All of the remaining steps (2-4) proceed as outlined in the delegation process below; the DelegationManager contract treats things as if the operator has delegated to themselves.
+All of the remaining steps (2-4) proceed as outlined in the delegation process below; the DelegationManager contract treats things as if the operator has delegated *to themselves*.
 
 ## Staker Delegation
 
