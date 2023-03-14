@@ -181,6 +181,7 @@ contract EigenLayerDeployer is Operators {
             abi.encodeWithSelector(
                 StrategyManager.initialize.selector,
                 eigenLayerReputedMultisig,
+                eigenLayerReputedMultisig,
                 eigenLayerPauserReg,
                 0/*initialPausedStatus*/,
                 0/*withdrawalDelayBlocks*/

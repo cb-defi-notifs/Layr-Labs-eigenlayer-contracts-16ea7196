@@ -110,12 +110,12 @@ contract Deployer_M1 is Script, Test {
 
         REQUIRED_BALANCE_WEI = stdJson.readUint(config_data, ".eigenPod.REQUIRED_BALANCE_WEI");
 
-        // tokens to deploy strategies for -- if not on mainnet, we deploy mock tokens to use with the provided names
+        // tokens to deploy strategies for
         StrategyTokenAndName[] memory strategyTokensAndNames;
 
         communityMultisig = stdJson.readAddress(config_data, ".multisig_addresses.communityMultisig");
         teamMultisig = stdJson.readAddress(config_data, ".multisig_addresses.teamMultisig");
-        // testnet token list is empty since the tokens haven't been deployed yet
+        // load token list
         bytes memory strategyTokensAndNamesRaw = stdJson.parseRaw(config_data, ".strategies");
         strategyTokensAndNames = abi.decode(strategyTokensAndNamesRaw, (StrategyTokenAndName[]));
 
@@ -192,6 +192,7 @@ contract Deployer_M1 is Script, Test {
             abi.encodeWithSelector(
                 StrategyManager.initialize.selector,
                 communityMultisig,
+                teamMultisig,
                 eigenLayerPauserReg,
                 STRATEGY_MANAGER_INIT_PAUSED_STATUS,
                 STRATEGY_MANAGER_INIT_WITHDRAWAL_DELAY_BLOCKS
@@ -229,10 +230,9 @@ contract Deployer_M1 is Script, Test {
             DELAYED_WITHDRAWAL_ROUTER_INIT_WITHDRAWAL_DELAY_BLOCKS)
         );
 
-        // if not on mainnet, then deploy mock tokens to use in strategies
-        if (chainId != 1) {
-            // deploy simple ERC20 (**NOT** WETH-like!), used in a test strategy
-            for (uint256 i = 0; i < strategyTokensAndNames.length; ++i) {
+        // deploy simple ERC20 (**NOT** WETH-like!), used in a test strategy
+        for (uint256 i = 0; i < strategyTokensAndNames.length; ++i) {
+            if (strategyTokensAndNames[i].tokenAddress == address(0)) {
                 strategyTokensAndNames[i].tokenAddress = address(
                     new ERC20PresetFixedSupply(
                     strategyTokensAndNames[i].tokenName,
