@@ -342,6 +342,7 @@ contract StrategyManagerUnitTests is Test {
         require(nonceAfter == nonceBefore + 1, "nonceAfter != nonceBefore + 1");
     }
 
+    // tries depositing using a signature and an EIP 1271 compliant wallet
     function testDepositIntoStrategyWithSignature_WithContractWallet_Successfully(uint256 amount) public {
         uint256 privateKey = 111111;
         address staker = cheats.addr(privateKey);
@@ -383,6 +384,7 @@ contract StrategyManagerUnitTests is Test {
         require(nonceAfter == nonceBefore + 1, "nonceAfter != nonceBefore + 1");
     }
 
+    // tries depositing using a signature and an EIP 1271 compliant wallet, *but* providing a bad signature
     function testDepositIntoStrategyWithSignature_WithContractWallet_BadSignature(uint256 amount) public {
         uint256 privateKey = 111111;
         address staker = cheats.addr(privateKey);
@@ -416,10 +418,10 @@ contract StrategyManagerUnitTests is Test {
         }
 
         cheats.expectRevert(bytes("StrategyManager.depositIntoStrategyWithSignature: ERC1271 signature verification failed"));
-        // cheats.expectRevert(bytes("ECDSA: invalid signature 's' value"));
         strategyManager.depositIntoStrategyWithSignature(strategy, token, amount, staker, expiry, signature);
     }
 
+    // tries depositing using a wallet that does not comply with EIP 1271
     function testDepositIntoStrategyWithSignature_WithContractWallet_NonconformingWallet(uint256 amount, uint8 v, bytes32 r, bytes32 s) public {
         uint256 privateKey = 111111;
         address staker = cheats.addr(privateKey);
@@ -443,7 +445,6 @@ contract StrategyManagerUnitTests is Test {
         cheats.expectRevert();
         strategyManager.depositIntoStrategyWithSignature(strategy, token, amount, staker, expiry, signature);
     }
-
 
     function testDepositIntoStrategyWithSignatureFailsWhenDepositsPaused() public {
         uint256 privateKey = 111111;
