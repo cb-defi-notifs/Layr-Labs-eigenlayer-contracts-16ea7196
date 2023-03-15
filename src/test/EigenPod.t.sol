@@ -424,6 +424,31 @@ contract EigenPodTests is ProofParsing, EigenPodPausingConstants {
         pod.verifyWithdrawalCredentialsAndBalance(blockNumber, validatorIndex, proofs, validatorFields);
     }
 
+    function testVerifyWithdrawalCredentialsWithInadequateBalance() public {
+         // ./solidityProofGen "ValidatorFieldsProof" 61068 false "data/slot_58000/oracle_capella_beacon_state_58100.ssz" "withdrawalCredentialAndBalanceProof_61068.json"
+        setJSON("./src/test/test-data/withdrawalCredentialAndBalanceProof_61068.json");
+        BeaconChainProofs.ValidatorFieldsAndBalanceProofs memory proofs = _getValidatorFieldsAndBalanceProof();
+        validatorFields = getValidatorFields();
+        bytes32 newBeaconStateRoot = getBeaconStateRoot();
+        uint40 validatorIndex = uint40(getValidatorIndex());
+        BeaconChainOracleMock(address(beaconChainOracle)).setBeaconChainStateRoot(newBeaconStateRoot);
+
+
+        cheats.startPrank(podOwner);
+        eigenPodManager.stake{value: stakeAmount}(pubkey, signature, depositDataRoot);
+        cheats.stopPrank();
+        IEigenPod newPod = eigenPodManager.getPod(podOwner);
+        uint64 blockNumber = 1;
+
+        //set the validator balance to less than REQUIRED_BALANCE_WEI
+        proofs.balanceRoot = bytes32(0);
+
+        cheats.expectRevert(bytes("EigenPod.verifyCorrectWithdrawalCredentials: ETH validator's balance must be greater than or equal to the restaked balance per validator"));
+        newPod.verifyWithdrawalCredentialsAndBalance(blockNumber, validatorIndex, proofs, validatorFields);
+
+
+    }
+
     function getBeaconChainETHShares(address staker) internal view returns(uint256) {
         return investmentManager.investorStratShares(staker, investmentManager.beaconChainETHStrategy());
     }
