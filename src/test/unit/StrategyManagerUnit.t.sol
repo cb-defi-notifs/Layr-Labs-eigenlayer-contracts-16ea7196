@@ -3,6 +3,7 @@ pragma solidity =0.8.12;
 
 import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import "@openzeppelin/contracts/mocks/ERC1271WalletMock.sol";
 
 import "forge-std/Test.sol";
 
@@ -308,7 +309,7 @@ contract StrategyManagerUnitTests is Test {
 
     function testDepositIntoStrategyWithSignatureSuccessfully(uint256 amount) public {
         uint256 privateKey = 111111;
-        address staker = cheats.addr(111111);
+        address staker = cheats.addr(privateKey);
         IStrategy strategy = dummyStrat;
         IERC20 token = dummyToken;
 
@@ -341,9 +342,112 @@ contract StrategyManagerUnitTests is Test {
         require(nonceAfter == nonceBefore + 1, "nonceAfter != nonceBefore + 1");
     }
 
+    function testDepositIntoStrategyWithSignature_WithContractWallet_Successfully(uint256 amount) public {
+        uint256 privateKey = 111111;
+        address staker = cheats.addr(privateKey);
+        IStrategy strategy = dummyStrat;
+        IERC20 token = dummyToken;
+
+        // deploy ERC1271WalletMock for staker to use
+        cheats.startPrank(staker);
+        ERC1271WalletMock wallet = new ERC1271WalletMock(staker);
+        cheats.stopPrank();
+        staker = address(wallet);
+
+        // filter out zero case since it will revert with "StrategyManager._addShares: shares should not be zero!"
+        cheats.assume(amount != 0);
+        // sanity check / filter
+        cheats.assume(amount <= token.balanceOf(address(this)));
+
+        uint256 nonceBefore = strategyManager.nonces(staker);
+        uint256 expiry = type(uint256).max;
+        bytes memory signature;
+
+        {
+            bytes32 structHash = keccak256(abi.encode(strategyManager.DEPOSIT_TYPEHASH(), strategy, token, amount, nonceBefore, expiry));
+            bytes32 digestHash = keccak256(abi.encodePacked("\x19\x01", strategyManager.DOMAIN_SEPARATOR(), structHash));
+
+            (uint8 v, bytes32 r, bytes32 s) = cheats.sign(privateKey, digestHash);
+
+            signature = abi.encodePacked(r, s, v);
+        }
+
+        uint256 sharesBefore = strategyManager.stakerStrategyShares(staker, strategy);
+
+        uint256 shares = strategyManager.depositIntoStrategyWithSignature(strategy, token, amount, staker, expiry, signature);
+
+        uint256 sharesAfter = strategyManager.stakerStrategyShares(staker, strategy);
+        uint256 nonceAfter = strategyManager.nonces(staker);
+
+        require(sharesAfter == sharesBefore + shares, "sharesAfter != sharesBefore + shares");
+        require(nonceAfter == nonceBefore + 1, "nonceAfter != nonceBefore + 1");
+    }
+
+    function testDepositIntoStrategyWithSignature_WithContractWallet_BadSignature(uint256 amount) public {
+        uint256 privateKey = 111111;
+        address staker = cheats.addr(privateKey);
+        IStrategy strategy = dummyStrat;
+        IERC20 token = dummyToken;
+
+        // deploy ERC1271WalletMock for staker to use
+        cheats.startPrank(staker);
+        ERC1271WalletMock wallet = new ERC1271WalletMock(staker);
+        cheats.stopPrank();
+        staker = address(wallet);
+
+        // filter out zero case since it will revert with "StrategyManager._addShares: shares should not be zero!"
+        cheats.assume(amount != 0);
+        // sanity check / filter
+        cheats.assume(amount <= token.balanceOf(address(this)));
+
+        uint256 nonceBefore = strategyManager.nonces(staker);
+        uint256 expiry = type(uint256).max;
+        bytes memory signature;
+
+        {
+            bytes32 structHash = keccak256(abi.encode(strategyManager.DEPOSIT_TYPEHASH(), strategy, token, amount, nonceBefore, expiry));
+            bytes32 digestHash = keccak256(abi.encodePacked("\x19\x01", strategyManager.DOMAIN_SEPARATOR(), structHash));
+
+            (uint8 v, bytes32 r, bytes32 s) = cheats.sign(privateKey, digestHash);
+            // mess up the signature by flipping v's parity
+            v = (v == 27 ? 28 : 27);
+
+            signature = abi.encodePacked(r, s, v);
+        }
+
+        cheats.expectRevert(bytes("StrategyManager.depositIntoStrategyWithSignature: ERC1271 signature verification failed"));
+        // cheats.expectRevert(bytes("ECDSA: invalid signature 's' value"));
+        strategyManager.depositIntoStrategyWithSignature(strategy, token, amount, staker, expiry, signature);
+    }
+
+    function testDepositIntoStrategyWithSignature_WithContractWallet_NonconformingWallet(uint256 amount, uint8 v, bytes32 r, bytes32 s) public {
+        uint256 privateKey = 111111;
+        address staker = cheats.addr(privateKey);
+        IStrategy strategy = dummyStrat;
+        IERC20 token = dummyToken;
+
+        // deploy ERC1271WalletMock for staker to use
+        cheats.startPrank(staker);
+        ERC1271MaliciousMock wallet = new ERC1271MaliciousMock();
+        cheats.stopPrank();
+        staker = address(wallet);
+
+        // filter out zero case since it will revert with "StrategyManager._addShares: shares should not be zero!"
+        cheats.assume(amount != 0);
+        // sanity check / filter
+        cheats.assume(amount <= token.balanceOf(address(this)));
+
+        uint256 expiry = type(uint256).max;
+        bytes memory signature = abi.encodePacked(r, s, v);
+
+        cheats.expectRevert();
+        strategyManager.depositIntoStrategyWithSignature(strategy, token, amount, staker, expiry, signature);
+    }
+
+
     function testDepositIntoStrategyWithSignatureFailsWhenDepositsPaused() public {
         uint256 privateKey = 111111;
-        address staker = cheats.addr(111111);
+        address staker = cheats.addr(privateKey);
         IStrategy strategy = dummyStrat;
         IERC20 token = dummyToken;
         uint256 amount = 1e18;
@@ -380,7 +484,7 @@ contract StrategyManagerUnitTests is Test {
 
     function testDepositIntoStrategyWithSignatureFailsWhenStakerFrozen() public {
         uint256 privateKey = 111111;
-        address staker = cheats.addr(111111);
+        address staker = cheats.addr(privateKey);
         IStrategy strategy = dummyStrat;
         IERC20 token = dummyToken;
         uint256 amount = 1e18;
@@ -424,7 +528,7 @@ contract StrategyManagerUnitTests is Test {
         cheats.stopPrank();
 
         uint256 privateKey = 111111;
-        address staker = cheats.addr(111111);
+        address staker = cheats.addr(privateKey);
         IStrategy strategy = IStrategy(address(reenterer));
         IERC20 token = dummyToken;
         uint256 amount = 1e18;
@@ -465,7 +569,7 @@ contract StrategyManagerUnitTests is Test {
 
     function testDepositIntoStrategyWithSignatureFailsWhenSignatureExpired() public {
         uint256 privateKey = 111111;
-        address staker = cheats.addr(111111);
+        address staker = cheats.addr(privateKey);
         IStrategy strategy = dummyStrat;
         IERC20 token = dummyToken;
         uint256 amount = 1e18;
@@ -499,7 +603,7 @@ contract StrategyManagerUnitTests is Test {
 
     function testDepositIntoStrategyWithSignatureFailsWhenSignatureInvalid() public {
         uint256 privateKey = 111111;
-        address staker = cheats.addr(111111);
+        address staker = cheats.addr(privateKey);
         IStrategy strategy = dummyStrat;
         IERC20 token = dummyToken;
         uint256 amount = 1e18;
