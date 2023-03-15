@@ -267,8 +267,11 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
          * If the validator *has* been slashed, then this function can proceed. If they have *not* been slashed, then
          * the `verifyAndProcessWithdrawal` function should be called instead.
          */
+        emit log_named_uint("validatorCurrentBalanceGwei", validatorCurrentBalanceGwei);
         if (validatorCurrentBalanceGwei == 0) {
+            emit log_named_uint("validatorCurrentBalanceGwei", validatorCurrentBalanceGwei);
             uint64 slashedStatus = Endian.fromLittleEndianUint64(validatorFields[BeaconChainProofs.VALIDATOR_SLASHED_INDEX]);
+            emit log_named_uint("slashedStatus", slashedStatus);
             require(slashedStatus == 1, "EigenPod.verifyOvercommittedStake: Validator must be slashed to be overcommitted");
             //Verify the validator fields, which contain the validator's slashed status
             BeaconChainProofs.verifyValidatorFields(
