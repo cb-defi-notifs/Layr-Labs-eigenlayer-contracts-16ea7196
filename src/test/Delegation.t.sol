@@ -199,60 +199,12 @@ contract DelegationTests is EigenLayerTestHelper {
         require(delegation.delegatedTo(staker) == address(0), "undelegation unsuccessful");
     }
 
-    /// @notice tests delegation to EigenLayer via an ECDSA signatures - meta transactions are the future bby
-    /// @param operator is the operator being delegated to.
-    function testDelegateToBySignature(address operator, uint96 ethAmount, uint96 eigenAmount)
+    function testDelegateToBySignature(address operator, uint96 ethAmount, uint96 eigenAmount, uint256 expiry)
         public
         fuzzedAddress(operator)
     {
-        // if first deposit amount to base strategy is too small, it will revert. ignore that case here.
-        cheats.assume(ethAmount >= 1e9 && ethAmount <= 1e18);
-        cheats.assume(eigenAmount >= 1e9 && eigenAmount <= 1e18);
-        if (!delegation.isOperator(operator)) {
-            _testRegisterAsOperator(operator, IDelegationTerms(operator));
-        }
         address staker = cheats.addr(PRIVATE_KEY);
-        cheats.assume(staker != operator);
-
-        //making additional deposits to the strategies
-        assertTrue(delegation.isNotDelegated(staker) == true, "testDelegation: staker is not delegate");
-        _testDepositWeth(staker, ethAmount);
-        _testDepositEigen(staker, eigenAmount);
-        
-
-        uint256 nonceBefore = delegation.nonces(staker);
-
-        bytes32 structHash = keccak256(abi.encode(delegation.DELEGATION_TYPEHASH(), staker, operator, nonceBefore, type(uint256).max));
-        bytes32 digestHash = keccak256(abi.encodePacked("\x19\x01", delegation.DOMAIN_SEPARATOR(), structHash));
-
-        (uint8 v, bytes32 r, bytes32 s) = cheats.sign(PRIVATE_KEY, digestHash);
-
-        bytes memory signature = abi.encodePacked(r, s, v);
-        
-        delegation.delegateToBySignature(staker, operator, type(uint256).max, signature);
-        assertTrue(delegation.isDelegated(staker) == true, "testDelegation: staker is not delegate");
-        assertTrue(nonceBefore + 1 == delegation.nonces(staker), "nonce not incremented correctly");
-        assertTrue(delegation.delegatedTo(staker) == operator, "staker delegated to wrong operator");
-    }
-
-    function testDelegateToBySignature_VariableExpiry(address operator, uint96 ethAmount, uint96 eigenAmount, uint256 expiry)
-        public
-        fuzzedAddress(operator)
-    {
-        // if first deposit amount to base strategy is too small, it will revert. ignore that case here.
-        cheats.assume(ethAmount >= 1e9 && ethAmount <= 1e18);
-        cheats.assume(eigenAmount >= 1e9 && eigenAmount <= 1e18);
-        if (!delegation.isOperator(operator)) {
-            _testRegisterAsOperator(operator, IDelegationTerms(operator));
-        }
-        address staker = cheats.addr(PRIVATE_KEY);
-        cheats.assume(staker != operator);
-
-        //making additional deposits to the strategies
-        assertTrue(delegation.isNotDelegated(staker) == true, "testDelegation: staker is not delegate");
-        _testDepositWeth(staker, ethAmount);
-        _testDepositEigen(staker, eigenAmount);
-        
+        _registerOperatorAndDepositFromStaker(operator, staker, ethAmount, eigenAmount); 
 
         uint256 nonceBefore = delegation.nonces(staker);
 
@@ -279,25 +231,15 @@ contract DelegationTests is EigenLayerTestHelper {
         public
         fuzzedAddress(operator)
     {
-        // if first deposit amount to base strategy is too small, it will revert. ignore that case here.
-        cheats.assume(ethAmount >= 1e9 && ethAmount <= 1e18);
-        cheats.assume(eigenAmount >= 1e9 && eigenAmount <= 1e18);
-        if (!delegation.isOperator(operator)) {
-            _testRegisterAsOperator(operator, IDelegationTerms(operator));
-        }
         address staker = cheats.addr(PRIVATE_KEY);
+
         // deploy ERC1271WalletMock for staker to use
         cheats.startPrank(staker);
         ERC1271WalletMock wallet = new ERC1271WalletMock(staker);
         cheats.stopPrank();
         staker = address(wallet);
 
-        cheats.assume(staker != operator);
-
-        //making additional deposits to the strategies
-        assertTrue(delegation.isNotDelegated(staker) == true, "testDelegation: staker is not delegate");
-        _testDepositWeth(staker, ethAmount);
-        _testDepositEigen(staker, eigenAmount);
+        _registerOperatorAndDepositFromStaker(operator, staker, ethAmount, eigenAmount); 
         
         uint256 nonceBefore = delegation.nonces(staker);
 
@@ -319,25 +261,15 @@ contract DelegationTests is EigenLayerTestHelper {
         public
         fuzzedAddress(operator)
     {
-        // if first deposit amount to base strategy is too small, it will revert. ignore that case here.
-        cheats.assume(ethAmount >= 1e9 && ethAmount <= 1e18);
-        cheats.assume(eigenAmount >= 1e9 && eigenAmount <= 1e18);
-        if (!delegation.isOperator(operator)) {
-            _testRegisterAsOperator(operator, IDelegationTerms(operator));
-        }
         address staker = cheats.addr(PRIVATE_KEY);
+
         // deploy ERC1271WalletMock for staker to use
         cheats.startPrank(staker);
         ERC1271WalletMock wallet = new ERC1271WalletMock(staker);
         cheats.stopPrank();
         staker = address(wallet);
 
-        cheats.assume(staker != operator);
-
-        //making additional deposits to the strategies
-        assertTrue(delegation.isNotDelegated(staker) == true, "testDelegation: staker is not delegate");
-        _testDepositWeth(staker, ethAmount);
-        _testDepositEigen(staker, eigenAmount);
+        _registerOperatorAndDepositFromStaker(operator, staker, ethAmount, eigenAmount); 
         
         uint256 nonceBefore = delegation.nonces(staker);
 
@@ -359,25 +291,17 @@ contract DelegationTests is EigenLayerTestHelper {
         public
         fuzzedAddress(operator)
     {
-        // if first deposit amount to base strategy is too small, it will revert. ignore that case here.
-        cheats.assume(ethAmount >= 1e9 && ethAmount <= 1e18);
-        cheats.assume(eigenAmount >= 1e9 && eigenAmount <= 1e18);
-        if (!delegation.isOperator(operator)) {
-            _testRegisterAsOperator(operator, IDelegationTerms(operator));
-        }
         address staker = cheats.addr(PRIVATE_KEY);
-        // deploy ERC1271WalletMock for staker to use
+
+        // deploy non ERC1271-compliant wallet for staker to use
         cheats.startPrank(staker);
         ERC1271MaliciousMock wallet = new ERC1271MaliciousMock();
         cheats.stopPrank();
         staker = address(wallet);
 
-        cheats.assume(staker != operator);
+        _registerOperatorAndDepositFromStaker(operator, staker, ethAmount, eigenAmount); 
 
-        //making additional deposits to the strategies
-        assertTrue(delegation.isNotDelegated(staker) == true, "testDelegation: staker is not delegate");
-        _testDepositWeth(staker, ethAmount);
-        _testDepositEigen(staker, eigenAmount);
+        cheats.assume(staker != operator);
 
         bytes memory signature = abi.encodePacked(r, s, v);
 
@@ -399,19 +323,8 @@ contract DelegationTests is EigenLayerTestHelper {
         fuzzedAddress(operator)
         fuzzedAmounts(ethAmount, eigenAmount)
     {
-        // if first deposit amount to base strategy is too small, it will revert. ignore that case here.
-        cheats.assume(ethAmount >= 1e9);
-        cheats.assume(eigenAmount >= 1e9);
-        if (!delegation.isOperator(operator)) {
-            _testRegisterAsOperator(operator, IDelegationTerms(operator));
-        }
         address staker = cheats.addr(PRIVATE_KEY);
-        cheats.assume(staker != operator);
-
-        //making additional deposits to the strategies
-        assertTrue(delegation.isNotDelegated(staker) == true, "testDelegation: staker is not delegate");
-        _testDepositWeth(staker, ethAmount);
-        _testDepositEigen(staker, eigenAmount);
+        _registerOperatorAndDepositFromStaker(operator, staker, ethAmount, eigenAmount); 
 
         bytes memory signature = abi.encodePacked(r, s, v);
         
@@ -589,5 +502,24 @@ contract DelegationTests is EigenLayerTestHelper {
         voteWeigher.registerOperator(sender, _serveUntil);
 
         cheats.stopPrank();
+    }
+
+
+    // registers the operator if they are not already registered, and deposits "WETH" + "EIGEN" on behalf of the staker.
+    function _registerOperatorAndDepositFromStaker(address operator, address staker, uint96 ethAmount, uint96 eigenAmount) internal {
+        cheats.assume(staker != operator);
+
+        // if first deposit amount to base strategy is too small, it will revert. ignore that case here.
+        cheats.assume(ethAmount >= 1e9 && ethAmount <= 1e18);
+        cheats.assume(eigenAmount >= 1e9 && eigenAmount <= 1e18);
+
+        if (!delegation.isOperator(operator)) {
+            _testRegisterAsOperator(operator, IDelegationTerms(operator));
+        }
+
+        //making additional deposits to the strategies
+        assertTrue(delegation.isNotDelegated(staker) == true, "testDelegation: staker is not delegate");
+        _testDepositWeth(staker, ethAmount);
+        _testDepositEigen(staker, eigenAmount);
     }
 }
