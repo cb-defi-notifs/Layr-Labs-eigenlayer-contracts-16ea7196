@@ -33,14 +33,14 @@ contract ServiceManagerMock is IServiceManager, DSTest {
     /// @notice Permissioned function to have the ServiceManager forward a call to the slasher, recording a final stake update (on operator deregistration)
     function recordLastStakeUpdateAndRevokeSlashingAbility(address operator, uint32 serveUntil) external pure {}
 
-    /// @notice Collateral token used for placing collateral on challenges & payment commits
-    function collateralToken() external pure returns (IERC20) {
+    /// @notice Token used for placing guarantee on challenges & payment commits
+    function paymentChallengeToken() external pure returns (IERC20) {
         return IERC20(address(0));
     }
 
     /// @notice The Delegation contract of EigenLayer.
-    function eigenLayerDelegation() external pure returns (IEigenLayerDelegation) {
-        return IEigenLayerDelegation(address(0));
+    function delegationManager() external pure returns (IDelegationManager) {
+        return IDelegationManager(address(0));
     }
 
     /// @notice Returns the `latestTime` until which operators must serve.

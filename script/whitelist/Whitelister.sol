@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity =0.8.12;
 
-import "../../src/contracts/interfaces/IInvestmentManager.sol";
-import "../../src/contracts/interfaces/IInvestmentStrategy.sol";
-import "../../src/contracts/interfaces/IEigenLayerDelegation.sol";
+import "../../src/contracts/interfaces/IStrategyManager.sol";
+import "../../src/contracts/interfaces/IStrategy.sol";
+import "../../src/contracts/interfaces/IDelegationManager.sol";
 import "../../src/contracts/interfaces/IBLSRegistry.sol";
 import "../../src/contracts/interfaces/IWhitelister.sol";
 import "./Staker.sol";
@@ -16,29 +16,29 @@ import "@openzeppelin/contracts/utils/Create2.sol";
 
 
 contract Whitelister is IWhitelister, Ownable {
-    //address constant investmentManager = 0x0000000000000000000000000000000000000000;
+    //address constant strategyManager = 0x0000000000000000000000000000000000000000;
     //TODO: change before deploy
-    IInvestmentManager immutable investmentManager;
+    IStrategyManager immutable strategyManager;
     ERC20PresetMinterPauser immutable stakeToken;
-    IInvestmentStrategy immutable stakeStrategy;
-    IEigenLayerDelegation delegation;
+    IStrategy immutable stakeStrategy;
+    IDelegationManager delegation;
 
     IBLSRegistry immutable registry;
 
     uint256 public constant DEFAULT_AMOUNT = 100e18;
 
-    //TODO: Deploy ERC20PresetMinterPauser and a corresponding InvestmentStrategyBase for it
+    //TODO: Deploy ERC20PresetMinterPauser and a corresponding StrategyBase for it
     //TODO: Transfer ownership of Whitelister to multisig after deployment
     //TODO: Give mint/admin/pauser permssions of whitelistToken to Whitelister and multisig after deployment
     //TODO: Give up mint/admin/pauser permssions of whitelistToken for deployer
     constructor(
-        IInvestmentManager _investmentManager,
-        IEigenLayerDelegation _delegation,
+        IStrategyManager _strategyManager,
+        IDelegationManager _delegation,
         ERC20PresetMinterPauser _token,
-        IInvestmentStrategy _strategy,
+        IStrategy _strategy,
         IBLSRegistry _registry
     ) {
-        investmentManager = _investmentManager;
+        strategyManager = _strategyManager;
         delegation = _delegation;
         stakeToken = _token;
         stakeStrategy = _strategy;
@@ -57,7 +57,7 @@ contract Whitelister is IWhitelister, Ownable {
                 type(Staker).creationCode,
                 abi.encode(
                     stakeStrategy,
-                    investmentManager,
+                    strategyManager,
                     delegation,
                     stakeToken,
                     DEFAULT_AMOUNT,
@@ -81,7 +81,7 @@ contract Whitelister is IWhitelister, Ownable {
                         type(Staker).creationCode,
                         abi.encode(
                             stakeStrategy,
-                            investmentManager,
+                            strategyManager,
                             delegation,
                             stakeToken,
                             DEFAULT_AMOUNT,
@@ -94,56 +94,56 @@ contract Whitelister is IWhitelister, Ownable {
 
     function depositIntoStrategy(
         address staker,
-        IInvestmentStrategy strategy,
+        IStrategy strategy,
         IERC20 token,
         uint256 amount
     ) public onlyOwner returns (bytes memory) {
        
         bytes memory data = abi.encodeWithSelector(
-                IInvestmentManager.depositIntoStrategy.selector,
+                IStrategyManager.depositIntoStrategy.selector,
                 strategy,
                 token,
                 amount
         );
 
-        return Staker(staker).callAddress(address(investmentManager), data);
+        return Staker(staker).callAddress(address(strategyManager), data);
     }
 
     function queueWithdrawal(
         address staker,
         uint256[] calldata strategyIndexes,
-        IInvestmentStrategy[] calldata strategies,
+        IStrategy[] calldata strategies,
         uint256[] calldata shares,
         address withdrawer,
         bool undelegateIfPossible
     ) public onlyOwner returns (bytes memory) {
         bytes memory data = abi.encodeWithSelector(
-                IInvestmentManager.queueWithdrawal.selector,
+                IStrategyManager.queueWithdrawal.selector,
                 strategyIndexes,
                 strategies,
                 shares,
                 withdrawer,
                 undelegateIfPossible
             );
-        return Staker(staker).callAddress(address(investmentManager), data);
+        return Staker(staker).callAddress(address(strategyManager), data);
     }
 
     function completeQueuedWithdrawal(
         address staker,
-        IInvestmentManager.QueuedWithdrawal calldata queuedWithdrawal,
+        IStrategyManager.QueuedWithdrawal calldata queuedWithdrawal,
         IERC20[] calldata tokens,
         uint256 middlewareTimesIndex,
         bool receiveAsTokens
     ) public onlyOwner returns (bytes memory) {
         bytes memory data = abi.encodeWithSelector(
-                IInvestmentManager.completeQueuedWithdrawal.selector,
+                IStrategyManager.completeQueuedWithdrawal.selector,
                 queuedWithdrawal,
                 tokens,
                 middlewareTimesIndex,
                 receiveAsTokens
         );
 
-        return Staker(staker).callAddress(address(investmentManager), data);
+        return Staker(staker).callAddress(address(strategyManager), data);
     }
 
     function transfer(

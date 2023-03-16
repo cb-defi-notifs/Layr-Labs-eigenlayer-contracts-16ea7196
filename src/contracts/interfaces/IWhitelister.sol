@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity =0.8.12;
 
-import "../../contracts/interfaces/IInvestmentManager.sol";
-import "../../contracts/interfaces/IInvestmentStrategy.sol";
-import "../../contracts/interfaces/IEigenLayerDelegation.sol";
+import "../../contracts/interfaces/IStrategyManager.sol";
+import "../../contracts/interfaces/IStrategy.sol";
+import "../../contracts/interfaces/IDelegationManager.sol";
 import "../../contracts/interfaces/IBLSRegistry.sol";
 import "../../../script/whitelist/Staker.sol";
 
@@ -20,7 +20,7 @@ interface IWhitelister {
 
     function depositIntoStrategy(
         address staker,
-        IInvestmentStrategy strategy,
+        IStrategy strategy,
         IERC20 token,
         uint256 amount
     ) external returns (bytes memory);
@@ -28,7 +28,7 @@ interface IWhitelister {
     function queueWithdrawal(
         address staker,
         uint256[] calldata strategyIndexes,
-        IInvestmentStrategy[] calldata strategies,
+        IStrategy[] calldata strategies,
         uint256[] calldata shares,
         address withdrawer,
         bool undelegateIfPossible
@@ -36,7 +36,7 @@ interface IWhitelister {
 
     function completeQueuedWithdrawal(
         address staker,
-        IInvestmentManager.QueuedWithdrawal calldata queuedWithdrawal,
+        IStrategyManager.QueuedWithdrawal calldata queuedWithdrawal,
         IERC20[] calldata tokens,
         uint256 middlewareTimesIndex,
         bool receiveAsTokens

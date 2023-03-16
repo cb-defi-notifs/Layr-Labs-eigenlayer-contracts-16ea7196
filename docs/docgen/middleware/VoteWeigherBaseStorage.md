@@ -8,7 +8,7 @@ This storage contract is separate from the logic to simplify the upgrade process
 
 ```solidity
 struct StrategyAndWeightingMultiplier {
-  contract IInvestmentStrategy strategy;
+  contract IStrategy strategy;
   uint96 multiplier;
 }
 ```
@@ -40,18 +40,18 @@ Constant used as a divisor in dealing with BIPS amounts.
 ### delegation
 
 ```solidity
-contract IEigenLayerDelegation delegation
+contract IDelegationManager delegation
 ```
 
 The address of the Delegation contract for EigenLayer.
 
-### investmentManager
+### strategyManager
 
 ```solidity
-contract IInvestmentManager investmentManager
+contract IStrategyManager strategyManager
 ```
 
-The address of the InvestmentManager contract for EigenLayer.
+The address of the StrategyManager contract for EigenLayer.
 
 ### slasher
 
@@ -99,6 +99,6 @@ _The sum of all entries, i.e. sum(quorumBips[0] through quorumBips[NUMBER_OF_QUO
 ### constructor
 
 ```solidity
-constructor(contract IInvestmentManager _investmentManager, contract IServiceManager _serviceManager, uint8 _NUMBER_OF_QUORUMS) internal
+constructor(contract IStrategyManager _strategyManager, contract IServiceManager _serviceManager, uint8 _NUMBER_OF_QUORUMS) internal
 ```
 

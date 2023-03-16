@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "../interfaces/IServiceManager.sol";
 import "../interfaces/IQuorumRegistry.sol";
-import "../interfaces/IEigenLayerDelegation.sol";
+import "../interfaces/IDelegationManager.sol";
 import "../interfaces/IPaymentManager.sol";
 import "../permissions/Pausable.sol";
 
@@ -38,9 +38,9 @@ abstract contract PaymentManager is Initializable, IPaymentManager, Pausable {
     /**
      * @notice The global EigenLayer Delegation contract, which is primarily used by
      * stakers to delegate their stake to operators who serve as middleware nodes.
-     * @dev For more details, see EigenLayerDelegation.sol.
+     * @dev For more details, see DelegationManager.sol.
      */
-    IEigenLayerDelegation public immutable eigenLayerDelegation;
+    IDelegationManager public immutable delegationManager;
 
     /// @notice The ServiceManager contract for this middleware, where tasks are created / initiated.
     IServiceManager public immutable serviceManager;
@@ -51,13 +51,13 @@ abstract contract PaymentManager is Initializable, IPaymentManager, Pausable {
     /// @notice the ERC20 token that will be used by the disperser to pay the service fees to middleware nodes.
     IERC20 public immutable paymentToken;
 
-    /// @notice Collateral token used for placing collateral on challenges & payment commits
-    IERC20 public immutable collateralToken;
+    /// @notice Token used for placing a guarantee on challenges & payment commits
+    IERC20 public immutable paymentChallengeToken;
 
     /**
-     * @notice Specifies the payment that has to be made as a collateral for fraudproof during payment challenges.
+     * @notice Specifies the payment that has to be made as a guarantee for fraudproof during payment challenges.
      */
-    uint256 public paymentFraudproofCollateral;
+    uint256 public paymentChallengeAmount;
 
     /// @notice mapping between the operator and its current committed payment or last redeemed payment
     mapping(address => Payment) public operatorToPayment;
@@ -72,8 +72,8 @@ abstract contract PaymentManager is Initializable, IPaymentManager, Pausable {
     mapping(address => mapping(address => uint256)) public allowances;
 
     // EVENTS
-    /// @notice Emitted when the `paymentFraudproofCollateral` variable is modified
-    event PaymentFraudproofCollateralSet(uint256 previousValue, uint256 newValue);
+    /// @notice Emitted when the `paymentChallengeAmount` variable is modified
+    event PaymentChallengeAmountSet(uint256 previousValue, uint256 newValue);
 
     /// @notice Emitted when an operator commits to a payment by calling the `commitPayment` function
     event PaymentCommit(address operator, uint32 fromTaskNumber, uint32 toTaskNumber, uint256 fee);
@@ -114,33 +114,33 @@ abstract contract PaymentManager is Initializable, IPaymentManager, Pausable {
     }
 
     constructor(
-        IEigenLayerDelegation _eigenLayerDelegation,
+        IDelegationManager _delegationManager,
         IServiceManager _serviceManager,
         IQuorumRegistry _registry,
         IERC20 _paymentToken,
-        IERC20 _collateralToken
+        IERC20 _paymentChallengeToken
     ) {
-        eigenLayerDelegation = _eigenLayerDelegation;
+        delegationManager = _delegationManager;
         serviceManager = _serviceManager;
         registry = _registry;
         paymentToken = _paymentToken;
-        collateralToken = _collateralToken;
+        paymentChallengeToken = _paymentChallengeToken;
         _disableInitializers();
     }
 
-    function initialize(IPauserRegistry _pauserReg, uint256 _paymentFraudproofCollateral) public initializer {
+    function initialize(IPauserRegistry _pauserReg, uint256 _paymentChallengeAmount) public initializer {
         _initializePauser(_pauserReg, UNPAUSE_ALL);
-        _setPaymentFraudproofCollateral(_paymentFraudproofCollateral);
+        _setPaymentChallengeAmount(_paymentChallengeAmount);
     }
 
     /**
      * @notice deposit one-time fees by the `msg.sender` with this contract to pay for future tasks of this middleware
-     * @param onBehalfOf could be the `msg.sender` themselves, or a different address for whom `msg.sender` is depositing these future fees
+     * @param depositFor could be the `msg.sender` themselves, or a different address for whom `msg.sender` is depositing these future fees
      * @param amount is amount of futures fees being deposited
      */
-    function depositFutureFees(address onBehalfOf, uint256 amount) external {
+    function depositFutureFees(address depositFor, uint256 amount) external {
         paymentToken.safeTransferFrom(msg.sender, address(this), amount);
-        depositsOf[onBehalfOf] += amount;
+        depositsOf[depositFor] += amount;
     }
 
     /// @notice Allows the `allowed` address to spend up to `amount` of the `msg.sender`'s funds that have been deposited in this contract
@@ -149,15 +149,15 @@ abstract contract PaymentManager is Initializable, IPaymentManager, Pausable {
     }
 
     /**
-     * @notice Modifies the `paymentFraudproofCollateral` amount.
-     * @param _paymentFraudproofCollateral The new value for `paymentFraudproofCollateral` to take.
+     * @notice Modifies the `paymentChallengeAmount` amount.
+     * @param _paymentChallengeAmount The new value for `paymentChallengeAmount` to take.
      */
-    function setPaymentFraudproofCollateral(uint256 _paymentFraudproofCollateral) external virtual onlyServiceManagerOwner {
-        _setPaymentFraudproofCollateral(_paymentFraudproofCollateral);
+    function setPaymentChallengeAmount(uint256 _paymentChallengeAmount) external virtual onlyServiceManagerOwner {
+        _setPaymentChallengeAmount(_paymentChallengeAmount);
     }
 
     /// @notice Used for deducting the fees from the payer to the middleware
-    function payFee(address initiator, address payer, uint256 feeAmount) external virtual onlyServiceManager {
+    function takeFee(address initiator, address payer, uint256 feeAmount) external virtual onlyServiceManager {
         if (initiator != payer) {
             if (allowances[payer][initiator] != type(uint256).max) {
                 allowances[payer][initiator] -= feeAmount;
@@ -187,8 +187,8 @@ abstract contract PaymentManager is Initializable, IPaymentManager, Pausable {
             "PaymentManager.commitPayment: Require last payment is redeemed"
         );
 
-        // operator puts up collateral which can be slashed in case of wrongful payment claim
-        collateralToken.safeTransferFrom(msg.sender, address(this), paymentFraudproofCollateral);
+        // operator puts up tokens which can be slashed in case of wrongful payment claim
+        paymentChallengeToken.safeTransferFrom(msg.sender, address(this), paymentChallengeAmount);
 
         // recording payment claims for the operator
         uint32 fromTaskNumber;
@@ -218,8 +218,8 @@ abstract contract PaymentManager is Initializable, IPaymentManager, Pausable {
             amount,
             // set payment status as 1: committed
             PaymentStatus.COMMITTED,
-            // storing collateral amount deposited
-            paymentFraudproofCollateral
+            // storing guarantee amount deposited
+            paymentChallengeAmount
         );
 
         emit PaymentCommit(msg.sender, fromTaskNumber, toTaskNumber, amount);
@@ -245,12 +245,12 @@ abstract contract PaymentManager is Initializable, IPaymentManager, Pausable {
         // update the status to show that operator's payment is getting redeemed
         operatorToPayment[msg.sender].status = PaymentStatus.REDEEMED;
 
-        // Transfer back the collateral to the operator as there was no successful challenge to the payment commitment made by the operator.
-        collateralToken.safeTransfer(msg.sender, operatorToPayment[msg.sender].collateral);
+        // Transfer back the challengeAmount to the operator as there was no successful challenge to the payment commitment made by the operator.
+        paymentChallengeToken.safeTransfer(msg.sender, operatorToPayment[msg.sender].challengeAmount);
 
         // look up payment amount and delegation terms address for the `msg.sender`
         uint256 amount = operatorToPayment[msg.sender].amount;
-        IDelegationTerms dt = eigenLayerDelegation.delegationTerms(msg.sender);
+        IDelegationTerms dt = delegationManager.delegationTerms(msg.sender);
 
         // transfer the amount due in the payment claim of the operator to its delegation terms contract, where the delegators can withdraw their rewards.
         paymentToken.safeTransfer(address(dt), amount);
@@ -327,9 +327,9 @@ abstract contract PaymentManager is Initializable, IPaymentManager, Pausable {
             ChallengeStatus.OPERATOR_TURN
         );
 
-        //move collateral over
-        uint256 collateral = operatorToPayment[operator].collateral;
-        collateralToken.safeTransferFrom(msg.sender, address(this), collateral);
+        // move challengeAmount over
+        uint256 challengeAmount = operatorToPayment[operator].challengeAmount;
+        paymentChallengeToken.safeTransferFrom(msg.sender, address(this), challengeAmount);
         // update the payment status and reset the fraudproof window for this payment
         operatorToPayment[operator].status = PaymentStatus.CHALLENGED;
         operatorToPayment[operator].confirmAt = uint32(block.timestamp + paymentFraudproofInterval);
@@ -471,9 +471,9 @@ abstract contract PaymentManager is Initializable, IPaymentManager, Pausable {
      * @notice Resolves a single payment challenge, paying the winner.
      * @param challenge The challenge that is being resolved.
      * @param winner Address of the winner of the challenge.
-     * @dev If challenger is proven correct, then they are refunded their own collateral plus the collateral put up by the operator.
-     * If operator is proven correct, then the challenger's collateral is transferred to them, since the operator still hasn't been
-     * proven right, and thus their collateral is still required in case they are challenged again.
+     * @dev If challenger is proven correct, then they are refunded their own challengeAmount plus the challengeAmount put up by the operator.
+     * If operator is proven correct, then the challenger's challengeAmount is transferred to them, since the operator still hasn't been
+     * proven right, and thus their challengeAmount is still required in case they are challenged again.
      */
     function _resolve(PaymentChallenge memory challenge, address winner) internal {
         address operator = challenge.operator;
@@ -484,16 +484,16 @@ abstract contract PaymentManager is Initializable, IPaymentManager, Pausable {
             operatorToPayment[operator].confirmAt = uint32(block.timestamp + paymentFraudproofInterval);
             /*
             * Since the operator hasn't been proved right (only challenger has been proved wrong)
-            * transfer them only challengers collateral, not their own collateral (which is still
+            * transfer them only challengers challengeAmount, not their own challengeAmount (which is still
             * locked up in this contract)
              */
-            collateralToken.safeTransfer(operator, operatorToPayment[operator].collateral);
+            paymentChallengeToken.safeTransfer(operator, operatorToPayment[operator].challengeAmount);
             emit PaymentChallengeResolution(operator, true);
         } else {
             // challeger was correct, reset payment
             operatorToPayment[operator].status = PaymentStatus.REDEEMED;
-            //give them their collateral and the operator's
-            collateralToken.safeTransfer(challenger, 2 * operatorToPayment[operator].collateral);
+            //give them their challengeAmount and the operator's
+            paymentChallengeToken.safeTransfer(challenger, 2 * operatorToPayment[operator].challengeAmount);
             emit PaymentChallengeResolution(operator, false);
         }
     }
@@ -528,9 +528,9 @@ abstract contract PaymentManager is Initializable, IPaymentManager, Pausable {
         return operatorToPaymentChallenge[operator].toTaskNumber - operatorToPaymentChallenge[operator].fromTaskNumber;
     }
 
-    /// @notice Returns the active collateral of the `operator` placed on their payment claim.
-    function getPaymentCollateral(address operator) external view returns (uint256) {
-        return operatorToPayment[operator].collateral;
+    /// @notice Returns the active challengeAmount of the `operator` placed on their payment claim.
+    function getPaymentChallengeAmount(address operator) external view returns (uint256) {
+        return operatorToPayment[operator].challengeAmount;
     }
 
     /// @notice Convenience function for fetching the current taskNumber from the `serviceManager`
@@ -539,11 +539,11 @@ abstract contract PaymentManager is Initializable, IPaymentManager, Pausable {
     }
 
     /**
-     * @notice Modifies the `paymentFraudproofCollateral` amount.
-     * @param _paymentFraudproofCollateral The new value for `paymentFraudproofCollateral` to take.
+     * @notice Modifies the `paymentChallengeAmount` amount.
+     * @param _paymentChallengeAmount The new value for `paymentChallengeAmount` to take.
      */
-    function _setPaymentFraudproofCollateral(uint256 _paymentFraudproofCollateral) internal {
-        emit PaymentFraudproofCollateralSet(paymentFraudproofCollateral, _paymentFraudproofCollateral);
-        paymentFraudproofCollateral = _paymentFraudproofCollateral;
+    function _setPaymentChallengeAmount(uint256 _paymentChallengeAmount) internal {
+        emit PaymentChallengeAmountSet(paymentChallengeAmount, _paymentChallengeAmount);
+        paymentChallengeAmount = _paymentChallengeAmount;
     }
 }
