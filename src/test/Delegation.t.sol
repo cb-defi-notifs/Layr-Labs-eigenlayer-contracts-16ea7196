@@ -235,6 +235,45 @@ contract DelegationTests is EigenLayerTestHelper {
         assertTrue(delegation.delegatedTo(staker) == operator, "staker delegated to wrong operator");
     }
 
+    function testDelegateToBySignature_VariableExpiry(address operator, uint96 ethAmount, uint96 eigenAmount, uint256 expiry)
+        public
+        fuzzedAddress(operator)
+    {
+        // if first deposit amount to base strategy is too small, it will revert. ignore that case here.
+        cheats.assume(ethAmount >= 1e9 && ethAmount <= 1e18);
+        cheats.assume(eigenAmount >= 1e9 && eigenAmount <= 1e18);
+        if (!delegation.isOperator(operator)) {
+            _testRegisterAsOperator(operator, IDelegationTerms(operator));
+        }
+        address staker = cheats.addr(PRIVATE_KEY);
+        cheats.assume(staker != operator);
+
+        //making additional deposits to the strategies
+        assertTrue(delegation.isNotDelegated(staker) == true, "testDelegation: staker is not delegate");
+        _testDepositWeth(staker, ethAmount);
+        _testDepositEigen(staker, eigenAmount);
+        
+
+        uint256 nonceBefore = delegation.nonces(staker);
+
+        bytes32 structHash = keccak256(abi.encode(delegation.DELEGATION_TYPEHASH(), staker, operator, nonceBefore, expiry));
+        bytes32 digestHash = keccak256(abi.encodePacked("\x19\x01", delegation.DOMAIN_SEPARATOR(), structHash));
+
+        (uint8 v, bytes32 r, bytes32 s) = cheats.sign(PRIVATE_KEY, digestHash);
+
+        bytes memory signature = abi.encodePacked(r, s, v);
+        
+        if (expiry < block.timestamp) {
+            cheats.expectRevert("DelegationManager.delegateToBySignature: delegation signature expired");
+        }
+        delegation.delegateToBySignature(staker, operator, expiry, signature);
+        if (expiry >= block.timestamp) {
+            assertTrue(delegation.isDelegated(staker) == true, "testDelegation: staker is not delegate");
+            assertTrue(nonceBefore + 1 == delegation.nonces(staker), "nonce not incremented correctly");
+            assertTrue(delegation.delegatedTo(staker) == operator, "staker delegated to wrong operator");            
+        }
+    }
+
     // tries delegating using a signature and an EIP 1271 compliant wallet
     function testDelegateToBySignature_WithContractWallet_Successfully(address operator, uint96 ethAmount, uint96 eigenAmount)
         public

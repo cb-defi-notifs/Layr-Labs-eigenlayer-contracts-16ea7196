@@ -342,6 +342,45 @@ contract StrategyManagerUnitTests is Test {
         require(nonceAfter == nonceBefore + 1, "nonceAfter != nonceBefore + 1");
     }
 
+    function testDepositIntoStrategyWithSignatureSuccessfully_VariableExpiry(uint256 amount, uint256 expiry) public {
+        uint256 privateKey = 111111;
+        address staker = cheats.addr(privateKey);
+        IStrategy strategy = dummyStrat;
+        IERC20 token = dummyToken;
+
+        // filter out zero case since it will revert with "StrategyManager._addShares: shares should not be zero!"
+        cheats.assume(amount != 0);
+        // sanity check / filter
+        cheats.assume(amount <= token.balanceOf(address(this)));
+
+        uint256 nonceBefore = strategyManager.nonces(staker);
+        bytes memory signature;
+
+        {
+            bytes32 structHash = keccak256(abi.encode(strategyManager.DEPOSIT_TYPEHASH(), strategy, token, amount, nonceBefore, expiry));
+            bytes32 digestHash = keccak256(abi.encodePacked("\x19\x01", strategyManager.DOMAIN_SEPARATOR(), structHash));
+
+            (uint8 v, bytes32 r, bytes32 s) = cheats.sign(privateKey, digestHash);
+
+            signature = abi.encodePacked(r, s, v);
+        }
+
+        uint256 sharesBefore = strategyManager.stakerStrategyShares(staker, strategy);
+
+        if (expiry < block.timestamp) {
+            cheats.expectRevert("StrategyManager.depositIntoStrategyWithSignature: signature expired");
+        }
+        uint256 shares = strategyManager.depositIntoStrategyWithSignature(strategy, token, amount, staker, expiry, signature);
+
+        uint256 sharesAfter = strategyManager.stakerStrategyShares(staker, strategy);
+        uint256 nonceAfter = strategyManager.nonces(staker);
+
+        if (expiry >= block.timestamp) {
+            require(sharesAfter == sharesBefore + shares, "sharesAfter != sharesBefore + shares");
+            require(nonceAfter == nonceBefore + 1, "nonceAfter != nonceBefore + 1");
+        }
+    }
+
     // tries depositing using a signature and an EIP 1271 compliant wallet
     function testDepositIntoStrategyWithSignature_WithContractWallet_Successfully(uint256 amount) public {
         uint256 privateKey = 111111;
