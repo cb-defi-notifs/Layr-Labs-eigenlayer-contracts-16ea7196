@@ -78,6 +78,9 @@ interface IEigenPod {
     /// @notice an indicator of whether or not the podOwner has ever "fully restaked" by successfully calling `verifyCorrectWithdrawalCredentials`.
     function hasRestaked() external view returns (bool);
 
+    /// @notice block number of the most recent withdrawal
+    function mostRecentWithdrawalBlockNumber() external view returns (uint64);
+
 
     ///@notice mapping that trackes proven partial withdrawals
     function provenPartialWithdrawal(uint40 validatorIndex, uint64 slot) external view returns (bool);
