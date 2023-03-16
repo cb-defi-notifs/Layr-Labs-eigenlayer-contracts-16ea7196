@@ -30,12 +30,6 @@ event PauserChanged(address previousPauser, address newPauser)
 event UnpauserChanged(address previousUnpauser, address newUnpauser)
 ```
 
-### onlyPauser
-
-```solidity
-modifier onlyPauser()
-```
-
 ### onlyUnpauser
 
 ```solidity

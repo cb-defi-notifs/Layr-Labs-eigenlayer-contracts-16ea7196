@@ -10,7 +10,7 @@ import "../contracts/libraries/BytesLib.sol";
 import "./mocks/MiddlewareVoteWeigherMock.sol";
 import "./mocks/ServiceManagerMock.sol";
 import "./mocks/PublicKeyCompendiumMock.sol";
-import "./mocks/InvestmentManagerMock.sol";
+import "./mocks/StrategyManagerMock.sol";
 
 import "../../src/contracts/middleware/BLSRegistry.sol";
 import "../../src/contracts/middleware/BLSPublicKeyCompendium.sol";
@@ -27,7 +27,7 @@ contract RegistrationTests is EigenLayerTestHelper {
     ProxyAdmin public dataLayrProxyAdmin;
 
     ServiceManagerMock public dlsm;
-    InvestmentManagerMock public investmentManagerMock;
+    StrategyManagerMock public strategyManagerMock;
 
     function setUp() public virtual override {
         EigenLayerDeployer.setUp();
@@ -41,8 +41,8 @@ contract RegistrationTests is EigenLayerTestHelper {
 
         pubkeyCompendium = new BLSPublicKeyCompendiumMock();
 
-        investmentManagerMock = new InvestmentManagerMock();
-        investmentManagerMock.setAddresses(delegation, eigenPodManager, slasher);
+        strategyManagerMock = new StrategyManagerMock();
+        strategyManagerMock.setAddresses(delegation, eigenPodManager, slasher);
 
         dlsm = new ServiceManagerMock(slasher);
 
@@ -51,7 +51,7 @@ contract RegistrationTests is EigenLayerTestHelper {
         );
 
         dlRegImplementation = new BLSRegistry(
-                investmentManagerMock,
+                strategyManagerMock,
                 dlsm,
                 2,
                 pubkeyCompendium

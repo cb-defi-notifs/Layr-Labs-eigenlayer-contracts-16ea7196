@@ -25,10 +25,10 @@ contract DepositAndDelegate is Script, DSTest, EigenLayerParser {
         }
 
         vm.startBroadcast(msg.sender);
-        eigen.approve(address(investmentManager), wethAmount);
-        investmentManager.depositIntoStrategy(eigenStrat, eigen, wethAmount);
-        weth.approve(address(investmentManager), wethAmount);
-        investmentManager.depositIntoStrategy(wethStrat, weth, wethAmount);
+        eigen.approve(address(strategyManager), wethAmount);
+        strategyManager.depositIntoStrategy(eigenStrat, eigen, wethAmount);
+        weth.approve(address(strategyManager), wethAmount);
+        strategyManager.depositIntoStrategy(wethStrat, weth, wethAmount);
         delegation.delegateTo(dlnAddr);
         vm.stopBroadcast();
     }

@@ -13,9 +13,9 @@ contract WithdrawalTests is DelegationTests {
 
     // packed info used to help handle stack-too-deep errors
     struct DataForTestWithdrawal {
-        IInvestmentStrategy[] delegatorStrategies;
+        IStrategy[] delegatorStrategies;
         uint256[] delegatorShares;
-        IInvestmentManager.WithdrawerAndNonce withdrawerAndNonce;
+        IStrategyManager.WithdrawerAndNonce withdrawerAndNonce;
     }
 
     MiddlewareRegistryMock public generalReg1;
@@ -29,14 +29,14 @@ contract WithdrawalTests is DelegationTests {
 
         generalReg1 = new MiddlewareRegistryMock(
              generalServiceManager1,
-             investmentManager
+             strategyManager
         );
         
         generalServiceManager2 = new ServiceManagerMock(slasher);
 
         generalReg2 = new MiddlewareRegistryMock(
              generalServiceManager2,
-             investmentManager
+             strategyManager
         );
     }
 
@@ -100,13 +100,13 @@ contract WithdrawalTests is DelegationTests {
         // scoped block to deal with stack-too-deep issues
         {
             //delegator-specific information
-            (IInvestmentStrategy[] memory delegatorStrategies, uint256[] memory delegatorShares) =
-                investmentManager.getDeposits(depositor);
+            (IStrategy[] memory delegatorStrategies, uint256[] memory delegatorShares) =
+                strategyManager.getDeposits(depositor);
             dataForTestWithdrawal.delegatorStrategies = delegatorStrategies;
             dataForTestWithdrawal.delegatorShares = delegatorShares;
 
-            IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce = 
-                IInvestmentManager.WithdrawerAndNonce({
+            IStrategyManager.WithdrawerAndNonce memory withdrawerAndNonce = 
+                IStrategyManager.WithdrawerAndNonce({
                     withdrawer: withdrawer,
                     // harcoded nonce value
                     nonce: 0
@@ -215,13 +215,13 @@ contract WithdrawalTests is DelegationTests {
         // scoped block to deal with stack-too-deep issues
         {
             //delegator-specific information
-            (IInvestmentStrategy[] memory delegatorStrategies, uint256[] memory delegatorShares) =
-                investmentManager.getDeposits(depositor);
+            (IStrategy[] memory delegatorStrategies, uint256[] memory delegatorShares) =
+                strategyManager.getDeposits(depositor);
             dataForTestWithdrawal.delegatorStrategies = delegatorStrategies;
             dataForTestWithdrawal.delegatorShares = delegatorShares;
 
-            IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce = 
-                IInvestmentManager.WithdrawerAndNonce({
+            IStrategyManager.WithdrawerAndNonce memory withdrawerAndNonce = 
+                IStrategyManager.WithdrawerAndNonce({
                     withdrawer: withdrawer,
                     // harcoded nonce value
                     nonce: 0
@@ -298,6 +298,7 @@ contract WithdrawalTests is DelegationTests {
             }
         }
     }
+
     // @notice This function tests to ensure that a delegator can re-delegate to an operator after undelegating.
     // @param operator is the operator being delegated to.
     // @param staker is the staker delegating stake to the operator.
@@ -347,8 +348,8 @@ contract WithdrawalTests is DelegationTests {
             cheats.stopPrank();
         }
 
-        (IInvestmentStrategy[] memory updatedStrategies, uint256[] memory updatedShares) =
-            investmentManager.getDeposits(staker);
+        (IStrategy[] memory updatedStrategies, uint256[] memory updatedShares) =
+            strategyManager.getDeposits(staker);
 
         uint256[] memory strategyIndexes = new uint256[](2);
         strategyIndexes[0] = 0;
@@ -360,7 +361,7 @@ contract WithdrawalTests is DelegationTests {
 
         //initiating queued withdrawal
         cheats.expectRevert(
-            bytes("InvestmentManager.onlyNotFrozen: staker has been frozen and may be subject to slashing")
+            bytes("StrategyManager.onlyNotFrozen: staker has been frozen and may be subject to slashing")
         );
         _testQueueWithdrawal(staker, strategyIndexes, updatedStrategies, updatedShares, staker, true);
     }

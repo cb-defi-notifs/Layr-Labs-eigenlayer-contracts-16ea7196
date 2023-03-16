@@ -105,13 +105,13 @@ interface IEigenPod {
     /**
      * @notice This function records an overcommitment of stake to EigenLayer on behalf of a certain ETH validator.
      *         If successful, the overcommitted balance is penalized (available for withdrawal whenever the pod's balance allows).
-     *         The ETH validator's shares in the enshrined beaconChainETH strategy are also removed from the InvestmentManager and undelegated.
+     *         The ETH validator's shares in the enshrined beaconChainETH strategy are also removed from the StrategyManager and undelegated.
      * @param oracleBlockNumber The oracleBlockNumber whose state root the `proof` will be proven against.
      *        Must be within `VERIFY_OVERCOMMITTED_WINDOW_BLOCKS` of the current block.
      * @param validatorIndex is the index of the validator being proven, refer to consensus specs 
      * @param proofs is the proof of the validator's balance and validatorFields in the balance tree and the balanceRoot to prove for
      * @param beaconChainETHStrategyIndex is the index of the beaconChainETHStrategy for the pod owner for the callback to 
-     *                                    the InvestmentManger in case it must be removed from the list of the podOwners strategies
+     *                                    the StrategyManager in case it must be removed from the list of the podOwners strategies
      * @param validatorFields are the fields of the "Validator Container", refer to consensus specs
      * @dev For more details on the Beacon Chain spec, see: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
      */
@@ -130,7 +130,7 @@ interface IEigenPod {
      * @param withdrawalFields are the fields of the withdrawal being proven
      * @param validatorFields are the fields of the validator being proven
      * @param beaconChainETHStrategyIndex is the index of the beaconChainETHStrategy for the pod owner for the callback to 
-     *        the EigenPodManager to the InvestmentManager in case it must be removed from the podOwner's list of strategies
+     *        the EigenPodManager to the StrategyManager in case it must be removed from the podOwner's list of strategies
      */
     function verifyAndProcessWithdrawal(
         BeaconChainProofs.WithdrawalProofs calldata withdrawalProofs, 

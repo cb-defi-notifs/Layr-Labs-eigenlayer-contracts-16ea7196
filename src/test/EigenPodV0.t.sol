@@ -7,7 +7,7 @@
 // import "../contracts/interfaces/IEigenPodV0.sol";
 // import "../contracts/interfaces/IEigenPodManager.sol";
 // import "./EigenLayerDeployer.t.sol";
-// import "../contracts/pods/EigenPodPaymentEscrow.sol";
+// import "../contracts/pods/DelayedWithdrawalRouter.sol";
 // import "./mocks/BeaconChainOracleMock.sol";
 // import "./mocks/ServiceManagerMock.sol";
 
@@ -33,14 +33,14 @@
 
 //     Vm cheats = Vm(HEVM_ADDRESS);
 //     PauserRegistry public pauserReg;
-//     EigenLayerDelegation public delegation;
-//     IInvestmentManager public investmentManager;
+//     DelegationManager public delegation;
+//     IStrategyManager public strategyManager;
 //     Slasher public slasher;
 
 //     ProxyAdmin public eigenLayerProxyAdmin;
 //     IEigenPodManager public eigenPodManager;
 //     IEigenPodV0 public podImplementation;
-//     IEigenPodPaymentEscrow public eigenPodPaymentEscrow;
+//     IDelayedWithdrawalRouter public delayedWithdrawalRouter;
 //     IETHPOSDeposit public ethPOSDeposit;
 //     IBeacon public eigenPodBeacon;
 //     IBeaconChainOracle public beaconChainOracle;
@@ -81,23 +81,23 @@
 //          * not yet deployed, we give these proxies an empty contract as the initial implementation, to act as if they have no code.
 //          */
 //         EmptyContract emptyContract = new EmptyContract();
-//         delegation = EigenLayerDelegation(
+//         delegation = DelegationManager(
 //             address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayerProxyAdmin), ""))
 //         );
-//         investmentManager = InvestmentManager(
+//         strategyManager = StrategyManager(
 //             address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayerProxyAdmin), ""))
 //         );
 //         slasher = Slasher(
 //             address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayerProxyAdmin), ""))
 //         );
-//         eigenPodPaymentEscrow = EigenPodPaymentEscrow(
+//         delayedWithdrawalRouter = DelayedWithdrawalRouter(
 //             address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayerProxyAdmin), ""))
 //         );
 
 //         ethPOSDeposit = new ETHPOSDepositMock();
 //         podImplementation = new EigenPodV0(
 //                 ethPOSDeposit, 
-//                 eigenPodPaymentEscrow
+//                 delayedWithdrawalRouter
 //         );
 
 //         eigenPodBeacon = new UpgradeableBeacon(address(podImplementation));
@@ -108,25 +108,25 @@
 //         );
 
 //         // Second, deploy the *implementation* contracts, using the *proxy contracts* as inputs
-//         EigenLayerDelegation delegationImplementation = new EigenLayerDelegation(investmentManager, slasher);
-//         InvestmentManager investmentManagerImplementation = new InvestmentManager(delegation, IEigenPodManager(podManagerAddress), slasher);
-//         Slasher slasherImplementation = new Slasher(investmentManager, delegation);
-//         EigenPodManager eigenPodManagerImplementation = new EigenPodManager(ethPOSDeposit, eigenPodBeacon, investmentManager, slasher);
+//         DelegationManager delegationImplementation = new DelegationManager(strategyManager, slasher);
+//         StrategyManager strategyManagerImplementation = new StrategyManager(delegation, IEigenPodManager(podManagerAddress), slasher);
+//         Slasher slasherImplementation = new Slasher(strategyManager, delegation);
+//         EigenPodManager eigenPodManagerImplementation = new EigenPodManager(ethPOSDeposit, eigenPodBeacon, strategyManager, slasher);
 
 //         beaconChainOracle = new BeaconChainOracleMock();
-//         EigenPodPaymentEscrow eigenPodPaymentEscrowImplementation = new EigenPodPaymentEscrow(eigenPodManager);
+//         DelayedWithdrawalRouter delayedWithdrawalRouterImplementation = new DelayedWithdrawalRouter(eigenPodManager);
 
 //         address initialOwner = address(this);
 //         // Third, upgrade the proxy contracts to use the correct implementation contracts and initialize them.
 //         eigenLayerProxyAdmin.upgradeAndCall(
 //             TransparentUpgradeableProxy(payable(address(delegation))),
 //             address(delegationImplementation),
-//             abi.encodeWithSelector(EigenLayerDelegation.initialize.selector, pauserReg, initialOwner)
+//             abi.encodeWithSelector(DelegationManager.initialize.selector, pauserReg, initialOwner)
 //         );
 //         eigenLayerProxyAdmin.upgradeAndCall(
-//             TransparentUpgradeableProxy(payable(address(investmentManager))),
-//             address(investmentManagerImplementation),
-//             abi.encodeWithSelector(InvestmentManager.initialize.selector, pauserReg, initialOwner, 0)
+//             TransparentUpgradeableProxy(payable(address(strategyManager))),
+//             address(strategyManagerImplementation),
+//             abi.encodeWithSelector(StrategyManager.initialize.selector, pauserReg, initialOwner, 0)
 //         );
 //         eigenLayerProxyAdmin.upgradeAndCall(
 //             TransparentUpgradeableProxy(payable(address(slasher))),
@@ -141,16 +141,16 @@
 //         uint256 initPausedStatus = 0;
 //         uint256 withdrawalDelayBlocks = PARTIAL_WITHDRAWAL_FRAUD_PROOF_PERIOD_BLOCKS;
 //         eigenLayerProxyAdmin.upgradeAndCall(
-//             TransparentUpgradeableProxy(payable(address(eigenPodPaymentEscrow))),
-//             address(eigenPodPaymentEscrowImplementation),
-//             abi.encodeWithSelector(EigenPodPaymentEscrow.initialize.selector, initialOwner, pauserReg, initPausedStatus, withdrawalDelayBlocks)
+//             TransparentUpgradeableProxy(payable(address(delayedWithdrawalRouter))),
+//             address(delayedWithdrawalRouterImplementation),
+//             abi.encodeWithSelector(DelayedWithdrawalRouter.initialize.selector, initialOwner, pauserReg, initPausedStatus, withdrawalDelayBlocks)
 //         );
 
 //         cheats.deal(address(podOwner), stakeAmount);     
 
 //         fuzzedAddressMapping[address(0)] = true;
 //         fuzzedAddressMapping[address(eigenLayerProxyAdmin)] = true;
-//         fuzzedAddressMapping[address(investmentManager)] = true;
+//         fuzzedAddressMapping[address(strategyManager)] = true;
 //         fuzzedAddressMapping[address(eigenPodManager)] = true;
 //         fuzzedAddressMapping[address(slasher)] = true;
 

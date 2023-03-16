@@ -1,23 +1,23 @@
-diff -druN ../score/EigenLayerDelegation.sol core/EigenLayerDelegation.sol
---- ../score/EigenLayerDelegation.sol	2023-01-13 14:12:34
-+++ core/EigenLayerDelegation.sol	2023-01-13 14:24:43
+diff -druN ../score/DelegationManager.sol core/DelegationManager.sol
+--- ../score/DelegationManager.sol	2023-01-13 14:12:34
++++ core/DelegationManager.sol	2023-01-13 14:24:43
 @@ -160,10 +160,10 @@
       */
      function decreaseDelegatedShares(
          address staker,
--        IInvestmentStrategy[] calldata strategies,
+-        IStrategy[] calldata strategies,
 -        uint256[] calldata shares
-+        IInvestmentStrategy[] memory strategies, // MUNGED calldata => memory
++        IStrategy[] memory strategies, // MUNGED calldata => memory
 +        uint256[] memory shares // MUNGED calldata => memory
      )
 -        external
 +        public // MUNGED external => public
-         onlyInvestmentManager
+         onlyStrategyManager
      {
          if (isDelegated(staker)) {
-diff -druN ../score/EigenLayerDelegation.sol.orig core/EigenLayerDelegation.sol.orig
---- ../score/EigenLayerDelegation.sol.orig	1969-12-31 16:00:00
-+++ core/EigenLayerDelegation.sol.orig	2023-01-13 14:24:43
+diff -druN ../score/DelegationManager.sol.orig core/DelegationManager.sol.orig
+--- ../score/DelegationManager.sol.orig	1969-12-31 16:00:00
++++ core/DelegationManager.sol.orig	2023-01-13 14:24:43
 @@ -0,0 +1,338 @@
 +// SPDX-License-Identifier: UNLICENSED
 +pragma solidity =0.8.12;
@@ -29,7 +29,7 @@ diff -druN ../score/EigenLayerDelegation.sol.orig core/EigenLayerDelegation.sol.
 +import "@openzeppelin-upgradaccess/OwnableUpgradeable.sol";
 +import "@openzeppelin-upgradproxy/utils/Initializable.sol";
 +import "@openzeppelutils/cryptography/ECDSA.sol";
-+import "./EigenLayerDelegationStorage.sol";
++import "./DelegationManagerStorage.sol";
 +import "../permissions/Pausable.sol";
 +import "./Slasher.sol";
 +
@@ -40,23 +40,23 @@ diff -druN ../score/EigenLayerDelegation.sol.orig core/EigenLayerDelegation.sol.
 + * - enabling anyone to register as an operator in EigenLayer
 + * - allowing new operators to provide a DelegationTerms-type contract, which may mediate their interactions with stakers who delegate to them
 + * - enabling any staker to delegate its stake to the operator of its choice
-+ * - enabling a staker to undelegate its assets from an operator (performed as part of the withdrawal process, initiated through the InvestmentManager)
++ * - enabling a staker to undelegate its assets from an operator (performed as part of the withdrawal process, initiated through the StrategyManager)
 + */
-+contract EigenLayerDelegation is Initializable, OwnableUpgradeable, EigenLayerDelegationStorage, Pausable {
++contract DelegationManager is Initializable, OwnableUpgradeable, DelegationManagerStorage, Pausable {
 +    // index for flag that pauses new delegations when set
 +    uint8 internal constant PAUSED_NEW_DELEGATION = 0;
 +    // bytes4(keccak256("isValidSignature(bytes32,bytes)")
 +    bytes4 constant internal ERC1271_MAGICVALUE = 0x1626ba7e;
 +
-+    /// @notice Simple permission for functions that are only callable by the InvestmentManager contract.
-+    modifier onlyInvestmentManager() {
-+        require(msg.sender == address(investmentManager), "onlyInvestmentManager");
++    /// @notice Simple permission for functions that are only callable by the StrategyManager contract.
++    modifier onlyStrategyManager() {
++        require(msg.sender == address(strategyManager), "onlyStrategyManager");
 +        _;
 +    }
 +
 +    // INITIALIZING FUNCTIONS
-+    constructor(IInvestmentManager _investmentManager, ISlasher _slasher) 
-+        EigenLayerDelegationStorage(_investmentManager, _slasher)
++    constructor(IStrategyManager _strategyManager, ISlasher _slasher) 
++        DelegationManagerStorage(_strategyManager, _slasher)
 +    {
 +        _disableInitializers();
 +    }
@@ -87,7 +87,7 @@ diff -druN ../score/EigenLayerDelegation.sol.orig core/EigenLayerDelegation.sol.
 +    function registerAsOperator(IDelegationTerms dt) external {
 +        require(
 +            address(delegationTerms[msg.sender]) == address(0),
-+            "EigenLayerDelegation.registerAsOperator: operator has already registered"
++            "DelegationManager.registerAsOperator: operator has already registered"
 +        );
 +        // store the address of the delegation contract that the operator is providing.
 +        delegationTerms[msg.sender] = dt;
@@ -129,10 +129,10 @@ diff -druN ../score/EigenLayerDelegation.sol.orig core/EigenLayerDelegation.sol.
 +         */
 +        if (Address.isContract(staker)) {
 +            require(IERC1271(staker).isValidSignature(digestHash, signature) == ERC1271_MAGICVALUE,
-+                "EigenLayerDelegation.delegateToBySignature: ERC1271 signature verification failed");
++                "DelegationManager.delegateToBySignature: ERC1271 signature verification failed");
 +        } else {
 +            require(ECDSA.recover(digestHash, signature) == staker,
-+                "EigenLayerDelegation.delegateToBySignature: sig not from staker");
++                "DelegationManager.delegateToBySignature: sig not from staker");
 +        }
 +
 +        _delegate(staker, operator);
@@ -140,21 +140,21 @@ diff -druN ../score/EigenLayerDelegation.sol.orig core/EigenLayerDelegation.sol.
 +
 +    /**
 +     * @notice Undelegates `staker` from the operator who they are delegated to.
-+     * @notice Callable only by the InvestmentManager
++     * @notice Callable only by the StrategyManager
 +     * @dev Should only ever be called in the event that the `staker` has no active deposits in EigenLayer.
 +     */
-+    function undelegate(address staker) external onlyInvestmentManager {
-+        require(!isOperator(staker), "EigenLayerDelegation.undelegate: operators cannot undelegate from themselves");
++    function undelegate(address staker) external onlyStrategyManager {
++        require(!isOperator(staker), "DelegationManager.undelegate: operators cannot undelegate from themselves");
 +        delegatedTo[staker] = address(0);
 +    }
 +
 +    /**
 +     * @notice Increases the `staker`'s delegated shares in `strategy` by `shares, typically called when the staker has further deposits into EigenLayer
-+     * @dev Callable only by the InvestmentManager
++     * @dev Callable only by the StrategyManager
 +     */
-+    function increaseDelegatedShares(address staker, IInvestmentStrategy strategy, uint256 shares)
++    function increaseDelegatedShares(address staker, IStrategy strategy, uint256 shares)
 +        external
-+        onlyInvestmentManager
++        onlyStrategyManager
 +    {
 +        //if the staker is delegated to an operator
 +        if (isDelegated(staker)) {
@@ -164,28 +164,28 @@ diff -druN ../score/EigenLayerDelegation.sol.orig core/EigenLayerDelegation.sol.
 +            operatorShares[operator][strategy] += shares;
 +
 +            //Calls into operator's delegationTerms contract to update weights of individual staker
-+            IInvestmentStrategy[] memory investorStrats = new IInvestmentStrategy[](1);
-+            uint256[] memory investorShares = new uint[](1);
-+            investorStrats[0] = strategy;
-+            investorShares[0] = shares;
++            IStrategy[] memory stakerStrategyList = new IStrategy[](1);
++            uint256[] memory stakerShares = new uint[](1);
++            stakerStrategyList[0] = strategy;
++            stakerShares[0] = shares;
 +
 +            // call into hook in delegationTerms contract
 +            IDelegationTerms dt = delegationTerms[operator];
-+            _delegationReceivedHook(dt, staker, investorStrats, investorShares);
++            _delegationReceivedHook(dt, staker, stakerStrategyList, stakerShares);
 +        }
 +    }
 +
 +    /**
 +     * @notice Decreases the `staker`'s delegated shares in each entry of `strategies` by its respective `shares[i]`, typically called when the staker withdraws from EigenLayer
-+     * @dev Callable only by the InvestmentManager
++     * @dev Callable only by the StrategyManager
 +     */
 +    function decreaseDelegatedShares(
 +        address staker,
-+        IInvestmentStrategy[] calldata strategies,
++        IStrategy[] calldata strategies,
 +        uint256[] calldata shares
 +    )
 +        external
-+        onlyInvestmentManager
++        onlyStrategyManager
 +    {
 +        if (isDelegated(staker)) {
 +            address operator = delegatedTo[staker];
@@ -216,7 +216,7 @@ diff -druN ../score/EigenLayerDelegation.sol.orig core/EigenLayerDelegation.sol.
 +    function _delegationReceivedHook(
 +        IDelegationTerms dt,
 +        address staker,
-+        IInvestmentStrategy[] memory strategies,
++        IStrategy[] memory strategies,
 +        uint256[] memory shares
 +    )
 +        internal
@@ -264,7 +264,7 @@ diff -druN ../score/EigenLayerDelegation.sol.orig core/EigenLayerDelegation.sol.
 +    function _delegationWithdrawnHook(
 +        IDelegationTerms dt,
 +        address staker,
-+        IInvestmentStrategy[] memory strategies,
++        IStrategy[] memory strategies,
 +        uint256[] memory shares
 +    )
 +        internal
@@ -313,18 +313,18 @@ diff -druN ../score/EigenLayerDelegation.sol.orig core/EigenLayerDelegation.sol.
 +    function _delegate(address staker, address operator) internal onlyWhenNotPaused(PAUSED_NEW_DELEGATION) {
 +        IDelegationTerms dt = delegationTerms[operator];
 +        require(
-+            address(dt) != address(0), "EigenLayerDelegation._delegate: operator has not yet registered as a delegate"
++            address(dt) != address(0), "DelegationManager._delegate: operator has not yet registered as a delegate"
 +        );
 +
-+        require(isNotDelegated(staker), "EigenLayerDelegation._delegate: staker has existing delegation");
++        require(isNotDelegated(staker), "DelegationManager._delegate: staker has existing delegation");
 +        // checks that operator has not been frozen
-+        require(!slasher.isFrozen(operator), "EigenLayerDelegation._delegate: cannot delegate to a frozen operator");
++        require(!slasher.isFrozen(operator), "DelegationManager._delegate: cannot delegate to a frozen operator");
 +
 +        // record delegation relation between the staker and operator
 +        delegatedTo[staker] = operator;
 +
-+        // retrieve list of strategies and their shares from investment manager
-+        (IInvestmentStrategy[] memory strategies, uint256[] memory shares) = investmentManager.getDeposits(staker);
++        // retrieve list of strategies and their shares from strategy manager
++        (IStrategy[] memory strategies, uint256[] memory shares) = strategyManager.getDeposits(staker);
 +
 +        // add strategy shares to delegate's shares
 +        uint256 stratsLength = strategies.length;
@@ -357,9 +357,9 @@ diff -druN ../score/EigenLayerDelegation.sol.orig core/EigenLayerDelegation.sol.
 +        return (address(delegationTerms[operator]) != address(0));
 +    }
 +}
-diff -druN ../score/InvestmentManager.sol core/InvestmentManager.sol
---- ../score/InvestmentManager.sol	2023-01-13 14:12:34
-+++ core/InvestmentManager.sol	2023-01-13 14:25:10
+diff -druN ../score/StrategyManager.sol core/StrategyManager.sol
+--- ../score/StrategyManager.sol	2023-01-13 14:12:34
++++ core/StrategyManager.sol	2023-01-13 14:25:10
 @@ -13,7 +13,7 @@
  import "../interfaces/IServiceManager.sol";
  import "../interfaces/IEigenPodManager.sol";
@@ -371,7 +371,7 @@ diff -druN ../score/InvestmentManager.sol core/InvestmentManager.sol
   * @title The primary entry- and exit-point for funds into and out of EigenLayer.
 @@ -33,7 +33,7 @@
      ReentrancyGuardUpgradeable,
-     InvestmentManagerStorage,
+     StrategyManagerStorage,
      Pausable
 -    ,Test
 +    // ,Test
@@ -401,8 +401,8 @@ diff -druN ../score/Slasher.sol.orig core/Slasher.sol.orig
 +pragma solidity =0.8.12;
 +
 +import "../interfaces/ISlasher.sol";
-+import "../interfaces/IEigenLayerDelegation.sol";
-+import "../interfaces/IInvestmentManager.sol";
++import "../interfaces/IDelegationManager.sol";
++import "../interfaces/IStrategyManager.sol";
 +import "../libraries/StructuredLinkedList.sol";
 +import "../permissions/Pausable.sol";
 +import "@openzeppelin-upgradaccess/OwnableUpgradeable.sol";
@@ -428,16 +428,16 @@ diff -druN ../score/Slasher.sol.orig core/Slasher.sol.orig
 +    uint8 internal constant PAUSED_FIRST_STAKE_UPDATE = 1;
 +    uint8 internal constant PAUSED_NEW_FREEZING = 2;
 +
-+    /// @notice The central InvestmentManager contract of EigenLayer
-+    IInvestmentManager public immutable investmentManager;
-+    /// @notice The EigenLayerDelegation contract of EigenLayer
-+    IEigenLayerDelegation public immutable delegation;
++    /// @notice The central StrategyManager contract of EigenLayer
++    IStrategyManager public immutable strategyManager;
++    /// @notice The DelegationManager contract of EigenLayer
++    IDelegationManager public immutable delegation;
 +    // operator => whitelisted contract with slashing permissions => (the time before which the contract is allowed to slash the user, block it was last updated)
 +    mapping(address => mapping(address => MiddlewareDetails)) internal _whitelistedContractDetails;
 +    // staker => if their funds are 'frozen' and potentially subject to slashing or not
 +    mapping(address => bool) internal frozenStatus;
 +
-+    uint32 internal constant MAX_BONDED_UNTIL = type(uint32).max;
++    uint32 internal constant MAX_CAN_SLASH_UNTIL = type(uint32).max;
 +
 +    /**
 +     * operator => a linked list of the addresses of the whitelisted middleware with permission to slash the operator, i.e. which  
@@ -462,8 +462,8 @@ diff -druN ../score/Slasher.sol.orig core/Slasher.sol.orig
 +    /// @notice Emitted when `operator` begins to allow `contractAddress` to slash them.
 +    event OptedIntoSlashing(address indexed operator, address indexed contractAddress);
 +
-+    /// @notice Emitted when `contractAddress` signals that it will no longer be able to slash `operator` after the UTC timestamp `bondedUntil.
-+    event SlashingAbilityRevoked(address indexed operator, address indexed contractAddress, uint32 bondedUntil);
++    /// @notice Emitted when `contractAddress` signals that it will no longer be able to slash `operator` after the UTC timestamp `contractCanSlashOperatorUntil`.
++    event SlashingAbilityRevoked(address indexed operator, address indexed contractAddress, uint32 contractCanSlashOperatorUntil);
 +
 +    /**
 +     * @notice Emitted when `slashingContract` 'freezes' the `slashedOperator`.
@@ -474,8 +474,8 @@ diff -druN ../score/Slasher.sol.orig core/Slasher.sol.orig
 +    /// @notice Emitted when `previouslySlashedAddress` is 'unfrozen', allowing them to again move deposited funds within EigenLayer.
 +    event FrozenStatusReset(address indexed previouslySlashedAddress);
 +
-+    constructor(IInvestmentManager _investmentManager, IEigenLayerDelegation _delegation) {
-+        investmentManager = _investmentManager;
++    constructor(IStrategyManager _strategyManager, IDelegationManager _delegation) {
++        strategyManager = _strategyManager;
 +        delegation = _delegation;
 +        _disableInitializers();
 +    }
@@ -605,8 +605,8 @@ diff -druN ../score/Slasher.sol.orig core/Slasher.sol.orig
 +    // VIEW FUNCTIONS
 +
 +    /// @notice Returns the UTC timestamp until which `serviceContract` is allowed to slash the `operator`.
-+    function bondedUntil(address operator, address serviceContract) external view returns (uint32) {
-+        return _whitelistedContractDetails[operator][serviceContract].bondedUntil;
++    function contractCanSlashOperatorUntil(address operator, address serviceContract) external view returns (uint32) {
++        return _whitelistedContractDetails[operator][serviceContract].contractCanSlashOperatorUntil;
 +    }
 +
 +    /// @notice Returns the block at which the `serviceContract` last updated its view of the `operator`'s stake
@@ -625,7 +625,7 @@ diff -druN ../score/Slasher.sol.orig core/Slasher.sol.orig
 +
 +    /**
 +     * @notice Used to determine whether `staker` is actively 'frozen'. If a staker is frozen, then they are potentially subject to
-+     * slashing of their funds, and cannot cannot deposit or withdraw from the investmentManager until the slashing process is completed
++     * slashing of their funds, and cannot cannot deposit or withdraw from the strategyManager until the slashing process is completed
 +     * and the staker's status is reset (to 'unfrozen').
 +     * @return Returns 'true' if `staker` themselves has their status set to frozen, OR if the staker is delegated
 +     * to an operator who has their status set to frozen. Otherwise returns 'false'.
@@ -643,7 +643,7 @@ diff -druN ../score/Slasher.sol.orig core/Slasher.sol.orig
 +
 +    /// @notice Returns true if `slashingContract` is currently allowed to slash `toBeSlashed`.
 +    function canSlash(address toBeSlashed, address slashingContract) public view returns (bool) {
-+        if (block.timestamp < _whitelistedContractDetails[toBeSlashed][slashingContract].bondedUntil) {
++        if (block.timestamp < _whitelistedContractDetails[toBeSlashed][slashingContract].contractCanSlashOperatorUntil) {
 +            return true;
 +        } else {
 +            return false;
@@ -737,14 +737,14 @@ diff -druN ../score/Slasher.sol.orig core/Slasher.sol.orig
 +
 +    function _optIntoSlashing(address operator, address contractAddress) internal {
 +        //allow the contract to slash anytime before a time VERY far in the future
-+        _whitelistedContractDetails[operator][contractAddress].bondedUntil = MAX_BONDED_UNTIL;
++        _whitelistedContractDetails[operator][contractAddress].contractCanSlashOperatorUntil = MAX_CAN_SLASH_UNTIL;
 +        emit OptedIntoSlashing(operator, contractAddress);
 +    }
 +
 +    function _revokeSlashingAbility(address operator, address contractAddress, uint32 serveUntil) internal {
-+        if (_whitelistedContractDetails[operator][contractAddress].bondedUntil == MAX_BONDED_UNTIL) {
++        if (_whitelistedContractDetails[operator][contractAddress].contractCanSlashOperatorUntil == MAX_CAN_SLASH_UNTIL) {
 +            // contractAddress can now only slash operator before `serveUntil`
-+            _whitelistedContractDetails[operator][contractAddress].bondedUntil = serveUntil;
++            _whitelistedContractDetails[operator][contractAddress].contractCanSlashOperatorUntil = serveUntil;
 +            emit SlashingAbilityRevoked(operator, contractAddress, serveUntil);
 +        }
 +    }

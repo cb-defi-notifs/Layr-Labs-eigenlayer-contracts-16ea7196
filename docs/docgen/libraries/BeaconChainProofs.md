@@ -358,11 +358,15 @@ function computePhase0Eth1DataRoot(bytes32[3] eth1DataFields) internal pure retu
 function getBalanceFromBalanceRoot(uint40 validatorIndex, bytes32 balanceRoot) internal pure returns (uint64)
 ```
 
+This function is parses the balanceRoot to get the uint64 balance of a validator.  During merkleization of the
+beacon state balance tree, four uint64 values (making 32 bytes) are grouped together and treated as a single leaf in the merkle tree. Thus the
+validatorIndex mod 4 is used to determine which of the four uint64 values to extract from the balanceRoot.
+
 #### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| validatorIndex | uint40 | @notice This function is parses the balanceRoot to get the uint64 balance of a validator.  During merkleization of the beacon state balance tree, four uint64 values (making 32 bytes) are grouped together and treated as a single leaf in the merkle tree. Thus the validatorIndex mod 4 is used to determine which of the four uint64 values to extract from the balanceRoot. |
+| validatorIndex | uint40 | is the index of the validator being proven for. |
 | balanceRoot | bytes32 | is the combination of 4 validator balances being proven for. |
 
 ### verifyValidatorFields

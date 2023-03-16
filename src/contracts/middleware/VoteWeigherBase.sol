@@ -2,7 +2,7 @@
 pragma solidity =0.8.12;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "../interfaces/IInvestmentManager.sol";
+import "../interfaces/IStrategyManager.sol";
 import "./VoteWeigherBaseStorage.sol";
 
 /**
@@ -17,9 +17,9 @@ import "./VoteWeigherBaseStorage.sol";
  */
 abstract contract VoteWeigherBase is VoteWeigherBaseStorage {
     /// @notice emitted when `strategy` has been added to the array at `strategiesConsideredAndMultipliers[quorumNumber]`
-    event StrategyAddedToQuorum(uint256 indexed quorumNumber, IInvestmentStrategy strategy);
+    event StrategyAddedToQuorum(uint256 indexed quorumNumber, IStrategy strategy);
     /// @notice emitted when `strategy` has removed from the array at `strategiesConsideredAndMultipliers[quorumNumber]`
-    event StrategyRemovedFromQuorum(uint256 indexed quorumNumber, IInvestmentStrategy strategy);
+    event StrategyRemovedFromQuorum(uint256 indexed quorumNumber, IStrategy strategy);
 
     /// @notice when applied to a function, ensures that the function is only callable by the current `owner` of the `serviceManager`
     modifier onlyServiceManagerOwner() {
@@ -27,12 +27,12 @@ abstract contract VoteWeigherBase is VoteWeigherBaseStorage {
         _;
     }
 
-    /// @notice Sets the (immutable) `investmentManager` and `serviceManager` addresses, as well as the (immutable) `NUMBER_OF_QUORUMS` variable
+    /// @notice Sets the (immutable) `strategyManager` and `serviceManager` addresses, as well as the (immutable) `NUMBER_OF_QUORUMS` variable
     constructor(
-        IInvestmentManager _investmentManager,
+        IStrategyManager _strategyManager,
         IServiceManager _serviceManager,
         uint8 _NUMBER_OF_QUORUMS
-    ) VoteWeigherBaseStorage(_investmentManager, _serviceManager, _NUMBER_OF_QUORUMS) 
+    ) VoteWeigherBaseStorage(_strategyManager, _serviceManager, _NUMBER_OF_QUORUMS) 
     // solhint-disable-next-line no-empty-blocks
     {}
 
@@ -68,7 +68,7 @@ abstract contract VoteWeigherBase is VoteWeigherBaseStorage {
                 // accessing i^th StrategyAndWeightingMultiplier struct for the quorumNumber
                 strategyAndMultiplier = strategiesConsideredAndMultipliers[quorumNumber][i];
 
-                // shares of the operator in the investment strategy
+                // shares of the operator in the strategy
                 uint256 sharesAmount = delegation.operatorShares(operator, strategyAndMultiplier.strategy);
 
                 // add the weight from the shares for this strategy to the total weight
@@ -106,7 +106,7 @@ abstract contract VoteWeigherBase is VoteWeigherBaseStorage {
      */
     function removeStrategiesConsideredAndMultipliers(
         uint256 quorumNumber,
-        IInvestmentStrategy[] calldata _strategiesToRemove,
+        IStrategy[] calldata _strategiesToRemove,
         uint256[] calldata indicesToRemove
     ) external virtual onlyServiceManagerOwner {
         uint256 numStrats = _strategiesToRemove.length;

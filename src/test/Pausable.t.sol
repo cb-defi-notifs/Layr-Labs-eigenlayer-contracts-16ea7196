@@ -6,7 +6,7 @@ import "./EigenLayerTestHelper.t.sol";
 
 contract PausableTests is EigenLayerTestHelper {
     ///@dev test that pausing a contract works
-    function testPausingWithdrawalsFromInvestmentManager(uint256 amountToDeposit, uint256 amountToWithdraw) public {
+    function testPausingWithdrawalsFromStrategyManager(uint256 amountToDeposit, uint256 amountToWithdraw) public {
         cheats.assume(amountToDeposit <= weth.balanceOf(address(this)));
         // if first deposit amount to base strategy is too small, it will revert. ignore that case here.
         cheats.assume(amountToDeposit >= 1e9);
@@ -16,7 +16,7 @@ contract PausableTests is EigenLayerTestHelper {
         _testDepositToStrategy(sender, amountToDeposit, weth, wethStrat);
 
         cheats.startPrank(pauser);
-        investmentManager.pause(type(uint256).max);
+        strategyManager.pause(type(uint256).max);
         cheats.stopPrank();
 
         // uint256 strategyIndex = 0;
@@ -25,18 +25,18 @@ contract PausableTests is EigenLayerTestHelper {
 
         // TODO: write this to work with completing a queued withdrawal
         // cheats.expectRevert(bytes("Pausable: paused"));
-        // investmentManager.withdrawFromStrategy(strategyIndex, wethStrat, weth, amountToWithdraw);
+        // strategyManager.withdrawFromStrategy(strategyIndex, wethStrat, weth, amountToWithdraw);
         // cheats.stopPrank();
     }
 
-    function testUnauthorizedPauserInvestmentManager(address unauthorizedPauser)
+    function testUnauthorizedPauserStrategyManager(address unauthorizedPauser)
         public
         fuzzedAddress(unauthorizedPauser)
     {
         cheats.assume(unauthorizedPauser != eigenLayerPauserReg.pauser());
         cheats.startPrank(unauthorizedPauser);
         cheats.expectRevert(bytes("msg.sender is not permissioned as pauser"));
-        investmentManager.pause(type(uint256).max);
+        strategyManager.pause(type(uint256).max);
         cheats.stopPrank();
     }
 

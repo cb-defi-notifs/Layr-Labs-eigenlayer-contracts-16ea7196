@@ -19,6 +19,10 @@ contract EigenPodManagerMock is IEigenPodManager, Test {
 
     function updateBeaconChainOracle(IBeaconChainOracle /*newBeaconChainOracle*/) external pure {}
 
+    function ownerToPod(address /*podOwner*/) external pure returns(IEigenPod) {
+        return IEigenPod(address(0));
+    }
+
     function getPod(address podOwner) external pure returns(IEigenPod) {
         return IEigenPod(podOwner);
     }
@@ -31,8 +35,8 @@ contract EigenPodManagerMock is IEigenPodManager, Test {
         return bytes32(0);
     }
 
-    function investmentManager() external pure returns(IInvestmentManager) {
-        return IInvestmentManager(address(0));
+    function strategyManager() external pure returns(IStrategyManager) {
+        return IStrategyManager(address(0));
     }
 
     function hasPod(address /*podOwner*/) external pure returns (bool) {

@@ -1,7 +1,7 @@
 
 methods {
 	//// External Calls
-	// external calls to EigenLayerDelegation 
+	// external calls to DelegationManager 
     undelegate(address) => DISPATCHER(true)
     isDelegated(address) returns (bool) => DISPATCHER(true)
     delegatedTo(address) returns (address) => DISPATCHER(true)
@@ -14,7 +14,7 @@ methods {
     isFrozen(address) returns (bool) envfree 
 	canWithdraw(address,uint32,uint256) returns (bool) 
 
-	// external calls to InvestmentManager
+	// external calls to StrategyManager
     getDeposits(address) returns (address[],uint256[]) => DISPATCHER(true)
     slasher() returns (address) => DISPATCHER(true)
 	deposit(address,uint256) returns (uint256) => DISPATCHER(true)
@@ -55,7 +55,7 @@ methods {
 	
 	//// Normal Functions
 	owner() returns(address) envfree
-	bondedUntil(address, address) returns (uint32) envfree
+	contractCanSlashOperatorUntil(address, address) returns (uint32) envfree
 	paused(uint8) returns (bool) envfree
 }
 
@@ -90,13 +90,13 @@ rule cantBeUnfrozen(method f) {
 }
 
 /*
-verifies that `bondedUntil[operator][contractAddress]` only changes when either:
+verifies that `contractCanSlashOperatorUntil[operator][contractAddress]` only changes when either:
 the `operator` themselves calls `allowToSlash`
 or
 the `contractAddress` calls `recordLastStakeUpdateAndRevokeSlashingAbility`
 */
-rule canOnlyChangeBondedUntilWithSpecificFunctions(address operator, address contractAddress) {
-	uint256 valueBefore = bondedUntil(operator, contractAddress);
+rule canOnlyChangecontractCanSlashOperatorUntilWithSpecificFunctions(address operator, address contractAddress) {
+	uint256 valueBefore = contractCanSlashOperatorUntil(operator, contractAddress);
     // perform arbitrary function call
     method f;
     env e;
@@ -104,7 +104,7 @@ rule canOnlyChangeBondedUntilWithSpecificFunctions(address operator, address con
         address operator2;
 		uint32 serveUntil;
         recordLastStakeUpdateAndRevokeSlashingAbility(e, operator2, serveUntil);
-		uint256 valueAfter = bondedUntil(operator, contractAddress);
+		uint256 valueAfter = contractCanSlashOperatorUntil(operator, contractAddress);
         if (e.msg.sender == contractAddress && operator2 == operator/* TODO: proper check */) {
 			/* TODO: proper check */
             assert (true, "failure in recordLastStakeUpdateAndRevokeSlashingAbility");
@@ -114,18 +114,18 @@ rule canOnlyChangeBondedUntilWithSpecificFunctions(address operator, address con
 	} else if (f.selector == optIntoSlashing(address).selector) {
 		address arbitraryContract;
 		optIntoSlashing(e, arbitraryContract);
-		uint256 valueAfter = bondedUntil(operator, contractAddress);
+		uint256 valueAfter = contractCanSlashOperatorUntil(operator, contractAddress);
 		// uses that the `PAUSED_OPT_INTO_SLASHING` index is 0, as an input to the `paused` function
 		if (e.msg.sender == operator && arbitraryContract == contractAddress && get_is_operator(operator) && !paused(0)) {
-			// uses that `MAX_BONDED_UNTIL` is equal to max_uint32
-			assert(valueAfter == max_uint32, "MAX_BONDED_UNTIL different than max_uint32?");
+			// uses that `MAX_CAN_SLASH_UNTIL` is equal to max_uint32
+			assert(valueAfter == max_uint32, "MAX_CAN_SLASH_UNTIL different than max_uint32?");
 		} else {
             assert(valueBefore == valueAfter, "bad permissions on optIntoSlashing?");
 		}
 	} else {
 		calldataarg arg;
 		f(e, arg);
-		uint256 valueAfter = bondedUntil(operator, contractAddress);
+		uint256 valueAfter = contractCanSlashOperatorUntil(operator, contractAddress);
         assert(valueBefore == valueAfter, "bondedAfter value changed when it shouldn't have!");
 	}
 }
@@ -182,11 +182,11 @@ rule cannotAddSameContractTwice(address operator, address contractAddress) {
 
 - slashing happens if and only if a provably malicious action by an operator took place
 - operator may be slashed only if allowToSlash() for that particular contract was called
-- slashing cannot happen after bondedUntil[operator][contractAddress] timestamp
-- bondedUntil[operator][contractAddress] changed  => allowToSlash() or recordLastStakeUpdateAndRevokeSlashingAbility() was called
-- recordLastStakeUpdateAndRevokeSlashingAbility() should only be callable when bondedUntil[operator][contractAddress] == MAX_BONDED_UNTIL, and only by the contractAddress
-- Any contractAddress for which bondedUntil[operator][contractAddress] > current time can call freezeOperator(operator).
+- slashing cannot happen after contractCanSlashOperatorUntil[operator][contractAddress] timestamp
+- contractCanSlashOperatorUntil[operator][contractAddress] changed  => allowToSlash() or recordLastStakeUpdateAndRevokeSlashingAbility() was called
+- recordLastStakeUpdateAndRevokeSlashingAbility() should only be callable when contractCanSlashOperatorUntil[operator][contractAddress] == MAX_CAN_SLASH_UNTIL, and only by the contractAddress
+- Any contractAddress for which contractCanSlashOperatorUntil[operator][contractAddress] > current time can call freezeOperator(operator).
 - frozen operator cannot make deposits/withdrawals, cannot complete queued withdrawals
-- slashing and unfreezing is performed by the InvestmentManager contract owner (is it permanent or configurable?)
+- slashing and unfreezing is performed by the StrategyManager contract owner (is it permanent or configurable?)
 - frozenStatus[operator] changed => freezeOperator() or resetFrozenStatus() were called
 */
