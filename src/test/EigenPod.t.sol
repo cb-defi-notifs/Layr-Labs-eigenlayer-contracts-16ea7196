@@ -217,7 +217,7 @@ contract EigenPodTests is ProofParsing, EigenPodPausingConstants {
         cheats.deal(address(pod), stakeAmount);
         cheats.startPrank(podOwner);
         pod.withdrawBeforeRestaking();
-        require(_getLatestPaymentAmount(podOwner) == stakeAmount, "Payment amount should be stake amount");
+        require(_getLatestDelayedWithdrawalAmount(podOwner) == stakeAmount, "Payment amount should be stake amount");
         require(pod.mostRecentWithdrawalBlockNumber() == uint64(block.number), "Most recent withdrawal block number not updated");
     }
 
