@@ -55,6 +55,8 @@ In this second case, in order to withdraw their balance from the EigenPod, stake
 4. If the amount withdrawn is less than `REQUIRED_BALANCE_GWEI` and the validator *was* previously proven to be "overcommitted", then the full withdrawal amount is held for processing through EigenLayer's normal withdrawal path, and the podOwner is credited with enough beaconChainETH shares in EigenLayer to complete the normal withdrawal process; this last step is necessary since the validator's virtual beaconChainETH shares were previously removed from EigenLayer as part of the overcommittment fraudproof process.
 
 
+![Beacon Chain Withdrawal Proofs drawio](./images/Withdrawal_Proof_Diagram.png)
+
 
 ## Merkle Proof Specifics
 
