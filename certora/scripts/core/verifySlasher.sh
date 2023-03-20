@@ -11,7 +11,6 @@ certoraRun certora/harnesses/SlasherHarness.sol \
     certora/munged/core/StrategyManager.sol certora/munged/permissions/PauserRegistry.sol \
     --verify SlasherHarness:certora/specs/core/Slasher.spec \
     --optimistic_loop \
-    --cloud master \
     --send_only \
     --settings -optimisticFallback=true,-recursionErrorAsAssert=false,-recursionEntryLimit=3 \
     --loop_iter 3 \

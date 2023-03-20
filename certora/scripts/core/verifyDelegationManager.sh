@@ -14,7 +14,6 @@ certoraRun certora/harnesses/DelegationManagerHarness.sol \
     --send_only \
     --settings -optimisticFallback=true \
     $RULE \
-    --cloud master \
     --loop_iter 3 \
     --packages @openzeppelin=lib/openzeppelin-contracts @openzeppelin-upgrades=lib/openzeppelin-contracts-upgradeable \
     --msg "DelegationManager $1 $2" \

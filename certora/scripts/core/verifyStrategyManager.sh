@@ -13,7 +13,6 @@ certoraRun certora/harnesses/StrategyManagerHarness.sol \
     --verify StrategyManagerHarness:certora/specs/core/StrategyManager.spec \
     --optimistic_loop \
     --send_only \
-    --cloud master \
     --settings -optimisticFallback=true \
     --settings -optimisticUnboundedHashing=true \
     $RULE \
