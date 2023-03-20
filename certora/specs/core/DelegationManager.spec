@@ -3,8 +3,6 @@ methods {
     //// External Calls
 	// external calls to DelegationManager 
     undelegate(address) 
-    isDelegated(address) returns (bool) 
-    delegatedTo(address) returns (address) 
     decreaseDelegatedShares(address,address[],uint256[]) 
 	increaseDelegatedShares(address,address,uint256) 
 
