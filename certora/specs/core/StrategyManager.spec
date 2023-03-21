@@ -46,7 +46,11 @@ methods {
     balanceOf(address) returns (uint256) => DISPATCHER(true)
     transfer(address, uint256) returns (bool) => DISPATCHER(true)
     transferFrom(address, address, uint256) returns (bool) => DISPATCHER(true)
-	
+
+    // external calls to ERC1271 (can import OpenZeppelin mock implementation)
+    // isValidSignature(bytes32 hash, bytes memory signature) returns (bytes4 magicValue) => DISPATCHER(true)
+    isValidSignature(bytes32, bytes) returns (bytes4) => DISPATCHER(true)
+
     //// Harnessed Functions
     // Harnessed calls
     // Harnessed getters
