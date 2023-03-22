@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED AND MIT
+// SPDX-License-Identifier: BUSL-1.1 AND MIT
 // several functions are taken or adapted from https://github.com/HarryR/solcrypto/blob/master/contracts/altbn128.sol (MIT license):
 // Copyright 2017 Christian Reitwiessner
 // Permission is hereby granted, free of charge, to any person obtaining a copy
