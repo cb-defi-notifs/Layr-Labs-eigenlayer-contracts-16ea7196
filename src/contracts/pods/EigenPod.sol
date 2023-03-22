@@ -312,6 +312,7 @@ contract EigenPod is IEigenPod, Initializable, ReentrancyGuardUpgradeable, Eigen
     )
         external
         onlyWhenNotPaused(PAUSED_EIGENPODS_VERIFY_WITHDRAWAL)
+        onlyNotFrozen
         /** 
          * Check that the provided block number being proven against is after the `mostRecentWithdrawalBlockNumber`.
          * Without this check, there is an edge case where a user proves a past withdrawal for a validator whose funds they already withdrew,
