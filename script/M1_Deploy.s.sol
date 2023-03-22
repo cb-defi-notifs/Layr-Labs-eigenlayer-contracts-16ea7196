@@ -441,7 +441,7 @@ contract Deployer_M1 is Script, Test {
         require(eigenPodImplementation.REQUIRED_BALANCE_WEI() == 31 ether,
             "eigenPod: REQUIRED_BALANCE_WEI initialized incorrectly");
 
-        require(strategyManager.strategyWhitelister() == communityMultisig,
+        require(strategyManager.strategyWhitelister() == teamMultisig,
             "strategyManager: strategyWhitelister address not set correctly");
 
         require(eigenPodManager.beaconChainOracle() == IBeaconChainOracle(address(0)),
