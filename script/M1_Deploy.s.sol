@@ -157,7 +157,7 @@ contract Deployer_M1 is Script, Test {
             ethPOSDeposit = IETHPOSDeposit(0x00000000219ab540356cBB839Cbe05303d7705Fa);
         // if not on mainnet, deploy a mock
         } else {
-            ethPOSDeposit = IETHPOSDepoiit(stdJson.readAddress(config_data, ".ethPOSDepositAddress"));
+            ethPOSDeposit = IETHPOSDeposit(stdJson.readAddress(config_data, ".ethPOSDepositAddress"));
         }
         eigenPodImplementation = new EigenPod(
             ethPOSDeposit,
