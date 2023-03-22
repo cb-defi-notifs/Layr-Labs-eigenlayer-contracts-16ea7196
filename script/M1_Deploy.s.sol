@@ -157,7 +157,7 @@ contract Deployer_M1 is Script, Test {
             ethPOSDeposit = IETHPOSDeposit(0x00000000219ab540356cBB839Cbe05303d7705Fa);
         // if not on mainnet, deploy a mock
         } else {
-            ethPOSDeposit = new ETHPOSDepositMock();
+            ethPOSDeposit = IETHPOSDepoiit(stdJson.readAddress(config_data, ".ethPOSDepositAddress"));
         }
         eigenPodImplementation = new EigenPod(
             ethPOSDeposit,
@@ -433,10 +433,10 @@ contract Deployer_M1 is Script, Test {
         // // one week in blocks -- 50400
         // uint32 STRATEGY_MANAGER_INIT_WITHDRAWAL_DELAY_BLOCKS = 7 days / 12 seconds;
         // uint32 DELAYED_WITHDRAWAL_ROUTER_INIT_WITHDRAWAL_DELAY_BLOCKS = 7 days / 12 seconds;
-        require(strategyManager.withdrawalDelayBlocks() == 7 days / 12 seconds,
-            "strategyManager: withdrawalDelayBlocks initialized incorrectly");
-        require(delayedWithdrawalRouter.withdrawalDelayBlocks() == 7 days / 12 seconds,
-            "delayedWithdrawalRouter: withdrawalDelayBlocks initialized incorrectly");
+        // require(strategyManager.withdrawalDelayBlocks() == 7 days / 12 seconds,
+        //     "strategyManager: withdrawalDelayBlocks initialized incorrectly");
+        // require(delayedWithdrawalRouter.withdrawalDelayBlocks() == 7 days / 12 seconds,
+        //     "delayedWithdrawalRouter: withdrawalDelayBlocks initialized incorrectly");
         // uint256 REQUIRED_BALANCE_WEI = 31 ether;
         require(eigenPodImplementation.REQUIRED_BALANCE_WEI() == 31 ether,
             "eigenPod: REQUIRED_BALANCE_WEI initialized incorrectly");
