@@ -18,12 +18,17 @@
                          "token_address": "0x178e141a0e3b34152f73ff610437a7bf9b83267a",
                          "token_name": "Rocket Pool ETH",
                          "token_symbol": "rETH"
+                    },
+                    {
+                         "token_address": "0x",
+                         "token_name": "Test Staked Ether",
+                         "token_symbol": "tsETH"
                     }
                ],
      "strategyManager":
           {
                "init_paused_status": 0,
-               "init_withdrawal_delay_blocks": 50400
+               "init_withdrawal_delay_blocks": 10
           },
      "eigenPod":
           {
@@ -37,7 +42,7 @@
      "delayedWithdrawalRouter":
           {
                "init_paused_status": 0,
-               "init_withdrawal_delay_blocks": 50400
+               "init_withdrawal_delay_blocks": 10
           },
      "slasher":
           {
