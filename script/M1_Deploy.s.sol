@@ -66,7 +66,6 @@ contract Deployer_M1 is Script, Test {
 
     EmptyContract public emptyContract;
 
-    // TODO: set these addresses
     address communityMultisig;
     address teamMultisig;
 
@@ -213,7 +212,6 @@ contract Deployer_M1 is Script, Test {
             address(eigenPodManagerImplementation),
             abi.encodeWithSelector(
                 EigenPodManager.initialize.selector,
-                // TODO: change this?
                 IBeaconChainOracle(address(0)),
                 communityMultisig,
                 eigenLayerPauserReg,
@@ -441,7 +439,7 @@ contract Deployer_M1 is Script, Test {
         require(eigenPodImplementation.REQUIRED_BALANCE_WEI() == 31 ether,
             "eigenPod: REQUIRED_BALANCE_WEI initialized incorrectly");
 
-        require(strategyManager.strategyWhitelister() == communityMultisig,
+        require(strategyManager.strategyWhitelister() == teamMultisig,
             "strategyManager: strategyWhitelister address not set correctly");
 
         require(eigenPodManager.beaconChainOracle() == IBeaconChainOracle(address(0)),
