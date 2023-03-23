@@ -66,7 +66,6 @@ contract Deployer_M1 is Script, Test {
 
     EmptyContract public emptyContract;
 
-    // TODO: set these addresses
     address communityMultisig;
     address teamMultisig;
 
@@ -213,7 +212,6 @@ contract Deployer_M1 is Script, Test {
             address(eigenPodManagerImplementation),
             abi.encodeWithSelector(
                 EigenPodManager.initialize.selector,
-                // TODO: change this?
                 IBeaconChainOracle(address(0)),
                 communityMultisig,
                 eigenLayerPauserReg,
