@@ -3,6 +3,7 @@ then
     RULE="--rule $2"
 fi
 
+solc-select use 0.8.12
 
 certoraRun certora/harnesses/DelegationManagerHarness.sol \
     lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol lib/openzeppelin-contracts/contracts/mocks/ERC1271WalletMock.sol \
@@ -10,9 +11,9 @@ certoraRun certora/harnesses/DelegationManagerHarness.sol \
     certora/munged/core/Slasher.sol certora/munged/permissions/PauserRegistry.sol \
     --verify DelegationManagerHarness:certora/specs/core/DelegationManager.spec \
     --optimistic_loop \
-    --send_only \
-    --settings -optimisticFallback=true \
+    --prover_args '-optimisticFallback true' \
+    --optimistic_hashing \
     $RULE \
-    --loop_iter 3 \
+    --loop_iter 2 \
     --packages @openzeppelin=lib/openzeppelin-contracts @openzeppelin-upgrades=lib/openzeppelin-contracts-upgradeable \
     --msg "DelegationManager $1 $2" \

@@ -9,6 +9,8 @@ contract SlasherMock is ISlasher, Test {
 
     mapping(address => bool) public isFrozen;
     bool public _canWithdraw = true;
+    IStrategyManager public strategyManager;
+    IDelegationManager public delegation;
 
     function setCanWithdrawResponse(bool response) external {
         _canWithdraw = response;
@@ -63,7 +65,7 @@ contract SlasherMock is ISlasher, Test {
     function middlewareTimesLength(address operator) external view returns (uint256) {}
 
     /// @notice Getter function for fetching `operatorToMiddlewareTimes[operator][index].stalestUpdateBlock`.
-    function getMiddlewareTimesIndexBlock(address operator, uint32 index) external view returns(uint32) {}
+    function getMiddlewareTimesIndexStalestUpdateBlock(address operator, uint32 index) external view returns(uint32) {}
 
     /// @notice Getter function for fetching `operatorToMiddlewareTimes[operator][index].latestServeUntilBlock`.
     function getMiddlewareTimesIndexServeUntilBlock(address operator, uint32 index) external view returns(uint32) {}

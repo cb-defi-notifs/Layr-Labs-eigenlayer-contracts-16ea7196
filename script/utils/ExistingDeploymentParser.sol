@@ -46,13 +46,15 @@ contract ExistingDeploymentParser is Script, Test {
     address executorMultisig;
     address operationsMultisig;
 
-    // strategies deployed
-    StrategyBase[] public deployedStrategyArray;
+    string chainName;
+    string existingDeploymentInfoPath;
 
-    function _parseDeployedContracts(string memory existingDeploymentInfoPath) internal {
+    function _parseDeployedContracts() internal {
         // read and log the chainID
         uint256 currentChainId = block.chainid;
         emit log_named_uint("You are parsing on ChainID", currentChainId);
+
+        _setCurrentChainInfo();
 
         // READ JSON CONFIG DATA
         string memory existingDeploymentData = vm.readFile(existingDeploymentInfoPath);
@@ -79,7 +81,7 @@ contract ExistingDeploymentParser is Script, Test {
         delayedWithdrawalRouterImplementation = 
             DelayedWithdrawalRouter(stdJson.readAddress(existingDeploymentData, ".addresses.delayedWithdrawalRouterImplementation"));
         eigenPodBeacon = UpgradeableBeacon(stdJson.readAddress(existingDeploymentData, ".addresses.eigenPodBeacon"));
-        eigenPodImplementation = EigenPod(stdJson.readAddress(existingDeploymentData, ".addresses.eigenPodImplementation"));
+        eigenPodImplementation = EigenPod(payable(stdJson.readAddress(existingDeploymentData, ".addresses.eigenPodImplementation")));
         baseStrategyImplementation = StrategyBase(stdJson.readAddress(existingDeploymentData, ".addresses.baseStrategyImplementation"));
         emptyContract = EmptyContract(stdJson.readAddress(existingDeploymentData, ".addresses.emptyContract"));
 
@@ -97,5 +99,19 @@ contract ExistingDeploymentParser is Script, Test {
             deployedStrategyArray.push(StrategyBase(strategyList[i]));
         }
         */
+    }
+
+    function _setCurrentChainInfo() internal returns (string memory) {
+        uint256 currentChainId = block.chainid;
+        if (currentChainId == 1) {
+            chainName = "mainnet";
+            existingDeploymentInfoPath = "script/output/M1_deployment_mainnet_2023_6_9.json";
+        } else if (currentChainId == 5) {
+            chainName = "goerli";
+            existingDeploymentInfoPath = "script/output/M1_deployment_goerli_2023_3_23.json";
+        } else {
+            chainName = "unknown";
+        }
+        return chainName;
     }
 }
